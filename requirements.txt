@@ -1,0 +1,9 @@
+fastapi==0.104.1
+uvicorn[standard]==0.24.0.post1
+sqlalchemy==2.0.23
+asyncpg==0.29.0       # PostgreSQL 高性能异步驱动
+pydantic==2.5.2
+pydantic-settings==2.1.0
+python-jose[cryptography]==3.3.0  # 用于 JWT 生成和解析
+passlib[bcrypt]==1.7.4            # 用于密码哈希加密
+python-multipart==0.0.6           # 用于处理表单和 OAuth2
