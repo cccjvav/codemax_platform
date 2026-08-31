@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 —— 工具矩阵（ER 图 / LLM→Mermaid / Word 导出 / Drawio）+ SEO SSR`，**state=OPEN，未合并**
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**133 passed + 1 skipped**；真 PostgreSQL 16.2：**134 passed**
+- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**141 passed + 1 skipped**；真 PostgreSQL 16.2：**142 passed**
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
@@ -25,8 +25,8 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面阶段四再定 Selenium/Playwright。
 
-**实现层面的取舍（88 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
-其中开头列了 8 条待处理的「上线阻塞项」（限流、token 存储、配额、JWT 吊销、CI、日志监控、支付真机联调、无超时关单）；
+**实现层面的取舍（92 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+其中开头列了 9 条待处理的「上线阻塞项」（限流、token 存储、配额、JWT 吊销、CI、日志监控、支付真机联调、无超时关单、模拟支付通道误开）；
 「真库集成测试」那条已经解决（TD-80）。
 
 ## 3. 工程结构
@@ -72,7 +72,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（134 个：SQLite 上 133 绿 + 1 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（142 个：SQLite 上 141 绿 + 1 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）
@@ -163,3 +163,21 @@ DATABASE_URL="postgresql+asyncpg://postgres@/codemax_db?host=/tmp/pgdata" \
 ```
 
 数据目录在 `/tmp/pgdata`，不在工作区快照里 —— 沙箱重启后要重新执行上面几步（TD-123）。
+
+## 10. 模拟支付通道（答辩演示用，TD-124）
+
+没有微信商户号时，用 `SHOP_PAY_MODE=mock` 走本站的模拟收银台：
+
+```bash
+DATABASE_URL="postgresql+asyncpg://postgres@/codemax_db?host=/tmp/pgdata" \
+SHOP_PAY_MODE=mock \
+  .venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+流程：登录后 `POST /shop/orders` → 返回的 `code_url` 指向 `/shop/mock-pay?order_no=...`
+→ 页面上点「模拟支付成功」→ `POST /shop/mock-pay/confirm` 把订单置为 `paid`。
+
+三点必须知道：
+1. 模拟支付走的是与真实回调**完全相同**的状态机与幂等逻辑（`mark_paid`），演示路径＝生产路径
+2. 模拟流水号是 `MOCK-<订单号>`，一眼可辨，上线前要清演示数据
+3. **`SHOP_PAY_MODE=wechat`（默认）时这两个端点一律 404**；生产误开 mock 等于免费发货

@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     SHOP_PRODUCT_NAME: str = "毕设服务"
     SHOP_PRODUCT_AMOUNT: int = 19900
 
+    # 支付通道：wechat = 微信支付（生产必须用这个）；mock = 模拟收银台
+    # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
+    SHOP_PAY_MODE: str = "wechat"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
