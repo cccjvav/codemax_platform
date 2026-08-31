@@ -4,7 +4,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -91,7 +91,14 @@ async def token(
     if oauth_code.expires_at < _utcnow():
         raise _oauth_error("invalid_grant", "授权码已过期")
 
-    oauth_code.used = True
+    # 原子消费授权码：把"检查未使用 + 标记已使用"合成一条 UPDATE，
+    # 并发重放同一个 code 时只有一个请求能拿到 rowcount=1（原先先查后改存在重放窗口）
+    consumed = await db.execute(
+        update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)
+    )
+    if consumed.rowcount != 1:
+        raise _oauth_error("invalid_grant", "授权码无效或已使用")
+
     user = await db.get(User, oauth_code.user_id)
     await db.commit()
 

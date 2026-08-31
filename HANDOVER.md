@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 —— 工具矩阵（ER 图 / LLM→Mermaid / Word 导出 / Drawio）+ SEO SSR`，**state=OPEN，未合并**
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → **74 passed**（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
+- **测试基线**：`.venv/bin/python -m pytest -q` → **89 passed**（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
 
@@ -67,7 +67,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（当前 74 个，应全绿）
+.venv/bin/python -m pytest -q                        # 跑测试（当前 89 个，应全绿）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）
@@ -91,6 +91,13 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
   改用 `gh api -X PATCH repos/<owner>/<repo>/pulls/<n>`；`pkill -f <模式>` 的模式若出现在自己的
   命令行里会**杀掉自己**（用 `mock_[l]lm.py` 这种写法规避）；uvicorn 访问日志里挂载子应用显示的是
   **去掉挂载前缀后**的路径（`/static/er.js` 会记成 `/er.js`），不是 bug
+- **`sql_ddl.py` 的一切结构性判断（括号配对、逗号切分、找 CREATE TABLE / COMMENT ON）
+  都必须先认得字符串字面量与注释**，否则 `COMMENT 'it\'s'`（MySQL 反斜杠转义）、
+  `DEFAULT 'a--b'`、`COMMENT 'x /* y'`、`/* -- x */`、字符串里的 `CREATE TABLE`、
+  `"index"` / `` `key` `` 这类列名都会解析错乱（曾导致整张表丢失）。改这个文件前先看
+  模块 docstring 的清单，改完必须跑 `tests/test_sql_ddl.py`
+- **改解析/生成逻辑前先写"旧代码会红"的测试**：本项目的 bug 回归测试都验证过
+  "在修复前的实现上确实失败"，避免写出永远绿的假测试
 - **浅克隆会让 `git merge-base --is-ancestor` 误判**：先 `git rev-parse --is-shallow-repository`
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）

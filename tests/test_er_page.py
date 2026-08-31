@@ -115,6 +115,26 @@ async def test_layout_consumes_backend_payload(client, tmp_path):
     assert layout["height"] >= max(n["y"] + n["h"] for n in layout["nodes"])
 
 
+async def test_layout_handles_empty_graph(tmp_path):
+    """空输入不能算出负宽度（曾经返回 width=-90）。"""
+    node = shutil.which("node")
+    if node is None:
+        assert "widest ?" in ER_JS.read_text(encoding="utf-8")
+        return
+
+    payload = tmp_path / "graph.json"
+    payload.write_text(json.dumps({"tables": [], "edges": []}), encoding="utf-8")
+    out = subprocess.run(
+        [node, "-e", _NODE_HARNESS, str(payload), str(ER_JS)],
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    layout = json.loads(out.stdout)
+    assert layout["nodes"] == [] and layout["links"] == []
+    assert layout["width"] == 0 and layout["height"] == 0
+
+
 async def test_layout_skips_dangling_fk(tmp_path):
     """外键指向 DDL 之外的表时，只丢这条线，不让整张图崩掉。"""
     node = shutil.which("node")

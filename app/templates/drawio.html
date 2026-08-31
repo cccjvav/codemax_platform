@@ -147,6 +147,7 @@
     nameInput.value = file.name.replace(/\.(drawio|xml)$/i, "");
     send({ action: "load", xml: currentXml });
     status.textContent = `已导入本地文件：${file.name}`;
+    ev.target.value = ""; // 不清空的话，连续导入同一个文件不会再触发 change
   };
 
   document.getElementById("btn-save").onclick = saveToCloud;

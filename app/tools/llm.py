@@ -35,7 +35,8 @@ SYSTEM_PROMPT = """你是 UML 建模助手，把用户给的自然语言描述�
 4. 属性写成 `+类型 名称`；能识别出主键/外键时在类内用 <<PK>> / <<FK>> 注解标出
 5. 信息不足时按常见业务语义合理补全，不要反问"""
 
-_FENCE = re.compile(r"```(?:mermaid|md)?\s*\n(.*?)```", re.DOTALL | re.IGNORECASE)
+# ``` 围栏：闭合与**未闭合**都要能吃下（模型经常忘记收尾的 ```）
+_FENCE = re.compile(r"```(?:mermaid|md)?[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL | re.IGNORECASE)
 
 
 class LLMError(RuntimeError):

@@ -48,6 +48,12 @@ async def test_generate_mermaid_accepts_bare_diagram():
     assert diagram == "classDiagram\nclass A --> B"
 
 
+async def test_generate_mermaid_accepts_unclosed_fence():
+    """模型经常忘记收尾的 ``` —— 这种情况不能把合法类图判成失败。"""
+    diagram = await generate_mermaid("x", llm=FakeLLM("```mermaid\nclassDiagram\nclass A\nclass B"))
+    assert diagram == "classDiagram\nclass A\nclass B"
+
+
 async def test_generate_mermaid_rejects_non_mermaid_reply():
     with pytest.raises(LLMError, match="未返回 Mermaid"):
         await generate_mermaid("x", llm=FakeLLM("抱歉，我无法完成这个请求。"))

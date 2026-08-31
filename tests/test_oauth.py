@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.models import OAuthClient, OAuthCode, User
 from tests.conftest import TestSession
@@ -144,3 +144,24 @@ async def test_unsupported_grant_type(client):
     )
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "unsupported_grant_type"
+
+async def test_code_consumption_is_atomic(client):
+    """授权码消费必须是原子的 compare-and-set，不能"先查后改"（否则并发重放能换出两个 token）。
+
+    真正的并发在 SQLite 单连接上复现不出来，这里直接钉住接口所依赖的原子语义：
+    同一条"仅当未使用时置为已使用"的 UPDATE，第二次执行必须影响 0 行。
+    """
+    headers = await register_and_login(client)
+    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+
+    async with TestSession() as s:
+        stmt = update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)
+        first = await s.execute(stmt)
+        second = await s.execute(stmt)
+        await s.commit()
+    assert (first.rowcount, second.rowcount) == (1, 0)
+
+    # 接口层面：该 code 已被消费，再用必须是 invalid_grant
+    r = await exchange_code(client, code)
+    assert r.status_code == 400
+    assert r.json()["detail"]["error"] == "invalid_grant"

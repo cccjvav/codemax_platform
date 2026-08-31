@@ -65,7 +65,7 @@ function layoutEr(graph) {
   return {
     nodes,
     links,
-    width: widest * (NODE_W + GAP_X) - GAP_X,
+    width: widest ? widest * (NODE_W + GAP_X) - GAP_X : 0, // 空输入不能算出负宽度
     height: Math.max(y - GAP_Y, 0),
     headH: HEAD_H,
     rowH: ROW_H,
