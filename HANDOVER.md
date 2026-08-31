@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 —— 工具矩阵（ER 图 / LLM→Mermaid / Word 导出 / Drawio）+ SEO SSR`，**state=OPEN，未合并**
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → **99 passed**（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
+- **测试基线**：`.venv/bin/python -m pytest -q` → **115 passed**（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
 
@@ -24,7 +24,7 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面阶段四再定 Selenium/Playwright。
 
-**实现层面的取舍（69 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+**实现层面的取舍（78 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
 其中开头列了 7 条「上线阻塞项」（限流、token 存储、配额、JWT 吊销、真库集成测试、CI、日志监控）。
 
 ## 3. 工程结构
@@ -70,7 +70,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（当前 99 个，应全绿）
+.venv/bin/python -m pytest -q                        # 跑测试（当前 115 个，应全绿）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）
@@ -101,6 +101,12 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
   模块 docstring 的清单，改完必须跑 `tests/test_sql_ddl.py`
 - **改解析/生成逻辑前先写"旧代码会红"的测试**：本项目的 bug 回归测试都验证过
   "在修复前的实现上确实失败"，避免写出永远绿的假测试
+- **微信支付的签名必须覆盖「实际发出的字节」**：先 `json.dumps` 成字符串 → 拿这串签名 →
+  把同一串 `encode` 后用 `content=` 发出。改用 `httpx` 的 `json=` 会让它重新序列化
+  （键序 / 空格 / 中文转义），本地照样 200，线上必然验签失败。
+  `test_native_prepay_sends_request_whose_bytes_match_the_signature` 守着这条（已用变异验证过）
+- **沙箱里没有商户号、API 证书与公网回调地址**：支付只能做算法级验证
+  （自签 RSA 密钥验签名 + `httpx.MockTransport` 断言请求），真机联调是上线前必做项（TD-113）
 - **浅克隆会让 `git merge-base --is-ancestor` 误判**：先 `git rev-parse --is-shallow-repository`
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
@@ -112,7 +118,9 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 
 **未开始**
 - S2-02-2 引流→变现转化路径（按选型本轮跳过；可复用阶段一 SSO 跳 `/oauth/authorize?client_id=shop`）
-- 阶段三：**S3-01-2 订单状态机已完成**（`app/order_state.py`：迁移边集中一处、重复通知幂等、迁移走原子 CAS）；余下微信支付 NATIVE + 回调验签/AES-GCM 解密/幂等 + OSS/COS 预签名 URL 一次性下载
+- 阶段三：**S3-01-1 微信支付 NATIVE 下单**（`app/wechat_pay.py` + `POST /shop/orders`）与
+  **S3-01-2 订单状态机**（`app/order_state.py`）已完成；下一步 S3-01-3 回调验签 + AES-GCM 解密 + 幂等，
+  再往后 S3-02 OSS/COS 预签名 URL 一次性下载
 - 阶段四：爬虫（httpx + BeautifulSoup4）+ LLM 内容解析 + 三层智能客服
 - 阶段五：全链路测试 / 压测 / 部署上线
 

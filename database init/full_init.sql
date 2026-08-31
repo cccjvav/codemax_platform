@@ -35,6 +35,8 @@ CREATE TABLE sys_order (
     product_name VARCHAR(100) NOT NULL,
     amount       INTEGER NOT NULL,          -- 金额，单位：分
     status       VARCHAR(20) DEFAULT 'pending',
+    code_url     VARCHAR(512),              -- NATIVE 下单返回的二维码链接
+    transaction_id VARCHAR(64),             -- 微信支付订单号（回调解出）
     paid_at      TIMESTAMP,
     create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP

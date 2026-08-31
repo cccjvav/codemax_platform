@@ -30,6 +30,8 @@ class Order(Base):
     product_name: Mapped[str] = mapped_column(String(100))
     amount: Mapped[int] = mapped_column(Integer)  # 金额，单位：分
     status: Mapped[str] = mapped_column(String(20), default="pending")
+    code_url: Mapped[str | None] = mapped_column(String(512))  # NATIVE 下单返回的二维码链接
+    transaction_id: Mapped[str | None] = mapped_column(String(64))  # 微信支付订单号（回调解出）
     paid_at: Mapped[datetime | None] = mapped_column(DateTime)
     create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())

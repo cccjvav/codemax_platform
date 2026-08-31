@@ -22,6 +22,18 @@ class Settings(BaseSettings):
     # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL
     SITE_BASE_URL: str = "https://codemax.top"
 
+    # 微信支付 APIv3（S3-01）：六项缺一不可，没配齐下单接口直接 503
+    WX_APPID: str = ""
+    WX_MCHID: str = ""  # 商户号
+    WX_SERIAL_NO: str = ""  # 商户 API 证书序列号
+    WX_PRIVATE_KEY: str = ""  # apiclient_key.pem 的内容（PEM 文本）
+    WX_API_V3_KEY: str = ""  # APIv3 密钥（32 字节），回调报文 AES-GCM 解密用
+    WX_NOTIFY_URL: str = ""  # 支付结果回调地址，必须公网可达的 https
+
+    # 商品：阶段三只有一个 SKU，金额单位是分
+    SHOP_PRODUCT_NAME: str = "毕设服务"
+    SHOP_PRODUCT_AMOUNT: int = 19900
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
