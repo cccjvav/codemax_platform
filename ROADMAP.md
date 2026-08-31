@@ -44,9 +44,9 @@
 > 目标：开发引流工具矩阵，并通过 SEO 优化获取自然搜索流量。
 
 - [ ] **S2-01 在线工具矩阵开发（对应难点 5）**
-  - [ ] S2-01-1 工具1：引入 `SQL DDL` 解析库，结合 `D3.js` 开发 ER 图在线渲染功能
+  - [x] S2-01-1 工具1：引入 `SQL DDL` 解析库，结合 `D3.js` 开发 ER 图在线渲染功能
     - [x] 后端：`POST /tools/er-diagram`（`app/tools/sql_ddl.py`，纯标准库解析，兼容 MySQL/PostgreSQL）
-    - [ ] 前端：D3.js 渲染 ER 图页面
+    - [x] 前端：D3.js 渲染 ER 图页面（`app/static/er.html` + `er.js`，访问 `/static/er.html`）
   - [ ] S2-01-2 工具2：接入 LLM 接口，设计 Prompt 实现自然语言/代码到 `Mermaid` 类图的生成
   - [ ] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
   - [ ] S2-01-4 工具4：集成 `Apache POI`，实现前端图表/内容一键导出为 Word 文档的功能

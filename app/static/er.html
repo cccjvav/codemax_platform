@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>SQL DDL 转 ER 图 - 免费在线生成实体关系图 | CodeMax</title>
+    <meta
+      name="description"
+      content="粘贴 CREATE TABLE 语句，免费在线生成 ER 实体关系图，支持 MySQL 与 PostgreSQL 语法（含中文注释、复合主键、外键），无需注册。"
+    />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b; }
+      header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
+      h1 { margin: 0; font-size: 18px; }
+      main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 24px; }
+      textarea { width: 100%; font: 12px/1.5 ui-monospace, Consolas, monospace; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
+      button { padding: 6px 14px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; }
+      button.ghost { background: #fff; color: #3b82f6; }
+      #er-error { color: #b91c1c; white-space: pre-wrap; }
+      #er-canvas { width: 100%; height: 70vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; }
+      @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header><h1>SQL DDL → ER 图</h1></header>
+    <main>
+      <section>
+        <form id="er-form">
+          <textarea id="ddl-input" rows="16" placeholder="CREATE TABLE sys_user (...);"></textarea>
+          <p>
+            <button type="submit" id="er-submit">生成 ER 图</button>
+            <button type="button" class="ghost" id="er-sample">填入示例</button>
+          </p>
+        </form>
+        <p id="er-error" role="alert" hidden></p>
+      </section>
+      <svg id="er-canvas"></svg>
+    </main>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+    <script src="/static/er.js"></script>
+    <script>
+      const SAMPLE = [
+        "CREATE TABLE sys_user (",
+        "  id SERIAL PRIMARY KEY,",
+        "  username VARCHAR(50) NOT NULL COMMENT '登录名'",
+        ");",
+        "CREATE TABLE sys_order (",
+        "  id SERIAL PRIMARY KEY,",
+        "  user_id INT NOT NULL REFERENCES sys_user(id),",
+        "  amount NUMERIC(10,2)",
+        ");",
+      ].join("\n");
+
+      const form = document.getElementById("er-form");
+      const input = document.getElementById("ddl-input");
+      const error = document.getElementById("er-error");
+      const submit = document.getElementById("er-submit");
+
+      document.getElementById("er-sample").onclick = () => {
+        input.value = SAMPLE;
+      };
+
+      function fail(msg) {
+        error.hidden = false;
+        error.textContent = msg;
+      }
+
+      form.onsubmit = async (ev) => {
+        ev.preventDefault();
+        error.hidden = true;
+        submit.disabled = true;
+        try {
+          const res = await fetch("/tools/er-diagram", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ddl: input.value }),
+          });
+          const data = await res.json();
+          if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+          renderEr("#er-canvas", data);
+        } catch (e) {
+          fail(`渲染失败：${e.message}`);
+        } finally {
+          submit.disabled = false;
+        }
+      };
+    </script>
+  </body>
+</html>
