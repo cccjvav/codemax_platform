@@ -1,0 +1,186 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .toolbar input[type="text"], .toolbar input[type="password"], .toolbar select {
+    padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit;
+  }
+  #drawio-frame { width: 100%; height: 74vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
+  #drawio-status { color: #64748b; }
+  .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
+</style>
+
+<div class="auth">
+  <span>云端保存需登录：</span>
+  <input type="text" id="login-user" placeholder="用户名" size="10" />
+  <input type="password" id="login-pass" placeholder="密码" size="10" />
+  <button type="button" class="ghost" id="btn-login">登录</button>
+  <span id="auth-status"></span>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="diagram-name" placeholder="流程图名称" />
+  <select id="diagram-list"><option value="">— 我的流程图 —</option></select>
+  <button type="button" id="btn-new">新建</button>
+  <button type="button" id="btn-save">保存到云端</button>
+  <button type="button" class="ghost" id="btn-download">下载 .drawio</button>
+  <button type="button" class="ghost" id="btn-import">导入本地文件</button>
+  <input type="file" id="file-input" accept=".drawio,.xml" hidden />
+  <span id="drawio-status"></span>
+</div>
+
+<iframe id="drawio-frame" title="Drawio 流程图编辑器" src="https://embed.diagrams.net/?embed=1&amp;ui=atlas&amp;spin=1&amp;proto=json&amp;saveAndExit=0&amp;noExitBtn=1"></iframe>
+
+<script>
+  const ORIGIN = "https://embed.diagrams.net";
+  const BLANK = '<mxfile><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
+
+  const frame = document.getElementById("drawio-frame");
+  const status = document.getElementById("drawio-status");
+  const authStatus = document.getElementById("auth-status");
+  const nameInput = document.getElementById("diagram-name");
+  const list = document.getElementById("diagram-list");
+
+  let currentId = null; // null = 尚未保存到云端的新图
+  let currentXml = BLANK;
+
+  const token = () => localStorage.getItem("codemax_token");
+
+  function send(msg) {
+    frame.contentWindow.postMessage(JSON.stringify(msg), ORIGIN);
+  }
+
+  function api(url, method, body) {
+    return fetch(url, {
+      method,
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token() || ""}` },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  // ---- 与 drawio iframe 的 postMessage 协议 ----
+  window.addEventListener("message", (evt) => {
+    if (evt.origin !== ORIGIN || evt.source !== frame.contentWindow) return; // 只认 drawio 的消息
+    let msg;
+    try {
+      msg = JSON.parse(evt.data);
+    } catch {
+      return;
+    }
+    if (msg.event === "init") send({ action: "load", xml: currentXml });
+    if (msg.event === "save") {
+      currentXml = msg.xml;
+      saveToCloud();
+    }
+    if (msg.event === "autosave") currentXml = msg.xml;
+  });
+
+  // ---- 云端保存 ----
+  async function saveToCloud() {
+    if (!token()) {
+      status.textContent = "未登录，未保存";
+      return;
+    }
+    const res = await api(currentId ? `/diagrams/${currentId}` : "/diagrams", currentId ? "PUT" : "POST", {
+      name: nameInput.value.trim() || "未命名流程图",
+      content: currentXml,
+    });
+    if (res.status === 401) {
+      status.textContent = "登录已失效，请重新登录";
+      return;
+    }
+    if (!res.ok) {
+      status.textContent = `保存失败（${res.status}）`;
+      return;
+    }
+    const saved = await res.json();
+    currentId = saved.id;
+    status.textContent = `已保存到云端（#${saved.id}）`;
+    await refreshList();
+  }
+
+  async function refreshList() {
+    if (!token()) return;
+    const res = await api("/diagrams", "GET");
+    if (!res.ok) return;
+    const items = await res.json();
+    list.innerHTML = '<option value="">— 我的流程图 —</option>';
+    for (const d of items) {
+      const opt = document.createElement("option");
+      opt.value = d.id;
+      opt.textContent = d.name;
+      list.appendChild(opt);
+    }
+    if (currentId) list.value = String(currentId);
+  }
+
+  async function openFromCloud(id) {
+    const res = await api(`/diagrams/${id}`, "GET");
+    if (!res.ok) {
+      status.textContent = `读取失败（${res.status}）`;
+      return;
+    }
+    const d = await res.json();
+    currentId = d.id;
+    currentXml = d.content;
+    nameInput.value = d.name;
+    send({ action: "load", xml: currentXml });
+    status.textContent = `已打开 #${d.id}`;
+  }
+
+  // ---- 本地保存 / 导入 ----
+  document.getElementById("btn-download").onclick = () => {
+    const url = URL.createObjectURL(new Blob([currentXml], { type: "application/xml" }));
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${nameInput.value.trim() || "diagram"}.drawio`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  document.getElementById("btn-import").onclick = () => document.getElementById("file-input").click();
+  document.getElementById("file-input").onchange = async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    currentXml = await file.text();
+    currentId = null;
+    nameInput.value = file.name.replace(/\.(drawio|xml)$/i, "");
+    send({ action: "load", xml: currentXml });
+    status.textContent = `已导入本地文件：${file.name}`;
+  };
+
+  document.getElementById("btn-save").onclick = saveToCloud;
+  document.getElementById("btn-new").onclick = () => {
+    currentId = null;
+    currentXml = BLANK;
+    nameInput.value = "";
+    list.value = "";
+    send({ action: "load", xml: currentXml });
+    status.textContent = "已新建空白流程图";
+  };
+  list.onchange = () => list.value && openFromCloud(list.value);
+
+  document.getElementById("btn-login").onclick = async () => {
+    const res = await fetch("/auth/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        username: document.getElementById("login-user").value,
+        password: document.getElementById("login-pass").value,
+      }),
+    });
+    if (!res.ok) {
+      authStatus.textContent = `登录失败（${res.status}）`;
+      return;
+    }
+    localStorage.setItem("codemax_token", (await res.json()).access_token);
+    authStatus.textContent = "已登录";
+    await refreshList();
+  };
+
+  if (token()) {
+    authStatus.textContent = "已登录";
+    refreshList();
+  }
+</script>
+{% endblock %}

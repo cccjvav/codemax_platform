@@ -46,6 +46,19 @@ class SysConfig(Base):
     remark: Mapped[str | None] = mapped_column(String(255))
 
 
+class SysDiagram(Base):
+    """用户的 Drawio 流程图（S2-01-3）：content 存 drawio XML，属用户私有资产。"""
+
+    __tablename__ = "sys_diagram"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
+    name: Mapped[str] = mapped_column(String(100))
+    content: Mapped[str] = mapped_column(Text)
+    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
 class OAuthClient(Base):
     """OAuth2 客户端（接入 SSO 的第三方应用/平台）。"""
 

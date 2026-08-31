@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -26,3 +28,20 @@ class ErDiagramIn(BaseModel):
 
 class MermaidIn(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
+
+
+class DiagramIn(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    content: str = Field(min_length=1, max_length=500000)  # drawio XML 可能较大
+
+
+class DiagramSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    name: str
+    update_time: datetime
+
+
+class DiagramOut(DiagramSummary):
+    content: str

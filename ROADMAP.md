@@ -46,14 +46,16 @@
 
 > 目标：开发引流工具矩阵，并通过 SEO 优化获取自然搜索流量。
 
-- [ ] **S2-01 在线工具矩阵开发（对应难点 5）**
+- [x] **S2-01 在线工具矩阵开发（对应难点 5）**
   - [x] S2-01-1 工具1：引入 `SQL DDL` 解析库，结合 `D3.js` 开发 ER 图在线渲染功能
     - [x] 后端：`POST /tools/er-diagram`（`app/tools/sql_ddl.py`，纯标准库解析，兼容 MySQL/PostgreSQL）
     - [x] 前端：D3.js 渲染 ER 图页面（`app/static/er.html` + `er.js`，访问 `/static/er.html`）
   - [x] S2-01-2 工具2：接入 LLM 接口，设计 Prompt 实现自然语言/代码到 `Mermaid` 类图的生成
     - [x] 后端：`POST /tools/mermaid`（`app/tools/llm.py`，OpenAI 兼容客户端**可注入**，测试不出网）
     - [x] 前端：`app/static/mermaid.html`（Mermaid v11 渲染 + 源码可复制）
-  - [ ] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
+  - [x] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
+    - [x] 后端：`/diagrams` CRUD（新表 `sys_diagram`，**需鉴权**且只能读写自己的；`app/models.py` 与 `database init/full_init.sql` 已同步）
+    - [x] 前端：`app/templates/drawio.html`（embed.diagrams.net iframe + postMessage 协议；云端保存 / 下载 .drawio / 导入本地文件）
   - [x] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
     - [x] 后端：`POST /tools/word-export`（`app/tools/word.py`，DDL → 数据字典 .docx）
     - [x] 前端：ER 图页面「导出 Word」按钮（`/static/er.html`）

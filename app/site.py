@@ -48,6 +48,14 @@ TOOLS = (
         keywords="UML类图,Mermaid,AI生成类图,自然语言建模,在线工具",
         template="mermaid.html",
     ),
+    Tool(
+        key="drawio",
+        title="Drawio 在线流程图",
+        path="/tools/drawio",
+        description="在线流程图编辑器，iframe 嵌入 Drawio，免安装直接画图；登录后可云端保存与继续编辑，也可下载 .drawio 文件到本地。",
+        keywords="在线流程图,Drawio,流程图编辑器,Visio替代,免费画图",
+        template="drawio.html",
+    ),
 )
 
 PAGES = (HOME, *TOOLS)  # 路由与 sitemap 的完整页面清单（首页 + 工具页）

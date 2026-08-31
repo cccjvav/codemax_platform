@@ -8,6 +8,7 @@
 -- ============================================================
 
 -- 1. 删除已存在的表（如果存在，便于重复执行）
+DROP TABLE IF EXISTS sys_diagram CASCADE;
 DROP TABLE IF EXISTS oauth_code CASCADE;
 DROP TABLE IF EXISTS oauth_client CASCADE;
 DROP TABLE IF EXISTS sys_order CASCADE;
@@ -79,3 +80,14 @@ CREATE TABLE oauth_code (
 INSERT INTO oauth_client (client_id, client_secret_hash, name, redirect_uri) VALUES
 ('tools', '$2b$12$YRBHm2yQf9N6Yfq56wg/MeCUl0iPCYEkqAxtD815g/WrKP05s6nuS', '工具平台', 'https://tools.codemax.top/callback'),
 ('shop',  '$2b$12$GUioADBiOgOS7Akgme1/5e/r6B5BIxZ/PmVlBSNRVi8LG4cfSlmQK', '商业平台', 'https://shop.codemax.top/callback');
+
+-- 9. Drawio 流程图表（S2-01-3，用户私有资产；需与 app/models.py 的 SysDiagram 保持一致）
+CREATE TABLE sys_diagram (
+    id          SERIAL PRIMARY KEY,
+    user_id     INTEGER NOT NULL REFERENCES sys_user(id),
+    name        VARCHAR(100) NOT NULL,
+    content     TEXT NOT NULL,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX idx_sys_diagram_user ON sys_diagram (user_id);

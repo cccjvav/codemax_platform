@@ -3,6 +3,7 @@
 重点不只是"页面能返回 200"，而是**后端接口与前端代码的字段契约**：
 拿 /tools/er-diagram 的真实返回喂给 app/static/er.js 的 layoutEr（用 node 真实执行），
 一旦后端字段改名而前端没跟上，这里立刻报错。
+期望的表名/连线一律从接口返回推导，项目加表不会误报。
 """
 import json
 import re
@@ -83,19 +84,17 @@ async def test_layout_consumes_backend_payload(client, tmp_path):
     )
     layout = json.loads(out.stdout)
 
-    # 表节点：与后端一致，且带列信息
-    assert [n["name"] for n in layout["nodes"]] == [
-        "sys_user",
-        "sys_order",
-        "sys_config",
-        "oauth_client",
-        "oauth_code",
-    ]
+    # 表节点：与后端返回的表一一对应，且带列信息
+    assert [n["name"] for n in layout["nodes"]] == [t["name"] for t in graph["tables"]]
+    assert "sys_diagram" in [n["name"] for n in layout["nodes"]]  # S2-01-3 新增表也要画得出来
     assert all(n["columns"] for n in layout["nodes"])
     assert any(c["primary_key"] for n in layout["nodes"] for c in n["columns"])
 
-    # 外键连线：3 条，两端坐标都落在对应表节点上
-    assert len(layout["links"]) == 3
+    # 外键连线：与后端 edges 一一对应，两端坐标都落在对应表节点上
+    assert {(link["from"], link["label"], link["to"]) for link in layout["links"]} == {
+        (e["from_table"], f"{e['from_column']} → {e['to_column']}", e["to_table"]) for e in graph["edges"]
+    }
+    assert {"sys_order", "oauth_code", "sys_diagram"} <= {link["from"] for link in layout["links"]}
     by_name = {n["name"]: n for n in layout["nodes"]}
     for link in layout["links"]:
         src, dst = by_name[link["from"]], by_name[link["to"]]
