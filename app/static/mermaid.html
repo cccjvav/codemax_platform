@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>自然语言生成 UML 类图 - 免费在线 AI 转 Mermaid | CodeMax</title>
+    <meta
+      name="description"
+      content="用一句话或一段代码，免费在线生成 UML 类图（Mermaid 语法），支持继承、组合、聚合、关联关系，可直接复制源码。"
+    />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b; }
+      header { padding: 16px 24px; border-bottom: 1px solid #e2e8f0; }
+      h1 { margin: 0; font-size: 18px; }
+      main { display: grid; grid-template-columns: 380px 1fr; gap: 16px; padding: 16px 24px; }
+      textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit; }
+      button { padding: 6px 14px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; }
+      button.ghost { background: #fff; color: #3b82f6; }
+      #mermaid-error { color: #b91c1c; white-space: pre-wrap; }
+      #mermaid-preview { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 12px; min-height: 300px; overflow: auto; }
+      pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; overflow: auto; }
+      @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header><h1>自然语言 / 代码 → UML 类图</h1></header>
+    <main>
+      <section>
+        <form id="mermaid-form">
+          <textarea id="text-input" rows="12" placeholder="例：电商系统里有用户、商品、订单，一个用户可以下多个订单"></textarea>
+          <p>
+            <button type="submit" id="mermaid-submit">生成类图</button>
+            <button type="button" class="ghost" id="mermaid-sample">填入示例</button>
+          </p>
+        </form>
+        <p id="mermaid-error" role="alert" hidden></p>
+        <pre id="mermaid-source" hidden></pre>
+      </section>
+      <div id="mermaid-preview"></div>
+    </main>
+
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+
+      const SAMPLE = "电商系统里有用户、商品、订单，一个用户可以下多个订单，订单包含多个订单项";
+      const form = document.getElementById("mermaid-form");
+      const input = document.getElementById("text-input");
+      const error = document.getElementById("mermaid-error");
+      const source = document.getElementById("mermaid-source");
+      const preview = document.getElementById("mermaid-preview");
+      const submit = document.getElementById("mermaid-submit");
+
+      document.getElementById("mermaid-sample").onclick = () => {
+        input.value = SAMPLE;
+      };
+
+      function fail(msg) {
+        error.hidden = false;
+        error.textContent = msg;
+      }
+
+      form.onsubmit = async (ev) => {
+        ev.preventDefault();
+        error.hidden = true;
+        submit.disabled = true;
+        try {
+          const res = await fetch("/tools/mermaid", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text: input.value }),
+          });
+          const data = await res.json();
+          if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+          source.hidden = false;
+          source.textContent = data.mermaid;
+          preview.removeAttribute("data-processed");
+          preview.textContent = data.mermaid;
+          await mermaid.run({ nodes: [preview] });
+        } catch (e) {
+          fail(`渲染失败：${e.message}`);
+        } finally {
+          submit.disabled = false;
+        }
+      };
+    </script>
+  </body>
+</html>

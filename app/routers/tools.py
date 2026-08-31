@@ -2,7 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from ..deps import get_current_user
 from ..models import User
-from ..schemas import ErDiagramIn
+from ..schemas import ErDiagramIn, MermaidIn
+from ..tools.llm import LLMClient, LLMError, generate_mermaid, get_llm
 from ..tools.sql_ddl import parse_ddl
 
 router = APIRouter(prefix="/tools", tags=["工具平台"])
@@ -24,3 +25,16 @@ async def er_diagram(data: ErDiagramIn) -> dict:
     if not graph["tables"]:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
     return graph
+
+
+@router.post("/mermaid")
+async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
+    """S2-01-2：自然语言/代码 → Mermaid 类图。
+
+    同为引流工具，不设鉴权；LLM 客户端通过依赖注入，测试不会真打网络。
+    """
+    try:
+        diagram = await generate_mermaid(data.text, llm=llm)
+    except LLMError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    return {"mermaid": diagram}

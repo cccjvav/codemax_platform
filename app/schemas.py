@@ -22,3 +22,7 @@ class TokenOut(BaseModel):
 
 class ErDiagramIn(BaseModel):
     ddl: str = Field(min_length=1, max_length=20000)
+
+
+class MermaidIn(BaseModel):
+    text: str = Field(min_length=1, max_length=10000)
