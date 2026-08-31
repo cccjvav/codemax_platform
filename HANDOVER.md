@@ -24,6 +24,9 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面阶段四再定 Selenium/Playwright。
 
+**实现层面的取舍（64 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+其中开头列了 7 条「上线阻塞项」（限流、token 存储、配额、JWT 吊销、真库集成测试、CI、日志监控）。
+
 ## 3. 工程结构
 
 ```

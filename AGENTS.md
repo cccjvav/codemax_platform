@@ -10,6 +10,9 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
+> 具体到实现层面的取舍（64 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
+
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
    - 导出 Word → `python-docx`（不是 Apache POI）
    - 爬虫 → `httpx` + `BeautifulSoup4`（不是 HttpClient + Jsoup）
@@ -24,3 +27,4 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 - 配置：`.env`（模板 `.env.example`），`.env` 不提交
 - Skills：`.claude/skills/`（fastapi-python、python-testing、codemax-workflow）
 - 详细路线图：`ROADMAP.md`
+- 实现取舍清单（含上线阻塞项）：`TECH_DECISIONS.md`
