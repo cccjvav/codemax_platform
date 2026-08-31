@@ -8,4 +8,11 @@ pydantic==2.5.2
 pydantic-settings==2.1.0
 python-jose[cryptography]==3.3.0  # 用于 JWT 生成和解析
 passlib[bcrypt]==1.7.4            # 用于密码哈希加密
+bcrypt==4.0.1                     # 固定版本，兼容 passlib 1.7.4
 python-multipart==0.0.6           # 用于处理表单和 OAuth2
+
+# ---- 测试依赖 ----
+pytest==7.4.4
+pytest-asyncio==0.23.6
+httpx==0.25.2          # 测试用 AsyncClient
+aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）

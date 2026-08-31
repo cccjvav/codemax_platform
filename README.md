@@ -5,21 +5,44 @@
 ## 技术栈
 
 - 后端：FastAPI + SQLAlchemy 2.0（异步）+ asyncpg
-- 数据库：**PostgreSQL**
-- 认证：JWT + bcrypt
+- 数据库：PostgreSQL
+- 认证：JWT（python-jose）+ bcrypt（passlib）
 
-## 数据库初始化（PostgreSQL）
-
-1. 安装依赖：`pip install -r requirements.txt`
-2. 复制 `.env.example` 为 `.env` 并填入实际配置（`DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD`）
-3. 执行初始化：
+## 快速开始
 
 ```bash
-cd "database init"
-python db_init.py
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 复制 .env.example 为 .env 并填入实际配置
+cp .env.example .env
+
+# 3. 初始化数据库（自动建库建表，幂等；测试账号 admin/123456）
+cd "database init" && python db_init.py && cd ..
+
+# 4. 启动服务
+uvicorn main:app --reload   # http://localhost:8000/docs
 ```
 
-脚本会自动：连接维护库 `postgres` → 创建目标库 `codemax_db`（若不存在）→ 执行 `full_init.sql` 建表并插入测试账号（admin / 123456）。可重复执行（幂等）。
+## 运行测试
+
+```bash
+./.venv/bin/python -m pytest -q
+```
+
+## 当前 API（阶段一：认证与 SSO 骨架）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/auth/register` | 注册（返回用户信息，不含密码） |
+| POST | `/auth/login` | 登录（OAuth2 表单，返回 JWT access_token） |
+| GET | `/auth/me` | 当前用户（需 Bearer Token） |
+| GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
+| GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
+| GET | `/health` | 健康检查 |
+
+> SSO 说明：统一认证中心签发 JWT，工具平台与商业平台共享同一登录态（一次登录，全平台可用）。
+> 阶段一基于 OAuth2 密码模式 + JWT 无状态 Token 实现；完整的 OAuth2 授权码流程（第三方应用授权）作为后续迭代。
 
 ## Agent Skills
 
