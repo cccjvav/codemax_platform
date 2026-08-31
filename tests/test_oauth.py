@@ -1,9 +1,11 @@
+import asyncio
 from datetime import datetime, timedelta, timezone
 
+import pytest
 from sqlalchemy import select, update
 
 from app.models import OAuthClient, OAuthCode, User
-from tests.conftest import TestSession
+from tests.conftest import TEST_DATABASE_URL, TestSession
 
 TOOLS_CB = "https://tools.codemax.top/callback"
 
@@ -165,3 +167,26 @@ async def test_code_consumption_is_atomic(client):
     r = await exchange_code(client, code)
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "invalid_grant"
+
+
+@pytest.mark.skipif(
+    TEST_DATABASE_URL.startswith("sqlite"),
+    reason="需要真数据库：SQLite 用 StaticPool 共享单连接，两个请求排不成真正的并发",
+)
+async def test_code_single_use_under_real_concurrency(client):
+    """真并发下同一授权码只能被消费一次。
+
+    这条测试过去写不了：SQLite + StaticPool 只有一个共享连接，两个请求实际是串行的，
+    测不出竞态，所以当时只断言了 CAS 语义本身（上面那条 rowcount 测试）。
+    跑在真 PostgreSQL 上时两个请求各拿一条连接，第二个会在行锁上等第一个提交，
+    然后重新判定 WHERE，命中 0 行 → invalid_grant。结果与调度顺序无关，不是碰运气。
+
+    跑法：TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" pytest -q
+    """
+    headers = await register_and_login(client, username="racer")
+    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+
+    results = await asyncio.gather(exchange_code(client, code), exchange_code(client, code))
+    assert sorted(r.status_code for r in results) == [200, 400], "必须恰好一个成功、一个失败"
+    failed = next(r for r in results if r.status_code == 400)
+    assert failed.json()["detail"]["error"] == "invalid_grant"

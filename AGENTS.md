@@ -10,7 +10,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（85 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（88 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：

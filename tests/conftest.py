@@ -1,3 +1,4 @@
+import os
 import sys
 from pathlib import Path
 
@@ -6,19 +7,31 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # 仓库根加入 
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool, StaticPool
 
 from app.database import Base, get_db
 from app.models import OAuthClient
 from app.security import hash_password
 from main import app
 
-# 测试用内存 SQLite（StaticPool 保证所有连接共享同一内存库）
-engine = create_async_engine(
-    "sqlite+aiosqlite://",
-    poolclass=StaticPool,
-    connect_args={"check_same_thread": False},
-)
+# 测试库默认是内存 SQLite（StaticPool 保证所有连接共享同一内存库）。
+# 设 TEST_DATABASE_URL 就能整套跑在真 PostgreSQL 上，用来消掉「集成测试只跑 SQLite」
+# 这个上线阻塞项（TECH_DECISIONS.md TD-80）：
+#   TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
+#     .venv/bin/python -m pytest -q
+# 注意别指向正在用的业务库 —— fixture 每个用例都会 create_all / drop_all。
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite://")
+
+if TEST_DATABASE_URL.startswith("sqlite"):
+    engine = create_async_engine(
+        TEST_DATABASE_URL, poolclass=StaticPool, connect_args={"check_same_thread": False}
+    )
+else:
+    # 真库必须用 NullPool：asyncpg 的连接绑死在创建它的事件循环上，而 pytest-asyncio
+    # 每个用例开一个新 loop。用默认连接池会复用到上一个 loop 的连接，报
+    # "got Future attached to a different loop"。SQLite 那边因为是 StaticPool
+    # 单连接才没暴露这个问题。
+    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
 
 # 测试种子：两个 SSO 接入平台（与 database init/full_init.sql 一致）
