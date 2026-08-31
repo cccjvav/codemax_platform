@@ -21,6 +21,16 @@ python db_init.py
 
 脚本会自动：连接维护库 `postgres` → 创建目标库 `codemax_db`（若不存在）→ 执行 `full_init.sql` 建表并插入测试账号（admin / 123456）。可重复执行（幂等）。
 
+## Agent Skills
+
+本仓库内置 Agent Skills（`.claude/skills/`，SKILL.md 开放标准，Claude Code / Cursor / Copilot 等兼容）：
+
+| Skill | 作用 |
+| --- | --- |
+| `codemax-workflow` | **项目专属工作流**：代码尽量简洁、写完必须测试、不过则迭代（硬性要求） |
+| `fastapi-python` | FastAPI 开发规范（异步、Pydantic、函数式简洁写法） |
+| `python-testing` | pytest 测试规范（TDD、fixtures、mock、覆盖率） |
+
 ## 文档
 
 - 📋 开发路线图（To-Do List）：[ROADMAP.md](./ROADMAP.md)
