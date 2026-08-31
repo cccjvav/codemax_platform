@@ -18,3 +18,7 @@ class UserOut(BaseModel):
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
+
+
+class ErDiagramIn(BaseModel):
+    ddl: str = Field(min_length=1, max_length=20000)
