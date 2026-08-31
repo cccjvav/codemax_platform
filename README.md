@@ -5,21 +5,56 @@
 ## 技术栈
 
 - 后端：FastAPI + SQLAlchemy 2.0（异步）+ asyncpg
-- 数据库：**PostgreSQL**
-- 认证：JWT + bcrypt
+- 数据库：PostgreSQL
+- 认证：JWT（python-jose）+ bcrypt（passlib）
 
-## 数据库初始化（PostgreSQL）
-
-1. 安装依赖：`pip install -r requirements.txt`
-2. 复制 `.env.example` 为 `.env` 并填入实际配置（`DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD`）
-3. 执行初始化：
+## 快速开始
 
 ```bash
-cd "database init"
-python db_init.py
+# 1. 安装依赖
+pip install -r requirements.txt
+
+# 2. 复制 .env.example 为 .env 并填入实际配置
+cp .env.example .env
+
+# 3. 初始化数据库（自动建库建表，幂等；测试账号 admin/123456）
+cd "database init" && python db_init.py && cd ..
+
+# 4. 启动服务
+uvicorn main:app --reload   # http://localhost:8000/docs
 ```
 
-脚本会自动：连接维护库 `postgres` → 创建目标库 `codemax_db`（若不存在）→ 执行 `full_init.sql` 建表并插入测试账号（admin / 123456）。可重复执行（幂等）。
+## 运行测试
+
+```bash
+./.venv/bin/python -m pytest -q
+```
+
+## 当前 API（阶段一：认证 + OAuth2 授权码 SSO）
+
+| 方法 | 路径 | 说明 |
+| --- | --- | --- |
+| POST | `/auth/register` | 注册（返回用户信息，不含密码） |
+| POST | `/auth/login` | 登录（OAuth2 表单，返回 JWT access_token） |
+| GET | `/auth/me` | 当前用户（需 Bearer Token） |
+| GET | `/oauth/authorize` | **授权码端点**：已登录用户向第三方应用签发一次性 code（302 跳回调） |
+| POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
+| GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
+| GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
+| GET | `/health` | 健康检查 |
+
+> **SSO（OAuth2 授权码模式）流程**：用户登录认证中心拿会话 JWT → 携带 JWT 访问
+> `/oauth/authorize?response_type=code&client_id=...&redirect_uri=...&state=...`
+> → 认证中心校验后 302 跳回回调地址携带一次性 code → 客户端用 `/oauth/token` 以
+> `code + client_secret` 换取 access_token → 用 access_token 访问双平台受保护资源。
+> 授权码一次性、10 分钟有效；客户端密钥在库中只存 bcrypt 哈希。
+
+### 演示客户端（种子数据，仅演示用）
+
+| client_id | client_secret | 回调地址 |
+| --- | --- | --- |
+| `tools` | `codemax-tools-secret` | `https://tools.codemax.top/callback` |
+| `shop` | `codemax-shop-secret` | `https://shop.codemax.top/callback` |
 
 ## Agent Skills
 
