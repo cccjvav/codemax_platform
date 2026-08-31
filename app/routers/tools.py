@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 
 from ..deps import get_current_user
 from ..models import User
 from ..schemas import ErDiagramIn, MermaidIn
 from ..tools.llm import LLMClient, LLMError, generate_mermaid, get_llm
 from ..tools.sql_ddl import parse_ddl
+from ..tools.word import FILENAME, MIME_DOCX, build_data_dictionary
 
 router = APIRouter(prefix="/tools", tags=["工具平台"])
 
@@ -38,3 +39,16 @@ async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
     except LLMError as exc:
         raise HTTPException(502, str(exc)) from exc
     return {"mermaid": diagram}
+
+
+@router.post("/word-export")
+async def word_export(data: ErDiagramIn) -> Response:
+    """S2-01-4：把 DDL 解析结果导出为 Word 数据字典（python-docx）。"""
+    graph = parse_ddl(data.ddl)
+    if not graph["tables"]:
+        raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
+    return Response(
+        build_data_dictionary(graph),
+        media_type=MIME_DOCX,
+        headers={"Content-Disposition": f'attachment; filename="{FILENAME}"'},
+    )

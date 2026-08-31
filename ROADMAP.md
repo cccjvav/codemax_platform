@@ -54,7 +54,9 @@
     - [x] 后端：`POST /tools/mermaid`（`app/tools/llm.py`，OpenAI 兼容客户端**可注入**，测试不出网）
     - [x] 前端：`app/static/mermaid.html`（Mermaid v11 渲染 + 源码可复制）
   - [ ] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
-  - [ ] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
+  - [x] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
+    - [x] 后端：`POST /tools/word-export`（`app/tools/word.py`，DDL → 数据字典 .docx）
+    - [x] 前端：ER 图页面「导出 Word」按钮（`/static/er.html`）
 - [ ] **S2-02 SEO 与流量优化**
   - [ ] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
   - [ ] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示

@@ -56,10 +56,11 @@ async def test_er_page_served(client):
 async def test_er_page_calls_a_registered_route(client):
     """页面里 fetch 的地址必须是真实注册过的路由，防止前后端路径写歪。"""
     html = (await client.get("/static/er.html")).text
-    m = re.search(r"fetch\(['\"]([^'\"]+)['\"]", html)
-    assert m, "页面里没有 fetch 调用"
+    assert 'id="er-word"' in html, "页面缺导出 Word 入口"
+    urls = re.findall(r"fetch\(['\"]([^'\"]+)['\"]", html)
+    assert urls, "页面里没有 fetch 调用"
     registered = {getattr(route, "path", None) for route in app.routes}
-    assert m.group(1) in registered, f"{m.group(1)} 不是已注册路由"
+    assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
 
 async def test_layout_consumes_backend_payload(client, tmp_path):

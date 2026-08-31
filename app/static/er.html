@@ -30,6 +30,7 @@
           <textarea id="ddl-input" rows="16" placeholder="CREATE TABLE sys_user (...);"></textarea>
           <p>
             <button type="submit" id="er-submit">生成 ER 图</button>
+            <button type="button" class="ghost" id="er-word">导出 Word</button>
             <button type="button" class="ghost" id="er-sample">填入示例</button>
           </p>
         </form>
@@ -60,6 +61,29 @@
 
       document.getElementById("er-sample").onclick = () => {
         input.value = SAMPLE;
+      };
+
+      document.getElementById("er-word").onclick = async () => {
+        error.hidden = true;
+        try {
+          const res = await fetch("/tools/word-export", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ddl: input.value }),
+          });
+          if (!res.ok) {
+            const data = await res.json();
+            return fail(data.detail || `导出失败（${res.status}）`);
+          }
+          const url = URL.createObjectURL(await res.blob());
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = "data_dictionary.docx";
+          a.click();
+          URL.revokeObjectURL(url);
+        } catch (e) {
+          fail(`导出失败：${e.message}`);
+        }
       };
 
       function fail(msg) {
