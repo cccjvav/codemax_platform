@@ -29,6 +29,7 @@ class Settings(BaseSettings):
     WX_PRIVATE_KEY: str = ""  # apiclient_key.pem 的内容（PEM 文本）
     WX_API_V3_KEY: str = ""  # APIv3 密钥（32 字节），回调报文 AES-GCM 解密用
     WX_NOTIFY_URL: str = ""  # 支付结果回调地址，必须公网可达的 https
+    WX_PLATFORM_CERT: str = ""  # 微信支付平台证书或微信支付公钥（PEM 文本），回调验签用
 
     # 商品：阶段三只有一个 SKU，金额单位是分
     SHOP_PRODUCT_NAME: str = "毕设服务"
