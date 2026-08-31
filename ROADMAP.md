@@ -11,6 +11,9 @@
 | ORM / 数据库 | SQLAlchemy 2.0 + asyncpg（异步） / PostgreSQL |
 | 认证 | python-jose (JWT) + passlib[bcrypt] |
 | 其他 | pydantic 2.x + pydantic-settings，`python-multipart`（OAuth2 表单） |
+| 前端 | Jinja2 SSR 出 HTML 外壳与 TDK；图表仍客户端渲染（D3.js / Mermaid / Drawio）。**不引入 Node 运行时或 Nuxt/Next 构建链** |
+| 文档导出 | `python-docx`（原路线图写的 Apache POI 是 Java 库，本项目是 Python） |
+| 爬虫 | `httpx` + `BeautifulSoup4`（原路线图写的 HttpClient/Jsoup 是 Java 栈） |
 
 ## 难点 → 技术方案速查
 
@@ -18,9 +21,9 @@
 | --- | --- | --- |
 | 难点1 | 下载链接安全防护 | 阿里云 OSS / 腾讯云 COS；策略模式封装多云；预签名 URL；一次性下载双重校验 |
 | 难点2 | 支付闭环 | 微信支付 NATIVE 扫码；订单状态机（待支付→已支付→已下载）；回调验签 + AES-GCM 解密 + 幂等处理 |
-| 难点3 | 平台内容冷启动 | HttpClient + Jsoup（动态页面 Selenium）；LLM 智能解析 DOM 结构并自动提取入库 |
+| 难点3 | 平台内容冷启动 | httpx + BeautifulSoup4（动态页面阶段四再定 Selenium / Playwright）；LLM 智能解析 DOM 结构并自动提取入库 |
 | 难点4 | 智能客服 | 三层架构：BM25+余弦相似度 FAQ（<80ms）→ BERT 意图路由 → 闲聊 LLM / 专业问题 RAG；低置信度转人工 |
-| 难点5 | 在线工具矩阵 | SQL DDL 解析 + D3.js（ER 图）；LLM→Mermaid；Drawio iframe 嵌入；Apache POI 导出 Word |
+| 难点5 | 在线工具矩阵 | SQL DDL 解析 + D3.js（ER 图）；LLM→Mermaid；Drawio iframe 嵌入；python-docx 导出 Word |
 | 难点6 | 跨域单点登录 | OAuth2 授权码模式统一认证中心 + JWT 无状态 Token |
 
 ---
@@ -51,7 +54,7 @@
     - [x] 后端：`POST /tools/mermaid`（`app/tools/llm.py`，OpenAI 兼容客户端**可注入**，测试不出网）
     - [x] 前端：`app/static/mermaid.html`（Mermaid v11 渲染 + 源码可复制）
   - [ ] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
-  - [ ] S2-01-4 工具4：集成 `Apache POI`，实现前端图表/内容一键导出为 Word 文档的功能
+  - [ ] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
 - [ ] **S2-02 SEO 与流量优化**
   - [ ] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
   - [ ] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示
@@ -78,7 +81,7 @@
 > 目标：利用爬虫和 LLM 解决内容冷启动问题，并打造智能客服降低人工成本。
 
 - [ ] **S4-01 平台内容冷启动系统（对应难点 3）**
-  - [ ] S4-01-1 编写底层爬虫模块（封装 `HttpClient` + `Jsoup`，动态页面接入 `Selenium`）
+  - [ ] S4-01-1 编写底层爬虫模块（封装 `httpx` + `BeautifulSoup4`，动态页面阶段四再定 `Selenium` / `Playwright`）
   - [ ] S4-01-2 接入 LLM 接口，构建“智能解析方案”
   - [ ] S4-01-3 编写并优化 LLM Prompt，使其能够自动识别抓取到的 HTML DOM 结构
   - [ ] S4-01-4 实现由 LLM 自动提取目标内容（如博客文章、项目介绍）并入库，自适应目标网站的前端结构变更
