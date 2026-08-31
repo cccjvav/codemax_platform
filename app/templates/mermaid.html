@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+  <section>
+    <form id="mermaid-form">
+      <textarea id="text-input" rows="12" placeholder="例：电商系统里有用户、商品、订单，一个用户可以下多个订单"></textarea>
+      <p>
+        <button type="submit" id="mermaid-submit">生成类图</button>
+        <button type="button" class="ghost" id="mermaid-sample">填入示例</button>
+      </p>
+    </form>
+    <p id="mermaid-error" class="error" role="alert" hidden></p>
+    <pre id="mermaid-source" hidden></pre>
+  </section>
+  <div id="mermaid-preview"></div>
+</div>
+
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false, securityLevel: "loose" });
+
+  const SAMPLE = "电商系统里有用户、商品、订单，一个用户可以下多个订单，订单包含多个订单项";
+  const form = document.getElementById("mermaid-form");
+  const input = document.getElementById("text-input");
+  const error = document.getElementById("mermaid-error");
+  const source = document.getElementById("mermaid-source");
+  const preview = document.getElementById("mermaid-preview");
+  const submit = document.getElementById("mermaid-submit");
+
+  document.getElementById("mermaid-sample").onclick = () => {
+    input.value = SAMPLE;
+  };
+
+  function fail(msg) {
+    error.hidden = false;
+    error.textContent = msg;
+  }
+
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    error.hidden = true;
+    submit.disabled = true;
+    try {
+      const res = await fetch("/tools/mermaid", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: input.value }),
+      });
+      const data = await res.json();
+      if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+      source.hidden = false;
+      source.textContent = data.mermaid;
+      preview.removeAttribute("data-processed");
+      preview.textContent = data.mermaid;
+      await mermaid.run({ nodes: [preview] });
+    } catch (e) {
+      fail(`渲染失败：${e.message}`);
+    } finally {
+      submit.disabled = false;
+    }
+  };
+</script>
+{% endblock %}

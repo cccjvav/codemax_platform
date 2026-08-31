@@ -143,16 +143,16 @@ async def test_mermaid_endpoint_rejects_empty_text(client):
 
 
 async def test_mermaid_page_served_and_wired(client):
-    r = await client.get("/static/mermaid.html")
+    r = await client.get("/tools/mermaid")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert 'id="text-input"' in r.text
 
-    # fetch 的地址必须是真实注册过的路由，且读的是接口真正返回的字段
-    m = re.search(r"fetch\(['\"]([^'\"]+)['\"]", r.text)
-    assert m, "页面里没有 fetch 调用"
+    # 调用的接口地址必须是真实注册过的路由，且读的是接口真正返回的字段
+    urls = re.findall(r'"(/tools/[\w-]+)"', r.text)
+    assert urls, "页面里没有调用任何 /tools 接口"
     registered = {getattr(route, "path", None) for route in app.routes}
-    assert m.group(1) in registered, f"{m.group(1)} 不是已注册路由"
+    assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
     app.dependency_overrides[get_llm] = lambda: FakeLLM("classDiagram\nclass A")
     try:

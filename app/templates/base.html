@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{{ title }}</title>
+    <meta name="description" content="{{ description }}" />
+    <meta name="keywords" content="{{ keywords }}" />
+    <link rel="canonical" href="{{ canonical }}" />
+    <style>
+      * { box-sizing: border-box; }
+      body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b; }
+      a { color: #3b82f6; text-decoration: none; }
+      header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+      header h1 { margin: 0; font-size: 18px; }
+      nav { display: flex; gap: 14px; flex-wrap: wrap; }
+      main { padding: 16px 24px; }
+      .split { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+      textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+      button { padding: 6px 14px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; }
+      button.ghost { background: #fff; color: #3b82f6; }
+      .error { color: #b91c1c; white-space: pre-wrap; }
+      .card { display: block; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 8px; color: inherit; }
+      .card:hover { border-color: #3b82f6; }
+      .card h2 { margin: 0 0 6px; font-size: 16px; }
+      .card p { margin: 0; color: #64748b; }
+      pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; overflow: auto; }
+      #er-canvas { width: 100%; height: 70vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; }
+      #mermaid-preview { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 12px; min-height: 300px; overflow: auto; }
+      @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1><a href="/">{{ site_name }}</a></h1>
+      <nav>{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
+    </header>
+    <main>
+      {% block content %}{% endblock %}
+    </main>
+  </body>
+</html>

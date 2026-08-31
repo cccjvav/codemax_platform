@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section>
+  {% for t in tools %}
+  <a class="card" href="{{ t.path }}">
+    <h2>{{ t.title }}</h2>
+    <p>{{ t.description }}</p>
+  </a>
+  {% endfor %}
+</section>
+{% endblock %}

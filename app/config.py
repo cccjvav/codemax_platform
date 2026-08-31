@@ -19,6 +19,9 @@ class Settings(BaseSettings):
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_MODEL: str = "gpt-4o-mini"
 
+    # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL
+    SITE_BASE_URL: str = "https://codemax.top"
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

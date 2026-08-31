@@ -58,8 +58,11 @@
     - [x] 后端：`POST /tools/word-export`（`app/tools/word.py`，DDL → 数据字典 .docx）
     - [x] 前端：ER 图页面「导出 Word」按钮（`/static/er.html`）
 - [ ] **S2-02 SEO 与流量优化**
-  - [ ] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
-  - [ ] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示
+  - [x] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
+    - [x] Jinja2 SSR：`app/templates/`（base/index/er/mermaid）+ `app/routers/site.py`，不引入 Node 构建链
+    - [x] `TOOLS` 清单（`app/site.py`）同时驱动路由、首页导航、sitemap 与 TDK
+    - [x] `GET /sitemap.xml` + `GET /robots.txt`（`SITE_BASE_URL` 可配）
+  - [ ] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示（本轮按选型决定跳过）
 
 ### 阶段三：商业平台核心交易闭环（变现核心）
 

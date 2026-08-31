@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+  <section>
+    <form id="er-form">
+      <textarea id="ddl-input" rows="16" placeholder="CREATE TABLE sys_user (...);"></textarea>
+      <p>
+        <button type="submit" id="er-submit">生成 ER 图</button>
+        <button type="button" class="ghost" id="er-word">导出 Word</button>
+        <button type="button" class="ghost" id="er-sample">填入示例</button>
+      </p>
+    </form>
+    <p id="er-error" class="error" role="alert" hidden></p>
+  </section>
+  <svg id="er-canvas"></svg>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+<script src="/static/er.js"></script>
+<script>
+  const SAMPLE = [
+    "CREATE TABLE sys_user (",
+    "  id SERIAL PRIMARY KEY,",
+    "  username VARCHAR(50) NOT NULL COMMENT '登录名'",
+    ");",
+    "CREATE TABLE sys_order (",
+    "  id SERIAL PRIMARY KEY,",
+    "  user_id INT NOT NULL REFERENCES sys_user(id),",
+    "  amount NUMERIC(10,2)",
+    ");",
+  ].join("\n");
+
+  const form = document.getElementById("er-form");
+  const input = document.getElementById("ddl-input");
+  const error = document.getElementById("er-error");
+  const submit = document.getElementById("er-submit");
+
+  function post(url, payload) {
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+  }
+
+  function fail(msg) {
+    error.hidden = false;
+    error.textContent = msg;
+  }
+
+  document.getElementById("er-sample").onclick = () => {
+    input.value = SAMPLE;
+  };
+
+  document.getElementById("er-word").onclick = async () => {
+    error.hidden = true;
+    try {
+      const res = await post("/tools/word-export", { ddl: input.value });
+      if (!res.ok) {
+        const data = await res.json();
+        return fail(data.detail || `导出失败（${res.status}）`);
+      }
+      const url = URL.createObjectURL(await res.blob());
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "data_dictionary.docx";
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      fail(`导出失败：${e.message}`);
+    }
+  };
+
+  form.onsubmit = async (ev) => {
+    ev.preventDefault();
+    error.hidden = true;
+    submit.disabled = true;
+    try {
+      const res = await post("/tools/er-diagram", { ddl: input.value });
+      const data = await res.json();
+      if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+      renderEr("#er-canvas", data);
+    } catch (e) {
+      fail(`渲染失败：${e.message}`);
+    } finally {
+      submit.disabled = false;
+    }
+  };
+</script>
+{% endblock %}

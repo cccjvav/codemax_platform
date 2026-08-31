@@ -45,7 +45,7 @@ async def _graph_from_project_sql(client) -> dict:
 
 
 async def test_er_page_served(client):
-    r = await client.get("/static/er.html")
+    r = await client.get("/tools/er")
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert 'id="ddl-input"' in r.text
@@ -54,11 +54,11 @@ async def test_er_page_served(client):
 
 
 async def test_er_page_calls_a_registered_route(client):
-    """页面里 fetch 的地址必须是真实注册过的路由，防止前后端路径写歪。"""
-    html = (await client.get("/static/er.html")).text
+    """页面里调用的接口地址必须是真实注册过的路由，防止前后端路径写歪。"""
+    html = (await client.get("/tools/er")).text
     assert 'id="er-word"' in html, "页面缺导出 Word 入口"
-    urls = re.findall(r"fetch\(['\"]([^'\"]+)['\"]", html)
-    assert urls, "页面里没有 fetch 调用"
+    urls = re.findall(r'"(/tools/[\w-]+)"', html)
+    assert urls, "页面里没有调用任何 /tools 接口"
     registered = {getattr(route, "path", None) for route in app.routes}
     assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
