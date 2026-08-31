@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# 环境配置（含数据库密码，勿提交）
+.env
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
