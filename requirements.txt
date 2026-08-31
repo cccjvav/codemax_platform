@@ -1,7 +1,9 @@
 fastapi==0.104.1
 uvicorn[standard]==0.24.0.post1
 sqlalchemy==2.0.23
-asyncpg==0.29.0       # PostgreSQL 高性能异步驱动
+asyncpg==0.29.0       # PostgreSQL 高性能异步驱动（应用运行时）
+psycopg2-binary==2.9.9 # PostgreSQL 驱动（数据库初始化脚本 db_init.py 使用）
+python-dotenv==1.0.0   # 加载 .env 配置文件
 pydantic==2.5.2
 pydantic-settings==2.1.0
 python-jose[cryptography]==3.3.0  # 用于 JWT 生成和解析
