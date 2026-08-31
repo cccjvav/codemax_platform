@@ -30,19 +30,31 @@ uvicorn main:app --reload   # http://localhost:8000/docs
 ./.venv/bin/python -m pytest -q
 ```
 
-## 当前 API（阶段一：认证与 SSO 骨架）
+## 当前 API（阶段一：认证 + OAuth2 授权码 SSO）
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/auth/register` | 注册（返回用户信息，不含密码） |
 | POST | `/auth/login` | 登录（OAuth2 表单，返回 JWT access_token） |
 | GET | `/auth/me` | 当前用户（需 Bearer Token） |
+| GET | `/oauth/authorize` | **授权码端点**：已登录用户向第三方应用签发一次性 code（302 跳回调） |
+| POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
 | GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
 | GET | `/health` | 健康检查 |
 
-> SSO 说明：统一认证中心签发 JWT，工具平台与商业平台共享同一登录态（一次登录，全平台可用）。
-> 阶段一基于 OAuth2 密码模式 + JWT 无状态 Token 实现；完整的 OAuth2 授权码流程（第三方应用授权）作为后续迭代。
+> **SSO（OAuth2 授权码模式）流程**：用户登录认证中心拿会话 JWT → 携带 JWT 访问
+> `/oauth/authorize?response_type=code&client_id=...&redirect_uri=...&state=...`
+> → 认证中心校验后 302 跳回回调地址携带一次性 code → 客户端用 `/oauth/token` 以
+> `code + client_secret` 换取 access_token → 用 access_token 访问双平台受保护资源。
+> 授权码一次性、10 分钟有效；客户端密钥在库中只存 bcrypt 哈希。
+
+### 演示客户端（种子数据，仅演示用）
+
+| client_id | client_secret | 回调地址 |
+| --- | --- | --- |
+| `tools` | `codemax-tools-secret` | `https://tools.codemax.top/callback` |
+| `shop` | `codemax-shop-secret` | `https://shop.codemax.top/callback` |
 
 ## Agent Skills
 
