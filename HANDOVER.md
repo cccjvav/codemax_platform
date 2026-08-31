@@ -9,7 +9,8 @@
 - **PR #3**：`feat: 阶段二 —— 工具矩阵（ER 图 / LLM→Mermaid / Word 导出 / Drawio）+ SEO SSR`，**state=OPEN，未合并**
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → **134 passed**（SQLite 与真 PostgreSQL 双库都跑过）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
+- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**133 passed + 1 skipped**；真 PostgreSQL 16.2：**134 passed**
+  （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
 
@@ -71,7 +72,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（当前 134 个，应全绿）
+.venv/bin/python -m pytest -q                        # 跑测试（134 个：SQLite 上 133 绿 + 1 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）

@@ -17,7 +17,7 @@
 | TD-44 | JWT 存 localStorage | 一旦有 XSS，token 直接被读走 |
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
 | TD-70 | JWT 无 `jti`、无法吊销 | 改密码/封号后旧 token 仍然有效 |
-| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（134 passed），见 TD-121 |
+| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 134 passed / SQLite 133+1 skip），见 TD-121 |
 | TD-84 | 无 CI | 115 个用例全靠手动执行，容易漏跑 |
 | TD-90/91 | 无日志、无监控、无安全响应头 | 线上出问题无法定位 |
 | TD-113 | 微信支付未经真机联调 | 沙箱无商户号/证书/公网回调，签名与报文只能算法级验证 |
@@ -126,7 +126,7 @@
 | TD-81 | LLM 用假客户端 + `httpx.MockTransport`，绝不真打网络 | 真实模型行为验证 | Prompt 的实际效果无法自动验证 | — |
 | TD-82 | ER 前端契约测试用 node 真跑 `er.js`；无 node 时退化为静态字段检查 | 纯 Python 测试 | 需要 node；退化分支覆盖较弱 | — |
 | TD-83 | `scripts/check_schema_pg.mjs`（PGlite 真 PG 体检）**不接入 pytest** | 每次改动都验建表脚本 | 需手动跑，且要装约 26MB 的 npm 包 | 有 CI 之后接进去 |
-| TD-84 | 无 CI（仓库无 `.github/workflows`） | 自动执行测试 | 134 个用例全靠手动跑，容易漏 | **建议尽早加 GitHub Actions** |
+| TD-84 | 无 CI（仓库无 `.github/workflows`） | 自动执行测试 | 134 个用例（还要分两种库跑）全靠手动，容易漏 | **建议尽早加 GitHub Actions** |
 | TD-85 | 并发类修复（授权码 CAS）在 SQLite 上只验证原子语义；真 PG 上有 `test_code_single_use_under_real_concurrency` 真并发跑 | — | SQLite 跑时该条 skip | ~~有 PG 集成测试环境时补~~ **已补**（去掉 rowcount 检查后真 PG 上 5/5 变红） |
 | TD-121 | 测试库可用 `TEST_DATABASE_URL` 切到真 PostgreSQL（`tests/conftest.py`），默认仍是内存 SQLite | 只支持一种库 | 要真库覆盖得跑两遍（SQLite 55s / PG 59s） | — |
 | TD-122 | 连真库时引擎用 `NullPool` | 默认连接池（更快） | 每个用例重连；换池会报 `got Future attached to a different loop`（asyncpg 连接绑事件循环，pytest-asyncio 每用例新 loop） | — |
