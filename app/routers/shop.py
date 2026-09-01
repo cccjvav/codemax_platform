@@ -1,7 +1,9 @@
 import json
 from datetime import datetime
+from pathlib import Path
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -11,8 +13,9 @@ from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Order, User
-from ..order_state import PENDING, IllegalTransition, mark_paid
+from ..order_state import DOWNLOADED, PENDING, IllegalTransition, mark_downloaded, mark_paid
 from ..site import templates
+from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
     WeChatPayError,
     decrypt_resource,
@@ -134,6 +137,77 @@ async def mock_pay_confirm(
         "transaction_id": order.transaction_id,
         "pay_mode": "mock",
     }
+
+
+# ---------------------------------------------------------------- 一次性下载（S3-02-4）
+
+
+@router.get("/download/{order_no}")
+async def download_url(
+    request: Request, order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """发一个一次性下载链接。**第一重校验：数据库下载状态**。
+
+    状态机保证 `paid → downloaded` 只能走一次，所以同一订单第二次来要链接会被拒 ——
+    这是"防止资源被无限倒卖"的主力；预签名 URL 的过期时间只是第二重（缩小转发窗口）。
+
+    注意语义：标记为已下载发生在**发出链接时**，不是文件真的被下载时。
+    云存储是客户端直连对象存储，应用根本看不到那次下载，只能在发链接时记账（TD-129）。
+    """
+    storage = _storage(request)
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None or order.user_id != user.id:
+        raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
+    if order.status == PENDING:
+        raise HTTPException(403, "订单未支付")
+    if order.status == DOWNLOADED:
+        raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
+
+    key = settings.STORAGE_PRODUCT_KEY
+    if not storage.exists(key):
+        raise HTTPException(404, f"商品文件不存在（对象 key：{key}）")
+
+    url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL)
+    try:
+        await mark_downloaded(db, order)
+    except IllegalTransition as e:
+        raise HTTPException(409, str(e)) from e
+    return {
+        "order_no": order.order_no,
+        "download_url": url,
+        "expires_in": settings.DOWNLOAD_URL_TTL,
+        "status": order.status,
+    }
+
+
+@router.get("/dl", include_in_schema=False)
+async def serve_download(request: Request, key: str, expires: int, signature: str):
+    """本地后端的下载出口。**第二重校验：预签名 URL 的签名与过期时间**。
+
+    云存储后端不需要这个端点（客户端直连对象存储），所以非 local 后端一律 404。
+    """
+    storage = _storage(request)
+    if storage.backend != "local":
+        raise HTTPException(404, "当前存储后端由客户端直连下载，不经过本站")
+    if not verify_download(settings.SECRET_KEY, key, expires, signature):
+        raise HTTPException(403, "下载链接无效或已过期")
+    try:
+        data = storage.read(key)
+    except (ValueError, FileNotFoundError, OSError):
+        raise HTTPException(404, "文件不存在")
+    filename = Path(key).name
+    return Response(
+        data,
+        media_type="application/octet-stream",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    )
+
+
+def _storage(request: Request):
+    try:
+        return build_storage(str(request.base_url))
+    except StorageError as e:
+        raise HTTPException(503, str(e)) from e
 
 
 def _ok() -> JSONResponse:

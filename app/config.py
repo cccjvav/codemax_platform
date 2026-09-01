@@ -39,6 +39,12 @@ class Settings(BaseSettings):
     # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
     SHOP_PAY_MODE: str = "wechat"
 
+    # 云存储（S3-02）：local = 本地目录（开发/演示）；oss / cos 需密钥，尚未实现（TD-128）
+    STORAGE_BACKEND: str = "local"
+    STORAGE_LOCAL_ROOT: str = "storage"  # 本地后端的根目录（已 gitignore）
+    STORAGE_PRODUCT_KEY: str = "product/codemax_package.zip"  # 商品文件的对象 key
+    DOWNLOAD_URL_TTL: int = 300  # 预签名 URL 有效期（秒），S3-02-3
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property
