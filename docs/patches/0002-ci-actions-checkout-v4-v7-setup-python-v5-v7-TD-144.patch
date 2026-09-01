@@ -1,0 +1,57 @@
+From 6645359640d273557dd3727b33b0cbd1b2d6a73d Mon Sep 17 00:00:00 2001
+From: cccjvav <66018270+cccjvav@users.noreply.github.com>
+Date: Tue, 1 Sep 2026 14:34:50 +0000
+Subject: [PATCH 2/2] =?UTF-8?q?ci:=20actions/checkout=20v4=E2=86=92v7?=
+ =?UTF-8?q?=E3=80=81setup-python=20v5=E2=86=92v7=EF=BC=88=E6=B6=88=20TD-14?=
+ =?UTF-8?q?4=20=E5=91=8A=E8=AD=A6=EF=BC=89?=
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+CI 实跑后 GitHub 报 annotation（已用 annotations API 独立核实，run 33514158624
+与 33512433132 都有）：
+  Node.js 20 is deprecated. The following actions target Node.js 20 but are
+  being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5
+
+上游最新（gh api repos/actions/{checkout,setup-python}/releases/latest）：
+checkout v7.0.1、setup-python v7.0.0。
+
+本地无法验证 v7 的行为（沙箱不跑 Actions），只能靠 push 后的 CI 实跑确认；
+故单独成一个提交，若 CI 变红可只回滚这一条。
+
+Co-authored-by: arena-agent <297053741+arena-agent@users.noreply.github.com>
+---
+ .github/workflows/ci.yml | 8 ++++----
+ 1 file changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index 71a8c1c..e7f1d3e 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -32,9 +32,9 @@ jobs:
+     name: 测试（SQLite 后端）
+     runs-on: ubuntu-latest
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v7
+ 
+-      - uses: actions/setup-python@v5
++      - uses: actions/setup-python@v7
+         with:
+           python-version: "3.11"
+           cache: pip
+@@ -73,9 +73,9 @@ jobs:
+       PGUSER: postgres
+ 
+     steps:
+-      - uses: actions/checkout@v4
++      - uses: actions/checkout@v7
+ 
+-      - uses: actions/setup-python@v5
++      - uses: actions/setup-python@v7
+         with:
+           python-version: "3.11"
+           cache: pip
+-- 
+2.39.5
+
