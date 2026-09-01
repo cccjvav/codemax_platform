@@ -24,9 +24,82 @@ cd "database init" && python db_init.py && cd ..
 uvicorn main:app --reload   # http://localhost:8000/docs
 ```
 
+## 在 Windows（cmd.exe）上跑起来
+
+**前置条件**
+
+1. **Python 3.11 或 3.12**（装完用 `python --version` 确认）。
+   ⚠️ **不要用 Python 3.13**：`pydantic-core==2.14.5`、`asyncpg==0.29.0`、
+   `psycopg2-binary==2.9.9` 都**没有 cp313 的 Windows 轮子**，pip 会退化成源码编译，
+   要求 Rust / MSVC 构建工具，大概率失败。CI 用的就是 3.11。
+2. 已安装 PostgreSQL 并且 pgAdmin4 能连上（本项目**不用** SQLite 跑业务，
+   SQLite 只出现在测试里，与 PostgreSQL 不冲突、也不会互相影响）。
+3. 知道 `postgres` 超级用户的密码。
+
+**逐行执行**（cmd 里不要把它们串成一长行）
+
+```cmd
+cd /d C:\你的路径\codemax_platform
+
+python -m venv .venv
+.venv\Scripts\python.exe -m pip install --upgrade pip
+.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+copy .env.example .env
+notepad .env
+```
+
+在记事本里至少改这三项，存盘关闭：
+
+| 配置项 | 改成 | 说明 |
+| --- | --- | --- |
+| `DB_PASSWORD` | 你的 postgres 密码 | 不改则连不上库 |
+| `SHOP_PAY_MODE` | `mock` | 本地演示用；`wechat` 需要商户号，否则下单接口返回 503 |
+| `LLM_API_KEY` | 你的 key（可不填） | 不填时只有 `/tools/mermaid` 返回 502，其余功能不受影响 |
+
+**建库建表**（脚本用相对路径读 `../.env`，所以必须先进子目录；目录名有空格要加引号）
+
+```cmd
+cd "database init"
+..\.venv\Scripts\python.exe db_init.py
+cd ..
+```
+
+看到 `[1/2] ... 创建成功` 与 `[2/2] ... 建表完成` 即可；重复执行是安全的（幂等）。
+
+**启动服务**
+
+```cmd
+.venv\Scripts\python.exe -m uvicorn main:app --reload
+```
+
+⚠️ 必须**在项目根目录**执行 —— `.env` 是按「当前工作目录」查找的，换个目录启动会读不到配置。
+
+浏览器打开：
+
+| 地址 | 内容 |
+| --- | --- |
+| `http://127.0.0.1:8000/` | 首页（工具导航） |
+| `http://127.0.0.1:8000/tools/er` | SQL DDL 转 ER 图 |
+| `http://127.0.0.1:8000/tools/mermaid` | 自然语言生成 UML 类图（需 `LLM_API_KEY`） |
+| `http://127.0.0.1:8000/tools/drawio` | Drawio 在线流程图 |
+| `http://127.0.0.1:8000/docs` | 接口文档（Swagger UI） |
+| `http://127.0.0.1:8000/health` | 健康检查 |
+
+**在 Windows 上跑测试**
+
+```cmd
+.venv\Scripts\python.exe -m pytest -q
+```
+
+预期 `208 passed, 1 skipped`（跳过的这条是真并发测试，需要真 PostgreSQL 才能复现竞态，
+见 `TECH_DECISIONS.md` TD-85）。真库那一套（`209 passed`）由 GitHub Actions 自动跑，
+本机不需要装 `pgserver`——它虽然也提供 Windows 轮子，但没有必要。
+
 ## 运行测试
 
 ```bash
+# Linux / macOS（沙箱内路径）；Windows 见上一节
 ./.venv/bin/python -m pytest -q
 ```
 
