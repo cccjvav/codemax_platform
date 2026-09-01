@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 —— 工具矩阵（ER 图 / LLM→Mermaid / Word 导出 / Drawio）+ SEO SSR`，**state=OPEN，未合并**
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**155 passed + 1 skipped**；真 PostgreSQL 16.2：**156 passed**
+- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**182 passed + 1 skipped**；真 PostgreSQL 16.2：**183 passed**
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
@@ -25,8 +25,8 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面阶段四再定 Selenium/Playwright。
 
-**实现层面的取舍（97 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
-其中开头列了 9 条待处理的「上线阻塞项」（限流、token 存储、配额、JWT 吊销、CI、日志监控、支付真机联调、无超时关单、模拟支付通道误开）；
+**实现层面的取舍（101 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+其中开头列了 10 条待处理的「上线阻塞项」（限流、token 存储、配额、JWT 吊销、CI、日志监控、支付真机联调、无超时关单、模拟支付通道误开、爬虫无 robots/限速）；
 「真库集成测试」那条已经解决（TD-80）。
 
 ## 3. 工程结构
@@ -72,7 +72,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（156 个：SQLite 上 155 绿 + 1 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（183 个：SQLite 上 182 绿 + 1 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）
@@ -112,6 +112,10 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 - **微信回调的应答体不是 FastAPI 默认格式**：验签失败要回 `{"code":"FAIL","message":"..."}` + 4XX/5XX，
   用 `HTTPException` 会发出 `{"detail": ...}`；而且 **4XX/5XX 会被微信重推**，所以"重试也没用"的情况
   （非支付成功通知、已处理过）必须回 200。回调验签要用 `await request.body()` 的**原始字节**
+- **HTTP 请求头只能 latin-1 编码**：`User-Agent` 里写中文会在发请求时抛 `UnicodeEncodeError`
+  （爬虫模块踩过）。中文说明放注释或正文，不要放头里
+- **任何"让服务器去访问用户给的 URL"的功能都必须防 SSRF**：只允许 http/https，
+  并把解析出的**每一个** IP 都用 `ipaddress.is_global` 检查（`169.254.169.254` 是云厂商元数据）
 - **测试连真 PostgreSQL 必须用 `NullPool`**：asyncpg 的连接绑死在创建它的事件循环上，
   而 pytest-asyncio 每个用例开一个新 loop；用默认连接池会复用到上个 loop 的连接，
   报 `got Future attached to a different loop`（SQLite 因为是 StaticPool 单连接才没暴露）

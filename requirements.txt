@@ -11,6 +11,7 @@ passlib[bcrypt]==1.7.4            # 用于密码哈希加密
 bcrypt==4.0.1                     # 固定版本，兼容 passlib 1.7.4
 python-multipart==0.0.6           # 用于处理表单和 OAuth2
 python-docx==1.2.0                # 导出 Word 数据字典（S2-01-4）
+beautifulsoup4==4.15.0            # 爬虫解析 HTML（S4-01-1，选型已定：不是 Jsoup）
 jinja2==3.1.6                     # 页面 SSR 出 HTML 外壳与 TDK（S2-02-1）
 
 # ---- 测试依赖 ----

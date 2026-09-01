@@ -104,7 +104,11 @@
 > 目标：利用爬虫和 LLM 解决内容冷启动问题，并打造智能客服降低人工成本。
 
 - [ ] **S4-01 平台内容冷启动系统（对应难点 3）**
-  - [ ] S4-01-1 编写底层爬虫模块（封装 `httpx` + `BeautifulSoup4`，动态页面阶段四再定 `Selenium` / `Playwright`）
+  - [x] S4-01-1 编写底层爬虫模块（封装 `httpx` + `BeautifulSoup4`，动态页面阶段四再定 `Selenium` / `Playwright`）
+    - [x] `app/tools/crawler.py`：抓取（超时 / 大小上限 / 跟随重定向 / 自定义 UA）
+    - [x] **SSRF 防护**：只允许 http/https，解析出的每个地址都必须是公网地址
+    - [x] `to_skeleton()`：剥噪声 + 压成 DOM 骨架再喂 LLM，不把整页 HTML 丢给模型
+    - [ ] 动态页面（Selenium / Playwright）仍按约定推迟
   - [ ] S4-01-2 接入 LLM 接口，构建“智能解析方案”
   - [ ] S4-01-3 编写并优化 LLM Prompt，使其能够自动识别抓取到的 HTML DOM 结构
   - [ ] S4-01-4 实现由 LLM 自动提取目标内容（如博客文章、项目介绍）并入库，自适应目标网站的前端结构变更
