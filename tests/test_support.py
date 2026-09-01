@@ -236,3 +236,17 @@ async def test_articles_are_readable(db):
     """RAG 的检索依赖 sys_article 能被 ORM 查出来 —— 先确认这条通路本身没断。"""
     await _seed_articles(db)
     assert len((await db.execute(select(Article))).scalars().all()) == 1
+
+
+@pytest.mark.asyncio
+async def test_missing_article_table_degrades_to_human_not_500(db):
+    """回归：`sys_article` 是 S4-01 才加的表。用旧版 full_init.sql 建的库上它不存在，
+    查询会抛 UndefinedTableError 变成 500。两个测试套件都发现不了这点，因为 fixture 里
+    create_all 总会把表建出来 —— 只有真起服务连真库才暴露。"""
+    from sqlalchemy import text
+
+    await db.execute(text("DROP TABLE IF EXISTS sys_article"))
+    await db.commit()
+    r = await answer("python 部署 nginx 报错怎么排查", db, llm=FakeLLM())
+    assert r.escalated and r.source == "human"
+    assert "不可用" in r.reason

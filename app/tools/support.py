@@ -20,6 +20,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Article
@@ -72,12 +73,26 @@ def _escalate(question: str, reason: str, intent: Intent, confidence: float) -> 
     )
 
 
-async def _retrieve_articles(db: AsyncSession, question: str) -> list[tuple[str, str]]:
+async def _retrieve_articles(
+    db: AsyncSession, question: str
+) -> list[tuple[str, str]] | None:
     """从 sys_article 里检索最相关的几篇，返回 [(标题, 正文片段)]。
+
+    返回 `None` 表示**知识库不可用**（表不存在 / 连不上），与「查得到但没有相关
+    内容」的空列表区分开 —— 两者的兜底理由不同，排错时要能分辨。
+
+    为什么必须捕获数据库异常：`sys_article` 是 S4-01 才加的表，用旧版
+    `full_init.sql` 建的库、或没跑过迁移的库上它压根不存在，直接查会抛
+    `UndefinedTableError` 变成 500。而 S4-02-4 的要求是绝不把异常抛给用户。
+    注意两个测试套件都发现不了这个问题：fixture 里 `create_all` 总会把表建出来，
+    只有真起服务连真库才会暴露。
 
     每次都现建索引：语料量小时开销可接受，代价与改法记在 TD-151。
     """
-    rows = (await db.execute(select(Article))).scalars().all()
+    try:
+        rows = (await db.execute(select(Article))).scalars().all()
+    except SQLAlchemyError:
+        return None
     if not rows:
         return []
     docs = [tokenize(f"{a.title} {a.content}") for a in rows]
@@ -162,9 +177,14 @@ async def answer(
 
     # 专业问题 → RAG
     refs = await _retrieve_articles(db, text)
+    if refs is None:
+        return _escalate(
+            question, "知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答",
+            Intent.PROFESSIONAL, result.confidence,
+        )
     if not refs:
         return _escalate(
-            question, "知识库（sys_article）为空或无相关内容，RAG 无法作答",
+            question, "知识库（sys_article）无相关内容，RAG 无法作答",
             Intent.PROFESSIONAL, result.confidence,
         )
     context = "\n\n".join(f"【{title}】\n{body}" for title, body in refs)
