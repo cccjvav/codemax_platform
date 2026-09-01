@@ -1,5 +1,5 @@
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
@@ -129,7 +129,7 @@ async def mock_pay_confirm(
         raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
     if order.status == PENDING:
         order.transaction_id = f"MOCK-{order.order_no}"
-        order.paid_at = datetime.now()  # noqa: DTZ005  见 TD-145：列是无时区 TIMESTAMP
+        order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
     await mark_paid(db, order)
     return {
         "order_no": order.order_no,
@@ -288,7 +288,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
     if order.status == PENDING:
         order.transaction_id = data.get("transaction_id")
-        order.paid_at = datetime.now()  # noqa: DTZ005  见 TD-145：列是无时区 TIMESTAMP
+        order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
     try:
         await mark_paid(db, order)
     except IllegalTransition as e:

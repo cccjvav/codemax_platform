@@ -15,8 +15,8 @@ class User(Base):
     nickname: Mapped[str | None] = mapped_column(String(50))
     avatar: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[int] = mapped_column(SmallInteger, default=1)  # 1正常 0禁用
-    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Order(Base):
@@ -32,9 +32,9 @@ class Order(Base):
     status: Mapped[str] = mapped_column(String(20), default="pending")
     code_url: Mapped[str | None] = mapped_column(String(512))  # NATIVE 下单返回的二维码链接
     transaction_id: Mapped[str | None] = mapped_column(String(64))  # 微信支付订单号（回调解出）
-    paid_at: Mapped[datetime | None] = mapped_column(DateTime)
-    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Article(Base):
@@ -53,7 +53,7 @@ class Article(Base):
     published_at: Mapped[str | None] = mapped_column(String(50))
     content: Mapped[str] = mapped_column(Text)
     source_site: Mapped[str | None] = mapped_column(String(200))  # 域名，便于按站分组
-    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class SysConfig(Base):
@@ -76,8 +76,8 @@ class SysDiagram(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
     name: Mapped[str] = mapped_column(String(100))
     content: Mapped[str] = mapped_column(Text)
-    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
-    update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class OAuthClient(Base):
@@ -103,6 +103,6 @@ class OAuthCode(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
     client_id: Mapped[int] = mapped_column(ForeignKey("oauth_client.id"))
     redirect_uri: Mapped[str] = mapped_column(String(255))
-    expires_at: Mapped[datetime] = mapped_column(DateTime)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     used: Mapped[bool] = mapped_column(Boolean, default=False)
-    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -123,7 +123,7 @@ async def test_expired_code_rejected(client):
             user_id=user_id,
             client_id=client_id,
             redirect_uri=TOOLS_CB,
-            expires_at=datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(minutes=1),
+            expires_at=datetime.now(timezone.utc) - timedelta(minutes=1),
         ))
         await s.commit()
 

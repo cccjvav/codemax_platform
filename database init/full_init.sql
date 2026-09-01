@@ -24,8 +24,8 @@ CREATE TABLE sys_user (
     nickname    VARCHAR(50),
     avatar      VARCHAR(255),
     status      SMALLINT DEFAULT 1, -- 状态：1正常，0禁用
-    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 3. 订单表（状态机：pending -> paid -> downloaded，阶段三实现支付流程）
@@ -38,9 +38,9 @@ CREATE TABLE sys_order (
     status       VARCHAR(20) DEFAULT 'pending',
     code_url     VARCHAR(512),              -- NATIVE 下单返回的二维码链接
     transaction_id VARCHAR(64),             -- 微信支付订单号（回调解出）
-    paid_at      TIMESTAMP,
-    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    update_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    paid_at      TIMESTAMPTZ,
+    create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    update_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 4. 系统配置表
@@ -72,9 +72,9 @@ CREATE TABLE oauth_code (
     user_id      INTEGER NOT NULL REFERENCES sys_user(id),
     client_id    INTEGER NOT NULL REFERENCES oauth_client(id),
     redirect_uri VARCHAR(255) NOT NULL,
-    expires_at   TIMESTAMP NOT NULL,
+    expires_at   TIMESTAMPTZ NOT NULL,
     used         BOOLEAN DEFAULT FALSE,
-    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 8. 种子客户端（演示用；明文密钥仅存于本注释与 README，库内只存 bcrypt 哈希）
@@ -90,8 +90,8 @@ CREATE TABLE sys_diagram (
     user_id     INTEGER NOT NULL REFERENCES sys_user(id),
     name        VARCHAR(100) NOT NULL,
     content     TEXT NOT NULL,
-    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_sys_diagram_user ON sys_diagram (user_id);
 
@@ -104,7 +104,7 @@ CREATE TABLE sys_article (
     published_at VARCHAR(50),                    -- 源站原文，格式各异，不强行解析（TD-137）
     content      TEXT NOT NULL,
     source_site  VARCHAR(200),                   -- 域名，便于按站分组
-    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE INDEX idx_article_site ON sys_article(source_site);
