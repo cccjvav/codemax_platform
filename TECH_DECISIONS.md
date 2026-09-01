@@ -18,7 +18,7 @@
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
 | TD-70 | JWT 无 `jti`、无法吊销 | 改密码/封号后旧 token 仍然有效 |
 | ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
-| TD-84 | **无 CI（受阻，非未做）** | workflow 已写好并入库为 `docs/github-actions-ci.yml`，但 `git push` 被 GitHub 拒绝：`refusing to allow a GitHub App to create or update workflow .github/workflows/ci.yml without workflows permission`。需要仓库管理员给 `arena-ai-coding-agent[bot]` 开 Workflows 写权限，或手工 `git mv` 到 `.github/workflows/ci.yml` 再推；**在此之前 CI 一次也没跑过** |
+| ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：两个 job（SQLite + 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过 |
 | TD-90/91 | 无日志、无监控、无安全响应头 | 线上出问题无法定位 |
 | TD-113 | 微信支付未经真机联调 | 沙箱无商户号/证书/公网回调，签名与报文只能算法级验证 |
 | TD-109 | 无超时关单，二维码过期后订单一直挂着 | 待支付单会无限堆积，且过期二维码扫码必失败 |
@@ -128,7 +128,7 @@
 | TD-81 | LLM 用假客户端 + `httpx.MockTransport`，绝不真打网络 | 真实模型行为验证 | Prompt 的实际效果无法自动验证 | — |
 | TD-82 | ER 前端契约测试用 node 真跑 `er.js`；无 node 时退化为静态字段检查 | 纯 Python 测试 | 需要 node；退化分支覆盖较弱 | — |
 | TD-83 | `scripts/check_schema_pg.mjs`（PGlite 真 PG 体检）**不接入 pytest** | 每次改动都验建表脚本 | 需手动跑，且要装约 26MB 的 npm 包 | 有 CI 之后接进去 |
-| TD-84 | CI 内容写成 `docs/github-actions-ci.yml` 入库，**不直接放** `.github/workflows/` | push 即生效的 CI | GitHub App 无 Workflows 权限，`.github/workflows/ci.yml` 被 remote rejected；内容进不了那个目录，就进不了 PR，等于没交付 | **需要一次人工授权或人工 mv**（见该文件头部说明）；激活前 CI 未跑过，其正确性只经本地 YAML 解析与配置一致性检查 |
+| TD-84 | CI 内容一开始只能入库为 `docs/github-actions-ci.yml`，由仓库管理员 `git mv` 到 `.github/workflows/ci.yml` 才生效 | push 即生效的 CI | `arena-ai-coding-agent[bot]` 无 Workflows 写权限，`.github/workflows/ci.yml` 被 remote rejected（`refusing to allow a GitHub App to create or update workflow ... without workflows permission`）；**CI 的启用永远需要一次人工授权或人工 mv** | 换 CI 内容时若仍无权限，同样走「入库 docs/ → 管理员 mv」这条路 |
 | TD-85 | 并发类修复（授权码 CAS）在 SQLite 上只验证原子语义；真 PG 上有 `test_code_single_use_under_real_concurrency` 真并发跑 | — | SQLite 跑时该条 skip | ~~有 PG 集成测试环境时补~~ **已补**（去掉 rowcount 检查后真 PG 上 5/5 变红） |
 | TD-121 | 测试库可用 `TEST_DATABASE_URL` 切到真 PostgreSQL（`tests/conftest.py`），默认仍是内存 SQLite | 只支持一种库 | 要真库覆盖得跑两遍（SQLite 55s / PG 59s） | — |
 | TD-122 | 连真库时引擎用 `NullPool` | 默认连接池（更快） | 每个用例重连；换池会报 `got Future attached to a different loop`（asyncpg 连接绑事件循环，pytest-asyncio 每用例新 loop） | — |
