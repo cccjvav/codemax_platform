@@ -1,0 +1,103 @@
+# ============================================================================
+# GitHub Actions CI —— 待激活（TD-84）
+#
+# 本文件内容就是 .github/workflows/ci.yml 的最终内容，但**不能由本会话推送**：
+#   git push → "remote rejected ... refusing to allow a GitHub App to create
+#   or update workflow `.github/workflows/ci.yml` without `workflows` permission"
+# Arena 的 GitHub App（arena-ai-coding-agent[bot]）没有 Workflows 写权限。
+#
+# 激活方式（二选一，都需要仓库管理员做一次）：
+#   1) 给该 App 授权：仓库 Settings → GitHub Apps → arena-ai-coding-agent →
+#      Repository permissions → Workflows → Read and write，之后本会话即可
+#      正常 push 这个文件；
+#   2) 或手工执行：
+#        mkdir -p .github/workflows
+#        git mv docs/github-actions-ci.yml .github/workflows/ci.yml
+#        git commit -m "启用 CI" && git push
+#
+# 内容已在本地校验：YAML 可解析；postgres job 的 TEST_DATABASE_URL 与 service
+# 容器的 POSTGRES_DB 一致；两个 job 的 pytest 命令与 HANDOVER.md §9 相同。
+# 但**从未在 GitHub Actions 上真正跑过**——CI 是否通过要等文件激活后看 Actions 页。
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# 同一分支连续推送时取消上一次还在跑的构建，省 Actions 分钟
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-sqlite:
+    name: 测试（SQLite 后端）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: pytest
+        run: python -m pytest -q
+
+  test-postgres:
+    name: 测试（真 PostgreSQL 16）
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: codemax_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/codemax_test
+      PGPASSWORD: postgres
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 建表脚本与 ORM 模型的一致性由 tests/test_schema_sync.py 保证；
+      # 这里再验一次它真的能在 PostgreSQL 上执行，而且可以重复执行（幂等）。
+      - name: 建表脚本在真 PostgreSQL 上执行（连跑两遍验证幂等）
+        run: |
+          psql -d postgres -c "CREATE DATABASE codemax_ddl"
+          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
+          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
+          echo "public schema 表数："
+          psql -d codemax_ddl -tAc "select count(*) from pg_tables where schemaname='public'"
+
+      - name: pytest
+        run: python -m pytest -q

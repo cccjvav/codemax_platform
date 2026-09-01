@@ -13,12 +13,12 @@
 
 | 编号 | 事项 | 为什么阻塞 |
 | --- | --- | --- |
-| TD-15 | 公开工具端点无限流 | 任何人可无限调用 DDL 解析，CPU 可被打满 |
+| ~~TD-15~~ | ~~公开工具端点无限流~~ **已解决** | `app/ratelimit.py` 内存滑动窗口：工具 30 次/60s、LLM 10 次/60s、注册登录 10 次/60s，超额 429 + `Retry-After`（多实例部署的代价见 TD-141） |
 | TD-44 | JWT 存 localStorage | 一旦有 XSS，token 直接被读走 |
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
 | TD-70 | JWT 无 `jti`、无法吊销 | 改密码/封号后旧 token 仍然有效 |
-| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 134 passed / SQLite 133+1 skip），见 TD-121 |
-| TD-84 | 无 CI | 115 个用例全靠手动执行，容易漏跑 |
+| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
+| TD-84 | **无 CI（受阻，非未做）** | workflow 已写好并入库为 `docs/github-actions-ci.yml`，但 `git push` 被 GitHub 拒绝：`refusing to allow a GitHub App to create or update workflow .github/workflows/ci.yml without workflows permission`。需要仓库管理员给 `arena-ai-coding-agent[bot]` 开 Workflows 写权限，或手工 `git mv` 到 `.github/workflows/ci.yml` 再推；**在此之前 CI 一次也没跑过** |
 | TD-90/91 | 无日志、无监控、无安全响应头 | 线上出问题无法定位 |
 | TD-113 | 微信支付未经真机联调 | 沙箱无商户号/证书/公网回调，签名与报文只能算法级验证 |
 | TD-109 | 无超时关单，二维码过期后订单一直挂着 | 待支付单会无限堆积，且过期二维码扫码必失败 |
@@ -48,7 +48,7 @@
 | TD-12 | 不支持 PostgreSQL 美元引用字符串 `$$ ... $$` | — | 含 `$$` 的 DDL（少见）会解析错乱 | 需要解析函数体 / 触发器时 |
 | TD-13 | 未闭合的字符串 / 块注释视为延续到结尾 | 错误恢复能力 | DDL 本身语法有错时，出错点之后的内容全部失效 | — |
 | TD-14 | 悬空外键（目标表不在同一份 DDL 内）在图上直接丢弃（`er.js:51`） | 用虚线标出"未解析的引用" | 用户看不出自己漏贴了哪张表 | 有用户反馈困惑时加提示 |
-| TD-15 | `POST /tools/er-diagram`、`/tools/mermaid`、`/tools/word-export` 均不鉴权 | 防滥用 | 任何人可无限调用；Mermaid 那条还会消耗 LLM 额度 | **上线前必须加限流** |
+| TD-15 | `POST /tools/er-diagram`、`/tools/mermaid`、`/tools/word-export` 均不鉴权（引流工具要 SEO 收录、要游客能直接用），改用**按 IP 限流**防滥用 | 鉴权这道防线 | 限流是进程内存的（TD-141），且不认登录身份，同一 IP 下的多个用户共享配额 | 需要按用户配额或分布式限流时 |
 | TD-16 | DDL 上限 20000 字符（`schemas.py:26`） | 超大脚本 | 超限返回 422 | 有真实大 schema 需求时 |
 
 ## 三、LLM → Mermaid（`app/tools/llm.py`）
@@ -128,7 +128,7 @@
 | TD-81 | LLM 用假客户端 + `httpx.MockTransport`，绝不真打网络 | 真实模型行为验证 | Prompt 的实际效果无法自动验证 | — |
 | TD-82 | ER 前端契约测试用 node 真跑 `er.js`；无 node 时退化为静态字段检查 | 纯 Python 测试 | 需要 node；退化分支覆盖较弱 | — |
 | TD-83 | `scripts/check_schema_pg.mjs`（PGlite 真 PG 体检）**不接入 pytest** | 每次改动都验建表脚本 | 需手动跑，且要装约 26MB 的 npm 包 | 有 CI 之后接进去 |
-| TD-84 | 无 CI（仓库无 `.github/workflows`） | 自动执行测试 | 134 个用例（还要分两种库跑）全靠手动，容易漏 | **建议尽早加 GitHub Actions** |
+| TD-84 | CI 内容写成 `docs/github-actions-ci.yml` 入库，**不直接放** `.github/workflows/` | push 即生效的 CI | GitHub App 无 Workflows 权限，`.github/workflows/ci.yml` 被 remote rejected；内容进不了那个目录，就进不了 PR，等于没交付 | **需要一次人工授权或人工 mv**（见该文件头部说明）；激活前 CI 未跑过，其正确性只经本地 YAML 解析与配置一致性检查 |
 | TD-85 | 并发类修复（授权码 CAS）在 SQLite 上只验证原子语义；真 PG 上有 `test_code_single_use_under_real_concurrency` 真并发跑 | — | SQLite 跑时该条 skip | ~~有 PG 集成测试环境时补~~ **已补**（去掉 rowcount 检查后真 PG 上 5/5 变红） |
 | TD-121 | 测试库可用 `TEST_DATABASE_URL` 切到真 PostgreSQL（`tests/conftest.py`），默认仍是内存 SQLite | 只支持一种库 | 要真库覆盖得跑两遍（SQLite 55s / PG 59s） | — |
 | TD-122 | 连真库时引擎用 `NullPool` | 默认连接池（更快） | 每个用例重连；换池会报 `got Future attached to a different loop`（asyncpg 连接绑事件循环，pytest-asyncio 每用例新 loop） | — |
@@ -150,13 +150,16 @@
 | TD-138 | 抓取 + 解析目前只是**服务层函数，没有 HTTP 端点** | 后台管理页一键抓取 | 只能从代码/测试里调用 | 有了管理员角色再加端点 —— 公开端点等于给任何人一个「让服务器抓任意 URL + 烧 LLM token」的入口 |
 | TD-139 | 文章去重只看 `url` 唯一，不做正文相似度判断 | 内容指纹去重 | 同一篇文章换个 URL（如带 utm 参数）会重复入库 | 出现明显重复时加正文哈希 |
 | TD-140 | LLM 指认的选择器匹配不到就**直接报错**，不自动重试 | 自动重试 N 次 | 页面小改版就会失败，需要人工看 | 需要无人值守跑批时加重试 + 告警 |
+| TD-141 | 限流用**进程内存**滑动窗口，不引入 Redis | 分布式限流 | 多进程 / 多实例部署时每个进程各算各的，实际配额变成 N 倍；进程重启配额清零 | 上多实例部署时换 Redis |
+| TD-142 | 默认**不信任** `X-Forwarded-For`，只取 socket 对端地址 | 开箱即用的反代支持 | 部署在 nginx 之后所有用户会共用代理 IP 的配额，必须显式打开 `TRUST_PROXY_HEADERS` | 部署到反代之后立刻打开（否则限流过严） |
+| TD-143 | 测试里**默认关闭**限流（`tests/conftest.py`） | 全量用例都在限流下跑 | 几十个用例共用同一个客户端 IP，开着会互相挤爆配额；限流本身由 `tests/test_ratelimit.py` 显式打开来测 | 换成每用例独立 IP 时可去掉 |
 
 ## 十、工程与运维
 
 | 编号 | 取舍 | 放弃了什么 | 代价 | 何时回头改 |
 | --- | --- | --- | --- | --- |
 | TD-90 | 无日志框架、无监控告警 | 可观测性 | 出问题只能看 uvicorn 控制台输出 | 阶段五 S5-03-3 |
-| TD-91 | 无限流、无 CORS 配置、无安全响应头 | 基础防护 | 公开端点可被刷；跨域策略靠默认 | **上线前** |
+| TD-91 | ~~无限流~~（限流已做，见 TD-15/141）、无 CORS 配置、无安全响应头 | 基础防护 | 跨域策略靠默认，缺 `X-Content-Type-Options` 等安全头 | **上线前**（CORS 与安全头） |
 | TD-92 | `SITE_BASE_URL` 默认 `https://codemax.top`，靠 `.env` 覆盖 | 按请求 Host 自动探测 | 配错会产出错误的 canonical / sitemap 绝对地址 | 部署时确认 |
 | TD-93 | `.env` 不入库，仅提供 `.env.example` | — | 新环境需手工 `cp` | — |
 | TD-94 | `/static` 只放 `er.js`，HTML 全部走 SSR | 静态 HTML | 旧地址 `/static/er.html`、`/static/mermaid.html` 已 404 | 若外部已有旧链接需加 301 |

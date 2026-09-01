@@ -6,13 +6,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
+from ..ratelimit import rate_limit
 from ..schemas import RegisterIn, TokenOut, UserOut
 from ..security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["认证中心"])
 
 
-@router.post("/register", response_model=UserOut, status_code=201)
+@router.post("/register", response_model=UserOut, status_code=201,
+             dependencies=[Depends(rate_limit("register", "RATE_LIMIT_AUTH"))])
 async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     if await db.scalar(select(User).where(User.username == data.username)):
         raise HTTPException(400, "用户名已存在")
@@ -23,7 +25,8 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     return user
 
 
-@router.post("/login", response_model=TokenOut)
+@router.post("/login", response_model=TokenOut,
+             dependencies=[Depends(rate_limit("login", "RATE_LIMIT_AUTH"))])
 async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
     user = await db.scalar(select(User).where(User.username == form.username))
     if not user or not verify_password(form.password, user.password):

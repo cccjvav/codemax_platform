@@ -10,9 +10,15 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool, StaticPool
 
 from app.database import Base, get_db
+from app.config import settings
 from app.models import OAuthClient
+from app.ratelimit import limiter
 from app.security import hash_password
 from main import app
+
+# 测试默认关掉限流：所有用例共用同一个客户端 IP，开着的话几十个注册/登录会互相挤爆配额。
+# 限流本身由 tests/test_ratelimit.py 显式打开后测试（见 HANDOVER 的坑）。
+settings.RATE_LIMIT_ENABLED = False
 
 # 测试库默认是内存 SQLite（StaticPool 保证所有连接共享同一内存库）。
 # 设 TEST_DATABASE_URL 就能整套跑在真 PostgreSQL 上，用来消掉「集成测试只跑 SQLite」

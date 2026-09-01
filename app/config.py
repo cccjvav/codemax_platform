@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     STORAGE_PRODUCT_KEY: str = "product/codemax_package.zip"  # 商品文件的对象 key
     DOWNLOAD_URL_TTL: int = 300  # 预签名 URL 有效期（秒），S3-02-3
 
+    # 限流（TD-15）：/tools/* 刻意不设鉴权，任何人都能无限调用，所以必须限
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_WINDOW: int = 60  # 窗口秒数
+    RATE_LIMIT_TOOLS: int = 30  # DDL 解析 / Word 导出：每个 IP 每窗口次数
+    RATE_LIMIT_LLM: int = 10  # LLM 端点更严：每次调用都花钱
+    RATE_LIMIT_AUTH: int = 10  # 注册 / 登录：防在线爆破
+    TRUST_PROXY_HEADERS: bool = False  # 只在可信反向代理之后才打开（TD-142）
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

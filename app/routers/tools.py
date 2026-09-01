@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from ..deps import get_current_user
+from ..ratelimit import rate_limit
 from ..models import User
 from ..schemas import ErDiagramIn, MermaidIn
 from ..tools.llm import LLMClient, LLMError, generate_mermaid, get_llm
@@ -16,7 +17,7 @@ async def ping(_: User = Depends(get_current_user)):
     return {"platform": "tools", "message": "pong"}
 
 
-@router.post("/er-diagram")
+@router.post("/er-diagram", dependencies=[Depends(rate_limit("er", "RATE_LIMIT_TOOLS"))])
 async def er_diagram(data: ErDiagramIn) -> dict:
     """S2-01-1：解析 SQL DDL，返回 D3.js 可直接渲染的 ER 图数据。
 
@@ -28,7 +29,7 @@ async def er_diagram(data: ErDiagramIn) -> dict:
     return graph
 
 
-@router.post("/mermaid")
+@router.post("/mermaid", dependencies=[Depends(rate_limit("mermaid", "RATE_LIMIT_LLM"))])
 async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
     """S2-01-2：自然语言/代码 → Mermaid 类图。
 
@@ -41,7 +42,7 @@ async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
     return {"mermaid": diagram}
 
 
-@router.post("/word-export")
+@router.post("/word-export", dependencies=[Depends(rate_limit("word", "RATE_LIMIT_TOOLS"))])
 async def word_export(data: ErDiagramIn) -> Response:
     """S2-01-4：把 DDL 解析结果导出为 Word 数据字典（python-docx）。"""
     graph = parse_ddl(data.ddl)
