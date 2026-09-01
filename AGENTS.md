@@ -52,7 +52,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 ## 「做完」的定义（六条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **210 passed, 1 skipped**
+2. `.venv/bin/python -m pytest -q` → **223 passed, 1 skipped**
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
 3. 真 PostgreSQL 上 → **211 passed**（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
