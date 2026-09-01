@@ -153,6 +153,7 @@
 | TD-141 | 限流用**进程内存**滑动窗口，不引入 Redis | 分布式限流 | 多进程 / 多实例部署时每个进程各算各的，实际配额变成 N 倍；进程重启配额清零 | 上多实例部署时换 Redis |
 | TD-142 | 默认**不信任** `X-Forwarded-For`，只取 socket 对端地址 | 开箱即用的反代支持 | 部署在 nginx 之后所有用户会共用代理 IP 的配额，必须显式打开 `TRUST_PROXY_HEADERS` | 部署到反代之后立刻打开（否则限流过严） |
 | TD-143 | 测试里**默认关闭**限流（`tests/conftest.py`） | 全量用例都在限流下跑 | 几十个用例共用同一个客户端 IP，开着会互相挤爆配额；限流本身由 `tests/test_ratelimit.py` 显式打开来测 | 换成每用例独立 IP 时可去掉 |
+| TD-144 | CI 里把 actions 钉在 `actions/checkout@v4` 与 `actions/setup-python@v5` | 跟随上游主版本 | GitHub 已在 run 里报 annotation：`Node.js 20 is deprecated ... forced to run on Node.js 24`（上游现为 checkout v7.0.1 / setup-python v7.0.0）；现在只是告警，将来可能直接失效 | **只能由仓库管理员改**：本会话的 GitHub App 无 Workflows 写权限，改 `.github/workflows/ci.yml` 会被 remote rejected；改法是把两处 `@v4` / `@v5` 升到 `@v7` 后 push，再看 run 是否仍 success |
 
 ## 十、工程与运维
 
