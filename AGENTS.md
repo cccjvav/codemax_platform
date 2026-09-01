@@ -90,11 +90,17 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技能库（按需显式加载，不要每次全读）
 
-`.claude/skills/`：
+`.claude/skills/`（按需显式加载，**不要每次全读**）：
 
-- `codemax-workflow` — 本项目工作流铁律（**触发**：任何写代码/改代码/加功能的请求）
-- `fastapi-python` — FastAPI 异步写法与规范（**触发**：写路由、依赖注入、异步 DB）
-- `python-testing` — pytest / TDD 规范（**触发**：写或改测试）
+| 技能 | 触发时机 |
+| --- | --- |
+| `codemax-workflow` | 任何写代码 / 改代码 / 加功能的请求 |
+| `fastapi-python` | 写路由、依赖注入、异步 DB |
+| `python-testing` | 写或改测试 |
+| `schema-sync` | 增删改数据列、加表、加索引（含 `test_schema_sync.py` 抓不到的部分） |
+| `new-tool-page` | 新增工具页 / 前端页面 / 导航入口 |
+| `pre-commit-review` | 代码改完、准备 `git commit` 之前 |
+| `finish-subitem` | 一个 ROADMAP 子项做完、准备交付时 |
 
 ## 沙箱注意（会咬人）
 
