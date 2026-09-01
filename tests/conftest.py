@@ -9,10 +9,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool, StaticPool
 
-from app.database import Base, get_db
 from app.config import settings
+from app.database import Base, get_db
 from app.models import OAuthClient
-from app.ratelimit import limiter
 from app.security import hash_password
 from main import app
 

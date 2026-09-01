@@ -4,7 +4,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 > 本文件是**仓库级硬约定**，写给编码 agent 看，不是给人的项目介绍（那是 `README.md`）。
 > 原则：能被工具确定性执行的规则不写在这里，这里只放**需要判断**的部分。
-> 目前本仓库没有 linter / formatter / 类型检查器，唯一的闸门是 pytest 与 CI。
+> 确定性闸门有两个：**ruff**（规则集见 `ruff.toml`）与 **pytest + CI**。
 
 ## 命令（精确调用，别自己造）
 
@@ -14,6 +14,8 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | 建库建表（幂等） | `cd "database init" && python db_init.py && cd ..` |
 | 跑测试（SQLite，日常） | `.venv/bin/python -m pytest -q` |
 | 跑测试（真 PostgreSQL） | `TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" .venv/bin/python -m pytest -q` |
+| 静态检查 | `.venv/bin/ruff check .` |
+| 静态检查（自动修） | `.venv/bin/ruff check . --fix` |
 | 跑单个用例 | `.venv/bin/python -m pytest tests/test_x.py::test_y -q` |
 | 起服务 | `.venv/bin/python -m uvicorn main:app --reload` |
 
@@ -46,19 +48,20 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
   代价、何时回头改），**不要只写在 docstring 里**；同时同步 AGENTS.md / HANDOVER.md 的计数。
 - 修 bug 时补一个能复现该 bug 的回归测试。
 
-## 「做完」的定义（五条全中才算完成）
+## 「做完」的定义（六条全中才算完成）
 
-1. `.venv/bin/python -m pytest -q` → **208 passed, 1 skipped**
+1. `.venv/bin/ruff check .` → **All checks passed!**
+2. `.venv/bin/python -m pytest -q` → **208 passed, 1 skipped**
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
-2. 真 PostgreSQL 上 → **209 passed**（起库配方见 `HANDOVER.md` §9）。
-3. 已提交并推送，`git ls-remote` 能看到新 tip。
-4. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
+3. 真 PostgreSQL 上 → **209 passed**（起库配方见 `HANDOVER.md` §9）。
+4. 已提交并推送，`git ls-remote` 能看到新 tip。
+5. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
    抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。
-5. 新取舍已进 `TECH_DECISIONS.md`，相关文档的计数已同步。
+6. 新取舍已进 `TECH_DECISIONS.md`，相关文档的计数已同步。
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（109 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（111 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
@@ -77,12 +80,13 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 - **改表结构**：`app/models.py` 与 `database init/full_init.sql` 必须同步，
   `tests/test_schema_sync.py` 会拦不一致。
 - 配置只从 `app/config.py` 的 `Settings` 读，不要在模块里散着 `os.getenv`。
+- 新增 ruff 规则或白名单要去 `ruff.toml` 改并写清理由，**不要**在代码里散着加 `# noqa`（现有两处 `# noqa: DTZ005` 是 TD-146 的已知取舍，不要照抄）。
 
 ## 文档地图
 
 | 要看什么 | 去哪 |
 | --- | --- |
-| 实现取舍与上线阻塞项（109 条 TD-xx，其中 8 条待处理） | `TECH_DECISIONS.md` |
+| 实现取舍与上线阻塞项（111 条 TD-xx，其中 8 条待处理） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |

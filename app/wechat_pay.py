@@ -37,7 +37,7 @@ import json
 import secrets
 import time
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 from cryptography import x509
@@ -100,7 +100,7 @@ def new_order_no(now: datetime | None = None) -> str:
     随机后缀让同一秒内的并发下单不撞号；`sys_order.order_no` 的 UNIQUE 再兜一层。
     带时间前缀便于人工排查，也满足微信对同一订单号不可重复下单的语义。
     """
-    now = now or datetime.now()
+    now = now or datetime.now(timezone.utc)  # 只是订单号里的可读前缀，用 UTC 免歧义
     return f"CM{now:%Y%m%d%H%M%S}{secrets.token_hex(6).upper()}"
 
 

@@ -27,7 +27,7 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面阶段四再定 Selenium/Playwright。
 
-**实现层面的取舍（109 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+**实现层面的取舍（111 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
 其中开头列了 8 条待处理的「上线阻塞项」（token 存储、配额、JWT 吊销、日志/监控/安全头、支付真机联调、无超时关单、模拟支付通道误开、爬虫无 robots/限速）；
 「限流」「CI」「真库集成测试」三条已解决（TD-15 / TD-84 / TD-80）。
 「真库集成测试」那条已经解决（TD-80）。

@@ -20,3 +20,6 @@ pytest-asyncio==0.23.6
 httpx==0.25.2          # 测试用 AsyncClient
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
+
+# ---- 静态检查 ----
+ruff==0.16.5           # 唯一的 linter，规则集见 ruff.toml（TD-145）。刻意不引入 mypy

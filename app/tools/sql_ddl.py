@@ -229,7 +229,8 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
     to_table = _unquote(_short(fk.group(2)))
     sources = [c.strip() for c in fk.group(1).split(",") if c.strip()]
     targets = [c.strip() for c in fk.group(3).split(",") if c.strip()]
-    for src, dst in zip(sources, targets):
+    # strict=False：用户 DDL 写错列数时按短的一边配对，尽力出图而不是抛错
+    for src, dst in zip(sources, targets, strict=False):
         edges.append({
             "from_table": table,
             "from_column": _unquote(src),

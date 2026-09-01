@@ -9,7 +9,7 @@
 import base64
 import json
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 
 import httpx
 import pytest
@@ -144,7 +144,7 @@ def test_pay_config_requires_all_six_fields():
 
 
 def test_new_order_no_shape():
-    no = new_order_no(datetime(2026, 9, 1, 12, 30, 5))
+    no = new_order_no(datetime(2026, 9, 1, 12, 30, 5, tzinfo=timezone.utc))
     assert no.startswith("CM20260901123005")
     assert len(no) == 28, "order_no 列上限 32，留有余量"
     assert no[16:].isalnum()

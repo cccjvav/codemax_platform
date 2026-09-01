@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 
 from ..deps import get_current_user
-from ..ratelimit import rate_limit
 from ..models import User
+from ..ratelimit import rate_limit
 from ..schemas import ErDiagramIn, MermaidIn
 from ..tools.llm import LLMClient, LLMError, generate_mermaid, get_llm
 from ..tools.sql_ddl import parse_ddl

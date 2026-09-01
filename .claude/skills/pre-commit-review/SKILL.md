@@ -24,19 +24,27 @@ description: >
 - [ ] 金额 —— 走 `settings.SHOP_PRODUCT_AMOUNT`，单位是**分**
 - [ ] 魔法数字 —— 提成常量或写清来源（例如限流窗口、TTL）
 
-### 3. 死代码
-- [ ] 没用到的 import、没用到的局部变量（测试里尤其常见：
+### 3. 静态检查（先跑这个，下面几项大半它会自动报）
+```bash
+.venv/bin/ruff check .          # 必须 All checks passed!
+.venv/bin/ruff check . --fix    # 能自动修的先修（import 排序、未用 import 等）
+```
+规则集与理由见 `ruff.toml`（TD-145）。**不要**为了让它闭嘴就随手加 `# noqa`；
+确实是取舍就在 `TECH_DECISIONS.md` 记一条 TD 再 noqa，并注明编号。
+
+### 4. 死代码
+- [ ] 没用到的 import、没用到的局部变量（ruff 的 F401/F841 会报；测试里尤其常见：
       一个没用到的 `alice = await auth_headers(...)` 往往意味着**这个用例没在测它名字所说的东西**）
 - [ ] 用不到的分支、永远为真的判断
 
-### 4. 时间与并发（本项目踩过）
+### 5. 时间与并发（本项目踩过）
 - [ ] `datetime.now()` 不带 tz —— 注意 `paid_at` 用应用本地时间、而 `create_time`
       用数据库 `func.now()`，两者混用会在跨时区部署时产生矛盾数据
 - [ ] async 函数里有没有阻塞调用（`subprocess.run`、同步 IO、`time.sleep`）
 - [ ] 「读-判断-写」有没有改成原子条件更新（参考 `app/routers/oauth.py` 的
       `rowcount` 写法，TD 里有记录）
 
-### 5. 测试
+### 6. 测试
 - [ ] `.venv/bin/python -m pytest -q` → **208 passed, 1 skipped**
 - [ ] 改了表结构 → 真库那一遍也要跑（**209 passed**，配方见 `HANDOVER.md` §9）
 - [ ] 修 bug → 补了一个能复现该 bug 的回归测试
@@ -44,11 +52,11 @@ description: >
       记录格式：`去掉 X → N 个用例红`。
       抓不到的变异要如实写成「等价变异，不可捕获」，**不得当成已覆盖**
 
-### 6. 不该进仓库的东西
+### 7. 不该进仓库的东西
 - [ ] `.env`、`storage/`、`__pycache__/`、`.venv/`、临时脚本（`/tmp/*.py` 不要挪进仓库）
 - [ ] `git status --porcelain` 逐行看一遍，确认没有意料之外的文件
 
-### 7. 文档同步
+### 8. 文档同步
 - [ ] 新取舍 → `TECH_DECISIONS.md` 加 TD-xx（含放弃了什么 / 代价 / 何时回头改）
 - [ ] TD 总数变了 → `AGENTS.md` 与 `HANDOVER.md` 里的计数一起改
 - [ ] 新踩的坑 → `HANDOVER.md` §6
@@ -72,6 +80,7 @@ Workflows 写权限，这类提交一旦进了分支历史，**之后每一次 p
 
 ```
 改了：<文件与要点>
+ruff：All checks passed!
 测试：SQLite <N> passed + <N> skipped；真库 <N> passed
 变异测试：<去掉 X → N 个红> ×若干
 提交：<short sha>，已推送，远端 tip 已确认

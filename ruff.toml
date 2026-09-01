@@ -1,0 +1,49 @@
+# ruff —— 本仓库唯一的静态检查工具（TD-145）
+#
+# 为什么规则集要**显式列出**：实测 ruff 0.16.5 的默认集是**一批具体规则**，
+# 不是按前缀整族启用 —— 它含 B008 却不含 B904/B905，含 RUF007 却不含 RUF001。
+# 也就是说「按前缀 select」比默认更严（本仓库实测：默认 51 条，本配置 17 条，
+# 差异来自白名单消掉 28 条 B008、去掉 PLR/RUF、同时整族启用 B 带出 B904/B905）。
+# 写死规则集，升级 ruff 时才不会静默引入新规则、CI 突然变红而没人知道为什么。
+
+target-version = "py311"
+
+# 不启用 E501（行太长）：本仓库中文注释多，实测超过 88 列的有 516 行、最长 189 列。
+# 强行折行只会制造巨大且无信息量的 diff，价值低于噪音。
+line-length = 120
+
+[lint]
+select = [
+    "F",      # pyflakes：未使用 import/变量、未定义名字 —— 真 bug 与死代码
+    "E4",     # import 相关的 pycodestyle 错误
+    "E7",     # 语句类错误（如 == 比较类型）
+    "E9",     # 语法 / 运行时错误
+    "I",      # import 排序（可自动修，保持 diff 干净）
+    "B",      # bugbear：可变默认参数、裸 except、函数调用做默认值等
+    "DTZ",    # datetime 必须带时区 —— 就是它抓到了 paid_at 的问题（TD-145）
+    "ASYNC",  # async 里的阻塞调用
+    "SIM",    # 可简化的写法（数量少，可自动修）
+    "C4",     # 推导式相关（数量少，可自动修）
+]
+
+# 刻意不选：
+# - "E501"（行长）：见上面的说明
+# - "PLR" 整个家族：会引入大量主观规则（参数个数、分支数），噪音大于收益
+# - "RUF" 整个家族：RUF001/002/003 会把中文标点判成「歧义 unicode 字符」，
+#   本仓库全是中文注释，开了等于全屏红
+
+[lint.flake8-bugbear]
+# FastAPI 的 Depends() / Query() 等**必须**写在默认参数位置，这是框架用法不是 bug。
+# 不加这个白名单会有 28 条 B008 误报（实测），淹没真正的问题。
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Header",
+    "fastapi.Body",
+    "fastapi.Security",
+]
+
+[lint.per-file-ignores]
+# tests/test_er_page.py 用 subprocess 真实执行 node 跑前端 JS（用户明确要求：
+# 测试要真的执行前端代码，不许退化成静态字符串检查），所以 ASYNC221 是有意的。
+"tests/test_er_page.py" = ["ASYNC221"]

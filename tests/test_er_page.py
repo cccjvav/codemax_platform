@@ -110,7 +110,7 @@ async def test_layout_consumes_backend_payload(client, tmp_path):
         rows.setdefault(n["y"], []).append(n)
     for row in rows.values():
         xs = sorted(n["x"] for n in row)
-        assert all(b - a >= by_name[row[0]["name"]]["w"] for a, b in zip(xs, xs[1:]))
+        assert all(b - a >= by_name[row[0]["name"]]["w"] for a, b in zip(xs, xs[1:], strict=False))
     assert layout["width"] >= max(n["x"] + n["w"] for n in layout["nodes"])
     assert layout["height"] >= max(n["y"] + n["h"] for n in layout["nodes"])
 

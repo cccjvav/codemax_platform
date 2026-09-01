@@ -111,8 +111,7 @@ async def test_second_download_rejected(client, product):
 
 
 async def test_other_users_order_not_found(client, product):
-    alice = await auth_headers(client, "alice", "secret123")
-    bob = await auth_headers(client, "bob", "secret456")
+    bob = await auth_headers(client, "bob", "secret456")  # alice 的订单由下面按用户名创建
     order_no = await make_order("paid", "alice")
     r = await client.get(f"/shop/download/{order_no}", headers=bob)
     assert r.status_code == 404

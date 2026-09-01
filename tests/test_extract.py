@@ -29,7 +29,7 @@ from tests.conftest import TestSession
 FAKE_IP = "93.184.216.34"
 URL = f"http://{FAKE_IP}/blog/1"
 
-BLOG_HTML = f"""
+BLOG_HTML = """
 <html><head><script>var noise=1;</script></head>
 <body>
   <nav><a href="/">首页</a></nav>
@@ -181,8 +181,9 @@ async def test_parse_article_end_to_end(monkeypatch):
 
 
 async def test_parse_article_requires_title_and_content():
-    import httpx
     import json
+
+    import httpx
 
     transport = httpx.MockTransport(lambda req: httpx.Response(200, text=BLOG_HTML))
     for bad in ({**SELECTORS, "title": ""}, {**SELECTORS, "content": ""}):
@@ -211,14 +212,14 @@ async def _save(article: ParsedArticle) -> Article:
 
 
 def _mk(**kw) -> ParsedArticle:
-    base = dict(
-        url=URL,
-        source_site=FAKE_IP,
-        title="标题",
-        author="张三",
-        published_at="2026-03-01",
-        content="正文",
-    )
+    base = {
+        "url": URL,
+        "source_site": FAKE_IP,
+        "title": "标题",
+        "author": "张三",
+        "published_at": "2026-03-01",
+        "content": "正文",
+    }
     return ParsedArticle(**{**base, **kw})
 
 
