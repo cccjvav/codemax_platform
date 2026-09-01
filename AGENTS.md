@@ -2,11 +2,59 @@
 
 codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服务平台。
 
-## 硬性工作流（用户要求）
+> 本文件是**仓库级硬约定**，写给编码 agent 看，不是给人的项目介绍（那是 `README.md`）。
+> 原则：能被工具确定性执行的规则不写在这里，这里只放**需要判断**的部分。
+> 目前本仓库没有 linter / formatter / 类型检查器，唯一的闸门是 pytest 与 CI。
 
-1. **代码尽量简洁** —— 不写多余代码、不提前抽象、不加用不到的配置。
-2. **写完必须测试** —— 每次代码改动后运行 `.venv/bin/python -m pytest -q`。
-3. **不过则迭代** —— 测试失败必须修复后重跑，直到全绿；禁止跳过/注释/降标。
+## 命令（精确调用，别自己造）
+
+| 动作 | 命令 |
+| --- | --- |
+| 装依赖 | `.venv/bin/python -m pip install -r requirements.txt` |
+| 建库建表（幂等） | `cd "database init" && python db_init.py && cd ..` |
+| 跑测试（SQLite，日常） | `.venv/bin/python -m pytest -q` |
+| 跑测试（真 PostgreSQL） | `TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" .venv/bin/python -m pytest -q` |
+| 跑单个用例 | `.venv/bin/python -m pytest tests/test_x.py::test_y -q` |
+| 起服务 | `.venv/bin/python -m uvicorn main:app --reload` |
+
+以上是沙箱（Linux）路径。用户本机是 **Windows + cmd.exe**，对应写法见 `README.md`
+的「在 Windows（cmd.exe）上跑起来」——给他命令时必须用 cmd 语法。
+
+## NEVER（硬边界，违反等于返工）
+
+- **不得合并 PR**，除非用户在本轮明确说要合并。合并后沙箱内的后续改动无法同步，等于白做。
+- **不得为了让测试通过而降标**：禁止 `skip` / 注释掉用例 / 放宽断言 / 删测试。
+- **不得引入 Java 或 Node 运行时**。node 只允许作为测试期工具去执行前端代码。
+- **不得提交 `.env`**。新增配置项必须同时写进 `.env.example`。
+- **不得把没验证过的结论写成事实**。跑不了的要明确标注「未核实」及原因。
+
+## ASK（先问用户，别自己拍板）
+
+- 新增第三方依赖之前。
+- 改数据库表结构之前（`app/models.py` 与 `database init/full_init.sql` 必须一起改）。
+- 触碰 `.github/workflows/**` 之前：本会话的 GitHub App 无 Workflows 写权限，push 会被
+  `remote rejected`，改动只能以补丁形式交接（见 TD-84 / TD-144）。而且只要分支历史里
+  带着 workflow 改动，**之后每一次 push 都会被拒**，务必先把这类提交从历史上摘掉。
+
+## ALWAYS
+
+- 每次代码改动后跑 pytest；红着就不算完成。
+- 每次 `git commit` 之后**立刻** `git push`，并用 `git ls-remote origin refs/heads/<branch>`
+  确认远端 tip（`git log origin/<branch>` 在本沙箱会报 ambiguous argument，不可用）。
+- 一个 ROADMAP 子项 = 一个提交。提交信息用 `git commit -F <file>`，不要用带引号的 `-m`。
+- 产生新的实现取舍 → 去 `TECH_DECISIONS.md` 追加一行带编号的 **TD-xx**（含放弃了什么、
+  代价、何时回头改），**不要只写在 docstring 里**；同时同步 AGENTS.md / HANDOVER.md 的计数。
+- 修 bug 时补一个能复现该 bug 的回归测试。
+
+## 「做完」的定义（五条全中才算完成）
+
+1. `.venv/bin/python -m pytest -q` → **208 passed, 1 skipped**
+   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
+2. 真 PostgreSQL 上 → **209 passed**（起库配方见 `HANDOVER.md` §9）。
+3. 已提交并推送，`git ls-remote` 能看到新 tip。
+4. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
+   抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。
+5. 新取舍已进 `TECH_DECISIONS.md`，相关文档的计数已同步。
 
 ## 技术选型（已定，不要重新论证）
 
@@ -21,10 +69,37 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
    - 工具清单集中成一个 `TOOLS` 常量，同时驱动路由、sitemap 与导航（S2-02-1）
    - S2-02-1 只做 `sitemap.xml` + `robots.txt` + 工具页 TDK；S2-02-2 转化路径本轮跳过
 
-## 项目速览
+## 目录约定
 
-- 数据库初始化：`cd "database init" && python db_init.py`（幂等；测试账号 admin/123456）
-- 配置：`.env`（模板 `.env.example`），`.env` 不提交
-- Skills：`.claude/skills/`（fastapi-python、python-testing、codemax-workflow）
-- 详细路线图：`ROADMAP.md`
-- 实现取舍清单（含上线阻塞项）：`TECH_DECISIONS.md`
+- `app/routers/` 只做 HTTP 层；业务逻辑放 `app/tools/`、`app/storage.py`、
+  `app/wechat_pay.py`、`app/order_state.py`。
+- **新增一个工具页**：往 `app/site.py` 的 `TOOLS` 常量加一条，路由、导航、sitemap 自动跟上。
+- **改表结构**：`app/models.py` 与 `database init/full_init.sql` 必须同步，
+  `tests/test_schema_sync.py` 会拦不一致。
+- 配置只从 `app/config.py` 的 `Settings` 读，不要在模块里散着 `os.getenv`。
+
+## 文档地图
+
+| 要看什么 | 去哪 |
+| --- | --- |
+| 实现取舍与上线阻塞项（109 条 TD-xx，其中 8 条待处理） | `TECH_DECISIONS.md` |
+| 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
+| 路线图与子项进度 | `ROADMAP.md` |
+| 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |
+| 阶段传输文件（**合并 PR #3 之后删除**） | `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md` |
+
+## 技能库（按需显式加载，不要每次全读）
+
+`.claude/skills/`：
+
+- `codemax-workflow` — 本项目工作流铁律（**触发**：任何写代码/改代码/加功能的请求）
+- `fastapi-python` — FastAPI 异步写法与规范（**触发**：写路由、依赖注入、异步 DB）
+- `python-testing` — pytest / TDD 规范（**触发**：写或改测试）
+
+## 沙箱注意（会咬人）
+
+- 沙箱可能在两轮之间被回收：`.venv`、`/tmp/pgdata`、`storage/` 会消失，且 `.git` 会被重置回
+  `main` 的原始提交，而已推送的工作全部变成「未提交改动」。
+  恢复顺序见 `HANDOVER.md`，**别在 `git ls-remote` 之前断定工作丢了**。
+- CI 日志正文取不到（下载会重定向到 `*.blob.core.windows.net` 然后 SSL 失败），
+  只能引用 job/step 的 `conclusion` 字段。
