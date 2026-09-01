@@ -1,23 +1,19 @@
 # ============================================================================
-# GitHub Actions CI —— 待激活（TD-84）
+# GitHub Actions CI（TD-84，已激活）
 #
-# 本文件内容就是 .github/workflows/ci.yml 的最终内容，但**不能由本会话推送**：
-#   git push → "remote rejected ... refusing to allow a GitHub App to create
-#   or update workflow `.github/workflows/ci.yml` without `workflows` permission"
-# Arena 的 GitHub App（arena-ai-coding-agent[bot]）没有 Workflows 写权限。
+# 2f3223a 由仓库管理员从 docs/github-actions-ci.yml 纯重命名而来（0 增删）。
+# 实跑记录：run 33512433132 / 33512433325 / 33513725297 / 33513731149 /
+# 33514158624 / 33514166211，conclusion 全为 success；每次两个 job
+# （测试（SQLite 后端）、测试（真 PostgreSQL 16））全部 step 通过。
 #
-# 激活方式（二选一，都需要仓库管理员做一次）：
-#   1) 给该 App 授权：仓库 Settings → GitHub Apps → arena-ai-coding-agent →
-#      Repository permissions → Workflows → Read and write，之后本会话即可
-#      正常 push 这个文件；
-#   2) 或手工执行：
-#        mkdir -p .github/workflows
-#        git mv docs/github-actions-ci.yml .github/workflows/ci.yml
-#        git commit -m "启用 CI" && git push
+# 未能核实的一项：CI 日志正文在本沙箱取不到（下载被重定向到
+# *.blob.core.windows.net 后 SSL 失败），故上面只引用 job/step 的 conclusion
+# 字段，无法引用日志里「N passed」那一行。
 #
-# 内容已在本地校验：YAML 可解析；postgres job 的 TEST_DATABASE_URL 与 service
-# 容器的 POSTGRES_DB 一致；两个 job 的 pytest 命令与 HANDOVER.md §9 相同。
-# 但**从未在 GitHub Actions 上真正跑过**——CI 是否通过要等文件激活后看 Actions 页。
+# ⚠️ 改这个文件需要仓库管理员出手：Arena 的 GitHub App
+# （arena-ai-coding-agent[bot]）没有 Workflows 写权限，由它 push 会得到
+#   remote rejected ... without `workflows` permission
+# 详见 TD-84 / TD-144。
 # ============================================================================
 name: CI
 
