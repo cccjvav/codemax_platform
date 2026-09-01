@@ -37,6 +37,25 @@ class Order(Base):
     update_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), onupdate=func.now())
 
 
+class Article(Base):
+    """抓取入库的文章（S4-01-4）。
+
+    `url` 唯一 —— 同一篇不重复入库；`published_at` 按源站原文存字符串，
+    各家日期格式差异太大，强行解析成 datetime 反而会丢信息（TD-137）。
+    """
+
+    __tablename__ = "sys_article"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    url: Mapped[str] = mapped_column(String(500), unique=True)
+    title: Mapped[str] = mapped_column(String(300))
+    author: Mapped[str | None] = mapped_column(String(100))
+    published_at: Mapped[str | None] = mapped_column(String(50))
+    content: Mapped[str] = mapped_column(Text)
+    source_site: Mapped[str | None] = mapped_column(String(200))  # 域名，便于按站分组
+    create_time: Mapped[datetime] = mapped_column(DateTime, server_default=func.now())
+
+
 class SysConfig(Base):
     """系统配置键值表。"""
 

@@ -8,6 +8,7 @@
 -- ============================================================
 
 -- 1. 删除已存在的表（如果存在，便于重复执行）
+DROP TABLE IF EXISTS sys_article CASCADE;
 DROP TABLE IF EXISTS sys_diagram CASCADE;
 DROP TABLE IF EXISTS oauth_code CASCADE;
 DROP TABLE IF EXISTS oauth_client CASCADE;
@@ -93,3 +94,17 @@ CREATE TABLE sys_diagram (
     update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX idx_sys_diagram_user ON sys_diagram (user_id);
+
+-- 7. 文章表（S4-01-4 内容冷启动：爬虫 + LLM 解析后入库）
+CREATE TABLE sys_article (
+    id           SERIAL PRIMARY KEY,
+    url          VARCHAR(500) UNIQUE NOT NULL,   -- 同一篇不重复入库
+    title        VARCHAR(300) NOT NULL,
+    author       VARCHAR(100),
+    published_at VARCHAR(50),                    -- 源站原文，格式各异，不强行解析（TD-137）
+    content      TEXT NOT NULL,
+    source_site  VARCHAR(200),                   -- 域名，便于按站分组
+    create_time  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_article_site ON sys_article(source_site);
