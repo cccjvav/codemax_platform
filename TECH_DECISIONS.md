@@ -18,7 +18,7 @@
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
 | TD-70 | JWT 无 `jti`、无法吊销 | 改密码/封号后旧 token 仍然有效 |
 | ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
-| ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：两个 job（SQLite + 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过。另注：`.github/workflows/ci.yml` 里那段注释头还是激活前写的（说「待激活/从未跑过」），修正补丁在 `docs/patches/0001-*.patch` |
+| ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：两个 job（SQLite + 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过。注释头也已在 `4b145b5` 修正（原先 `2f3223a` 纯重命名时把激活前那段「待激活/从未跑过」的注释一起搬了进来）。改本文件仍需仓库管理员出手：本会话的 GitHub App 无 Workflows 写权限，push 会 remote rejected |
 | TD-90/91 | 无日志、无监控、无安全响应头 | 线上出问题无法定位 |
 | TD-113 | 微信支付未经真机联调 | 沙箱无商户号/证书/公网回调，签名与报文只能算法级验证 |
 | TD-109 | 无超时关单，二维码过期后订单一直挂着 | 待支付单会无限堆积，且过期二维码扫码必失败 |
@@ -153,7 +153,7 @@
 | TD-141 | 限流用**进程内存**滑动窗口，不引入 Redis | 分布式限流 | 多进程 / 多实例部署时每个进程各算各的，实际配额变成 N 倍；进程重启配额清零 | 上多实例部署时换 Redis |
 | TD-142 | 默认**不信任** `X-Forwarded-For`，只取 socket 对端地址 | 开箱即用的反代支持 | 部署在 nginx 之后所有用户会共用代理 IP 的配额，必须显式打开 `TRUST_PROXY_HEADERS` | 部署到反代之后立刻打开（否则限流过严） |
 | TD-143 | 测试里**默认关闭**限流（`tests/conftest.py`） | 全量用例都在限流下跑 | 几十个用例共用同一个客户端 IP，开着会互相挤爆配额；限流本身由 `tests/test_ratelimit.py` 显式打开来测 | 换成每用例独立 IP 时可去掉 |
-| TD-144 | CI 里把 actions 钉在 `actions/checkout@v4` 与 `actions/setup-python@v5` | 跟随上游主版本 | GitHub 已在 run 里报 annotation：`Node.js 20 is deprecated ... forced to run on Node.js 24`（上游现为 checkout v7.0.1 / setup-python v7.0.0）；现在只是告警，将来可能直接失效 | **只能由仓库管理员改**：本会话的 GitHub App 无 Workflows 写权限，改 `.github/workflows/ci.yml` 会被 remote rejected；改法是把两处 `@v4` / `@v5` 升到 `@v7` 后 push，再看 run 是否仍 success。升级补丁已备好：`docs/patches/0002-*.patch`（`git am` 后 push） |
+| ~~TD-144~~ | ~~CI 里把 actions 钉在 `actions/checkout@v4` 与 `actions/setup-python@v5`~~ **已解决** | 仓库管理员 `aa87c52` 已升到 `actions/checkout@v7` / `actions/setup-python@v7`（上游 v7.0.1 / v7.0.0）。实跑验证：run 33524519419（push）与 33524753544（pull_request）均 `success`，step 名已是 `Run actions/checkout@v7`，且两个 job 的 annotations **已为空**——原先那条 `Node.js 20 is deprecated ... forced to run on Node.js 24` 消失。代价：v7 的行为在沙箱里无法预验证，只能靠 push 后 CI 实跑兜底 |
 
 ## 十、工程与运维
 

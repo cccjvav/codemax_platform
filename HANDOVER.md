@@ -10,7 +10,7 @@
   - 7 个提交，按 ROADMAP 子项分开，可逐个回滚
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
 - **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**208 passed + 1 skipped**；真 PostgreSQL 16.2：**209 passed**；
-  另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑 SQLite 与真 PostgreSQL 16 两个 job，PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；有两条改动因 App 无 Workflows 写权限推不上去，已备成 `docs/patches/`（见该目录 README，应用后删除）
+  另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑 SQLite 与真 PostgreSQL 16 两个 job，PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。改 `.github/workflows/**` 仍需仓库管理员出手——本会话的 GitHub App 无 Workflows 写权限
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
   `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
