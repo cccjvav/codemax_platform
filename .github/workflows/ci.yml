@@ -1,19 +1,23 @@
 # ============================================================================
-# GitHub Actions CI（TD-84，已激活）
+# GitHub Actions CI（TD-84）
 #
-# 2f3223a 由仓库管理员从 docs/github-actions-ci.yml 纯重命名而来（0 增删）。
-# 实跑记录：run 33512433132 / 33512433325 / 33513725297 / 33513731149 /
-# 33514158624 / 33514166211，conclusion 全为 success；每次两个 job
-# （测试（SQLite 后端）、测试（真 PostgreSQL 16））全部 step 通过。
+# 三个 job：
+#   lint          —— ruff check .（规则集见 ruff.toml，TD-145）
+#   test-sqlite   —— 默认后端，全量 pytest
+#   test-postgres —— postgres:16 service 容器，另建库把建表脚本连跑两遍验证幂等
+#
+# 历史：2f3223a 由仓库管理员从 docs/github-actions-ci.yml 纯重命名激活；
+# aa87c52 把 actions 升到 v7（消 Node 20 弃用告警，TD-144）；
+# b47044b 加入 lint job。
+#
+# 权限：本会话的 GitHub App（arena-ai-coding-agent[bot]）**已于 2026-09-01 获得
+# Workflows 写权限**，现在可以直接改并 push 本文件。此前它被
+# `remote rejected ... without 'workflows' permission` 拒绝过多次，
+# 当时的绕行办法（git mv / git am 补丁）已不再需要，见 TD-84。
 #
 # 未能核实的一项：CI 日志正文在本沙箱取不到（下载被重定向到
-# *.blob.core.windows.net 后 SSL 失败），故上面只引用 job/step 的 conclusion
-# 字段，无法引用日志里「N passed」那一行。
-#
-# ⚠️ 改这个文件需要仓库管理员出手：Arena 的 GitHub App
-# （arena-ai-coding-agent[bot]）没有 Workflows 写权限，由它 push 会得到
-#   remote rejected ... without `workflows` permission
-# 详见 TD-84 / TD-144。
+# *.blob.core.windows.net 后 SSL 失败），所以引用 CI 结果时只能引用 job/step 的
+# conclusion 字段，不能写「日志显示 N passed」。
 # ============================================================================
 name: CI
 

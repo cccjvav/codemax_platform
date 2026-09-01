@@ -72,9 +72,8 @@ git push origin arena/01a0599b-codemax-platform
 git ls-remote origin refs/heads/arena/01a0599b-codemax-platform   # 确认远端 tip
 ```
 
-⚠️ 改动若涉及 `.github/workflows/**`：**先别提交**。本会话的 GitHub App 无
-Workflows 写权限，这类提交一旦进了分支历史，**之后每一次 push 都会被拒**；
-只能以 `git format-patch` 导出、放到 `docs/patches/` 交给用户 `git am`（见 TD-84）。
+改动若涉及 `.github/workflows/**`：本会话已有 Workflows 写权限、可直接 push，
+但 CI 是全局闸门，push 完必须 `gh run watch <run_id> --exit-status` 看到绿才算完成。
 
 ## 收尾报告（提交后必须给出）
 

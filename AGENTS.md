@@ -34,9 +34,10 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 - 新增第三方依赖之前。
 - 改数据库表结构之前（`app/models.py` 与 `database init/full_init.sql` 必须一起改）。
-- 触碰 `.github/workflows/**` 之前：本会话的 GitHub App 无 Workflows 写权限，push 会被
-  `remote rejected`，改动只能以补丁形式交接（见 TD-84 / TD-144）。而且只要分支历史里
-  带着 workflow 改动，**之后每一次 push 都会被拒**，务必先把这类提交从历史上摘掉。
+- 改 `.github/workflows/**` 之前说一句：本会话已有 Workflows 写权限、可以直接 push，
+  但 CI 是**全局**闸门，改坏会让之后每一次 push 都红。改完必须 `gh run watch` 看到绿。
+  另注：`concurrency` 配了 `cancel-in-progress: true`，连续推送会把上一次还在跑的
+  运行标成 `cancelled`（不是失败），统计成功率时别把它算成红。
 
 ## ALWAYS
 
