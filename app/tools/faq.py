@@ -95,8 +95,13 @@ class _Index:
         for counts in self.tf:
             for t in counts:
                 self.df[t] = self.df.get(t, 0) + 1
-        # TF-IDF 向量的模长（余弦用）
-        self.norm = [math.sqrt(sum(v * v for v in c.values())) or 1.0 for c in self.tf]
+        # TF-IDF 向量（tf × idf）与它的模长。
+        # 余弦的分子分母必须同量纲：早先分子是 tf·idf 点积、分母却用裸 tf 的模长，
+        # 算出来的「余弦」能超过 1（实测 1.050），压根不是余弦，阈值也就无从标定。见 TD-152。
+        self.vec: list[dict[str, float]] = [
+            {t: c * self._idf(t) for t, c in counts.items()} for counts in self.tf
+        ]
+        self.norm = [math.sqrt(sum(v * v for v in vec.values())) or 1.0 for vec in self.vec]
 
     def _idf(self, term: str) -> float:
         """BM25 的 IDF（Robertson 形式，恒为正，避免高频词出现负权重）。"""
@@ -120,14 +125,13 @@ class _Index:
         q_counts: dict[str, int] = {}
         for t in query:
             q_counts[t] = q_counts.get(t, 0) + 1
-        q_norm = math.sqrt(sum(v * v for v in q_counts.values())) or 1.0
+        # 查询向量同样带 idf，与文档向量同量纲；语料里没有的词丢掉
+        # （它们对点积无贡献，留在分母里只会把余弦整体压低）。结果严格落在 [0,1]。
+        q_vec = {t: qf * self._idf(t) for t, qf in q_counts.items() if self.df.get(t)}
+        q_norm = math.sqrt(sum(v * v for v in q_vec.values())) or 1.0
         out = []
-        for i, counts in enumerate(self.tf):
-            dot = 0.0
-            for t, qf in q_counts.items():
-                df = counts.get(t, 0)
-                if df:
-                    dot += df * qf * self._idf(t) ** 2
+        for i, vec in enumerate(self.vec):
+            dot = sum(w * vec[t] for t, w in q_vec.items() if t in vec)
             out.append(dot / (self.norm[i] * q_norm))
         return out
 
@@ -143,9 +147,20 @@ _INDEX = _Index(_corpus_tokens())
 @dataclass(frozen=True)
 class FaqHit:
     faq: Faq
-    score: float  # 融合后的分数，[0,1]
+    score: float  # 融合分数（**同一结果集内**归一化）：只用于排序，不能跨查询比较
     bm25: float  # 归一化后的 BM25 分量
     cosine: float  # 归一化后的余弦分量
+    confidence: float  # 绝对置信度 [0,1]：由未归一化的原始分算出，**可以**跨查询比较
+
+
+# BM25 无上界，不能直接和 [0,1] 的余弦相加。用饱和函数 x/(x+S) 压到 [0,1)，
+# S 取 3.0 是按现有语料的实测分布定的（见 TD-151 的标定记录）。
+_BM25_SATURATION = 3.0
+
+
+def _saturate(x: float) -> float:
+    """把无上界的 BM25 压进 [0,1)，单调递增，x=0 时为 0。"""
+    return x / (x + _BM25_SATURATION) if x > 0 else 0.0
 
 
 def _normalize(scores: list[float]) -> list[float]:
@@ -161,12 +176,23 @@ def search(query: str, k: int = 3) -> list[FaqHit]:
     q = tokenize(query)
     if not q:
         return []
-    bm = _normalize(_INDEX.bm25(q))
-    cos = _normalize(_INDEX.cosine(q))
+    raw_bm = _INDEX.bm25(q)
+    raw_cos = _INDEX.cosine(q)
+    # 注意：score 用「按最大值归一化」，它只表示**本结果集内**的相对强弱。
+    # 单看 score 会以为 top1 永远是 1.0（确实如此），拿它当绝对置信度是错的 ——
+    # 那会让「python 部署 nginx 报错」也判成 FAQ 命中。绝对判断请用 confidence。
+    bm = _normalize(raw_bm)
+    cos = _normalize(raw_cos)
     fused = [BM25_WEIGHT * b + (1 - BM25_WEIGHT) * c for b, c in zip(bm, cos, strict=True)]
     ranked = sorted(range(len(FAQS)), key=lambda i: fused[i], reverse=True)
     return [
-        FaqHit(faq=FAQS[i], score=fused[i], bm25=bm[i], cosine=cos[i])
+        FaqHit(
+            faq=FAQS[i],
+            score=fused[i],
+            bm25=bm[i],
+            cosine=cos[i],
+            confidence=BM25_WEIGHT * _saturate(raw_bm[i]) + (1 - BM25_WEIGHT) * raw_cos[i],
+        )
         for i in ranked[:k]
         if fused[i] > 0
     ]

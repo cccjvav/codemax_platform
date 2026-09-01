@@ -30,6 +30,10 @@ class MermaidIn(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
 
 
+class SupportIn(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+
 class DiagramIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=500000)  # drawio XML 可能较大
