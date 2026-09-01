@@ -26,3 +26,6 @@ git am docs/patches/0002-*.patch        # 仅升 actions 到 v7（消 Node 20 �
   单独成一个提交就是为了 CI 变红时可只回滚它。
 
 **应用并推送后请删掉本目录**（与 `PHASE1_TRANSFER.txt` 等一次性传输文件同理）。
+
+> 注：`git am` 需要本地已配置 `user.name` / `user.email`，否则会报
+> `fatal: empty ident name ... not allowed`（在临时克隆里实测到过）。
