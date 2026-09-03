@@ -288,6 +288,11 @@
 **变异测试 9 个杀掉 8 个**，唯一存活的是 `_goto` 里的 `final_url = pg.url`（取重定向后的最终地址）：端点测试把整个 `_goto` 换成了假的，所以看不到它内部 —— 这一行**只有真浏览器才覆盖得到**，已在 `tests/test_dynamic_crawl.py` 的最后一条（默认跳过、`RUN_BROWSER_TESTS=1` 打开）里补上断言，**合并前需在本机跑一次**。
 
 另一个实测教训：把 `render` 里的 `assert_public_url` 删掉，`test_render_blocks_bad_url_before_touching_browser` **照样通过** —— 因为 `politeness.check_allowed` 会去抓 robots.txt，而 `_request` 内部也做 SSRF 校验，拦截「碰巧」还是发生了。那是巧合性防御，所以另加了一条把 robots 层整个换成空操作的测试专门钉住它（该变异体现已被杀） | 多一个可选依赖；`_goto` 内部需本机验证 |
+| TD-192 | **未解决（待查）**：CI 的「真 PostgreSQL 16」job 存在非确定性失败 | 忽略它 | 证据：commit `14b0910` 的 **push** run（33792674060）三个 job 全 success，而**同一 commit** 的 **pull_request** run（33792680165）里 SQLite 与 ruff 都 success、**只有真 PG job 失败**（步骤 `pytest`，退出码 1）。同一份代码两种结果 ⇒ 不是代码缺陷。后一个 commit `5948836` 的两条 run 又都全绿。本地也复现过同形状的一次：真库第一次跑出 **218 passed + 182 errors**（错误集中在 fixture setup），随后连跑 3 次都是 400 passed，且换新集群立刻跑也不复现。
+
+**为什么查不下去**：GitHub Actions 的日志端点 `results-receiver.actions.githubusercontent.com` 在本沙箱不可达（HTTP 000），拿不到失败输出；`gh run rerun` 也被拒（token 缺 `actions:write`），无法重跑取样本。
+
+**尚未验证的假设**（不要当结论）：`tests/conftest.py` 对真库用 `NullPool`（asyncpg 连接绑死事件循环，pytest-asyncio 每用例新 loop，所以必须这样），于是每个用例都新建连接，而 fixture 收尾的 `drop_all` 需要 ACCESS EXCLUSIVE 锁 —— 418 个用例的连接churn 加上锁等待，可能偶发超时。要证实需要拿到 CI 日志或本地压出复现。 | CI 偶发红灯，需要人工重跑 |
 
 ## 维护约定
 
