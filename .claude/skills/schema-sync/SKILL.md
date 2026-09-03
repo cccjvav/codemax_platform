@@ -47,7 +47,7 @@ description: >
 
 ```bash
 .venv/bin/python -m pytest tests/test_schema_sync.py -q
-.venv/bin/python -m pytest -q          # 全量：208 passed, 1 skipped
+.venv/bin/python -m pytest -q          # 全量：417 passed, 2 skipped
 ```
 
 真库那一遍（起库配方见 `HANDOVER.md` §9）——**改表结构必须跑**，
@@ -55,7 +55,7 @@ description: >
 
 ```bash
 TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-  .venv/bin/python -m pytest -q        # 209 passed
+  .venv/bin/python -m pytest -q        # 418 passed, 1 skipped
 ```
 
 ## 已知会漏的（别指望测试）

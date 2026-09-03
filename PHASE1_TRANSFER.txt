@@ -1,3 +1,8 @@
+!!! 本文件是一次性传输文档，内容已过期，仅作历史留存。
+!!! 它描述的是当时的仓库状态（测试条数、待办等均已失效），不要照它操作。
+!!! 事实来源：AGENTS.md / HANDOVER.md / ROADMAP.md / TECH_DECISIONS.md。
+!!! 合并 PR #3 后本文件会被删除。
+
 From 687e60e578341b2b57e0649f2c717b3818b62e7c Mon Sep 17 00:00:00 2001
 From: cccjvav <66018270+cccjvav@users.noreply.github.com>
 Date: Mon, 31 Aug 2026 16:33:40 +0000

@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | 难点1 | 下载链接安全防护 | 阿里云 OSS / 腾讯云 COS；策略模式封装多云；预签名 URL；一次性下载双重校验 |
 | 难点2 | 支付闭环 | 微信支付 NATIVE 扫码；订单状态机（待支付→已支付→已下载）；回调验签 + AES-GCM 解密 + 幂等处理 |
-| 难点3 | 平台内容冷启动 | httpx + BeautifulSoup4（动态页面阶段四再定 Selenium / Playwright）；LLM 智能解析 DOM 结构并自动提取入库 |
+| 难点3 | 平台内容冷启动 | httpx + BeautifulSoup4；动态页面**已选 Playwright**（TD-03/191，可选依赖）；LLM 智能解析 DOM 结构并自动提取入库 |
 | 难点4 | 智能客服 | 三层架构：BM25+余弦相似度 FAQ（<80ms）→ BERT 意图路由 → 闲聊 LLM / 专业问题 RAG；低置信度转人工 |
 | 难点5 | 在线工具矩阵 | SQL DDL 解析 + D3.js（ER 图）；LLM→Mermaid；Drawio iframe 嵌入；python-docx 导出 Word |
 | 难点6 | 跨域单点登录 | OAuth2 授权码模式统一认证中心 + JWT 无状态 Token |
@@ -49,16 +49,16 @@
 - [x] **S2-01 在线工具矩阵开发（对应难点 5）**
   - [x] S2-01-1 工具1：引入 `SQL DDL` 解析库，结合 `D3.js` 开发 ER 图在线渲染功能
     - [x] 后端：`POST /tools/er-diagram`（`app/tools/sql_ddl.py`，纯标准库解析，兼容 MySQL/PostgreSQL）
-    - [x] 前端：D3.js 渲染 ER 图页面（`app/static/er.html` + `er.js`，访问 `/static/er.html`）
+    - [x] 前端：D3.js 渲染 ER 图页面（当时是 `app/static/er.html`，**后改为 SSR 页面 `/tools/er`**，`er.html` 已删除，见 TD-94；`app/static/er.js` 仍在）
   - [x] S2-01-2 工具2：接入 LLM 接口，设计 Prompt 实现自然语言/代码到 `Mermaid` 类图的生成
     - [x] 后端：`POST /tools/mermaid`（`app/tools/llm.py`，OpenAI 兼容客户端**可注入**，测试不出网）
-    - [x] 前端：`app/static/mermaid.html`（Mermaid v11 渲染 + 源码可复制）
+    - [x] 前端：Mermaid v11 渲染 + 源码可复制（当时是 `app/static/mermaid.html`，**后改为 SSR 页面 `/tools/mermaid`**，该文件已删除，见 TD-94）
   - [x] S2-01-3 工具3：使用 `iframe` 嵌入 `Drawio`，提供流程图编辑功能，并实现与本地/云端的保存交互
     - [x] 后端：`/diagrams` CRUD（新表 `sys_diagram`，**需鉴权**且只能读写自己的；`app/models.py` 与 `database init/full_init.sql` 已同步）
     - [x] 前端：`app/templates/drawio.html`（embed.diagrams.net iframe + postMessage 协议；云端保存 / 下载 .drawio / 导入本地文件）
   - [x] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
     - [x] 后端：`POST /tools/word-export`（`app/tools/word.py`，DDL → 数据字典 .docx）
-    - [x] 前端：ER 图页面「导出 Word」按钮（`/static/er.html`）
+    - [x] 前端：ER 图页面「导出 Word」按钮（现位于 SSR 页面 `/tools/er`）
 - [ ] **S2-02 SEO 与流量优化**
   - [x] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
     - [x] Jinja2 SSR：`app/templates/`（base/index/er/mermaid）+ `app/routers/site.py`，不引入 Node 构建链
@@ -104,7 +104,7 @@
 > 目标：利用爬虫和 LLM 解决内容冷启动问题，并打造智能客服降低人工成本。
 
 - [x] **S4-01 平台内容冷启动系统（对应难点 3）**
-  - [x] S4-01-1 编写底层爬虫模块（封装 `httpx` + `BeautifulSoup4`，动态页面阶段四再定 `Selenium` / `Playwright`）
+  - [x] S4-01-1 编写底层爬虫模块（封装 `httpx` + `BeautifulSoup4`；动态页面当时约定推迟，**后已选型 Playwright**，见 TD-03/191）
     - [x] `app/tools/crawler.py`：抓取（超时 / 大小上限 / 跟随重定向 / 自定义 UA）
     - [x] **SSRF 防护**：只允许 http/https，解析出的每个地址都必须是公网地址
     - [x] `to_skeleton()`：剥噪声 + 压成 DOM 骨架再喂 LLM，不把整页 HTML 丢给模型
