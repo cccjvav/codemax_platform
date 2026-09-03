@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
+from starlette.concurrency import run_in_threadpool
 
 from ..deps import get_current_user
 from ..models import User
@@ -22,8 +23,13 @@ async def er_diagram(data: ErDiagramIn) -> dict:
     """S2-01-1：解析 SQL DDL，返回 D3.js 可直接渲染的 ER 图数据。
 
     引流工具，故不设鉴权（便于 SEO 收录与游客直接使用）。
+
+    `parse_ddl` 是**同步 CPU 密集**代码，必须丢到线程池里跑（S5-02-2）。
+    直接在 `async def` 里调用会独占事件循环：实测满额 20000 字符的 DDL 单次
+    33 ms，5 个并发时最后一个要等 169 ms（≈5×33，完全串行），期间**全站**
+    请求都卡住 —— 智能客服的 <80ms 指标就是这么被打穿的（TD-159）。
     """
-    graph = parse_ddl(data.ddl)
+    graph = await run_in_threadpool(parse_ddl, data.ddl)
     if not graph["tables"]:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
     return graph
@@ -44,12 +50,17 @@ async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
 
 @router.post("/word-export", dependencies=[Depends(rate_limit("word", "RATE_LIMIT_TOOLS"))])
 async def word_export(data: ErDiagramIn) -> Response:
-    """S2-01-4：把 DDL 解析结果导出为 Word 数据字典（python-docx）。"""
-    graph = parse_ddl(data.ddl)
+    """S2-01-4：把 DDL 解析结果导出为 Word 数据字典（python-docx）。
+
+    两步都要进线程池：`build_data_dictionary` 比 `parse_ddl` 贵得多 ——
+    实测 28 表时 parse 32 ms、生成 docx **454 ms**，是前者的 13 倍。
+    也就是说**一个** Word 导出请求就能把整个事件循环占住半秒（TD-159）。
+    """
+    graph = await run_in_threadpool(parse_ddl, data.ddl)
     if not graph["tables"]:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
     return Response(
-        build_data_dictionary(graph),
+        await run_in_threadpool(build_data_dictionary, graph),
         media_type=MIME_DOCX,
         headers={"Content-Disposition": f'attachment; filename="{FILENAME}"'},
     )
