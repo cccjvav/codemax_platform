@@ -92,6 +92,7 @@ CREATE TABLE sys_diagram (
     name        VARCHAR(100) NOT NULL,
     content     TEXT NOT NULL,
     deleted_at  TIMESTAMPTZ,   -- 软删除（TD-64）：NULL = 存活
+    version     INTEGER NOT NULL DEFAULT 1,  -- 乐观锁（TD-65）：每次保存 +1
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );

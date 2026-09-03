@@ -84,6 +84,11 @@ class SysDiagram(Base):
     # **每一处读取都必须带 `deleted_at IS NULL` 过滤** —— 漏一处就等于「删了还能看见」，
     # 所以 `_owned()` 与列表查询都走同一个 `_alive()` 条件，不散写。
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # 乐观锁版本号（TD-65）：每次保存 +1。客户端把它当 ETag 拿着，保存时用
+    # If-Match 带回来；服务端用**原子 CAS**（UPDATE ... WHERE version=?）判定，
+    # 不是「先读出来比一比再写」—— 后者在并发下两边都会读到同一个版本、都通过
+    # 检查、都写进去，丢更新照旧（与 TD-158 下载端点是同一个坑）。
+    version: Mapped[int] = mapped_column(Integer, default=1)
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

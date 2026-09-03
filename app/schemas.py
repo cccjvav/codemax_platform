@@ -52,6 +52,9 @@ class DiagramSummary(BaseModel):
     id: int
     name: str
     update_time: datetime
+    # 乐观锁版本号（TD-65）。响应里另有一个 ETag 头是同一个值；这里也放一份，
+    # 是因为客户端不总能方便地读响应头，而列表页也需要知道每张图的当前版本。
+    version: int
 
 
 class DiagramOut(DiagramSummary):

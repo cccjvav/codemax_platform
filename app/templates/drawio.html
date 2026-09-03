@@ -44,6 +44,7 @@
 
   let currentId = null; // null = 尚未保存到云端的新图
   let currentXml = BLANK;
+  let etag = null; // 手上这一版的版本号（ETag），保存时带回去做乐观锁（TD-65）
 
   // 登录态由 HttpOnly cookie 携带，脚本**读不到也不需要读** token（TD-44）。
   // 因此「是否已登录」只能问后端，见下面的 checkAuth()。
@@ -53,11 +54,11 @@
     frame.contentWindow.postMessage(JSON.stringify(msg), ORIGIN);
   }
 
-  function api(url, method, body) {
+  function api(url, method, body, extraHeaders) {
     return fetch(url, {
       method,
       credentials: "same-origin", // 让浏览器带上登录 cookie
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", ...extraHeaders },
       body: body ? JSON.stringify(body) : undefined,
     });
   }
@@ -85,12 +86,20 @@
       status.textContent = "未登录，未保存";
       return;
     }
-    const res = await api(currentId ? `/diagrams/${currentId}` : "/diagrams", currentId ? "PUT" : "POST", {
-      name: nameInput.value.trim() || "未命名流程图",
-      content: currentXml,
-    });
+    const res = await api(
+      currentId ? `/diagrams/${currentId}` : "/diagrams",
+      currentId ? "PUT" : "POST",
+      { name: nameInput.value.trim() || "未命名流程图", content: currentXml },
+      currentId ? { "If-Match": etag } : undefined, // 只有改已有的图才需要带版本
+    );
     if (res.status === 401) {
       status.textContent = "登录已失效，请重新登录";
+      return;
+    }
+    if (res.status === 412) {
+      // 另一个标签页/设备已经改过了。**绝不能自动重试** —— 那正好会把对方的改动盖掉，
+      // 乐观锁就白加了。让用户自己决定。
+      status.textContent = "云端已有更新的版本，本次未保存 —— 请从列表重新打开后再改";
       return;
     }
     if (!res.ok) {
@@ -101,6 +110,7 @@
     }
     const saved = await res.json();
     currentId = saved.id;
+    etag = res.headers.get("ETag"); // 服务端已经把版本 +1，换掉手上的旧版本
     status.textContent = `已保存到云端（#${saved.id}）`;
     await refreshList();
   }
@@ -129,6 +139,7 @@
     const d = await res.json();
     currentId = d.id;
     currentXml = d.content;
+    etag = res.headers.get("ETag");
     nameInput.value = d.name;
     send({ action: "load", xml: currentXml });
     status.textContent = `已打开 #${d.id}`;

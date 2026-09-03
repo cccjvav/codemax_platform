@@ -52,7 +52,8 @@ async def test_deleted_diagram_is_invisible_everywhere(client):
     assert (await client.get("/diagrams", headers=h)).json() == [], "列表里不该出现"
     assert (await client.get(f"/diagrams/{did}", headers=h)).status_code == 404
     assert (
-        await client.put(f"/diagrams/{did}", json={"name": "改了", "content": "<x/>"}, headers=h)
+        await client.put(f"/diagrams/{did}", json={"name": "改了", "content": "<x/>"},
+                         headers={**h, "If-Match": '"1"'})
     ).status_code == 404, "已删除的图不该还能改"
     assert (await client.delete(f"/diagrams/{did}", headers=h)).status_code == 404, "重复删除应是 404"
 
@@ -146,6 +147,7 @@ async def test_update_is_not_limited_by_quota(client, monkeypatch):
     monkeypatch.setattr(settings, "DIAGRAM_QUOTA", 1)
     h = await auth(client)
     did = await new(client, h)
-    r = await client.put(f"/diagrams/{did}", json={"name": "改个名", "content": "<mxfile/>"}, headers=h)
+    r = await client.put(f"/diagrams/{did}", json={"name": "改个名", "content": "<mxfile/>"},
+                         headers={**h, "If-Match": '"1"'})
     assert r.status_code == 200
     assert r.json()["name"] == "改个名"

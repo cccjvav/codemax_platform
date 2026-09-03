@@ -36,7 +36,7 @@ def test_sys_diagram_shape():
     """S2-01-3 新增表：两边都得有，且列一致。"""
     assert _sql_schema()["sys_diagram"] == _orm_schema()["sys_diagram"]
     assert _sql_schema()["sys_diagram"] == [
-        "content", "create_time", "deleted_at", "id", "name", "update_time", "user_id"
+        "content", "create_time", "deleted_at", "id", "name", "update_time", "user_id", "version"
     ]
 
 

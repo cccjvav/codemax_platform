@@ -5,8 +5,8 @@
 """
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -35,6 +35,27 @@ async def _owned(db: AsyncSession, user: User, diagram_id: int, *, include_delet
     return diagram
 
 
+def _etag(diagram: SysDiagram) -> str:
+    """ETag 就是版本号，按 HTTP 规范加引号（强校验符）。"""
+    return f'"{diagram.version}"'
+
+
+def _parse_if_match(raw: str | None) -> int:
+    """解析 If-Match。**缺失就报 428**（RFC 6585 Precondition Required），
+    不默认放行 —— 默认放行等于这个接口仍然可以被静默覆盖。
+    """
+    if raw is None:
+        raise HTTPException(
+            status.HTTP_428_PRECONDITION_REQUIRED,
+            "缺少 If-Match 头：保存流程图必须带上你手上那一版的版本号（GET 响应的 ETag），"
+            "否则并发编辑会互相覆盖",
+        )
+    tag = raw.strip().strip('"').strip()
+    if not tag.isdigit():
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, f'If-Match 的值无法解析：{raw}')
+    return int(tag)
+
+
 async def _live_count(db: AsyncSession, user: User) -> int:
     return await db.scalar(
         select(func.count()).select_from(SysDiagram).where(SysDiagram.user_id == user.id, _alive())
@@ -57,7 +78,10 @@ async def list_diagrams(
 
 @router.post("", response_model=DiagramOut, status_code=201)
 async def create_diagram(
-    data: DiagramIn, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    data: DiagramIn,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
     # 每用户配额（TD-64）：不设的话任何人都能无限建图把库刷满。
     # 只数存活行，所以删掉一张就腾出一个名额。
@@ -70,28 +94,66 @@ async def create_diagram(
     db.add(diagram)
     await db.commit()
     await db.refresh(diagram)
+    response.headers["ETag"] = _etag(diagram)  # 新建完就把版本给客户端，省一次 GET
     return diagram
 
 
 @router.get("/{diagram_id}", response_model=DiagramOut)
 async def get_diagram(
-    diagram_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    diagram_id: int,
+    response: Response,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
 ):
-    return await _owned(db, user, diagram_id)
+    diagram = await _owned(db, user, diagram_id)
+    response.headers["ETag"] = _etag(diagram)
+    return diagram
 
 
 @router.put("/{diagram_id}", response_model=DiagramOut)
 async def update_diagram(
     diagram_id: int,
     data: DiagramIn,
+    response: Response,
+    if_match: str | None = Header(default=None, alias="If-Match"),
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    diagram = await _owned(db, user, diagram_id)
-    diagram.name = data.name
-    diagram.content = data.content
+    """保存（乐观锁，TD-65）。
+
+    客户端必须用 `If-Match` 带上它手上那一版的版本号：
+      - 缺这个头 → **428**（不放行：默认放行等于仍然会被静默覆盖）
+      - 版本对不上 → **412**，一个字都不写
+      - 对得上 → 写入并把 version +1
+
+    判定用的是**原子 CAS**（`UPDATE ... WHERE version = 期望值`）+ 检查 rowcount，
+    不是「读出来比一比再写」。后者在并发下两个请求会同时读到同一个版本、
+    都通过检查、都写进去 —— 后写覆盖先写，锁等于没加。这与 TD-158（下载端点
+    必须看 `mark_downloaded()` 的返回值）是同一个道理。
+    """
+    expected = _parse_if_match(if_match)
+    diagram = await _owned(db, user, diagram_id)  # 不存在 / 不是自己的 / 已删除 → 404
+    result = await db.execute(
+        update(SysDiagram)
+        .where(
+            SysDiagram.id == diagram_id,
+            SysDiagram.user_id == user.id,
+            SysDiagram.version == expected,
+            _alive(),
+        )
+        .values(name=data.name, content=data.content, version=expected + 1),
+        execution_options={"synchronize_session": False},
+    )
+    # 走到这里说明存在性与归属已经确认过了，所以 rowcount == 0 只可能是版本冲突。
+    if result.rowcount == 0:
+        raise HTTPException(
+            status.HTTP_412_PRECONDITION_FAILED,
+            f"云端已经是第 {diagram.version} 版，你手上是第 {expected} 版；"
+            "为避免覆盖别人的改动，本次保存未写入。请重新打开最新版本再改。",
+        )
     await db.commit()
-    await db.refresh(diagram)
+    await db.refresh(diagram)  # 会话是 expire_on_commit=False，不 refresh 会拿到旧值
+    response.headers["ETag"] = _etag(diagram)
     return diagram
 
 

@@ -53,7 +53,8 @@ async def test_list_returns_only_own_and_skips_content(client):
 async def test_update_replaces_name_and_content(client):
     h = await auth_headers(client)
     did = (await create(client, h)).json()["id"]
-    r = await client.put(f"/diagrams/{did}", json={"name": "改名了", "content": "<mxfile/>"}, headers=h)
+    r = await client.put(f"/diagrams/{did}", json={"name": "改名了", "content": "<mxfile/>"},
+                         headers={**h, "If-Match": '"1"'})
     assert r.status_code == 200
     assert r.json()["id"] == did
     assert r.json()["name"] == "改名了"
@@ -76,7 +77,8 @@ async def test_others_diagram_is_invisible(client):
 
     assert (await client.get(f"/diagrams/{did}", headers=bob)).status_code == 404
     assert (
-        await client.put(f"/diagrams/{did}", json={"name": "抢过来的", "content": "<x/>"}, headers=bob)
+        await client.put(f"/diagrams/{did}", json={"name": "抢过来的", "content": "<x/>"},
+                         headers={**bob, "If-Match": '"1"'})
     ).status_code == 404
     assert (await client.delete(f"/diagrams/{did}", headers=bob)).status_code == 404
 
