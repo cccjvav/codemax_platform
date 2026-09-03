@@ -92,7 +92,6 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |
-| 阶段传输文件（**合并 PR #3 之后删除**） | `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md` |
 
 ## 技能库（按需显式加载，不要每次全读）
 

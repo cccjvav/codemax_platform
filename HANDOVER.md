@@ -13,8 +13,9 @@
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
-- **合并 PR #3 之后要做的事**：删除 main 上 4 个一次性传输文件
-  `PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` / `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md`
+- **一次性传输文件已删除**：`PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` /
+  `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md` 已在本分支删掉（它们描述的任务全部完成，
+  继续留着只会误导接手的人）。PR #3 合并后 `main` 上也会一并消失，无需再单独处理。
 
 ## 2. 技术栈
 
