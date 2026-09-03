@@ -92,10 +92,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
-            echo "### ❌ ${{ job.name }} 失败"
+            echo "### ❌ 测试（SQLite 后端） 失败"
             echo
             echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo "job: ${{ job.name }}  |  commit: ${{ github.sha }}"
+            echo "job: 测试（SQLite 后端） (`${{ github.job }}`)  |  commit: ${{ github.sha }}"
             echo
             echo '```'
             tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
@@ -166,10 +166,10 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           {
-            echo "### ❌ ${{ job.name }} 失败"
+            echo "### ❌ 测试（真 PostgreSQL 16） 失败"
             echo
             echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
-            echo "job: ${{ job.name }}  |  commit: ${{ github.sha }}"
+            echo "job: 测试（真 PostgreSQL 16） (`${{ github.job }}`)  |  commit: ${{ github.sha }}"
             echo
             echo '```'
             tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
