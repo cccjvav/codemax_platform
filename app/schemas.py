@@ -17,6 +17,13 @@ class UserOut(BaseModel):
     avatar: str | None
 
 
+class PasswordChangeIn(BaseModel):
+    """改密码入参。新密码规则与 RegisterIn 保持一致，避免两套标准。"""
+
+    old_password: str = Field(min_length=1, max_length=64)
+    new_password: str = Field(min_length=6, max_length=64)
+
+
 class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"

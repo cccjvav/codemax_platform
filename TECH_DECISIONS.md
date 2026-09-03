@@ -16,7 +16,7 @@
 | ~~TD-15~~ | ~~公开工具端点无限流~~ **已解决** | `app/ratelimit.py` 内存滑动窗口：工具 30 次/60s、LLM 10 次/60s、注册登录 10 次/60s，超额 429 + `Retry-After`（多实例部署的代价见 TD-141） |
 | TD-44 | JWT 存 localStorage | 一旦有 XSS，token 直接被读走 |
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
-| TD-70 | JWT 无 `jti`、无法吊销 | 改密码/封号后旧 token 仍然有效 |
+| ~~TD-70~~ | ~~JWT 无 `jti`、无法吊销~~ **已解决**：改用**令牌版本化** —— JWT 带 `pwd` 声明（签发时 `password_changed_at` 的 UNIX 秒），`get_current_user` 每次与库里当前值比对，早于它就拒。新增 `POST /auth/password`（限流），改密码即吊销该用户**所有**旧 token，并返回一个新 token 让当前会话不掉线。**订正原文一处不准确的说法**：「封号后旧 token 仍然有效」并不成立 —— `get_current_user` 一直都查库并检查 `status != 1`，禁用是立刻生效的（`test_disabled_user_token_is_rejected_immediately` 钉住） | 撤销粒度是「按用户」而非「按单个 token」：无法只踢掉某一个会话而保留其他会话 |
 | ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
 | ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：三个 job（ruff 静态检查 / SQLite / 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过。注释头也已在 `4b145b5` 修正（原先 `2f3223a` 纯重命名时把激活前那段「待激活/从未跑过」的注释一起搬了进来）。GitHub App 已于 2026-09-01 取得 Workflows 写权限，workflow 可直接改并 push |
 | ~~TD-90/91~~ | ~~无日志、无监控、无安全响应头~~ **已解决（S5-03-3）**：`app/middleware.py` 出安全头 + CSP + 每请求结构化日志（带 `X-Request-ID`，上游给了就沿用）；`app/routers/health.py` 出 `/healthz` 存活探针与 `/readyz` 就绪探针（后者查库、失败 503）；`Dockerfile` / `docker-compose.yml` / `docs/DEPLOY.md` 齐备 | 仍未接集中式日志与指标采集（Prometheus/ELK），报警规则只在文档里给了建议阈值 |
@@ -254,6 +254,9 @@
 | TD-169 | robots.txt 解析直接用标准库 `urllib.robotparser`，不自研 | 自己写解析器以支持小数 `Crawl-delay` 等 | 标准库有两处**看不见的**行为限制（已用测试钉住）：① `Entry.applies_to` 会先把我们的 UA 在第一个 `/` 处截断成 `codemax-platform`，再看 robots 里写的 agent 是不是它的子串 —— 所以站方必须写 `User-agent: codemax-platform`，**写完整 UA 串反而匹配不上**；② `Crawl-delay` 只接受整数（`isdigit()` → `int()`），`0.5` 这类小数被静默丢弃、回落到默认间隔 | 若目标站普遍用小数 Crawl-delay，再自研解析；届时 `test_fractional_crawl_delay_is_silently_ignored_by_stdlib` 会提醒 |
 | TD-170 | `check_allowed` 必须让 `CrawlError`（SSRF 拒绝）**穿透**，不能被 robots 的兜底吞掉 | 统一 `except Exception` 兜底成「不抓」 | 第一版就是这么写的，后果是「这个地址不许访问」被伪装成「robots 不让抓」：排障时看不出是 SSRF 拦截，安全告警也就丢了。由 `test_ssrf_rejection_is_not_masked_as_robots_error` 守住 | 无 |
 | TD-171 | robots 与限速状态是**进程内**的，不共享 | 放 Redis 让多实例共享节流窗口 | 冷启动只涉及少数几个站、单实例跑，引 Redis 不值得 | 多实例部署前需要处理：否则每个实例各有一份缓存与窗口，对目标站的实际频率按实例数放大 |
+| TD-172 | 用**令牌版本化**（`pwd` 声明 = 改密码时刻）吊销旧 token，而不是 `jti` 黑名单表 | 建 `sys_token` 表存每个 jti，注销时插一条 | 黑名单要在**每次登录时写库**（写放大），且要能枚举出某用户的全部 jti 才能一次吊销；版本化零额外表、零额外写入，一次吊销该用户全部旧 token | 需要「踢掉单个会话」或「主动注销某一个 token」时，才值得引入 jti 表 |
+| TD-173 | `password_changed_at` 为 **NULL 时跳过校验** | 一律要求 token 带 `pwd` 声明 | 本次上线前签发的 token 都不带 `pwd` 声明；若一律要求，**全站已登录用户会在部署那一刻集体掉线**。NULL 语义定为「从未改过密码」，只在用户第一次改密码后才开始强制 | 若要强制所有 token 带声明，得配合一次「全体重新登录」的公告 |
+| TD-174 | 时间戳比较用 `claims.pwd < current` | 用 `!=` | **实测两者是等价变异**：改密码后新签发 token 的 `pwd` 与库值相等，`a != a` 本就是 False，两种写法都放行；把 `<` 改成 `!=` 后 15 条测试**全绿**，杀不掉。差别只在 `pwd > current`（时钟回拨、手改库）时出现：`<` 放行、`!=` 拒绝。选 `<` 是因为那种情况拒绝会让用户莫名登不进去，且没放宽真正的威胁模型 | 无。这条记录的目的是避免后人误以为这里有可测的行为差异 |
 
 ## 维护约定
 
