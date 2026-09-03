@@ -11,7 +11,13 @@
    `http://169.254.169.254/`（云厂商元数据）、`http://127.0.0.1:8000/`（本机服务）
    都能被读走。所以只允许 http/https，且解析出来的每个地址都必须是公网地址。
 
-礼貌性约束（robots.txt、抓取间隔、并发限速）目前**没有做**，见 TECH_DECISIONS.md TD-133。
+礼貌性约束见 `app/tools/politeness.py`（TD-133 已解决）：抓前读并遵守 robots.txt
+（含 401/403 视为全站禁止、5xx 视为规则不可知则不抓）、按域遵守 `Crawl-delay`
+（无则用默认间隔）、全局并发上限。
+
+**robots.txt 自己的抓取必须过 SSRF 校验，但绝不能再过 `check_allowed`** ——
+否则会变成「为了判断能不能抓 robots.txt 而去读 robots.txt」的无限递归。
+所以这里拆成 `_request()`（只做 SSRF + 发请求）与 `fetch()`（加礼貌性检查）两层。
 """
 from __future__ import annotations
 
@@ -23,6 +29,8 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup, Comment, NavigableString
+
+from . import politeness
 
 TIMEOUT = 15.0
 MAX_BYTES = 2_000_000  # 2MB：比这还大的基本不是文章页，别把自己拖死
@@ -83,11 +91,13 @@ async def assert_public_url(url: str) -> None:
             raise CrawlError(f"目标不是公网地址：{host} -> {ip}")
 
 
-async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_bytes: int = MAX_BYTES) -> Page:
-    """抓一个页面。
+async def _request(
+    url: str, *, transport: httpx.BaseTransport | None, max_bytes: int
+) -> httpx.Response:
+    """只做 SSRF 校验 + 发请求，**不做礼貌性检查**。
 
-    `transport` 只为测试注入 `httpx.MockTransport` 而存在；测试里用字面量公网 IP 当主机名，
-    这样 SSRF 校验依然真跑（字面量 IP 的 DNS 解析不需要联网），又不真的出网。
+    这一层的存在理由就是给 robots.txt 的抓取用：robots 请求自己也要防 SSRF，
+    但绝不能再触发一次 `check_allowed`。
     """
     await assert_public_url(url)
     async with httpx.AsyncClient(
@@ -97,10 +107,34 @@ async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_b
         headers={"User-Agent": USER_AGENT},
     ) as client:
         r = await client.get(url)
-    if r.status_code != 200:
-        raise CrawlError(f"抓取失败：HTTP {r.status_code} {url}")
     if len(r.content) > max_bytes:
         raise CrawlError(f"页面过大：{len(r.content)} 字节，超过上限 {max_bytes}")
+    return r
+
+
+async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_bytes: int = MAX_BYTES) -> Page:
+    """抓一个页面，抓之前先守礼貌性约束（TD-133）。
+
+    `transport` 只为测试注入 `httpx.MockTransport` 而存在；测试里用字面量公网 IP 当主机名，
+    这样 SSRF 校验依然真跑（字面量 IP 的 DNS 解析不需要联网），又不真的出网。
+
+    顺序是有讲究的：**先 robots 再限速**。反过来会为了一个根本不让抓的 URL
+    白等一个抓取间隔。
+    """
+
+    async def fetch_text(robots_url: str) -> tuple[int, str]:
+        r = await _request(
+            robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES
+        )
+        return r.status_code, r.text
+
+    await politeness.check_allowed(url, USER_AGENT, fetch_text)
+    state = politeness.state_for(url)
+    async with politeness._get_semaphore():  # 全局并发闸
+        await politeness.throttle(url, state)
+        r = await _request(url, transport=transport, max_bytes=max_bytes)
+    if r.status_code != 200:
+        raise CrawlError(f"抓取失败：HTTP {r.status_code} {url}")
     return Page(url=str(r.url), status=r.status_code, html=r.text)
 
 
