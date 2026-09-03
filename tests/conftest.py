@@ -1,6 +1,8 @@
 import os
+import re
 import sys
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # 仓库根加入 sys.path
 
@@ -57,6 +59,46 @@ def seed_clients() -> list[OAuthClient]:
         ),
     ]
 
+
+# ---------------------------------------------------------------- SSO 授权流程辅助
+# TD-78 之后 GET /oauth/authorize 只渲染同意页、不签发授权码，签发在 POST。
+# 所以「拿到一个 code」必须走两步：GET 取同意页 → 从隐藏表单里抠出 sig → POST 提交。
+# 这也正是浏览器真实做的事，测试跟着走一遍才不会把签名校验测成摆设。
+_SIG_RE = re.compile(r'name="sig" value="([^"]+)"')
+
+
+async def sso_authorize(
+    client,
+    headers,
+    *,
+    client_id="tools",
+    redirect_uri="https://tools.codemax.top/callback",
+    state="xyz",
+    approve="1",
+):
+    """走完整的同意流程，返回**POST** 的响应（302，Location 里带 code）。"""
+    page = await client.get(
+        "/oauth/authorize",
+        params={"response_type": "code", "client_id": client_id,
+                "redirect_uri": redirect_uri, "state": state},
+        headers=headers,
+        follow_redirects=False,
+    )
+    assert page.status_code == 200, f"同意页应返回 200，实际 {page.status_code}：{page.text[:200]}"
+    m = _SIG_RE.search(page.text)
+    assert m, "同意页缺少签名字段"
+    return await client.post(
+        "/oauth/authorize",
+        data={"client_id": client_id, "redirect_uri": redirect_uri,
+              "state": state, "sig": m.group(1), "approve": approve},
+        headers=headers,
+        follow_redirects=False,
+    )
+
+
+def sso_code(response) -> str:
+    """从 302 的 Location 里取出 code。"""
+    return parse_qs(urlsplit(response.headers["location"]).query)["code"][0]
 
 @pytest_asyncio.fixture
 async def client():

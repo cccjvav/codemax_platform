@@ -52,9 +52,9 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 ## 「做完」的定义（六条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **372 passed, 1 skipped**
+2. `.venv/bin/python -m pytest -q` → **381 passed, 1 skipped**
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
-3. 真 PostgreSQL 上 → **372 passed**（另有 1 条既有性能用例在本机负载下会随机红，见 `TECH_DECISIONS.md` TD-183；CI 上稳定通过）（起库配方见 `HANDOVER.md` §9）。
+3. 真 PostgreSQL 上 → **382 passed**（本机的绝对阈值性能用例会随机红且**换着测试与后端出现**，见 `TECH_DECISIONS.md` TD-183；CI 上稳定通过）（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
 5. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
    抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。

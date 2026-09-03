@@ -5,7 +5,7 @@ import pytest
 from sqlalchemy import select, update
 
 from app.models import OAuthClient, OAuthCode, User
-from tests.conftest import TEST_DATABASE_URL, TestSession
+from tests.conftest import TEST_DATABASE_URL, TestSession, sso_authorize, sso_code
 
 TOOLS_CB = "https://tools.codemax.top/callback"
 
@@ -16,7 +16,8 @@ async def register_and_login(client, username="bob"):
     return {"Authorization": f"Bearer {r.json()['access_token']}"}
 
 
-async def authorize(client, headers, redirect_uri=TOOLS_CB, state="xyz", client_id="tools"):
+async def consent_page(client, headers, redirect_uri=TOOLS_CB, state="xyz", client_id="tools"):
+    """只走第一步：GET 同意页（TD-78 之后 GET 不再签发授权码）。"""
     return await client.get(
         "/oauth/authorize",
         params={
@@ -27,6 +28,13 @@ async def authorize(client, headers, redirect_uri=TOOLS_CB, state="xyz", client_
         },
         headers=headers,
         follow_redirects=False,
+    )
+
+
+async def authorize(client, headers, redirect_uri=TOOLS_CB, state="xyz", client_id="tools"):
+    """走完同意流程，返回 POST 的 302 响应（Location 里带 code）。"""
+    return await sso_authorize(
+        client, headers, client_id=client_id, redirect_uri=redirect_uri, state=state
     )
 
 
@@ -44,17 +52,21 @@ async def exchange_code(client, code, redirect_uri=TOOLS_CB, client_id="tools", 
 
 
 async def test_authorize_requires_login(client):
-    r = await authorize(client, headers={})
+    """同意页与签发端点**都**要登录 —— 少一边就等于绕过。"""
+    assert (await consent_page(client, headers={})).status_code == 401
+    r = await client.post("/oauth/authorize", data={
+        "client_id": "tools", "redirect_uri": TOOLS_CB, "state": "xyz", "sig": "x", "approve": "1",
+    })
     assert r.status_code == 401
 
 
 async def test_authorize_rejects_bad_client_and_uri(client):
     headers = await register_and_login(client)
-    r = await authorize(client, headers, client_id="hacker")
+    r = await consent_page(client, headers, client_id="hacker")
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "invalid_client"
 
-    r = await authorize(client, headers, redirect_uri="https://evil.com/cb")
+    r = await consent_page(client, headers, redirect_uri="https://evil.com/cb")
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "invalid_redirect_uri"
 
@@ -90,7 +102,7 @@ async def test_full_auth_code_flow(client):
 
 async def test_code_is_one_time_use(client):
     headers = await register_and_login(client)
-    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+    code = sso_code(await authorize(client, headers))
 
     assert (await exchange_code(client, code)).status_code == 200
     r = await exchange_code(client, code)  # 复用同一授权码
@@ -100,14 +112,14 @@ async def test_code_is_one_time_use(client):
 
 async def test_token_rejects_wrong_secret_and_uri(client):
     headers = await register_and_login(client)
-    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+    code = sso_code(await authorize(client, headers))
 
     r = await exchange_code(client, code, secret="wrong-secret")
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "invalid_client"
 
     # 重新授权拿新 code（上一个已被错误请求消费失败不影响，但换 URI 校验）
-    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+    code = sso_code(await authorize(client, headers))
     r = await exchange_code(client, code, redirect_uri="https://evil.com/cb")
     assert r.status_code == 400
     assert r.json()["detail"]["error"] == "invalid_grant"
@@ -154,7 +166,7 @@ async def test_code_consumption_is_atomic(client):
     同一条"仅当未使用时置为已使用"的 UPDATE，第二次执行必须影响 0 行。
     """
     headers = await register_and_login(client)
-    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+    code = sso_code(await authorize(client, headers))
 
     async with TestSession() as s:
         stmt = update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)
@@ -184,7 +196,7 @@ async def test_code_single_use_under_real_concurrency(client):
     跑法：TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" pytest -q
     """
     headers = await register_and_login(client, username="racer")
-    code = (await authorize(client, headers)).headers["location"].split("code=")[1].split("&")[0]
+    code = sso_code(await authorize(client, headers))
 
     results = await asyncio.gather(exchange_code(client, code), exchange_code(client, code))
     assert sorted(r.status_code for r in results) == [200, 400], "必须恰好一个成功、一个失败"

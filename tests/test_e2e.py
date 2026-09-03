@@ -25,7 +25,7 @@ from app.config import settings
 from app.models import OAuthClient, Order, User
 from app.order_state import CLOSED, DOWNLOADED, PAID, PENDING
 from app.storage import LocalStorage
-from tests.conftest import TestSession, seed_clients
+from tests.conftest import TestSession, seed_clients, sso_authorize
 
 PRODUCT_KEY = "product/codemax_package.zip"
 
@@ -306,17 +306,7 @@ async def test_full_sso_journey_across_two_platforms(client):
     """
     h = await signup(client, username="sso_user")
 
-    r = await client.get(
-        "/oauth/authorize",
-        params={
-            "client_id": "tools",
-            "redirect_uri": "https://tools.codemax.top/callback",
-            "response_type": "code",
-            "state": "xyz",
-        },
-        headers=h,
-        follow_redirects=False,
-    )
+    r = await sso_authorize(client, h, state="xyz")
     assert r.status_code in (302, 307)
     loc = r.headers["location"]
     assert loc.startswith("https://tools.codemax.top/callback")
@@ -356,17 +346,7 @@ async def test_sso_flow_survives_cross_origin_headers(client):
     h = await signup(client, username="cors_user")
     h.update(_cross_origin_headers("https://tools.codemax.top"))
 
-    r = await client.get(
-        "/oauth/authorize",
-        params={
-            "client_id": "tools",
-            "redirect_uri": "https://tools.codemax.top/callback",
-            "response_type": "code",
-            "state": "s1",
-        },
-        headers=h,
-        follow_redirects=False,
-    )
+    r = await sso_authorize(client, h, state="s1")
     assert r.status_code in (302, 307)
     assert parse_qs(urlsplit(r.headers["location"]).query)["code"]
 
@@ -393,17 +373,7 @@ async def test_redirect_uri_must_match_exactly_across_domains(client):
 async def test_code_from_one_client_cannot_be_used_by_another(client):
     """tools 平台拿到的授权码，不能被 shop 平台拿去换 token。"""
     h = await signup(client, username="cross_client")
-    r = await client.get(
-        "/oauth/authorize",
-        params={
-            "client_id": "tools",
-            "redirect_uri": "https://tools.codemax.top/callback",
-            "response_type": "code",
-            "state": "s",
-        },
-        headers=h,
-        follow_redirects=False,
-    )
+    r = await sso_authorize(client, h, state="s")
     code = parse_qs(urlsplit(r.headers["location"]).query)["code"][0]
 
     r = await client.post(
@@ -434,17 +404,7 @@ async def test_seeded_clients_are_on_different_domains(client):
 async def test_sso_token_does_not_leak_into_authorize_redirect(client):
     """授权跳转的 URL 里只能有 code，不能直接带 access_token（隐式流的老毛病）。"""
     h = await signup(client, username="no_token_in_url")
-    r = await client.get(
-        "/oauth/authorize",
-        params={
-            "client_id": "tools",
-            "redirect_uri": "https://tools.codemax.top/callback",
-            "response_type": "code",
-            "state": "s",
-        },
-        headers=h,
-        follow_redirects=False,
-    )
+    r = await sso_authorize(client, h, state="s")
     loc = r.headers["location"]
     assert "access_token" not in loc
     assert "code=" in loc

@@ -112,7 +112,8 @@ cd ..
 | GET | `/auth/me` | 当前用户（需 Bearer Token） |
 | POST | `/auth/password` | 修改密码（需 Bearer Token；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
 | POST | `/auth/logout` | 退出登录：清掉登录 cookie（204） |
-| GET | `/oauth/authorize` | **授权码端点**：已登录用户向第三方应用签发一次性 code（302 跳回调） |
+| GET | `/oauth/authorize` | **授权同意页**：显示申请方与当前账号，由用户点「同意/拒绝」（不再直接签发 code） |
+| POST | `/oauth/authorize` | 用户点同意后签发一次性 code 并 302 跳回调；表单需带同意页给出的签名 |
 | POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
 | GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |

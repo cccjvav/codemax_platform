@@ -1,8 +1,11 @@
+import base64
+import hashlib
+import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlencode
 
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +15,7 @@ from ..database import get_db
 from ..deps import get_current_user
 from ..models import OAuthClient, OAuthCode, User
 from ..security import create_access_token, verify_password
+from ..site import SITE_NAME, TOOLS, templates
 from ..timeutil import as_utc
 
 router = APIRouter(prefix="/oauth", tags=["OAuth2 授权码 SSO"])
@@ -30,8 +34,35 @@ def _oauth_error(error: str, description: str = "") -> HTTPException:
     return HTTPException(400, {"error": error, "error_description": description})
 
 
+async def _active_client(db: AsyncSession, client_id: str, redirect_uri: str) -> OAuthClient:
+    """取一个启用中、且回调地址与登记值完全一致的客户端。同意页与签发码共用这套校验，
+    免得两边校验强度不一致 —— 校验弱的那一边就是漏洞。"""
+    client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
+    if not client or client.status != 1:
+        raise _oauth_error("invalid_client")
+    if client.redirect_uri != redirect_uri:
+        raise _oauth_error("invalid_redirect_uri")
+    return client
+
+
+def _sign(client_id: str, redirect_uri: str, state: str | None) -> str:
+    """给授权请求的三个参数签名，塞进同意页的隐藏表单里。
+
+    作用是**把 POST 绑定到「本站渲染过的那张同意页」**：攻击者没有 SECRET_KEY，
+    签不出合法签名，就无法跳过用户点同意直接构造一个 POST。顺带也防住了
+    同意页渲染之后有人篡改 redirect_uri / state。
+
+    这不是本项目 CSRF 的**主要**防线 —— 主要防线是登录 cookie 的 SameSite=Lax
+    （跨站 POST 根本不带 cookie）。这条是第二层，好处是零会话状态。
+    """
+    payload = f"{client_id}\n{redirect_uri}\n{state or ''}".encode()
+    digest = hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).digest()
+    return base64.urlsafe_b64encode(digest).decode().rstrip("=")
+
+
 @router.get("/authorize")
 async def authorize(
+    request: Request,
     response_type: str,
     client_id: str,
     redirect_uri: str,
@@ -39,17 +70,62 @@ async def authorize(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """授权码端点：用户已登录（Bearer JWT）后，向客户端签发一次性授权码并重定向。
+    """**只渲染授权同意页，不签发授权码**（TD-78）。签发在下面的 POST。
 
-    浏览器流程：认证中心登录（拿 JWT）→ 携带 JWT 访问本端点 → 302 跳回客户端回调地址。
+    原来这里是直接签发 code 并 302 的，有两个问题：
+
+    1. 用户从头到尾没见过「某某应用请求访问你的账号」，不符合 OAuth 的用户同意语义。
+    2. TD-44 把登录态改成 cookie 之后，它成了一个**新引入**的 CSRF 面（TD-175）：
+       SameSite=Lax 挡不住跨站顶层导航的 GET，攻击者一个跳转就能替用户签发授权码。
+       现在 GET 只渲染页面、**签不出任何东西**，那个面就关掉了。
+
+    刻意保留「未登录直接 401」而不是跳转到登录页：本站没有独立登录页
+    （登录表单内嵌在工具页里），为一个跳转新造一页不值得。
     """
     if response_type != "code":
         raise _oauth_error("unsupported_response_type")
-    client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
-    if not client or client.status != 1:
-        raise _oauth_error("invalid_client")
-    if client.redirect_uri != redirect_uri:
-        raise _oauth_error("invalid_redirect_uri")
+    client = await _active_client(db, client_id, redirect_uri)
+    return templates.TemplateResponse(
+        "oauth_consent.html",
+        {
+            "request": request,
+            "title": f"授权 {client.name}",
+            "site_name": SITE_NAME,
+            "tools": TOOLS,
+            "client_name": client.name,
+            "client_id": client_id,
+            "redirect_uri": redirect_uri,
+            "state": state or "",
+            "sig": _sign(client_id, redirect_uri, state),
+            "username": user.username,
+        },
+    )
+
+
+@router.post("/authorize")
+async def authorize_submit(
+    client_id: str = Form(...),
+    redirect_uri: str = Form(...),
+    sig: str = Form(...),
+    state: str | None = Form(None),
+    approve: str = Form("0"),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """用户点了「同意」之后才签发授权码并重定向。
+
+    `approve` 默认 `"0"`（拒绝）—— 表单里少传字段时必须落到**更安全**的那一侧。
+    """
+    # compare_digest：签名比对不能短路返回，否则响应时间会泄露信息
+    if not hmac.compare_digest(sig, _sign(client_id, redirect_uri, state)):
+        raise _oauth_error("invalid_request", "同意页签名无效，请重新发起授权")
+    client = await _active_client(db, client_id, redirect_uri)
+
+    if approve != "1":
+        params = {"error": "access_denied", "error_description": "用户拒绝授权"}
+        if state:
+            params["state"] = state
+        return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=302)
 
     code = secrets.token_urlsafe(24)
     db.add(OAuthCode(
