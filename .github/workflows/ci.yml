@@ -15,11 +15,20 @@
 # `remote rejected ... without 'workflows' permission` 拒绝过多次，
 # 当时的绕行办法（git mv / git am 补丁）已不再需要，见 TD-84。
 #
-# 未能核实的一项：CI 日志正文在本沙箱取不到（下载被重定向到
-# *.blob.core.windows.net 后 SSL 失败），所以引用 CI 结果时只能引用 job/step 的
-# conclusion 字段，不能写「日志显示 N passed」。
+# 关于日志：CI 日志正文在本沙箱取不到 —— 下载被重定向到
+# productionresultssa18.blob.core.windows.net，实测 HTTP 000（DNS 能解析，
+# api.github.com 同时是 200，所以是出口被墙而不是权限问题）。
+# 绕行办法是下面每个 test job 末尾那一步：失败时把 pytest 输出摘要发成 PR 评论，
+# 评论走 api.github.com，沙箱读得到（TD-194）。
 # ============================================================================
 name: CI
+
+# 默认 token 只有 contents:read（日志里的 GITHUB_TOKEN Permissions 可以证实），
+# 发 PR 评论必须显式开 pull-requests:write。写了这个块就**取代**默认权限，
+# 所以 contents:read 要一并写上，否则 checkout 会失败。
+permissions:
+  contents: read
+  pull-requests: write
 
 on:
   push:
@@ -70,7 +79,30 @@ jobs:
           pip install -r requirements.txt
 
       - name: pytest
-        run: python -m pytest -q
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee pytest-output.txt
+
+      # CI 日志正文在本沙箱取不到（下载被重定向到 *.blob.core.windows.net，
+      # HTTP 000）。所以失败时把输出摘要发到 PR 评论上 —— 评论走 api.github.com，
+      # 沙箱读得到。TD-192 就是这么才拿到真因的（此前只能靠人工去网页复制）。
+      - name: 失败时把 pytest 输出发到 PR 评论
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### ❌ ${{ job.name }} 失败"
+            echo
+            echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "job: ${{ job.name }}  |  commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
+            echo '```'
+          } > /tmp/ci-body.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --body-file /tmp/ci-body.md
 
   test-postgres:
     name: 测试（真 PostgreSQL 16）
@@ -121,4 +153,27 @@ jobs:
           psql -d codemax_ddl -tAc "select count(*) from pg_tables where schemaname='public'"
 
       - name: pytest
-        run: python -m pytest -q
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee pytest-output.txt
+
+      # CI 日志正文在本沙箱取不到（下载被重定向到 *.blob.core.windows.net，
+      # HTTP 000）。所以失败时把输出摘要发到 PR 评论上 —— 评论走 api.github.com，
+      # 沙箱读得到。TD-192 就是这么才拿到真因的（此前只能靠人工去网页复制）。
+      - name: 失败时把 pytest 输出发到 PR 评论
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### ❌ ${{ job.name }} 失败"
+            echo
+            echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "job: ${{ job.name }}  |  commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
+            echo '```'
+          } > /tmp/ci-body.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --body-file /tmp/ci-body.md

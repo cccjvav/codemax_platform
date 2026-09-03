@@ -18,7 +18,11 @@
 这个现象会测不出来（本项目实测踩过，第一版基准就是这么错的）。
 """
 import asyncio
+import os
+import tempfile
+import threading
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -30,6 +34,7 @@ import app.database as database
 from app.config import settings
 from app.models import Base
 from app.tools.sql_ddl import parse_ddl
+from app.tools.word import build_data_dictionary
 from main import app
 
 
@@ -165,87 +170,94 @@ async def test_support_endpoint_survives_concurrency(perf_client):
     assert len(lat) == 20, "20 路请求应全部完成"
 
 
-async def _max_event_loop_stall(client, path: str, payload: dict) -> float:
-    """在重请求进行期间，事件循环最长多久没被调度到（秒）。
+# ---------- 重活跑在哪儿：确定性判据 ----------
+#
+# 为什么不再断言延迟：见下面两条用例的 docstring，实测证据是 CI run 33792680165。
+#
+# 这两个 spy 必须是**模块顶层函数**：`build_data_dictionary` 走进程池，
+# 函数要能被 pickle（按「模块 + 限定名」引用），嵌套函数/lambda 都不行。
+_SEEN_THREADS: list[int] = []
+_PID_FILE = Path(tempfile.gettempdir()) / "codemax_test_word_export_pid.txt"
+_REAL_PARSE_DDL = parse_ddl
+_REAL_BUILD = build_data_dictionary
 
-    这是**确定性**判据，不依赖机器快慢：
-    - CPU 代码跑在事件循环里 → 后台任务全程饿死，间隔≈该次计算的总时长；
-    - 挪到线程/进程里 → GIL 每 5 ms 切一次（`sys.getswitchinterval()`），
-      后台任务能持续拿到时间片，间隔只有毫秒级。
 
-    早先用「有干扰 p50 / 无干扰 p50」的比值断言，但 clean p50 只有 6~14 ms 时，
-    任何几十毫秒的绝对开销都会显示成好几倍，比值抖得没法当阈值 —— 所以换成这个。
+def _spy_parse_ddl(ddl: str) -> dict:
+    """记下自己被哪个线程执行，然后照常干活（不改变被测行为）。"""
+    _SEEN_THREADS.append(threading.get_ident())
+    return _REAL_PARSE_DDL(ddl)
+
+
+def _spy_build_data_dictionary(graph) -> bytes:
+    """记下自己被哪个**进程**执行。
+
+    进程之间不共享内存，列表传不回来 —— 所以写文件。路径用模块常量而不是环境变量：
+    `cpu_pool._executor` 是模块级单例，worker 可能在 setenv 之前就 fork 出来了，
+    那样它读不到后设的变量；模块常量在 fork 与 spawn 两种启动方式下都一致。
     """
-    # 先用一条极小的 DDL 走一遍同一条代码路径，吸收**一次性**开销：
-    # 线程池的首次创建、库缓存/正则的首次填充。没有 __pycache__ 时（沙箱被回收后
-    # 首次运行）这些一次性开销实测达 61~63 ms，会把 20 ms 阈值顶穿 —— 而它跟
-    # 「重活是否阻塞事件循环」无关，且每次调用都会付的部分才是要测的。
-    # 预热不会削弱判据：同步执行的变异体**每次调用**都阻塞 ~33 ms，见 TD-187。
-    warm = await client.post(path, json=payload)
-    assert warm.status_code == 200, warm.text[:200]
-
-    ticks: list[float] = []
-    stop = False
-
-    async def ticker():
-        while not stop:
-            ticks.append(time.perf_counter())
-            await asyncio.sleep(0.005)
-
-    task = asyncio.create_task(ticker())
-    await asyncio.sleep(0.02)  # 先让 ticker 稳定跳起来
-    r = await client.post(path, json=payload)
-    assert r.status_code == 200, r.text[:200]
-    done = time.perf_counter()
-    stop = True
-    await task
-    # **必须补记请求结束的时刻**。否则 ticker 恢复时先判 `while not stop` 就退出了，
-    # 最长的那段停顿（正是我们要抓的）永远不会进入 ticks —— 第一版就是这么写空的：
-    # 全同步变异下 word-export 实测 369 ms，测出来却是「最大间隔 5.2 ms」。
-    ticks.append(done)
-
-    gaps = [b - a for a, b in zip(ticks, ticks[1:], strict=False)]
-    return max(gaps) if gaps else float("inf")
+    with _PID_FILE.open("a", encoding="utf-8") as f:
+        f.write(f"{os.getpid()}\n")
+    return _REAL_BUILD(graph)
 
 
 @pytest.mark.asyncio
-async def test_event_loop_stays_responsive_during_big_ddl(perf_client):
-    """**S5-02-2 的核心回归**：解析大 DDL 时事件循环不能被独占。
+async def test_parse_ddl_runs_off_the_event_loop_thread(perf_client, monkeypatch):
+    """**S5-02-2 的核心回归**：`parse_ddl` 必须跑在事件循环**之外**的线程里。
 
-    `parse_ddl` 满额输入约 33 ms。若直接在 `async def` 里同步调用，
-    这 33 ms 内所有协程都拿不到时间片 —— 后台 ticker 的间隔就会≈33 ms。
-    挪进线程池后，GIL 每 5 ms 让一次，间隔应在毫秒级。
+    这里刻意**不断言延迟**。原先断言「事件循环最大停顿 < 20 ms」，在 GitHub Actions
+    上非确定性失败过（run `33792680165`，job `100772798400`，step `pytest`）：
+    同一份代码的 push run 全绿、pull_request run 红，实测停顿 **74.7 ms**。
 
-    本机 2 核实测（含 `_max_event_loop_stall` 里的预热）：线程池 **10.8~16.2 ms**，
-    同步执行变异体 **25~26 ms**，热与冷启动都一样 —— 20 ms 阈值正好落在两者之间。
-    预热是必需的：沙箱被回收后没有 `__pycache__`，首次调用的字节码编译等一次性开销
-    实测 **61~63 ms**，冷启动 4/4 顶穿阈值（见 TD-187）。
+    同一份日志排除了「CI 机器慢」这个解释：CI 的 warmup 请求 **39.8 ms**，
+    本机实测 **35.7~45.3 ms** —— **CPU 速度基本一样**。所以那 74.7 ms 是共享
+    runner 的调度抖动，不是代码变慢。绝对阈值救不了；「停顿 / 同步耗时」的比值
+    也救不了，因为分子是纯调度噪声（那次的比值高达 2.1，本机只有 0.30）。
+
+    所以改成直接查代码**跑在哪个线程**：不在事件循环线程 = 通过。
+    与机器快慢无关，不会抖。
     """
-    stall = await _max_event_loop_stall(perf_client, "/tools/er-diagram", {"ddl": BIG_DDL})
-    assert stall < 0.020, (
-        f"解析大 DDL 期间事件循环卡了 {stall * 1000:.0f} ms。"
-        f"parse_ddl 是否又回到事件循环里同步执行了？"
+    loop_thread = threading.get_ident()
+    _SEEN_THREADS.clear()
+    monkeypatch.setattr("app.routers.tools.parse_ddl", _spy_parse_ddl)
+
+    r = await perf_client.post("/tools/er-diagram", json={"ddl": BIG_DDL})
+    assert r.status_code == 200, r.text[:200]
+
+    assert _SEEN_THREADS, "spy 没被调用到 —— 打补丁的位置不对，这条用例会变成空测试"
+    assert loop_thread not in _SEEN_THREADS, (
+        f"parse_ddl 在事件循环线程（tid={loop_thread}）里同步执行了，"
+        f"实测线程 {sorted(set(_SEEN_THREADS))}。满额 DDL 会独占循环约 35 ms。"
     )
 
 
 @pytest.mark.asyncio
-async def test_event_loop_stays_responsive_during_word_export(perf_client):
-    """Word 导出是最贵的端点（`build_data_dictionary` 实测 453~504 ms），单独守一条。
+async def test_build_data_dictionary_runs_in_a_separate_process(perf_client, monkeypatch):
+    """Word 导出的重活必须跑在**独立进程**里 —— 线程池不够（TD-160）。
 
-    **这是"重活必须移出事件循环"唯一可靠的守卫**，本机（2 核）实测三种实现：
+    同样不断言延迟（理由见上一条）。这里查的是 PID，正好把 `cpu_pool` 的
+    两种退化路径都盖住：
 
-    | 实现 | 事件循环最大停顿 | 本用例 |
+    | 实现 | 实测 PID | 本用例 |
     | --- | --- | --- |
-    | 进程池（现状） | < 20 ms | 通过 3/3 |
-    | 线程池 | 40 / 64 / 41 ms | 失败 3/3 |
-    | 同步跑在事件循环里（修复前原状） | 534 / 541 / 531 ms | 失败 3/3 |
+    | 进程池（现状） | 子进程 PID | 通过 |
+    | 线程池（`run_cpu_bound` 的兜底路径） | 与主进程同 PID | 失败 |
+    | 直接在事件循环里同步跑 | 与主进程同 PID | 失败 |
 
-    线程池让得出事件循环却让不出 GIL，所以也不行（TD-160）。
+    `build_data_dictionary` 本机实测约 470~500 ms，比 `parse_ddl` 贵一个数量级：
+    线程池让得出事件循环却让不出 GIL。
     """
-    stall = await _max_event_loop_stall(perf_client, "/tools/word-export", {"ddl": BIG_DDL})
-    assert stall < 0.020, (
-        f"导出 Word 期间事件循环卡了 {stall * 1000:.0f} ms。"
-        f"build_data_dictionary 必须跑在进程池里，线程池都不够。"
+    _PID_FILE.unlink(missing_ok=True)
+    monkeypatch.setattr("app.routers.tools.build_data_dictionary", _spy_build_data_dictionary)
+
+    r = await perf_client.post("/tools/word-export", json={"ddl": BIG_DDL})
+    assert r.status_code == 200, r.text[:200]
+
+    assert _PID_FILE.exists(), "spy 没被调用到 —— 打补丁的位置不对，这条用例会变成空测试"
+    pids = {int(x) for x in _PID_FILE.read_text(encoding="utf-8").split()}
+    assert pids, "PID 文件是空的"
+    assert os.getpid() not in pids, (
+        f"build_data_dictionary 跑在本进程（pid={os.getpid()}）里，实测 {sorted(pids)}。"
+        f"线程池让得出事件循环却让不出 GIL，必须用进程池（TD-160）。"
     )
 
 

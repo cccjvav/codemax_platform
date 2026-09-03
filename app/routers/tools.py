@@ -64,8 +64,9 @@ async def word_export(data: ErDiagramIn) -> Response:
         # 生成 docx 走**进程**池而不是线程池：它要几百毫秒纯 Python 计算，
         # 线程池让得出事件循环却让不出 GIL。**注意「并发 p95 更快」不是选进程池的
         # 依据** —— 本机 2 核实测线程池 58~106ms、进程池 60~77ms，分布完全重叠，
-        # 延迟量不出差别（TD-183/186）。真正的依据是下面这条事件循环停顿测试：
-        # 同步执行停顿 353~366ms，进程池 10~16ms，差一个数量级、可复现。
+        # 延迟量不出差别（TD-183/186）。真正的依据是
+        # `test_build_data_dictionary_runs_in_a_separate_process`：直接查它跑在哪个
+        # **进程**里 —— 线程池/同步都会落在本进程，判据确定，不受机器快慢影响（TD-193）。
         await run_cpu_bound(build_data_dictionary, graph),
         media_type=MIME_DOCX,
         headers={"Content-Disposition": f'attachment; filename="{FILENAME}"'},
