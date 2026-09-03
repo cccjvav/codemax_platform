@@ -1,20 +1,30 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .database import get_db
 from .models import User
-from .security import decode_token
+from .security import AUTH_COOKIE, decode_token
 from .timeutil import as_utc
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login")
+# auto_error=False：缺 Authorization 头时返回 None 而不是直接 401 ——
+# 还要给 cookie 一次机会（TD-44：浏览器走 cookie，API 客户端/Swagger 走 Bearer）。
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
 
 
 async def get_current_user(
-    token: str = Depends(oauth2_scheme),
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
     db: AsyncSession = Depends(get_db),
 ) -> User:
+    # 两者都给时以请求头为准：那是调用方显式表达的意图。
+    token = token or request.cookies.get(AUTH_COOKIE)
+    if not token:
+        # auto_error=False 之后 WWW-Authenticate 要自己补，否则 Swagger 的
+        # 「Authorize」按钮不再弹出登录框。
+        raise HTTPException(status.HTTP_401_UNAUTHORIZED, "未登录",
+                            headers={"WWW-Authenticate": "Bearer"})
     claims = decode_token(token)
     if not claims:
         raise HTTPException(status.HTTP_401_UNAUTHORIZED, "无效的登录凭证")

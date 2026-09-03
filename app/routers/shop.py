@@ -156,7 +156,11 @@ async def mock_pay_confirm(
 # ---------------------------------------------------------------- 一次性下载（S3-02-4）
 
 
-@router.get("/download/{order_no}")
+# 必须是 POST 而不是 GET：这个端点**会改状态**（把 paid 烧成 downloaded，
+# 一次性下载就没了）。GET 带副作用本来就是错的，而在 TD-44 之后它还是个
+# CSRF 靶子 —— 登录态改成 cookie 后，SameSite=Lax 只挡跨站的写方法，
+# 跨站顶层导航的 GET 照样带上 cookie，攻击者一个跳转就能替用户把下载额度烧掉。
+@router.post("/download/{order_no}")
 async def download_url(
     request: Request, order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):

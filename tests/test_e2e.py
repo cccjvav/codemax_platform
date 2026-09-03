@@ -111,7 +111,7 @@ async def test_full_chain_register_to_single_download(client, mock_mode, product
     assert r.status_code == 200
     assert (await order_row(order_no)).status == PAID
 
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 200
     url = r.json()["download_url"]
     assert (await order_row(order_no)).status == DOWNLOADED
@@ -122,7 +122,7 @@ async def test_full_chain_register_to_single_download(client, mock_mode, product
         assert len(z.namelist()) == 3
 
     # 一次性：同一单第二次领链接必须被拒
-    r2 = await client.get(f"/shop/download/{order_no}", headers=h)
+    r2 = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r2.status_code == 403
 
 
@@ -168,7 +168,7 @@ async def test_late_payment_on_closed_order_still_delivers(client, mock_mode, pr
     assert r.status_code == 200, "已关单的订单收到真实支付，不能拒"
     assert (await order_row(order_no)).status == PAID
 
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 200, "付了钱就得能下载"
 
 
@@ -181,7 +181,7 @@ async def test_expired_order_can_never_be_downloaded(client, mock_mode, product_
     await place_order(client, h)
     assert (await order_row(order_no)).status == CLOSED
 
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 403
 
 
@@ -211,7 +211,7 @@ async def test_payment_then_late_duplicate_keeps_downloaded_state(client, mock_m
     h = await signup(client)
     order_no = await place_order(client, h)
     await pay_via_mock(client, h, order_no)
-    assert (await client.get(f"/shop/download/{order_no}", headers=h)).status_code == 200
+    assert (await client.post(f"/shop/download/{order_no}", headers=h)).status_code == 200
 
     r = await pay_via_mock(client, h, order_no)
     assert r.status_code == 200
@@ -232,7 +232,7 @@ async def test_concurrent_download_only_one_wins(client, mock_mode, product_zip)
     await pay_via_mock(client, h, order_no)
 
     results = await asyncio.gather(
-        *[client.get(f"/shop/download/{order_no}", headers=h) for _ in range(4)]
+        *[client.post(f"/shop/download/{order_no}", headers=h) for _ in range(4)]
     )
     codes = sorted(r.status_code for r in results)
     assert codes.count(200) == 1, f"必须只有一个成功，实际 {codes}"
@@ -245,7 +245,7 @@ async def test_downloaded_archive_really_contains_multiple_files(client, mock_mo
     h = await signup(client)
     order_no = await place_order(client, h)
     await pay_via_mock(client, h, order_no)
-    url = (await client.get(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+    url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
 
     data = (await client.get(url)).content
     with zipfile.ZipFile(io.BytesIO(data)) as z:
@@ -263,11 +263,11 @@ async def test_presigned_url_cannot_be_reused_after_order_consumed(client, mock_
     h = await signup(client)
     order_no = await place_order(client, h)
     await pay_via_mock(client, h, order_no)
-    url = (await client.get(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+    url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
 
     other = await signup(client, username="pirate", password="secret123")
     # 拿到链接的人可以下（链接本身合法），但他无法为这个单再领新链接
-    r = await client.get(f"/shop/download/{order_no}", headers=other)
+    r = await client.post(f"/shop/download/{order_no}", headers=other)
     assert r.status_code == 404, "别人的单一律 404，不暴露是否存在"
     assert (await client.get(url)).status_code == 200
 
@@ -278,7 +278,7 @@ async def test_tampered_and_expired_links_rejected_end_to_end(client, mock_mode,
     h = await signup(client)
     order_no = await place_order(client, h)
     await pay_via_mock(client, h, order_no)
-    url = (await client.get(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+    url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
 
     parts = urlsplit(url)
     qs = parse_qs(parts.query)
@@ -456,7 +456,7 @@ async def test_order_belongs_to_exactly_one_user_after_full_chain(client, mock_m
     h = await signup(client, username="owner")
     order_no = await place_order(client, h)
     await pay_via_mock(client, h, order_no)
-    await client.get(f"/shop/download/{order_no}", headers=h)
+    await client.post(f"/shop/download/{order_no}", headers=h)
 
     async with TestSession() as s:
         o = (await s.execute(select(Order).where(Order.order_no == order_no))).scalar_one()

@@ -15,6 +15,7 @@
   <input type="text" id="login-user" placeholder="用户名" size="10" />
   <input type="password" id="login-pass" placeholder="密码" size="10" />
   <button type="button" class="ghost" id="btn-login">登录</button>
+  <button type="button" class="ghost" id="btn-logout" hidden>退出</button>
   <span id="auth-status"></span>
 </div>
 
@@ -44,7 +45,9 @@
   let currentId = null; // null = 尚未保存到云端的新图
   let currentXml = BLANK;
 
-  const token = () => localStorage.getItem("codemax_token");
+  // 登录态由 HttpOnly cookie 携带，脚本**读不到也不需要读** token（TD-44）。
+  // 因此「是否已登录」只能问后端，见下面的 checkAuth()。
+  let loggedIn = false;
 
   function send(msg) {
     frame.contentWindow.postMessage(JSON.stringify(msg), ORIGIN);
@@ -53,7 +56,8 @@
   function api(url, method, body) {
     return fetch(url, {
       method,
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token() || ""}` },
+      credentials: "same-origin", // 让浏览器带上登录 cookie
+      headers: { "Content-Type": "application/json" },
       body: body ? JSON.stringify(body) : undefined,
     });
   }
@@ -77,7 +81,7 @@
 
   // ---- 云端保存 ----
   async function saveToCloud() {
-    if (!token()) {
+    if (!loggedIn) {
       status.textContent = "未登录，未保存";
       return;
     }
@@ -100,7 +104,7 @@
   }
 
   async function refreshList() {
-    if (!token()) return;
+    if (!loggedIn) return;
     const res = await api("/diagrams", "GET");
     if (!res.ok) return;
     const items = await res.json();
@@ -174,14 +178,31 @@
       authStatus.textContent = `登录失败（${res.status}）`;
       return;
     }
-    localStorage.setItem("codemax_token", (await res.json()).access_token);
-    authStatus.textContent = "已登录";
+    // 响应体里的 access_token 是给 API 客户端用的，页面直接忽略 ——
+    // 登录态已经由 Set-Cookie 落到 HttpOnly cookie 里了。
+    setAuthState(true);
     await refreshList();
   };
 
-  if (token()) {
-    authStatus.textContent = "已登录";
-    refreshList();
+  document.getElementById("btn-logout").onclick = async () => {
+    await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
+    setAuthState(false);
+    authStatus.textContent = "已退出";
+  };
+
+  function setAuthState(on) {
+    loggedIn = on;
+    document.getElementById("btn-logout").hidden = !on;
+    if (on) authStatus.textContent = "已登录";
   }
+
+  // 进页面时问一次后端有没有有效 cookie —— 不能像以前那样靠读 localStorage 判断。
+  async function checkAuth() {
+    const res = await fetch("/auth/me", { credentials: "same-origin" });
+    if (!res.ok) return;
+    setAuthState(true);
+    await refreshList();
+  }
+  checkAuth();
 </script>
 {% endblock %}

@@ -78,13 +78,13 @@ def path_of(url: str) -> str:
 
 
 async def test_download_requires_login(client, product):
-    assert (await client.get("/shop/download/CM1")).status_code == 401
+    assert (await client.post("/shop/download/CM1")).status_code == 401
 
 
 async def test_download_forbidden_when_unpaid(client, product):
     h = await auth_headers(client)
     order_no = await make_order("pending", "buyer")
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 403
     assert "未支付" in r.json()["detail"]
 
@@ -92,7 +92,7 @@ async def test_download_forbidden_when_unpaid(client, product):
 async def test_download_issues_url_and_marks_downloaded(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 200
     body = r.json()
     assert body["download_url"].startswith("http://test/shop/dl?")
@@ -104,8 +104,8 @@ async def test_second_download_rejected(client, product):
     """一次性下载：同一订单第二次领链接必须被拒（防倒卖的主力）。"""
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    assert (await client.get(f"/shop/download/{order_no}", headers=h)).status_code == 200
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    assert (await client.post(f"/shop/download/{order_no}", headers=h)).status_code == 200
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 403
     assert "已下载过" in r.json()["detail"]
 
@@ -113,7 +113,7 @@ async def test_second_download_rejected(client, product):
 async def test_other_users_order_not_found(client, product):
     bob = await auth_headers(client, "bob", "secret456")  # alice 的订单由下面按用户名创建
     order_no = await make_order("paid", "alice")
-    r = await client.get(f"/shop/download/{order_no}", headers=bob)
+    r = await client.post(f"/shop/download/{order_no}", headers=bob)
     assert r.status_code == 404
     assert await status_of(order_no) == "paid", "别人的订单不能被我领走"
 
@@ -122,7 +122,7 @@ async def test_missing_product_file_404(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
     product.joinpath(PRODUCT_KEY).unlink()
-    r = await client.get(f"/shop/download/{order_no}", headers=h)
+    r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 404
     assert await status_of(order_no) == "paid", "文件不在就不该把订单标记为已下载"
 
@@ -133,7 +133,7 @@ async def test_missing_product_file_404(client, product):
 async def test_presigned_url_downloads_the_file(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    url = (await client.get(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+    url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
     r = await client.get(path_of(url))
     assert r.status_code == 200
     assert r.content == PRODUCT_BYTES
@@ -143,7 +143,7 @@ async def test_presigned_url_downloads_the_file(client, product):
 async def test_tampered_signature_rejected(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    url = (await client.get(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+    url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
     tampered = url[:-1] + ("0" if url[-1] != "0" else "1")
     assert (await client.get(path_of(tampered))).status_code == 403
 
@@ -181,7 +181,7 @@ async def test_unknown_backend_fails_loudly(client, product, monkeypatch):
 
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    assert (await client.get(f"/shop/download/{order_no}", headers=h)).status_code == 503
+    assert (await client.post(f"/shop/download/{order_no}", headers=h)).status_code == 503
 
 
 # ---------------------------------------------------------------- 策略与签名本身

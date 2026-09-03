@@ -108,9 +108,10 @@ cd ..
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/auth/register` | 注册（返回用户信息，不含密码） |
-| POST | `/auth/login` | 登录（OAuth2 表单，返回 JWT access_token） |
+| POST | `/auth/login` | 登录（OAuth2 表单）。**两条通道**：给浏览器下发 HttpOnly cookie（脚本读不到，防 XSS 偷 token），同时返回 JWT `access_token` 供 Swagger / API 客户端走 Bearer 头 |
 | GET | `/auth/me` | 当前用户（需 Bearer Token） |
 | POST | `/auth/password` | 修改密码（需 Bearer Token；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
+| POST | `/auth/logout` | 退出登录：清掉登录 cookie（204） |
 | GET | `/oauth/authorize` | **授权码端点**：已登录用户向第三方应用签发一次性 code（302 跳回调） |
 | POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |

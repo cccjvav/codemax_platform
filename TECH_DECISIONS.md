@@ -14,7 +14,7 @@
 | 编号 | 事项 | 为什么阻塞 |
 | --- | --- | --- |
 | ~~TD-15~~ | ~~公开工具端点无限流~~ **已解决** | `app/ratelimit.py` 内存滑动窗口：工具 30 次/60s、LLM 10 次/60s、注册登录 10 次/60s，超额 429 + `Retry-After`（多实例部署的代价见 TD-141） |
-| TD-44 | JWT 存 localStorage | 一旦有 XSS，token 直接被读走 |
+| ~~TD-44~~ | ~~JWT 存 localStorage~~ **已解决**：登录态改走 **HttpOnly cookie**（`SameSite=Lax`，生产加 `Secure`，`Max-Age` 与 token 同寿命），前端不再碰 `localStorage`/`sessionStorage`（模板里已一处不剩）。Bearer 头**同时保留**，Swagger 与 API 客户端照旧；两者都带时以请求头为准。新增 `POST /auth/logout` 清 cookie。配套把有副作用的 `GET /shop/download/{order_no}` 改成 POST（TD-177），并把「需要登录的 GET 路由」钉成带理由的清单（TD-176） | 改用 cookie 就引入了 CSRF（TD-176/177）；`GET /oauth/authorize` 是残留面（TD-175） |
 | TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
 | ~~TD-70~~ | ~~JWT 无 `jti`、无法吊销~~ **已解决**：改用**令牌版本化** —— JWT 带 `pwd` 声明（签发时 `password_changed_at` 的 UNIX 秒），`get_current_user` 每次与库里当前值比对，早于它就拒。新增 `POST /auth/password`（限流），改密码即吊销该用户**所有**旧 token，并返回一个新 token 让当前会话不掉线。**订正原文一处不准确的说法**：「封号后旧 token 仍然有效」并不成立 —— `get_current_user` 一直都查库并检查 `status != 1`，禁用是立刻生效的（`test_disabled_user_token_is_rejected_immediately` 钉住） | 撤销粒度是「按用户」而非「按单个 token」：无法只踢掉某一个会话而保留其他会话 |
 | ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
@@ -80,7 +80,7 @@
 | TD-41 | ER 图用固定网格布局（每行 3 个，`er.js` `COLS_PER_ROW=3`） | 力导向 / 层次布局 | 表多时外键连线交叉、观感一般 | S5-02-2 渲染性能与体验优化时 |
 | TD-42 | 样式内联在 `base.html`，不抽 CSS 文件、无构建步骤 | 样式复用与压缩 | 每个页面都加载全部样式（实测 1689 字节，可忽略） | — |
 | TD-43 | Drawio 的 `autosave` 事件只更新内存里的 XML，不自动写库（`drawio.html:75`） | 自动云同步 | 用户不点"保存到云端"就会丢改动 | 有用户反馈丢图时加防抖自动保存 |
-| TD-44 | JWT 存 `localStorage`（`drawio.html:47`） | HttpOnly Cookie + CSRF | XSS 时 token 可被读走 | **上线前评估改 Cookie** |
+| ~~TD-44~~ | ~~JWT 存 `localStorage`~~ **已解决**：HttpOnly cookie（`SameSite=Lax`，生产 `Secure`）+ 保留 Bearer 双通道；前端「是否已登录」改为问 `/auth/me`，因为脚本读不到 cookie 也就无从判断 | 见 TD-175/176/177 | — |
 | TD-45 | 无 PNG / SVG 导出 | 图片导出 | 只能截图 | — |
 
 ## 六、SEO 与站点（`app/site.py`、`app/routers/site.py`）
@@ -257,6 +257,9 @@
 | TD-172 | 用**令牌版本化**（`pwd` 声明 = 改密码时刻）吊销旧 token，而不是 `jti` 黑名单表 | 建 `sys_token` 表存每个 jti，注销时插一条 | 黑名单要在**每次登录时写库**（写放大），且要能枚举出某用户的全部 jti 才能一次吊销；版本化零额外表、零额外写入，一次吊销该用户全部旧 token | 需要「踢掉单个会话」或「主动注销某一个 token」时，才值得引入 jti 表 |
 | TD-173 | `password_changed_at` 为 **NULL 时跳过校验** | 一律要求 token 带 `pwd` 声明 | 本次上线前签发的 token 都不带 `pwd` 声明；若一律要求，**全站已登录用户会在部署那一刻集体掉线**。NULL 语义定为「从未改过密码」，只在用户第一次改密码后才开始强制 | 若要强制所有 token 带声明，得配合一次「全体重新登录」的公告 |
 | TD-174 | 时间戳比较用 `claims.pwd < current` | 用 `!=` | **实测两者是等价变异**：改密码后新签发 token 的 `pwd` 与库值相等，`a != a` 本就是 False，两种写法都放行；把 `<` 改成 `!=` 后 15 条测试**全绿**，杀不掉。差别只在 `pwd > current`（时钟回拨、手改库）时出现：`<` 放行、`!=` 拒绝。选 `<` 是因为那种情况拒绝会让用户莫名登不进去，且没放宽真正的威胁模型 | 无。这条记录的目的是避免后人误以为这里有可测的行为差异 |
+| TD-175 | `GET /oauth/authorize` 保留 GET，作为 cookie 化后**新引入**的残留 CSRF 面记录在案 | 改成 POST，或加一次性 CSRF token | OAuth 2.0 的授权端点按规范必须是用户代理重定向（GET），改不成 POST；GET 又带不了自定义头，双提交 cookie 也套不上。**这是改 cookie 之前不存在的风险** —— 走 Bearer 头时跨站根本伪造不出那个头。现有缓解：`redirect_uri` 必须与登记值完全一致、授权码一次性且短寿、`state` 参数支持客户端自行绑定 | 加一个用户确认页（consent screen），并把 CSRF token 绑到会话上 |
+| TD-176 | cookie 用 `SameSite=Lax`，并把「需要登录的 GET 路由」钉成一张带理由的白名单 | `SameSite=Strict`，一步堵死 CSRF | Lax 只挡跨站的**写方法**，跨站顶层导航的 GET 照样带上 cookie —— 所以安全性依赖「GET 无副作用」这个前提。`test_authed_get_routes_are_read_only` 用**相等**断言（不是子集），新增一个需要登录的 GET 就会失败，逼作者写清它为什么没有副作用。不用 Strict 是因为它连「从微信/邮件点链接进来」的第一跳都不带 cookie，用户会看到一次莫名的未登录，对这个平台的链接分享场景是硬伤 | 若将来加了带副作用的 GET 又改不掉，就换 Strict 并接受那次未登录 |
+| TD-177 | `GET /shop/download/{order_no}` 改成 **POST** | 保留 GET | 它**会改状态**（`mark_downloaded` 把 `paid` 烧成 `downloaded`，一次性下载就没了）。GET 带副作用本来就是错的；cookie 化之后它还是个 CSRF 靶子 —— 攻击者一个跨站跳转就能替用户把下载额度烧掉。该端点没有前端调用者，只有测试，所以改动面很小 | — |
 
 ## 维护约定
 

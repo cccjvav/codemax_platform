@@ -44,6 +44,9 @@ extend-immutable-calls = [
 ]
 
 [lint.per-file-ignores]
-# tests/test_er_page.py 用 subprocess 真实执行 node 跑前端 JS（用户明确要求：
-# 测试要真的执行前端代码，不许退化成静态字符串检查），所以 ASYNC221 是有意的。
+# 这两个文件用 subprocess 真实执行 node 跑前端 JS（用户明确要求：测试要真的执行
+# 前端代码，不许退化成静态字符串检查），所以阻塞式的 subprocess.run 是有意的。
+#   test_er_page.py      —— ER 图页面的 app/static/er.js
+#   test_auth_cookie.py  —— drawio 页面的内联脚本（TD-44：证明前端读不到 token）
 "tests/test_er_page.py" = ["ASYNC221"]
+"tests/test_auth_cookie.py" = ["ASYNC221"]

@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**339 passed + 1 skipped**；真 PostgreSQL 16.2：**340 passed**；
+- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**353 passed + 1 skipped**；真 PostgreSQL 16.2：**354 passed**；
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）

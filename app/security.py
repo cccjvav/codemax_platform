@@ -9,6 +9,11 @@ from .timeutil import as_utc
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# 浏览器侧存放 access token 的 cookie 名（TD-44）。
+# 必须是 HttpOnly —— 这是整件事的重点：脚本读不到它，XSS 就拿不走 token；
+# 存在 localStorage 里的话任何一段注入脚本都能直接读走。
+AUTH_COOKIE = "access_token"
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)

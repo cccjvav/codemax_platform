@@ -1,18 +1,43 @@
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import User
 from ..ratelimit import rate_limit
 from ..schemas import PasswordChangeIn, RegisterIn, TokenOut, UserOut
-from ..security import create_access_token, hash_password, verify_password
+from ..security import AUTH_COOKIE, create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["认证中心"])
+
+
+def _set_auth_cookie(response: Response, token: str) -> None:
+    """把 token 写进 HttpOnly cookie，浏览器端因此不必再碰 localStorage（TD-44）。
+
+    各属性的取舍：
+    - HttpOnly：脚本读不到，XSS 拿不走 token —— 这正是本次改动的目的。
+    - SameSite=Lax：跨站的 POST/PUT/DELETE 不带 cookie，CSRF 对写操作免疫。
+      代价是**跨站顶层导航仍会带上** cookie，所以有副作用的接口一律不能是 GET；
+      该不变式由 tests/test_auth_cookie.py 的路由清单钉住。
+      不用 Strict 是因为它连「从微信/邮件点链接进来」的第一跳都不带 cookie，
+      用户会看到一次莫名的未登录。
+    - Secure 只在 production 开：本地是 http，加了浏览器根本不会存这个 cookie。
+    - Max-Age 与 token 同寿命，免得 cookie 活得比 token 久、反复撞 401。
+    """
+    response.set_cookie(
+        AUTH_COOKIE,
+        token,
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+        httponly=True,
+        samesite="lax",
+        secure=settings.ENV == "production",
+    )
 
 
 @router.post("/register", response_model=UserOut, status_code=201,
@@ -29,21 +54,29 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
 
 @router.post("/login", response_model=TokenOut,
              dependencies=[Depends(rate_limit("login", "RATE_LIMIT_AUTH"))])
-async def login(form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)):
+async def login(
+    response: Response, form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
+):
+    """登录。
+
+    同时给两种客户端用：浏览器吃 Set-Cookie（HttpOnly，脚本读不到），
+    API 客户端 / Swagger 吃响应体里的 access_token 走 Bearer 头。
+    """
     user = await db.scalar(select(User).where(User.username == form.username))
     if not user or not verify_password(form.password, user.password):
         raise HTTPException(401, "用户名或密码错误")
     if user.status != 1:
         raise HTTPException(403, "账号已禁用")
-    return TokenOut(
-        access_token=create_access_token(user.username, user.password_changed_at)
-    )
+    token = create_access_token(user.username, user.password_changed_at)
+    _set_auth_cookie(response, token)
+    return TokenOut(access_token=token)
 
 
 @router.post("/password", response_model=TokenOut,
              dependencies=[Depends(rate_limit("password", "RATE_LIMIT_AUTH"))])
 async def change_password(
     data: PasswordChangeIn,
+    response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
@@ -64,9 +97,22 @@ async def change_password(
     user.password_changed_at = datetime.now(timezone.utc)
     await db.commit()
     await db.refresh(user)
-    return TokenOut(
-        access_token=create_access_token(user.username, user.password_changed_at)
-    )
+    token = create_access_token(user.username, user.password_changed_at)
+    # cookie 也要换成新的：旧 cookie 里的 token 刚被自己吊销了，
+    # 不换的话当前浏览器会话下一秒就 401。
+    _set_auth_cookie(response, token)
+    return TokenOut(access_token=token)
+
+
+@router.post("/logout", status_code=204)
+async def logout(response: Response):
+    """清掉 cookie。
+
+    **故意不要求登录态**：拿着一个已过期或已失效 cookie 的客户端也该能清掉它，
+    否则用户会卡在「我明明退出了，浏览器却还带着一个死 cookie」的状态。
+    token 本身不在服务端记录，所以退出只是让浏览器丢掉它（TD-70 的粒度说明）。
+    """
+    response.delete_cookie(AUTH_COOKIE, path="/")
 
 
 @router.get("/me", response_model=UserOut)

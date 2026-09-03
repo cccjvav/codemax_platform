@@ -23,17 +23,20 @@
   const out = document.getElementById("out");
 
   document.getElementById("pay").addEventListener("click", async () => {
-    const token = localStorage.getItem("codemax_token");
-    if (!token) { out.textContent = "未登录：请先在工具页登录后再来。"; return; }
+    // 登录态由 HttpOnly cookie 携带（TD-44），脚本读不到；没登录就让后端回 401，
+    // 下面分支负责把话说清楚。
     const res = await fetch("/shop/mock-pay/confirm", {
       method: "POST",
-      headers: {"Content-Type": "application/json", "Authorization": "Bearer " + token},
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({order_no: orderNo}),
     });
     const data = await res.json();
     out.textContent = res.status === 200
       ? `支付成功（模拟）\n状态：${data.status}\n模拟流水号：${data.transaction_id}`
-      : `失败 ${res.status}：${data.detail || JSON.stringify(data)}`;
+      : res.status === 401
+        ? "未登录：请先在工具页登录后再来。"
+        : `失败 ${res.status}：${data.detail || JSON.stringify(data)}`;
   });
 </script>
 {% endblock %}
