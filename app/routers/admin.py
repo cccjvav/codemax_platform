@@ -18,8 +18,9 @@ from ..deps import require_admin
 from ..models import User
 from ..ratelimit import rate_limit
 from ..schemas import ArticleIngestIn
+from ..tools.browser import BrowserUnavailable, render
 from ..tools.crawler import CrawlError
-from ..tools.extract import ExtractError, parse_article, save_article
+from ..tools.extract import ExtractError, parse_article, parse_page, save_article
 from ..tools.llm import LLMError, get_llm
 from ..tools.politeness import RobotsDisallowed
 
@@ -42,6 +43,12 @@ async def ingest_article(
     - **400** URL 本身抓不了：`CrawlError`（非 http/https、内网地址、DNS 失败、
       目标非 200、页面过大）、`RobotsDisallowed`（目标站 robots 不允许）、
       `httpx.HTTPError`（目标站连不上/超时）。都是调用方给的东西有问题，不是本站故障。
+    - **503** `dynamic=true` 但服务端浏览器不可用（没装 playwright 或没下浏览器二进制）。
+      这是**本站能力缺失**，不是调用方的错，所以既不报 400 也不报 500。
+
+    `dynamic=true` 时用无头浏览器渲染后再解析（TD-191）；渲染与静态抓取**共用同一套**
+    `parse_page`，所以解析行为不会因引擎而变。SSRF 与 robots 校验在启动浏览器**之前**
+    就跑完了 —— 浏览器同样会去访问调用方给的地址，这一步省不得。
     - **422** 提取失败：抓到了但提不出正文（选择器匹配不到、必需字段为空）。
       页面结构不适合，换个 URL 或改选择器提示词。
     - **502** 上游大模型不可用。不是调用方的错，也不该让他重试打本站。
@@ -53,7 +60,16 @@ async def ingest_article(
     「内容提取失败」（422）—— 诊断和状态码都错。改为顺着 `__cause__` 认回去。
     """
     try:
-        parsed = await parse_article(data.url, llm=llm)
+        if data.dynamic:
+            # 浏览器路径：渲染完再走**同一套**解析（parse_page），
+            # 保证换个引擎不会换出一套不同的解析行为。
+            page = await render(data.url)
+            parsed = await parse_page(page.url, page.html, llm=llm)
+        else:
+            parsed = await parse_article(data.url, llm=llm)
+    except BrowserUnavailable as e:
+        # 服务端能力缺失（没装 playwright / 没下浏览器），不是调用方的错 → 503。
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(e)) from e
     except RobotsDisallowed as e:
         # 独立于 CrawlError 的异常类型，漏接就会变成 500 —— 而这是调用方
         # 「给了一个不让抓的 URL」，不是本站出故障。
@@ -80,4 +96,5 @@ async def ingest_article(
         "source_site": row.source_site,
         "content_length": len(row.content),
         "ingested_by": admin.username,
+        "dynamic": data.dynamic,
     }

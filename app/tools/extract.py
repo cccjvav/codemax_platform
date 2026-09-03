@@ -112,27 +112,41 @@ def extract_fields(html: str, selectors: dict[str, str]) -> dict[str, str]:
     return out
 
 
+async def parse_page(url: str, html: str, *, llm: LLMClient = default_llm) -> ParsedArticle:
+    """骨架 → LLM 指认 → 提取（S4-01-2/3/4 的后半段）。
+
+    **怎么抓到这个 html 的，本函数不管** —— httpx 静态抓取（`parse_article`）与
+    无头浏览器渲染（TD-191 的 `browser.render`）都调它，所以两条路径的解析行为
+    完全一致，不会出现「换个引擎结果就不一样」。
+    """
+    selectors = await identify_selectors(to_skeleton(html), llm=llm)
+    fields = extract_fields(html, selectors)
+    for name in REQUIRED:
+        if not fields[name]:
+            raise ExtractError(f"必需字段 {name} 为空（选择器：{selectors.get(name)!r}）")
+    return ParsedArticle(
+        url=url,
+        source_site=urlparse(url).netloc,
+        title=fields["title"][:300],
+        author=fields["author"][:100] or None,
+        published_at=fields["published_at"][:50] or None,
+        content=fields["content"],
+    )
+
+
 async def parse_article(
     url: str,
     *,
     transport: httpx.BaseTransport | None = None,
     llm: LLMClient = default_llm,
 ) -> ParsedArticle:
-    """抓取 → 骨架 → LLM 指认 → 提取（S4-01-2/3/4 串起来）。"""
+    """静态路径：httpx 抓取 → 交给 `parse_page`（S4-01-2/3/4 串起来）。
+
+    传给 `parse_page` 的是 `page.url`（**重定向之后的最终地址**），
+    这样入库的 url 与 source_site 才是页面真实来源。
+    """
     page = await fetch(url, transport=transport)
-    selectors = await identify_selectors(to_skeleton(page.html), llm=llm)
-    fields = extract_fields(page.html, selectors)
-    for name in REQUIRED:
-        if not fields[name]:
-            raise ExtractError(f"必需字段 {name} 为空（选择器：{selectors.get(name)!r}）")
-    return ParsedArticle(
-        url=page.url,
-        source_site=urlparse(page.url).netloc,
-        title=fields["title"][:300],
-        author=fields["author"][:100] or None,
-        published_at=fields["published_at"][:50] or None,
-        content=fields["content"],
-    )
+    return await parse_page(page.url, page.html, llm=llm)
 
 
 async def save_article(db: AsyncSession, article: ParsedArticle) -> Article:

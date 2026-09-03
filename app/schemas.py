@@ -47,6 +47,9 @@ class ArticleIngestIn(BaseModel):
     """
 
     url: str = Field(min_length=1, max_length=500)
+    # TD-191：True 时用无头浏览器渲染后再解析，给 httpx 抓不到正文的 SPA 站点兜底。
+    # 默认 False —— 渲染比一次 HTTP GET 贵一个数量级，不该是默认行为。
+    dynamic: bool = False
 
 
 class SupportIn(BaseModel):

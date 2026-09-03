@@ -33,7 +33,7 @@
 | --- | --- | --- | --- | --- |
 | TD-01 | 导出 Word 用 `python-docx`（`app/tools/word.py`） | Apache POI（Java 库） | 无 | 除非要复用 Java 生态 |
 | TD-02 | 爬虫用 `httpx` + `BeautifulSoup4`（阶段四落地） | HttpClient + Jsoup（Java 栈） | 无 | — |
-| TD-03 | 动态页面抓取推迟到阶段四再定 Selenium / Playwright | 现在就锁定方案 | 阶段四开工前要先做一次选型 | S4-01-1 开工时 |
+| ~~TD-03~~ | ~~动态页面抓取推迟到阶段四再定 Selenium / Playwright~~ **已选型：Playwright**（用户 2026-09-03 定），实现见 TD-191 | 现在就锁定方案 | ~~阶段四开工前要先做一次选型~~ 已定 | 已完成 |
 | TD-04 | 前端 Jinja2 SSR，不引入 Node / Nuxt / Next | SSR 框架的水合、路由、构建能力 | 交互全靠手写原生 JS，无组件复用 | 页面数量或交互复杂度显著上升时 |
 | TD-05 | DDL 解析用正则 + 自写字符扫描器，不引入 sqlparse / sqlglot | 现成语法树的完备性 | 需自己维护转义、注释、括号边界（已因此修掉 10 个 bug） | 要支持存储过程、触发器、分区表等复杂 DDL 时 |
 | TD-06 | 依赖全部钉死版本（`requirements.txt` 20 行中 18 行带 `==`） | 自动获取补丁更新 | 需手工升级 | — |
@@ -279,6 +279,15 @@
 | TD-188 | 管理员角色存在**数据库列**（`sys_user.role`），不写进 JWT | 把角色塞进 JWT，省一次判断 | JWT 里的角色改不动：降权要等 token 过期才生效，被撤掉的管理员还能继续调管理端点。从库里读则**立刻生效**，而且不增加查库次数 —— `get_current_user` 本来就要读 `status` 和 `password_changed_at`（TD-70 同一思路）。有一条测试专门钉住这点：同一个 token，把 role 改回 0 后立刻从 200 变 403 | 每请求一次查库（本来就要查，无额外成本） |
 | TD-189 | 管理端点的错误分**三档**：400 抓不了 / 422 提不出正文 / 502 大模型不可用 | 一律 500，或一律 400 | 三档对应三种不同的处置：400 是调用方给的 URL 有问题、422 是该换页面或改提示词、502 是上游挂了不该重试打本站。实现时踩到两个坑，都已用变异体钉住：**① `extract.identify_selectors` 会把 `LLMError` 包成 `ExtractError` 再抛**（`raise ExtractError(str(e)) from e`），所以写成 `except LLMError` 是**永不可达的死分支**，实测会把「未配置 LLM_API_KEY」报成 422「内容提取失败」—— 必须顺着 `__cause__` 认回去；**② `RobotsDisallowed` 是独立的 `Exception` 子类，不是 `CrawlError`**，漏接就变 500（`httpx.HTTPError` 即目标站超时/连不上同理）。8 个变异体（含删掉每个 except 分支）全部被测试杀掉 | 无 |
 | TD-190 | 管理端点越权返回 **403 而不是 404**，并挂 **LLM 档限流** | 用 404 藏起端点；或不限流 | 端点存在与否不是本站的秘密（`/docs` 里本来就列着），假装不存在只会让管理员自己对着 404 猜半天 —— 真正的防线是「只接受管理员」，不是「别人找不到」。限流挂 LLM 档（10 次/60s）而不是工具档（30 次）：每次调用都花 LLM token，管理员账号被盗时也不能无限刷 | 攻击者能确认端点存在（但拿不到任何数据） |
+| TD-191 | 动态页面用 **Playwright**，且**不放进 requirements.txt**（可选依赖）；渲染路径与静态路径**共用同一套** `parse_page` | Selenium；或把 playwright 写成必需依赖 | **为什么不 Selenium**：用户选型。**为什么不做成必需依赖**：wheel 47 MB、还要再下 ~150 MB 浏览器，而多数站点 httpx 就够；没装时端点返回 **503 + 安装命令**，而不是启动时炸掉整个应用。
+
+**实测澄清一个误解**：Python 版 Playwright 的 wheel **自带** `playwright/driver/node`（123.7 MB，权限 `100755`），`_driver.py` 用 `os.getenv("PLAYWRIGHT_NODEJS_PATH", driver_path/"node")` 默认就调它；空 PATH（`env -i`）下实测独立运行 v24.18.1 —— 所以**不需要另外安装 Node.js**。
+
+**顺序设计**：`render()` 里 SSRF 校验 → robots 判定 → 限速 → **才**启动浏览器。前三步不碰浏览器，所以在沙箱里是真跑的（沙箱下不到浏览器：`cdn.playwright.dev` 与 `playwright.azureedge.net` 实测均 HTTP=000）。⚠️ 浏览器同样会去访问调用方给的地址，`assert_public_url` 省不得 —— 少了它 `dynamic=true` 就是一个能打 169.254.169.254 的 SSRF 口子。
+
+**变异测试 9 个杀掉 8 个**，唯一存活的是 `_goto` 里的 `final_url = pg.url`（取重定向后的最终地址）：端点测试把整个 `_goto` 换成了假的，所以看不到它内部 —— 这一行**只有真浏览器才覆盖得到**，已在 `tests/test_dynamic_crawl.py` 的最后一条（默认跳过、`RUN_BROWSER_TESTS=1` 打开）里补上断言，**合并前需在本机跑一次**。
+
+另一个实测教训：把 `render` 里的 `assert_public_url` 删掉，`test_render_blocks_bad_url_before_touching_browser` **照样通过** —— 因为 `politeness.check_allowed` 会去抓 robots.txt，而 `_request` 内部也做 SSRF 校验，拦截「碰巧」还是发生了。那是巧合性防御，所以另加了一条把 robots 层整个换成空操作的测试专门钉住它（该变异体现已被杀） | 多一个可选依赖；`_goto` 内部需本机验证 |
 
 ## 维护约定
 

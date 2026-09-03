@@ -52,9 +52,9 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 ## 「做完」的定义（六条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **399 passed, 1 skipped**
+2. `.venv/bin/python -m pytest -q` → **417 passed, 2 skipped**（其中 1 条是真浏览器用例，默认跳过）
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
-3. 真 PostgreSQL 上 → **400 passed**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
+3. 真 PostgreSQL 上 → **418 passed, 1 skipped**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
 5. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
    抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。
@@ -68,7 +68,8 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
    - 导出 Word → `python-docx`（不是 Apache POI）
    - 爬虫 → `httpx` + `BeautifulSoup4`（不是 HttpClient + Jsoup）
-   - 动态页面抓取 → 阶段四再定 `Selenium` 还是 `Playwright`
+   - 动态页面抓取 → **已选 Playwright**（TD-03/191）。它是**可选依赖**，不在 requirements.txt 里：
+     `pip install playwright` 后还要 `playwright install chromium`；没装时端点返回 503 + 安装命令
 2. **前端用 Jinja2 SSR**，不引入 Node / Nuxt / Next。D3.js、Mermaid、Drawio 本来就是客户端渲染，SSR 只负责 HTML 外壳与 TDK。
    - 工具清单集中成一个 `TOOLS` 常量，同时驱动路由、sitemap 与导航（S2-02-1）
    - S2-02-1 只做 `sitemap.xml` + `robots.txt` + 工具页 TDK；S2-02-2 转化路径本轮跳过
