@@ -32,6 +32,21 @@ docker compose up -d --build
 `docker-compose.yml` 会：
 - 起一个 PostgreSQL 16，**首次启动**自动执行 `database init/full_init.sql` 建表
   （挂到 `/docker-entrypoint-initdb.d/`；已存在的库不会重复初始化）
+
+> **已有数据的库不会自动升级。** `full_init.sql` 开头是 `DROP TABLE ... CASCADE`，
+> 对已有库跑它等于清库。升级请用增量脚本，按编号顺序执行（每个都可重复跑）：
+>
+> 迁移脚本没有挂进容器（compose 只挂了 `full_init.sql`），所以从宿主机用管道喂进去；
+> `-T` 是关掉伪终端，少了它 stdin 重定向不生效：
+>
+> ```
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0001_timestamptz.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0002_password_changed_at.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0003_diagram_deleted_at.sql"
+> ```
+>
+> 0001 = 时间列统一 `TIMESTAMPTZ`（TD-146）；0002 = `sys_user.password_changed_at`（TD-70）；
+> 0003 = `sys_diagram.deleted_at` + 索引升级（TD-64）。全新部署只需 `full_init.sql`，不用跑这些。
 - 等数据库健康检查通过后再起应用
 - 给应用注入 `DB_HOST=db`、`TRUST_PROXY_HEADERS=true`
 

@@ -94,7 +94,9 @@
       return;
     }
     if (!res.ok) {
-      status.textContent = `保存失败（${res.status}）`;
+      // 409（配额用满）后端给了人话，直接显示比一个光秃秃的状态码有用
+      const detail = (await res.json().catch(() => null))?.detail;
+      status.textContent = detail ? `保存失败：${detail}` : `保存失败（${res.status}）`;
       return;
     }
     const saved = await res.json();

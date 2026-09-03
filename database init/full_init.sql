@@ -91,10 +91,12 @@ CREATE TABLE sys_diagram (
     user_id     INTEGER NOT NULL REFERENCES sys_user(id),
     name        VARCHAR(100) NOT NULL,
     content     TEXT NOT NULL,
+    deleted_at  TIMESTAMPTZ,   -- 软删除（TD-64）：NULL = 存活
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-CREATE INDEX idx_sys_diagram_user ON sys_diagram (user_id);
+-- 列表与配额统计都是「某个用户的存活行」，所以把 deleted_at 并进索引
+CREATE INDEX idx_sys_diagram_user ON sys_diagram (user_id, deleted_at);
 
 -- 7. 文章表（S4-01-4 内容冷启动：爬虫 + LLM 解析后入库）
 CREATE TABLE sys_article (

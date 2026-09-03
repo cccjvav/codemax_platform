@@ -80,6 +80,10 @@ class SysDiagram(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
     name: Mapped[str] = mapped_column(String(100))
     content: Mapped[str] = mapped_column(Text)
+    # 软删除（TD-64）：NULL = 存活，非 NULL = 删除时刻。删除只打时间戳，用户可以自己恢复。
+    # **每一处读取都必须带 `deleted_at IS NULL` 过滤** —— 漏一处就等于「删了还能看见」，
+    # 所以 `_owned()` 与列表查询都走同一个 `_alive()` 条件，不散写。
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

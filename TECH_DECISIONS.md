@@ -15,7 +15,7 @@
 | --- | --- | --- |
 | ~~TD-15~~ | ~~公开工具端点无限流~~ **已解决** | `app/ratelimit.py` 内存滑动窗口：工具 30 次/60s、LLM 10 次/60s、注册登录 10 次/60s，超额 429 + `Retry-After`（多实例部署的代价见 TD-141） |
 | ~~TD-44~~ | ~~JWT 存 localStorage~~ **已解决**：登录态改走 **HttpOnly cookie**（`SameSite=Lax`，生产加 `Secure`，`Max-Age` 与 token 同寿命），前端不再碰 `localStorage`/`sessionStorage`（模板里已一处不剩）。Bearer 头**同时保留**，Swagger 与 API 客户端照旧；两者都带时以请求头为准。新增 `POST /auth/logout` 清 cookie。配套把有副作用的 `GET /shop/download/{order_no}` 改成 POST（TD-177），并把「需要登录的 GET 路由」钉成带理由的清单（TD-176） | 改用 cookie 就引入了 CSRF（TD-176/177）；`GET /oauth/authorize` 是残留面（TD-175） |
-| TD-64 | 流程图无配额、无软删除 | 可被刷库；删除不可恢复 |
+| ~~TD-64~~ | ~~流程图无配额、无软删除~~ **已解决（配额 + 软删除）**：每用户存活流程图上限 `DIAGRAM_QUOTA`（默认 50），超额 409 并把上限写进错误信息；删除改为打 `deleted_at` 时间戳，新增 `POST /diagrams/{id}/restore` 与 `GET /diagrams?deleted=true`（回收站）。对调用方而言删除语义不变（删完 GET 就 404、列表里也没有）。**恢复也要占配额**，否则「建满 → 删 → 恢复」就是绕过上限的后门。迁移：`database init/migrate_0003_diagram_deleted_at.sql`（已在真 PG 上验过升级与重跑两条路径） | 配额只管**存活**行，回收站不会自动清空 → 表增长仍不受约束（TD-179）；版本历史仍未做（TD-180）；配额检查有 TOCTOU 窗口（TD-178） |
 | ~~TD-70~~ | ~~JWT 无 `jti`、无法吊销~~ **已解决**：改用**令牌版本化** —— JWT 带 `pwd` 声明（签发时 `password_changed_at` 的 UNIX 秒），`get_current_user` 每次与库里当前值比对，早于它就拒。新增 `POST /auth/password`（限流），改密码即吊销该用户**所有**旧 token，并返回一个新 token 让当前会话不掉线。**订正原文一处不准确的说法**：「封号后旧 token 仍然有效」并不成立 —— `get_current_user` 一直都查库并检查 `status != 1`，禁用是立刻生效的（`test_disabled_user_token_is_rejected_immediately` 钉住） | 撤销粒度是「按用户」而非「按单个 token」：无法只踢掉某一个会话而保留其他会话 |
 | ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（真库 209 passed / SQLite 208+1 skip），见 TD-121 |
 | ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：三个 job（ruff 静态检查 / SQLite / 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过。注释头也已在 `4b145b5` 修正（原先 `2f3223a` 纯重命名时把激活前那段「待激活/从未跑过」的注释一起搬了进来）。GitHub App 已于 2026-09-01 取得 Workflows 写权限，workflow 可直接改并 push |
@@ -102,7 +102,7 @@
 | TD-61 | 列表接口不返回 `content` 大字段 | 一次请求拿全 | 打开某张图要再发一次请求 | — |
 | TD-62 | 列表无分页，按 `update_time` 倒序全量返回 | 分页 / 游标 | 图多时响应变大 | 单用户图数量上百时 |
 | TD-63 | `content` 上限 500000 字符（`schemas.py:35`） | 超大图 | 超限返回 422 | — |
-| TD-64 | 无版本历史、无软删除、无每用户配额 | 可恢复、防滥用 | 删除即永久；可被刷库 | **上线前加配额** |
+| ~~TD-64~~ | ~~无软删除、无每用户配额~~ **已解决**：`deleted_at` 软删除 + 恢复端点 + `DIAGRAM_QUOTA` 配额。**版本历史仍没做**，拆成 TD-180 单独记 | 见 TD-178/179/180 | — |
 | TD-65 | 无协同编辑、无乐观锁 | 多人同时编辑 | 后写覆盖先写 | 有协同需求时 |
 
 ## 八、认证与 SSO
@@ -260,6 +260,9 @@
 | TD-175 | `GET /oauth/authorize` 保留 GET，作为 cookie 化后**新引入**的残留 CSRF 面记录在案 | 改成 POST，或加一次性 CSRF token | OAuth 2.0 的授权端点按规范必须是用户代理重定向（GET），改不成 POST；GET 又带不了自定义头，双提交 cookie 也套不上。**这是改 cookie 之前不存在的风险** —— 走 Bearer 头时跨站根本伪造不出那个头。现有缓解：`redirect_uri` 必须与登记值完全一致、授权码一次性且短寿、`state` 参数支持客户端自行绑定 | 加一个用户确认页（consent screen），并把 CSRF token 绑到会话上 |
 | TD-176 | cookie 用 `SameSite=Lax`，并把「需要登录的 GET 路由」钉成一张带理由的白名单 | `SameSite=Strict`，一步堵死 CSRF | Lax 只挡跨站的**写方法**，跨站顶层导航的 GET 照样带上 cookie —— 所以安全性依赖「GET 无副作用」这个前提。`test_authed_get_routes_are_read_only` 用**相等**断言（不是子集），新增一个需要登录的 GET 就会失败，逼作者写清它为什么没有副作用。不用 Strict 是因为它连「从微信/邮件点链接进来」的第一跳都不带 cookie，用户会看到一次莫名的未登录，对这个平台的链接分享场景是硬伤 | 若将来加了带副作用的 GET 又改不掉，就换 Strict 并接受那次未登录 |
 | TD-177 | `GET /shop/download/{order_no}` 改成 **POST** | 保留 GET | 它**会改状态**（`mark_downloaded` 把 `paid` 烧成 `downloaded`，一次性下载就没了）。GET 带副作用本来就是错的；cookie 化之后它还是个 CSRF 靶子 —— 攻击者一个跨站跳转就能替用户把下载额度烧掉。该端点没有前端调用者，只有测试，所以改动面很小 | — |
+| TD-178 | 配额检查是「先数再插」，没做原子化 | 数据库层加约束 / 可串行化隔离 / 咨询锁 | 并发建图时两个事务可能都数到 49 然后都插入，实际存活数会**小幅超过**上限。选它是因为配额的用途是**防刷库的刹车**，不是精确记账 —— 超出一两张没有任何后果，而为此上可串行化隔离或咨询锁，代价与收益完全不成比例。突发刷库由限流那层挡（TD-15） | 若将来配额变成计费依据（按张数收费），就必须改成原子操作 |
+| TD-179 | 回收站不会自动清理 | 定时清理任务（`deleted_at` 早于 N 天的硬删） | 软删除的行仍然占着存储，所以「配额只管存活行」意味着**表增长本身没有被约束**：一个用户可以反复「建满 → 删光 → 再建满」。当前用户量下这只是磁盘问题，不是安全问题，所以没有为它引入定时任务框架 | 用户量上来后加一个定时任务硬删 30 天前的软删除行；或让 `DIAGRAM_QUOTA` 同时约束回收站大小 |
+| TD-180 | 流程图**没有版本历史**（从 TD-64 里拆出来） | 每次保存留一份快照 | 只解决了「删掉找不回来」，没解决「改坏了退不回去」—— `PUT` 是直接覆盖 `content`。做版本历史要另设一张快照表并处理存储增长，与本次「上线阻塞项」无关，故未做 | 有用户反馈改坏图找不回时，加 `sys_diagram_revision` 表 + 保留最近 N 版 |
 
 ## 维护约定
 

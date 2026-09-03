@@ -21,6 +21,7 @@ async def test_all_diagram_endpoints_require_login(client):
     assert (await client.get("/diagrams/1")).status_code == 401
     assert (await client.put("/diagrams/1", json=payload)).status_code == 401
     assert (await client.delete("/diagrams/1")).status_code == 401
+    assert (await client.post("/diagrams/1/restore")).status_code == 401
 
 
 async def test_create_then_get(client):

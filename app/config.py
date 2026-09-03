@@ -48,6 +48,11 @@ class Settings(BaseSettings):
     STORAGE_PRODUCT_KEY: str = "product/codemax_package.zip"  # 商品文件的对象 key
     DOWNLOAD_URL_TTL: int = 300  # 预签名 URL 有效期（秒），S3-02-3
 
+    # 每个用户最多存多少张流程图（TD-64）。删掉一张就腾出一个名额 ——
+    # 配额只数**存活**的行，软删除的（回收站里的）不占。
+    # 注意这只约束存活行数，回收站本身不会自动清空，见 TD-179。
+    DIAGRAM_QUOTA: int = 50
+
     # 限流（TD-15）：/tools/* 刻意不设鉴权，任何人都能无限调用，所以必须限
     RATE_LIMIT_ENABLED: bool = True
     RATE_LIMIT_WINDOW: int = 60  # 窗口秒数
