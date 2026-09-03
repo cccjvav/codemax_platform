@@ -110,6 +110,7 @@ cd ..
 | POST | `/auth/register` | 注册（返回用户信息，不含密码） |
 | POST | `/auth/login` | 登录（OAuth2 表单，返回 JWT access_token） |
 | GET | `/auth/me` | 当前用户（需 Bearer Token） |
+| POST | `/auth/password` | 修改密码（需 Bearer Token；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
 | GET | `/oauth/authorize` | **授权码端点**：已登录用户向第三方应用签发一次性 code（302 跳回调） |
 | POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
