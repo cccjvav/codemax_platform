@@ -11,20 +11,27 @@
 """
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Order
+from .timeutil import as_utc
 
 PENDING = "pending"  # 待支付
 PAID = "paid"  # 已支付
 DOWNLOADED = "downloaded"  # 已下载
+CLOSED = "closed"  # 超时关闭（S5-01-1）：待支付太久，二维码大概率已失效
 
-STATES = (PENDING, PAID, DOWNLOADED)
+STATES = (PENDING, PAID, DOWNLOADED, CLOSED)
 
 # 唯一允许的迁移边
 ALLOWED: dict[str, tuple[str, ...]] = {
-    PENDING: (PAID,),
+    PENDING: (PAID, CLOSED),
+    # CLOSED → PAID 是**故意**留的：关单只是我们这边不再等它，但用户完全可能
+    # 已经扫了旧二维码把钱付了。钱收了就必须发货，否则是收钱不发货（TD-156）。
+    CLOSED: (PAID,),
     PAID: (DOWNLOADED,),
     DOWNLOADED: (),
 }
@@ -41,12 +48,37 @@ def check_transition(current: str, target: str) -> None:
 
 
 async def mark_paid(db: AsyncSession, order: Order) -> bool:
-    """待支付 → 已支付。返回本次是否真的发生了迁移。"""
-    if order.status == PENDING:
-        return await _cas(db, order, PENDING, PAID)
+    """待支付 → 已支付。返回本次是否真的发生了迁移。
+
+    `CLOSED` 也要能收：订单被超时关闭不代表用户没付钱 —— 他完全可能已经扫了
+    旧二维码。钱到账就必须发货，否则是收钱不发货（TD-156）。这条边漏掉的后果
+    由 `test_late_payment_on_closed_order_still_delivers` 守着。
+    """
+    if order.status in (PENDING, CLOSED):
+        return await _cas(db, order, order.status, PAID)
     if order.status in (PAID, DOWNLOADED):
         return False  # 重复通知：幂等，不报错
     raise IllegalTransition(f"订单状态 {order.status!r} 无法标记为已支付")
+
+
+def is_expired(order: Order, ttl_minutes: int, now: datetime | None = None) -> bool:
+    """待支付订单是否已超过 ttl_minutes。只对待支付单有意义，其它状态一律 False。
+
+    刻意**不加 `expire_at` 字段**：过期时间 = `create_time` + 配置值就能算出来，
+    多存一列只会多一个要与配置保持同步的东西（TD-100 当初也是这么建议的）。
+    """
+    if order.status != PENDING or order.create_time is None:
+        return False
+    moment = now or datetime.now(timezone.utc)
+    return moment - as_utc(order.create_time) > timedelta(minutes=ttl_minutes)
+
+
+async def mark_closed(db: AsyncSession, order: Order) -> bool:
+    """待支付 → 超时关闭。返回本次是否真的发生了迁移（已关闭则 False，幂等）。"""
+    if order.status == CLOSED:
+        return False
+    check_transition(order.status, CLOSED)
+    return await _cas(db, order, PENDING, CLOSED)
 
 
 async def mark_downloaded(db: AsyncSession, order: Order) -> bool:

@@ -13,7 +13,16 @@ from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import Order, User
-from ..order_state import DOWNLOADED, PENDING, IllegalTransition, mark_downloaded, mark_paid
+from ..order_state import (
+    CLOSED,
+    DOWNLOADED,
+    PENDING,
+    IllegalTransition,
+    is_expired,
+    mark_closed,
+    mark_downloaded,
+    mark_paid,
+)
 from ..site import templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
@@ -61,6 +70,11 @@ async def create_order(
         .order_by(Order.id.desc())
         .limit(1)
     )
+    # 超时未支付（S5-01-1）：旧单关掉、另起一单。不这么做的话，二维码过期后
+    # 这个单会被无限复用，用户扫了必然失败，且没有任何出路（TD-109）。
+    if pending is not None and is_expired(pending, settings.ORDER_EXPIRE_MINUTES):
+        await mark_closed(db, pending)
+        pending = None
     if pending is not None and pending.code_url:
         return _payload(pending, reused=True, pay_mode=mode)
 
@@ -158,7 +172,11 @@ async def download_url(
     order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
-    if order.status == PENDING:
+    if order.status in (PENDING, CLOSED):
+        # CLOSED 是超时关闭：没付过钱，与未支付同等对待。
+        # 不显式写这一行的话，它会一路落到状态机、由 CLOSED→DOWNLOADED 不在
+        # ALLOWED 里而抛 409。虽然也拦住了，但语义是错的（409 是状态冲突，
+        # 这里是没权限），而且整个安全性都押在 ALLOWED 表不新增那条边上，太脆。
         raise HTTPException(403, "订单未支付")
     if order.status == DOWNLOADED:
         raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
@@ -169,9 +187,15 @@ async def download_url(
 
     url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL)
     try:
-        await mark_downloaded(db, order)
+        won = await mark_downloaded(db, order)
     except IllegalTransition as e:
         raise HTTPException(409, str(e)) from e
+    # **必须看返回值**：上面的 `order.status == DOWNLOADED` 检查读的是请求开始时
+    # 的快照，并发下多个请求会同时读到 paid。真正决定谁能拿到链接的是这次 CAS ——
+    # 忽略返回值的话，并发 4 个请求会全部拿到有效链接，"一次性下载"直接失效。
+    # 由 test_concurrent_download_only_one_wins 守着。
+    if not won:
+        raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
     return {
         "order_no": order.order_no,
         "download_url": url,

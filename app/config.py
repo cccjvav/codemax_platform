@@ -34,6 +34,9 @@ class Settings(BaseSettings):
     # 商品：阶段三只有一个 SKU，金额单位是分
     SHOP_PRODUCT_NAME: str = "毕设服务"
     SHOP_PRODUCT_AMOUNT: int = 19900
+    # 待支付订单多久算超时（S5-01-1）。超时就关单并允许重新下单，
+    # 解决 TD-109：过期二维码的订单被无限复用、扫了必失败。
+    ORDER_EXPIRE_MINUTES: int = 30
 
     # 支付通道：wechat = 微信支付（生产必须用这个）；mock = 模拟收银台
     # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
