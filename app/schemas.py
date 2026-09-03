@@ -37,6 +37,18 @@ class MermaidIn(BaseModel):
     text: str = Field(min_length=1, max_length=10000)
 
 
+class ArticleIngestIn(BaseModel):
+    """抓取入库入参（TD-138，仅管理员）。
+
+    这里**只用长度**卡 url，不做格式校验：真正的校验是
+    `crawler.assert_public_url`（协议白名单 + 逐个解析结果必须 `is_global`）。
+    在 schema 里再写一套 URL 规则等于两处真相，SSRF 判定必须只有一处。
+    500 与 `sys_article.url VARCHAR(500)` 对齐，超长直接在入口挡掉。
+    """
+
+    url: str = Field(min_length=1, max_length=500)
+
+
 class SupportIn(BaseModel):
     text: str = Field(min_length=1, max_length=2000)
 

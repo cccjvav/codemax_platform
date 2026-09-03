@@ -24,6 +24,7 @@ CREATE TABLE sys_user (
     nickname    VARCHAR(50),
     avatar      VARCHAR(255),
     status      SMALLINT DEFAULT 1, -- 状态：1正常，0禁用
+    role        SMALLINT DEFAULT 0, -- 角色：0普通，1管理员（TD-138 抓取入库端点）
     password_changed_at TIMESTAMPTZ, -- 最近改密码时刻，JWT 校验用（TD-70）
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP

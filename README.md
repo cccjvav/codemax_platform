@@ -117,6 +117,7 @@ cd ..
 | POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
 | GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
+| POST | `/admin/articles/ingest` | **仅管理员**（`role=1`）：抓取一个 URL → LLM 指认选择器 → 提取入库。同一 URL 重复抓是更新。失败分 400（抓不了/robots 不允许/目标站不可达）、422（提不出正文）、502（大模型不可用） |
 | GET | `/health` | 健康检查 |
 
 > **SSO（OAuth2 授权码模式）流程**：用户登录认证中心拿会话 JWT → 携带 JWT 访问

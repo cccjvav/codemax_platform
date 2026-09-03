@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from app import cpu_pool
 from app.config import settings
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
-from app.routers import auth, diagrams, health, oauth, shop, site, support, tools
+from app.routers import admin, auth, diagrams, health, oauth, shop, site, support, tools
 from app.startup_checks import enforce_production_settings
 
 # 日志配置放在导入应用之前：uvicorn 自己也会配 logging，这里只设定级别与格式，
@@ -42,6 +42,7 @@ app.include_router(diagrams.router)  # S2-01-3：Drawio 流程图存取（需鉴
 app.include_router(shop.router)
 app.include_router(site.router)  # S2-02-1：页面 SSR + sitemap + robots
 app.include_router(support.router)  # S4-02：智能客服三层
+app.include_router(admin.router)  # TD-138：管理员抓取入库（S4-01-4 的 HTTP 入口）
 
 # 工具平台前端静态资源（er.js 等）；HTML 页面走 Jinja2 SSR，见 app/routers/site.py
 app.mount(

@@ -49,3 +49,17 @@ async def get_current_user(
         if claims.pwd is None or claims.pwd < current:
             raise HTTPException(status.HTTP_401_UNAUTHORIZED, "密码已修改，请重新登录")
     return user
+
+
+async def require_admin(user: User = Depends(get_current_user)) -> User:
+    """TD-138：只有管理员（`role == 1`）能通过。
+
+    返回 **403 而不是 404**：端点存在与否不是本站的秘密（`/docs` 里本来就列着），
+    假装不存在只会让管理员自己调试时对着 404 猜半天。真正的防线是下面那条 ——
+    端点只接受管理员，而不是「别人找不到」。
+
+    角色从库里读、不从 JWT 读，所以**降权立刻生效**，不用等 token 过期。
+    """
+    if user.role != 1:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "需要管理员权限")
+    return user

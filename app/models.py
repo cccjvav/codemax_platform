@@ -15,6 +15,13 @@ class User(Base):
     nickname: Mapped[str | None] = mapped_column(String(50))
     avatar: Mapped[str | None] = mapped_column(String(255))
     status: Mapped[int] = mapped_column(SmallInteger, default=1)  # 1正常 0禁用
+    # TD-138：管理员标记（0 普通 / 1 管理员）。抓取入库端点只对它开放 ——
+    # 公开端点等于给任何人一个「让服务器抓任意 URL + 烧 LLM token」的入口。
+    #
+    # 角色**不进 JWT**：`get_current_user` 每个请求都从库里读用户，所以改角色
+    # 立刻生效，不必等 token 过期，也不必像 TD-70 那样再造一个失效时间戳。
+    # 代价是每请求一次查库 —— 这个查本来就要做（要读 status 和 password_changed_at）。
+    role: Mapped[int] = mapped_column(SmallInteger, default=0)
     # 最近一次改密码的时刻（TD-70）。JWT 里带这个时间戳的副本，校验时对不上就拒 ——
     # 这样改密码能一次吊销该用户**所有**旧 token，不必维护 jti 黑名单表。
     # 为 None 表示从未改过密码（注册时建的号）。
