@@ -1,0 +1,37 @@
+# 本地/单机部署示例。生产上 SSL 与域名解析在反向代理（nginx / 云 LB）那一层做，
+# 应用本身只跑 http，靠 X-Forwarded-Proto 感知 https —— 所以 TRUST_PROXY_HEADERS 要开。
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: codemax_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?必须在 .env 里设置 DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # 首次启动自动建表；已存在的库不会被重复初始化
+      - ./database init/full_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d codemax_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    env_file: .env
+    environment:
+      DB_HOST: db
+      DB_PORT: "5432"
+      TRUST_PROXY_HEADERS: "true"
+    ports:
+      - "8000:8000"
+    volumes:
+      - uploads:/srv/app/storage
+
+volumes:
+  pgdata:
+  uploads:

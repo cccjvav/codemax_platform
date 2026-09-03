@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     RATE_LIMIT_AUTH: int = 10  # 注册 / 登录：防在线爆破
     TRUST_PROXY_HEADERS: bool = False  # 只在可信反向代理之后才打开（TD-142）
 
+    # ---- 部署与运维（S5-03）----
+    # development / production。production 下会强制若干安全检查，见 app/startup_checks.py
+    ENV: str = "development"
+    LOG_LEVEL: str = "INFO"
+    # HSTS 的 max-age（秒），默认一年。只在请求确实是 https 时才下发 ——
+    # 在 http 上下发没有意义，还会把仍在用 http 的本地环境锁死一年。
+    HSTS_MAX_AGE: int = 31536000
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     @property

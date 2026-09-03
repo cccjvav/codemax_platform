@@ -1,0 +1,289 @@
+"""S5-03 运维部分：安全响应头、健康探针、生产自检、CPU 池兜底。"""
+import re
+from pathlib import Path
+
+import pytest
+
+from app.config import settings
+from app.database import get_db
+from app.middleware import CONTENT_SECURITY_POLICY
+from app.startup_checks import (
+    DEFAULT_SECRET,
+    ProductionConfigError,
+    check_production_settings,
+    enforce_production_settings,
+)
+
+ROOT = Path(__file__).resolve().parent.parent
+
+
+# ============================================================ 安全响应头
+
+
+@pytest.mark.asyncio
+async def test_security_headers_present_on_every_response(client):
+    r = await client.get("/")
+    assert r.headers["X-Content-Type-Options"] == "nosniff"
+    assert r.headers["X-Frame-Options"] == "SAMEORIGIN"
+    assert r.headers["Referrer-Policy"] == "strict-origin-when-cross-origin"
+    assert "Content-Security-Policy" in r.headers
+
+
+@pytest.mark.asyncio
+async def test_security_headers_also_on_error_responses(client):
+    """404/422 也要带头 —— 攻击者常拿错误页做文章，中间件不能只管成功路径。"""
+    for path in ("/no-such-page", "/support/ask"):
+        r = await client.get(path)
+        assert r.status_code in (404, 405)
+        assert r.headers["X-Content-Type-Options"] == "nosniff"
+
+
+@pytest.mark.asyncio
+async def test_no_hsts_over_plain_http(client):
+    """http 上不能下发 HSTS，否则还在用 http 的环境会被浏览器锁死一年。"""
+    r = await client.get("/")
+    assert "Strict-Transport-Security" not in r.headers
+
+
+@pytest.mark.asyncio
+async def test_hsts_sent_when_proxy_says_https(client, monkeypatch):
+    """反向代理终止 TLS 时，靠 X-Forwarded-Proto 判断（且只在信任代理头时才信）。"""
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    r = await client.get("/", headers={"X-Forwarded-Proto": "https"})
+    assert r.headers["Strict-Transport-Security"].startswith("max-age=")
+    assert "includeSubDomains" in r.headers["Strict-Transport-Security"]
+
+
+@pytest.mark.asyncio
+async def test_hsts_not_honoured_from_untrusted_proxy_header(client, monkeypatch):
+    """不信任代理头时，伪造 X-Forwarded-Proto 也不能骗出 HSTS。"""
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", False)
+    r = await client.get("/", headers={"X-Forwarded-Proto": "https"})
+    assert "Strict-Transport-Security" not in r.headers
+
+
+def test_csp_blocks_the_dangerous_defaults():
+    for directive in ("object-src 'none'", "base-uri 'none'", "frame-ancestors 'self'"):
+        assert directive in CONTENT_SECURITY_POLICY
+
+
+def test_every_external_origin_used_by_frontend_is_allowed_by_csp():
+    """反向校验：模板与静态资源里出现的每个外部域，都必须在 CSP 白名单里。
+
+    没有这条测试，将来谁加了新 CDN 忘了改 CSP，结果不是测试红，
+    而是上线后页面白屏 —— 那种故障最难查，因为 HTML 是 200。
+    """
+    used: set[str] = set()
+    for pattern in ("app/templates/*.html", "app/static/*.js", "app/static/*.html"):
+        for f in ROOT.glob(pattern):
+            used |= set(re.findall(r"https?://[A-Za-z0-9.-]+", f.read_text(encoding="utf-8")))
+    assert used, "没扫到任何外部源，说明 glob 路径写错了"
+    missing = {origin for origin in used if origin not in CONTENT_SECURITY_POLICY}
+    assert not missing, f"这些外部源被前端用到但不在 CSP 白名单里：{sorted(missing)}"
+
+
+def test_csp_allows_inline_scripts_because_templates_still_need_them():
+    """四个模板都还有内联 <script>，所以现在必须保留 'unsafe-inline'（TD-163）。
+
+    这条测试的作用是把「临时妥协」钉在明处：等哪天把内联脚本都外置了，
+    这条会红，提醒把 'unsafe-inline' 去掉。
+    """
+    inline = [f.name for f in (ROOT / "app" / "templates").glob("*.html")
+              if re.search(r"<script(?![^>]*\bsrc=)[^>]*>", f.read_text(encoding="utf-8"))]
+    assert inline, "已经没有内联脚本了？那就可以收紧 CSP，请删掉这条测试"
+    assert "'unsafe-inline'" in CONTENT_SECURITY_POLICY
+
+
+# ============================================================ 请求日志与 request id
+
+
+@pytest.mark.asyncio
+async def test_request_id_returned_and_unique(client):
+    a = (await client.get("/")).headers["X-Request-ID"]
+    b = (await client.get("/")).headers["X-Request-ID"]
+    assert a and b and a != b, "每个请求应有各自的 request id"
+
+
+@pytest.mark.asyncio
+async def test_incoming_request_id_is_preserved(client):
+    """上游网关已经给了 id 就沿用它，这样一条链路能串起来查。"""
+    r = await client.get("/", headers={"X-Request-ID": "trace-abc-123"})
+    assert r.headers["X-Request-ID"] == "trace-abc-123"
+
+
+@pytest.mark.asyncio
+async def test_requests_are_logged_with_status_and_duration(client, caplog):
+    import logging
+
+    with caplog.at_level(logging.INFO, logger="codemax.access"):
+        await client.get("/healthz")
+    text = caplog.text
+    assert "GET /healthz" in text and "200" in text
+    assert "rid=" in text
+
+
+# ============================================================ 健康探针
+
+
+@pytest.mark.asyncio
+async def test_healthz_and_legacy_health_both_work(client):
+    """`/health` 保留为别名：README 与既有测试都在用（TD-164）。"""
+    for path in ("/healthz", "/health"):
+        r = await client.get(path)
+        assert r.status_code == 200
+        assert r.json()["status"] == "ok"
+
+
+@pytest.mark.asyncio
+async def test_readyz_reports_ready_when_db_is_up(client):
+    r = await client.get("/readyz")
+    assert r.status_code == 200
+    assert r.json()["status"] == "ready"
+
+
+@pytest.mark.asyncio
+async def test_readyz_returns_503_not_500_when_db_is_down(client):
+    """探针必须把异常吞成 503：抛出去会变成 500，编排器就分不清是应用坏了还是库坏了。"""
+
+    class BrokenSession:
+        async def execute(self, *_a, **_kw):
+            raise RuntimeError("connection refused")
+
+    async def broken_db():
+        yield BrokenSession()
+
+    from main import app as fastapi_app
+
+    fastapi_app.dependency_overrides[get_db] = broken_db
+    try:
+        r = await client.get("/readyz")
+    finally:
+        fastapi_app.dependency_overrides.pop(get_db, None)
+    assert r.status_code == 503
+    assert "database" in r.text
+    assert "RuntimeError" in r.text, "要带上异常类型，否则运维只看到 unavailable"
+
+
+def test_liveness_probe_does_not_touch_the_database():
+    """存活探针**不能**查库：库一抖就把健康实例全重启，等于把故障放大成雪崩。"""
+    src = (ROOT / "app" / "routers" / "health.py").read_text(encoding="utf-8")
+    healthz_src = src.split("async def healthz")[1].split("async def readyz")[0]
+    assert "get_db" not in healthz_src and "text(" not in healthz_src
+
+
+# ============================================================ 生产自检
+
+
+def test_development_env_passes_without_complaint(monkeypatch):
+    monkeypatch.setattr(settings, "ENV", "development")
+    assert check_production_settings() == []
+
+
+def test_production_with_all_defaults_is_rejected(monkeypatch):
+    monkeypatch.setattr(settings, "ENV", "production")
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
+    monkeypatch.setattr(settings, "SECRET_KEY", DEFAULT_SECRET)
+    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", False)
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", False)
+    problems = check_production_settings()
+    assert len(problems) == 4
+    joined = "\n".join(problems)
+    for keyword in ("SHOP_PAY_MODE", "SECRET_KEY", "RATE_LIMIT_ENABLED", "TRUST_PROXY_HEADERS"):
+        assert keyword in joined
+
+
+def test_mock_pay_in_production_is_the_first_thing_reported(monkeypatch):
+    """TD-124：模拟支付开着＝免费发货，这是后果最严重的一条，必须报出来。"""
+    monkeypatch.setattr(settings, "ENV", "production")
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
+    monkeypatch.setattr(settings, "SECRET_KEY", "a-real-long-random-secret")
+    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    problems = check_production_settings()
+    assert len(problems) == 1 and "免费发货" in problems[0]
+
+
+def test_enforce_raises_only_in_production(monkeypatch):
+    monkeypatch.setattr(settings, "ENV", "production")
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
+    monkeypatch.setattr(settings, "SECRET_KEY", "a-real-long-random-secret")
+    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    with pytest.raises(ProductionConfigError):
+        enforce_production_settings()
+
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "wechat")
+    enforce_production_settings()  # 不该抛
+
+
+def test_enforce_is_a_noop_in_development(monkeypatch):
+    """开发环境必须能带着默认值起来，否则本地根本没法跑。"""
+    monkeypatch.setattr(settings, "ENV", "development")
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
+    monkeypatch.setattr(settings, "SECRET_KEY", DEFAULT_SECRET)
+    enforce_production_settings()
+
+
+# ============================================================ CPU 池
+
+
+@pytest.mark.asyncio
+async def test_cpu_pool_returns_same_result_as_direct_call():
+    from app.cpu_pool import run_cpu_bound
+    from app.tools.sql_ddl import parse_ddl
+
+    ddl = "CREATE TABLE a (id INT PRIMARY KEY, b VARCHAR(10));"
+    assert await run_cpu_bound(parse_ddl, ddl) == parse_ddl(ddl)
+
+
+@pytest.mark.asyncio
+async def test_process_pool_failure_falls_back_to_threadpool(monkeypatch):
+    """进程池不可用时要退化成线程池（慢但不坏），不能让导出功能直接 500。
+
+    Windows 用 spawn 起子进程、容器可能限进程数，这些都是真实会发生的。
+    """
+    import app.cpu_pool as cpu_pool
+
+    cpu_pool._executor = None
+    cpu_pool._broken = False
+
+    def explode(*a, **kw):
+        raise OSError("fork not permitted in this container")
+
+    monkeypatch.setattr(cpu_pool, "ProcessPoolExecutor", explode)
+    from app.tools.sql_ddl import parse_ddl
+
+    ddl = "CREATE TABLE a (id INT PRIMARY KEY);"
+    assert await cpu_pool.run_cpu_bound(parse_ddl, ddl) == parse_ddl(ddl)
+    assert cpu_pool._broken is True, "坏过一次就该记住，别每个请求都再付一次失败开销"
+    cpu_pool._executor = None
+    cpu_pool._broken = False
+
+
+def test_shutdown_tolerates_being_called_twice():
+    from app import cpu_pool
+
+    cpu_pool.shutdown()
+    cpu_pool.shutdown()  # 不该抛
+
+
+# ============================================================ 部署产物
+
+
+def test_dockerfile_pins_python_and_does_not_run_as_root():
+    f = ROOT / "Dockerfile"
+    assert f.exists(), "缺 Dockerfile"
+    text = f.read_text(encoding="utf-8")
+    assert re.search(r"FROM python:3\.11", text), "必须钉在 3.11（pgserver 无 3.13 发行版）"
+    assert re.search(r"^USER ", text, re.M), "不能以 root 运行"
+    assert '"0.0.0.0"' in text, "容器里必须监听 0.0.0.0，否则宿主机连不进来"
+    assert "requirements.txt" in text
+
+
+def test_dockerfile_does_not_copy_secrets_or_venv():
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert ".dockerignore" in (ROOT / ".dockerignore").name or (ROOT / ".dockerignore").exists()
+    ignore = (ROOT / ".dockerignore").read_text(encoding="utf-8")
+    for must in (".env", ".venv", ".git"):
+        assert must in ignore, f".dockerignore 少了 {must}，会把密钥/虚拟环境打进镜像"
+    assert "COPY .env" not in text, "绝不能把 .env 打进镜像"

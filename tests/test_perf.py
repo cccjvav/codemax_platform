@@ -150,61 +150,83 @@ async def test_support_endpoint_p95_under_concurrency(perf_client):
     assert p95 < 80, f"客服接口 20 路并发 p95={p95:.2f} ms 超过 80ms 预算"
 
 
-@pytest.mark.asyncio
-async def test_faq_latency_not_degraded_by_concurrent_big_ddl(perf_client):
-    """**S5-02 的核心回归**：大 DDL 请求在跑的时候，客服延迟不能被拖垮。
+async def _max_event_loop_stall(client, path: str, payload: dict) -> float:
+    """在重请求进行期间，事件循环最长多久没被调度到（秒）。
 
-    这就是 S5-02-2 那个 bug 的守门测试。`parse_ddl` 是同步 CPU 代码，
-    直接在 `async def` 里调用会独占事件循环，期间所有请求都得排队。
+    这是**确定性**判据，不依赖机器快慢：
+    - CPU 代码跑在事件循环里 → 后台任务全程饿死，间隔≈该次计算的总时长；
+    - 挪到线程/进程里 → GIL 每 5 ms 切一次（`sys.getswitchinterval()`），
+      后台任务能持续拿到时间片，间隔只有毫秒级。
 
-    实测（满额 20000 字符 DDL，28 表，单次 parse 约 33 ms）：
-        修复前  无干扰 p50 13.6 ms → 有干扰 p50 **45.9 ms**（比值 3.4）
-        修复后  无干扰 p50 14.0 ms → 有干扰 p50 **14.5 ms**（比值 1.04）
-
-    断言用**比值**而不是绝对值：机器慢则两边一起慢，比值稳定，不会随机红。
+    早先用「有干扰 p50 / 无干扰 p50」的比值断言，但 clean p50 只有 6~14 ms 时，
+    任何几十毫秒的绝对开销都会显示成好几倍，比值抖得没法当阈值 —— 所以换成这个。
     """
-    clean = await _fan_out(
-        perf_client, [("/support/ask", {"text": FAQ_QS[i % 3]}) for i in range(20)]
-    )
-    loaded = (
-        await _fan_out(
-            perf_client,
-            [("/tools/er-diagram", {"ddl": BIG_DDL})]
-            + [("/support/ask", {"text": FAQ_QS[i % 3]}) for i in range(20)],
-        )
-    )[1:]  # 去掉大 DDL 自己那条
+    ticks: list[float] = []
+    stop = False
 
-    ratio = p50(loaded) / p50(clean)
-    assert ratio < 2.0, (
-        f"一个大 DDL 就把客服 p50 拖慢 {ratio:.2f} 倍（{p50(clean):.2f} → "
-        f"{p50(loaded):.2f} ms）。CPU 密集调用是否又回到事件循环里了？"
+    async def ticker():
+        while not stop:
+            ticks.append(time.perf_counter())
+            await asyncio.sleep(0.005)
+
+    task = asyncio.create_task(ticker())
+    await asyncio.sleep(0.02)  # 先让 ticker 稳定跳起来
+    r = await client.post(path, json=payload)
+    assert r.status_code == 200, r.text[:200]
+    done = time.perf_counter()
+    stop = True
+    await task
+    # **必须补记请求结束的时刻**。否则 ticker 恢复时先判 `while not stop` 就退出了，
+    # 最长的那段停顿（正是我们要抓的）永远不会进入 ticks —— 第一版就是这么写空的：
+    # 全同步变异下 word-export 实测 369 ms，测出来却是「最大间隔 5.2 ms」。
+    ticks.append(done)
+
+    gaps = [b - a for a, b in zip(ticks, ticks[1:], strict=False)]
+    return max(gaps) if gaps else float("inf")
+
+
+@pytest.mark.asyncio
+async def test_event_loop_stays_responsive_during_big_ddl(perf_client):
+    """**S5-02-2 的核心回归**：解析大 DDL 时事件循环不能被独占。
+
+    `parse_ddl` 满额输入约 33 ms。若直接在 `async def` 里同步调用，
+    这 33 ms 内所有协程都拿不到时间片 —— 后台 ticker 的间隔就会≈33 ms。
+    挪进线程池后，GIL 每 5 ms 让一次，间隔应在毫秒级。
+    """
+    stall = await _max_event_loop_stall(perf_client, "/tools/er-diagram", {"ddl": BIG_DDL})
+    assert stall < 0.020, (
+        f"解析大 DDL 期间事件循环卡了 {stall * 1000:.0f} ms。"
+        f"parse_ddl 是否又回到事件循环里同步执行了？"
     )
 
 
 @pytest.mark.asyncio
-async def test_word_export_does_not_block_event_loop(perf_client):
-    """Word 导出是**最贵**的端点，单独守一条。
+async def test_event_loop_stays_responsive_during_word_export(perf_client):
+    """Word 导出是最贵的端点（`build_data_dictionary` 约 340~450 ms），单独守一条。
 
-    实测 28 表：parse_ddl 32 ms，`build_data_dictionary` **454 ms**（13 倍）。
-    两步都在 `async def` 里同步调用的话，一个导出请求能把事件循环占住半秒，
-    期间客服的 80ms 指标必然被打穿。
+    这个量级下**线程池不够**：它让得出事件循环却让不出 GIL，实测并发轻量请求
+    p95 线程池 76.6 ms vs 进程池 35.8 ms。所以走的是进程池（TD-160）。
     """
-    clean = await _fan_out(
-        perf_client, [("/support/ask", {"text": FAQ_QS[i % 3]}) for i in range(10)]
+    stall = await _max_event_loop_stall(perf_client, "/tools/word-export", {"ddl": BIG_DDL})
+    assert stall < 0.020, (
+        f"导出 Word 期间事件循环卡了 {stall * 1000:.0f} ms。"
+        f"build_data_dictionary 必须跑在进程池里，线程池都不够。"
     )
-    loaded = (
-        await _fan_out(
-            perf_client,
-            [("/tools/word-export", {"ddl": BIG_DDL})]
-            + [("/support/ask", {"text": FAQ_QS[i % 3]}) for i in range(10)],
-        )
-    )[1:]
 
-    ratio = p50(loaded) / p50(clean)
-    assert ratio < 2.0, (
-        f"一个 Word 导出把客服 p50 拖慢 {ratio:.2f} 倍（{p50(clean):.2f} → "
-        f"{p50(loaded):.2f} ms）。build_data_dictionary 必须在线程池里跑。"
-    )
+
+@pytest.mark.asyncio
+async def test_faq_p95_survives_concurrent_heaviest_endpoint(perf_client):
+    """真正的 SLA：最贵的端点在跑时，客服 p95 仍须在 80 ms 预算内。
+
+    这条用绝对值，因为 80 ms 是 ROADMAP 写死的**需求**而不是本机测量值。
+    实测：修复前客服 p50 526 ms（完全打穿），进程池后 p95 约 36 ms。
+    """
+    jobs = [("/tools/word-export", {"ddl": BIG_DDL})] + [
+        ("/support/ask", {"text": FAQ_QS[i % 3]}) for i in range(20)
+    ]
+    lat = (await _fan_out(perf_client, jobs))[1:]
+    p95 = sorted(lat)[int(len(lat) * 0.95) - 1]
+    assert p95 < 80, f"最贵端点并发时客服 p95={p95:.1f} ms，超出 80 ms 预算"
 
 
 # ============================================================ S5-02-2 大文件渲染

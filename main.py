@@ -1,11 +1,40 @@
+import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 
-from app.routers import auth, diagrams, oauth, shop, site, support, tools
+from app import cpu_pool
+from app.config import settings
+from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from app.routers import auth, diagrams, health, oauth, shop, site, support, tools
+from app.startup_checks import enforce_production_settings
 
-app = FastAPI(title="codemax_platform", version="0.1.0")
+# 日志配置放在导入应用之前：uvicorn 自己也会配 logging，这里只设定级别与格式，
+# 不去动它的 handler，避免两边打架（TD-165）。
+logging.basicConfig(
+    level=settings.LOG_LEVEL.upper(),
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+
+# 生产配置不合规就拒绝启动 —— 等到用户下单时才发现就晚了（见 app/startup_checks.py）
+enforce_production_settings()
+
+@asynccontextmanager
+async def lifespan(_: FastAPI):
+    yield
+    cpu_pool.shutdown()  # 回收进程池子进程，否则会留下孤儿进程
+
+
+app = FastAPI(title="codemax_platform", version="0.1.0", lifespan=lifespan)
+
+# 中间件是**后加先执行**（洋葱模型），所以日志放最后加，让它包在最外层，
+# 这样连安全头中间件自己的耗时也算进去，且异常也能被记录到。
+app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE)
+app.add_middleware(RequestLoggingMiddleware)
+
+app.include_router(health.router)  # S5-03-3：存活/就绪探针
 app.include_router(auth.router)
 app.include_router(oauth.router)
 app.include_router(tools.router)
@@ -20,8 +49,3 @@ app.mount(
     StaticFiles(directory=Path(__file__).resolve().parent / "app" / "static", html=True),
     name="static",
 )
-
-
-@app.get("/health")
-async def health():
-    return {"status": "ok"}
