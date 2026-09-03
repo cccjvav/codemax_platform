@@ -62,7 +62,10 @@ async def word_export(data: ErDiagramIn) -> Response:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
     return Response(
         # 生成 docx 走**进程**池而不是线程池：它要几百毫秒纯 Python 计算，
-        # 线程池让得出事件循环却让不出 GIL，实测并发 p95 76.6ms vs 进程池 35.8ms
+        # 线程池让得出事件循环却让不出 GIL。**注意「并发 p95 更快」不是选进程池的
+        # 依据** —— 本机 2 核实测线程池 58~106ms、进程池 60~77ms，分布完全重叠，
+        # 延迟量不出差别（TD-183/186）。真正的依据是下面这条事件循环停顿测试：
+        # 同步执行停顿 353~366ms，进程池 10~16ms，差一个数量级、可复现。
         await run_cpu_bound(build_data_dictionary, graph),
         media_type=MIME_DOCX,
         headers={"Content-Disposition": f'attachment; filename="{FILENAME}"'},
