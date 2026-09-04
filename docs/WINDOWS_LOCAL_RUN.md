@@ -341,3 +341,45 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 然后浏览器打开 http://127.0.0.1:8000/docs
+
+---
+
+## 11. 看文档站（**不需要数据库、不需要 `.env`**）
+
+架构导读与代码级说明书有一个可读 + 可视化的静态站点版本。
+**它跟上面第 0-10 步完全无关** —— 不需要装 PostgreSQL、不需要配 `.env`、
+不需要装 `requirements.txt` 里那 22 个依赖，只要有 Python 和一个几 MB 的包。
+
+```cmd
+pip install mistune
+```
+
+```cmd
+python scripts\build_docs_site.py
+```
+
+```cmd
+start docs\site\index.html
+```
+
+打开后能看到：
+
+- **20 份文档**逐份渲染，右侧有目录，正文里的 `app/routers/diagrams.py:147` 这类引用可以点，
+  点进去是**目标行已高亮**的源码页
+- **模块依赖图**（40 个模块 / 85 条依赖，鼠标悬停高亮关系）
+- **路由地图**（32 条路由，标注鉴权与限流，可过滤）
+- **符号索引**（250+ 个函数与类，点一下直达源码定义行）
+
+完整说明与常见问题见 [docs/site/README.md](./site/README.md)。
+
+> **搜索框在 `file://` 下可能被浏览器拦**（它用 `fetch` 读索引）。
+> 那时用浏览器自带的 `Ctrl+F` 即可，正文、目录、图表、跳转都不受影响。
+> 想让搜索框也能用，就起个本地服务：
+>
+> ```cmd
+> python -m http.server 8000 --directory docs\site
+> ```
+>
+> 然后浏览器打开 http://localhost:8000
+
+> **改了文档后页面不会自动变** —— 站点是预渲染的，重跑一次 `python scripts\build_docs_site.py` 即可（约 1 秒）。
