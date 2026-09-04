@@ -129,5 +129,24 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 - 沙箱可能在两轮之间被回收：`.venv`、`/tmp/pgdata`、`storage/` 会消失，且 `.git` 会被重置回
   `main` 的原始提交，而已推送的工作全部变成「未提交改动」。
   恢复顺序见 `HANDOVER.md`，**别在 `git ls-remote` 之前断定工作丢了**。
-- CI 日志正文取不到（下载会重定向到 `*.blob.core.windows.net` 然后 SSL 失败），
-  只能引用 job/step 的 `conclusion` 字段。
+- **CI 日志正文取不到 —— 是沙箱出口限制，不是 GitHub 权限问题，别去申请权限。**
+  实测证据（2026-09-04）：
+  1. `gh api repos/<repo>/actions/jobs/<id>/logs` **能拿到签名下载地址**
+     （拿到这一步正是需要权限的那一步，说明权限没问题）；
+  2. 该地址主机 `productionresultssa*.blob.core.windows.net` **DNS 能解析**（20.209.x.x），
+     但 HTTPS 请求返回 **HTTP 000 / EOF**；
+  3. 同一时刻 `api.github.com` 与 `github.com` 均为 **200**。
+  ⇒ 沙箱只放行 GitHub 自己的域，Azure Blob 不在白名单内。**加权限改变不了这一点。**
+  另外本令牌是**安装令牌**（`gh api /app` → 401 "A JSON web token could not be decoded"），
+  所以「App 主动申请新权限 → GitHub 发邮件给安装方批准」这个流程**也无法由本侧发起**，
+  只有 App 所有者（Arena 侧）能发起。
+
+  **能用的替代通道（都走 `api.github.com`）：**
+
+  | 要看什么 | 命令 | 能拿到什么 |
+  | --- | --- | --- |
+  | 每个 job / step 的结论 | `gh run view <rid> --json jobs` | 结论 + 步骤名 |
+  | **哪一步**失败 | `gh api repos/<repo>/check-runs/<job_id>/annotations` | 仅 `Process completed with exit code 1.` + `path:line`（实测**没有 traceback**，只定位到步骤） |
+  | pytest 失败输出**全文** | TD-194 的 PR 评论（workflow 里 `if: failure()` 那步） | `tail -n 300`，含 traceback —— **这是唯一能拿到真因的通道** |
+
+  通过的 job 注解为空数组 `[]`，所以「有注解」本身就等价于「这一步失败了」。
