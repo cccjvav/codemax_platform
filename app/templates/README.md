@@ -4,7 +4,7 @@
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
 > 姊妹篇：`app/README.md`（`site.py` 提供这里的上下文变量）、`app/routers/README.md`（谁渲染这些模板）、
-> `app/tools/README.md`、`database init/README.md`、`tests/README.md`。
+> `app/tools/README.md`、`database init/README.md`、`tests/README.md`、`scripts/README.md`。
 >、`app/static/README.md`、`.github/workflows/README.md`、`docs/ROOT_FILES.md`。
 
 ---

@@ -4,7 +4,7 @@
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
 > 姊妹篇：`app/templates/README.md`（谁引用这里的脚本）、`app/README.md`、`app/routers/README.md`、
-> `app/tools/README.md`、`database init/README.md`、`tests/README.md`。
+> `app/tools/README.md`、`database init/README.md`、`tests/README.md`、`scripts/README.md`。
 
 ---
 
