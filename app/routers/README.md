@@ -4,7 +4,7 @@
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
 > 姊妹篇：`app/tools/README.md`（业务逻辑层）、`app/README.md`（根级基础设施，本层的地基）、
-> `database init/README.md`（建表脚本）、`app/templates/README.md`（前端模板）。
+> `database init/README.md`（建表脚本）、`app/templates/README.md`（前端模板）、`app/static/README.md`、`.github/workflows/README.md`、`docs/ROOT_FILES.md`。
 > **本层只做 HTTP 的事，不写业务逻辑** —— 这条边界写在 `AGENTS.md` 的「目录约定」里。
 
 ---

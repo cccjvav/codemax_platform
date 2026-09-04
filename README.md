@@ -167,3 +167,20 @@ cd ..
 ## 文档
 
 - 📋 开发路线图（To-Do List）：[ROADMAP.md](./ROADMAP.md)
+
+### 模块说明书（逐文件、带行号）
+
+每个含代码的目录内部都有一份 `README.md`，逐文件说明职责、类/函数清单、
+核心逻辑的行级拆解（`Lxx-Lyy`）与执行流程。**行号会腐烂**，所以每份都在文首
+钉了「行号基准 commit」，文末给了复核命令。
+
+| 目录 | 说明书 | 内容 |
+| --- | --- | --- |
+| `app/tools/` | [README](./app/tools/README.md) | 业务逻辑层（10 个模块 / 1625 行） |
+| `app/routers/` | [README](./app/routers/README.md) | HTTP 接口层（9 个 router / 1132 行） |
+| `app/` 根 | [README](./app/README.md) | 根级基础设施（16 个文件 / 1328 行） |
+| `database init/` | [README](<./database init/README.md>) | 建库建表 + 5 个迁移脚本 |
+| `app/templates/` | [README](./app/templates/README.md) | 前端模板（7 个 Jinja2 模板） |
+| `app/static/` | [README](./app/static/README.md) | 前端脚本（`er.js`） |
+| `.github/workflows/` | [README](./.github/workflows/README.md) | CI 流水线（`ci.yml`） |
+| 根目录 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | `main.py` 与 5 个构建/配置文件 |

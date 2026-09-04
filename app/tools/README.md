@@ -3,7 +3,7 @@
 > **行号基准 commit：`3501db8`**（2026-09-04）。
 >
 > 姊妹篇：`app/routers/README.md`（HTTP 接口层，谁在调用本层）、`app/README.md`（根级基础设施，本层的地基）、
-> `database init/README.md`（建表脚本）、`app/templates/README.md`（前端模板）。本文所有 `L12-L35` 形式的引用都对应这个提交。
+> `database init/README.md`（建表脚本）、`app/templates/README.md`（前端模板）、`app/static/README.md`、`.github/workflows/README.md`、`docs/ROOT_FILES.md`。本文所有 `L12-L35` 形式的引用都对应这个提交。
 > 代码一改行号就会漂 —— 复算方式见文末「附：行号与数字怎么复核」。
 
 ---

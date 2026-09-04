@@ -5,6 +5,7 @@
 >
 > 姊妹篇：`app/README.md`（`site.py` 提供这里的上下文变量）、`app/routers/README.md`（谁渲染这些模板）、
 > `app/tools/README.md`、`database init/README.md`。
+>、`app/static/README.md`、`.github/workflows/README.md`、`docs/ROOT_FILES.md`。
 
 ---
 
