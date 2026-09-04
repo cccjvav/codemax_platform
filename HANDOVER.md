@@ -9,7 +9,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**417 passed + 2 skipped**；真 PostgreSQL 16.2：**418 passed + 1 skipped**（多的那条 skip 是真浏览器用例，默认跳过）（随机红的绝对阈值性能用例已按实测换掉，见 TD-183/186）；
+- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**418 passed + 2 skipped**；真 PostgreSQL 16.2：**419 passed + 1 skipped**（多的那条 skip 是真浏览器用例，默认跳过）（随机红的绝对阈值性能用例已按实测换掉，见 TD-183/186）；
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -28,8 +28,8 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面**已选 Playwright**（TD-03/191，可选依赖）。
 
-**实现层面的取舍（111 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
-其中开头列了 8 条待处理的「上线阻塞项」（token 存储、配额、JWT 吊销、日志/监控/安全头、支付真机联调、无超时关单、模拟支付通道误开、爬虫无 robots/限速）；
+**实现层面的取舍（160 条，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+其中开头的「上线阻塞项」表原有 8 条，已解决 6 条（划掉留痕），**现仅剩 2 条**：TD-113（微信支付未真机联调）、TD-124（模拟支付通道误开＝免费发货，已由启动自检大幅缓解）；
 「限流」「CI」「真库集成测试」三条已解决（TD-15 / TD-84 / TD-80）。
 「真库集成测试」那条已经解决（TD-80）。
 

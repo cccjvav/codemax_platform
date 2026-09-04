@@ -47,22 +47,38 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 - 一个 ROADMAP 子项 = 一个提交。提交信息用 `git commit -F <file>`，不要用带引号的 `-m`。
 - 产生新的实现取舍 → 去 `TECH_DECISIONS.md` 追加一行带编号的 **TD-xx**（含放弃了什么、
   代价、何时回头改），**不要只写在 docstring 里**；同时同步 AGENTS.md / HANDOVER.md 的计数。
+- **有新实现/新功能 → 同步更新 `docs/ARCHITECTURE_GUIDE.md`，不留到"以后再补"。**
+  - 新子系统、新机制、新的横切关注点 → **补一课**，沿用四段式：
+    ① 核心概念大白话 → ② 生活比喻 → ③ 落到哪个文件（附行数与实测数字）→ ④ 行业术语对照。
+  - 已有课讲的行为变了 → **改对应小节**，并在改动处说明"原来是什么、为什么变"。
+  - 课末预告（`x.11 下一课预告` 之类）与实际下一课**必须一致**。
+- **被文档记录过的数字变了 → 全仓同步，不许只改一处。** 测试条数、路由条数、配置项数、
+  TD 条数、阈值都算。扫描用 `--exclude-dir`，**不要**用 `| grep -v "\.venv"` 过滤 ——
+  那些行本身就含 `.venv/bin/python`，会把要找的行**全部滤掉**并给出"已无残留"的假结论
+  （已踩过，见 `ARCHITECTURE_GUIDE.md` 7.10）：
+  ```
+  grep -rn --exclude-dir=.venv --exclude-dir=.git --exclude-dir=__pycache__ \
+       -E "41[0-9] (passed|条)|1[0-9][0-9] 条 TD" .
+  ```
 - 修 bug 时补一个能复现该 bug 的回归测试。
 
-## 「做完」的定义（六条全中才算完成）
+## 「做完」的定义（七条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **417 passed, 2 skipped**（其中 1 条是真浏览器用例，默认跳过）
+2. `.venv/bin/python -m pytest -q` → **418 passed, 2 skipped**（其中 1 条是真浏览器用例，默认跳过）
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
-3. 真 PostgreSQL 上 → **418 passed, 1 skipped**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
+3. 真 PostgreSQL 上 → **419 passed, 1 skipped**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
 5. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
    抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。
 6. 新取舍已进 `TECH_DECISIONS.md`，相关文档的计数已同步。
+7. **`docs/ARCHITECTURE_GUIDE.md` 已跟上这次的实现**：新子系统/新机制补一课（四段式），
+   已有行为变了就改对应小节；且**被文档记录过的数字已全仓同步**（用上面 ALWAYS 里那条
+   `--exclude-dir` 扫描命令自查，别用管道 `grep -v`）。
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（111 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（160 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
@@ -88,7 +104,8 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 | 要看什么 | 去哪 |
 | --- | --- |
-| 实现取舍与上线阻塞项（111 条 TD-xx，其中 8 条待处理） | `TECH_DECISIONS.md` |
+| **架构讲解（七课，面向没读过代码的人；新实现要同步更新）** | `docs/ARCHITECTURE_GUIDE.md` |
+| 实现取舍与上线阻塞项（160 条 TD-xx，其中 2 条仍为上线阻塞项：TD-113、TD-124） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |

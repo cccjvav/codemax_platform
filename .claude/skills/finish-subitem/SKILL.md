@@ -1,7 +1,7 @@
 ---
 name: finish-subitem
 description: >
-  一个 ROADMAP 子项做完后的固定收尾流程：跑两套测试、TD 入账、四处文档同步、
+  一个 ROADMAP 子项做完后的固定收尾流程：跑两套测试、TD 入账、五处文档同步、
   提交推送、刷新 PR、看 CI。
   Trigger: 某个 ROADMAP 子项（如 S4-01-2）实现完成、准备交付时。
 ---
@@ -19,13 +19,13 @@ description: >
 
 ### 2. 两套测试都要绿
 ```bash
-.venv/bin/python -m pytest -q                       # 417 passed, 2 skipped
+.venv/bin/python -m pytest -q                       # 418 passed, 2 skipped
 TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-  .venv/bin/python -m pytest -q                     # 418 passed, 1 skipped
+  .venv/bin/python -m pytest -q                     # 419 passed, 1 skipped
 ```
 真库起不来时按 `HANDOVER.md` §9 重建；实在起不了要在提交信息里写明「真库未跑」。
 
-### 3. 文档同步（四处，一个都不能漏）
+### 3. 文档同步（五处，一个都不能漏）
 
 | 文件 | 改什么 |
 | --- | --- |
@@ -33,6 +33,7 @@ TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata"
 | `TECH_DECISIONS.md` | 本子项产生的取舍，每条一个 TD-xx（含代价与「何时回头改」）；解决掉的旧 TD 用 `~~TD-xx~~ **已解决**` 划掉而**不是删行** |
 | `AGENTS.md` + `HANDOVER.md` | TD 计数、测试基线数字、§1 当前状态（HEAD / PR 提交数） |
 | `HANDOVER.md` §6 / §7 | 新踩的坑 / 已完成清单 |
+| **`docs/ARCHITECTURE_GUIDE.md`** | **有新实现/新功能就必须跟上**：新子系统或新机制**补一课**（四段式：① 大白话 → ② 生活比喻 → ③ 落到哪个文件+实测数字 → ④ 行业术语对照）；已有课讲的行为变了就**改对应小节**并写明"原来是什么、为什么变"；课末预告要与实际下一课一致 |
 
 计数命令（改完必须核一遍，别手写数字）：
 ```bash
@@ -42,7 +43,17 @@ grep -oE '^\| (~{0,2})TD-[0-9]+' TECH_DECISIONS.md | grep -oE 'TD-[0-9]+' | sort
 awk 'NR>=10 && NR<=30' TECH_DECISIONS.md | grep -E '^\| ' | grep -vE '^\| ~|^\| 编号|^\| ---' | wc -l
 # 本分支提交数（PR 正文要用）
 git rev-list --count 9622a38..HEAD
+
+# 陈旧数字扫描（测试条数 / TD 条数散落全仓，改一处必扫全仓）
+# ⚠️ 必须用 --exclude-dir；**不要**用 `| grep -v "\.venv"` —— 目标行本身就含
+#    `.venv/bin/python`，那样会把要找的行全滤掉，得到"已无残留"的假结论。
+grep -rn --exclude-dir=.venv --exclude-dir=.git --exclude-dir=__pycache__ \
+     -E "41[0-9] (passed|条)|1[0-9][0-9] 条 TD" .
 ```
+
+扫描结果里合法的例外只有两类，其余都要改：
+- 历史记录（如变异实验"当时 417 全绿"、`ARCHITECTURE_GUIDE.md` 7.10 的"原值"列）
+- 恰好含该数字的 commit SHA（如 `9614172` 里有 "417"）
 
 ### 4. 提交并推送
 ```bash
