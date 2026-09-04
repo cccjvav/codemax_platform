@@ -15,3 +15,13 @@ storage/
 .idea/
 .vscode/
 .DS_Store
+
+# 文档站生成物（由 scripts/build_docs_site.py 生成，不入库；
+# 手写的 style.css 与 site.js 是源文件，照常入库）
+docs/site/index.html
+docs/site/graph.html
+docs/site/routes.html
+docs/site/symbols.html
+docs/site/d/
+docs/site/s/
+docs/site/data/
