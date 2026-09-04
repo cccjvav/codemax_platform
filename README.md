@@ -166,11 +166,40 @@ cd ..
 
 ## 文档
 
-- 🗺️ **项目总览（文档体系入口：目录树 / 技术栈 / 分层 / 子模块索引）**：[总览.md](./总览.md)
-- ✅ **文档化 QA 审查报告**：[DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md)
-- 📋 开发路线图（To-Do List）：[ROADMAP.md](./ROADMAP.md)
+> 仓库里共 **20 份文档 / 约 9 000 行**。下面按「我想干什么」给入口 —— 
+> 不知道从哪看起，就先开 **[总览.md](./总览.md)**。
 
-### 模块说明书（逐文件、带行号）
+### 🖥️ 想直接看网页版（推荐）
+
+架构导读与代码级说明书有一个**可读 + 可视化**的静态站点：文档带目录、
+代码位置可点击跳转、模块依赖图、路由地图、符号索引。**完全离线，双击即开。**
+
+```cmd
+pip install mistune
+python scripts\build_docs_site.py
+start docs\site\index.html
+```
+
+说明与 Windows 逐步指南：**[docs/site/README.md](./docs/site/README.md)**
+
+### 📖 按需求找文档
+
+| 我想…… | 去这里 |
+| --- | --- |
+| **一站式看懂整个项目**（目录树 / 技术栈 / 分层 / 数据流 / 子模块索引） | **[总览.md](./总览.md)** |
+| **从零理解架构**（7 课讲解，面向没读过代码的人，大量生活比喻） | **[docs/ARCHITECTURE_GUIDE.md](./docs/ARCHITECTURE_GUIDE.md)** |
+| 在 **Windows 本机把服务跑起来**（cmd 逐步命令） | **[docs/WINDOWS_LOCAL_RUN.md](./docs/WINDOWS_LOCAL_RUN.md)** |
+| 在 **Linux / 服务器部署**（Docker、Nginx） | [docs/DEPLOY.md](./docs/DEPLOY.md) |
+| 查某个**目录/文件/函数**的行级说明 | 见下方「模块说明书」表 |
+| 看**接口清单** | 本文下方「当前 API」一节，或起服务后开 `/docs` |
+| 了解**开发硬约束**（AI 助手与新成员都该先读） | [AGENTS.md](./AGENTS.md) |
+| 了解**实现取舍与上线阻塞项**（160 条 TD 台账） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
+| 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
+| **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
+| 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) |
+| 看**根目录那几个文件**（`main.py` 等）的说明 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) |
+
+### 📂 模块说明书（逐文件、带行号）
 
 每个含代码的目录内部都有一份 `README.md`，逐文件说明职责、类/函数清单、
 核心逻辑的行级拆解（`Lxx-Lyy`）与执行流程。**行号会腐烂**，所以每份都在文首
@@ -188,3 +217,6 @@ cd ..
 | 根目录 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | `main.py` 与 5 个构建/配置文件 |
 | `tests/` | [README](./tests/README.md) | 测试策略与分组（30 个文件 / 389 个用例） |
 | `scripts/` | [README](./scripts/README.md) | 建表脚本深度体检（WASM 版真 PostgreSQL） |
+
+> 上面这些说明书在**文档站**里都有网页版（带目录、可跳转）：
+> `python scripts\build_docs_site.py` 之后打开 `docs\site\index.html`。
