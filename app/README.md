@@ -3,7 +3,8 @@
 > **行号基准 commit：`4c9868d`**（2026-09-04）。本文所有 `L12-L35` 形式的引用都对应这个提交。
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
-> 姊妹篇：`app/tools/README.md`（业务逻辑层）、`app/routers/README.md`（HTTP 接口层）。
+> 姊妹篇：`app/tools/README.md`（业务逻辑层）、`app/routers/README.md`（HTTP 接口层）、
+> `database init/README.md`（建表脚本，`models.py` 的对偶）。
 > 本文只讲 `app/` **根目录**的 16 个文件，不含子目录。
 
 ---
