@@ -622,7 +622,7 @@ DOWNLOADED → （终态）
   ├─ 业务逻辑（app/tools/ 或 app/ 根模块）
   │    ├─ 订单迁移      order_state.py:92    _cas 原子更新
   │    ├─ 重 CPU        cpu_pool.py:50       进程池，坏了退化线程池
-  │    ├─ 存储          storage.py:98        预签名 URL
+  │    ├─ 存储          storage.py:90        presigned_url 预签名（L98 是后端工厂）
   │    └─ 微信支付      wechat_pay.py:132    签名 → 下单
   │
   └─ 响应出去
