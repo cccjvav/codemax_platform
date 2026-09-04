@@ -3,7 +3,8 @@
 > **行号基准 commit：`f63ce49`**（2026-09-04）。本文所有 `L12-L35` 形式的引用都对应这个提交。
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
-> 姊妹篇：`app/README.md`（`models.py` 是这里的 ORM 对偶）、`app/routers/README.md`、`app/tools/README.md`。
+> 姊妹篇：`app/README.md`（`models.py` 是这里的 ORM 对偶）、`app/routers/README.md`、`app/tools/README.md`、
+> `app/templates/README.md`（前端模板）。
 
 ---
 
