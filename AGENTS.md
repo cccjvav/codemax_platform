@@ -121,6 +121,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 | 要看什么 | 去哪 |
 | --- | --- |
+| **文档体系入口：目录树、技术栈、分层、子模块索引** | `总览.md` |
 | **架构讲解（七课，面向没读过代码的人；新实现要同步更新）** | `docs/ARCHITECTURE_GUIDE.md` |
 | 实现取舍与上线阻塞项（160 条 TD-xx，其中 2 条仍为上线阻塞项：TD-113、TD-124） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |

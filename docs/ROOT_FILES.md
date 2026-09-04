@@ -15,7 +15,7 @@
 
 ## 1. 概述
 
-根目录有 6 个「代码/构建」文件，共 242 行：
+根目录有 6 个「代码/构建」文件，共 194 行：
 
 ```
 main.py              52 行   FastAPI 应用装配（唯一的应用入口）
@@ -25,7 +25,7 @@ Dockerfile           23 行   应用镜像
 docker-compose.yml   37 行   本地/单机部署示例（app + db 两个服务）
 pytest.ini            4 行   pytest 配置
 ───────────────────────────
-                    242 行
+                    194 行
 ```
 
 另有几个非代码文件，本文只在第 3 节点到，不逐行展开：`.env.example`（38 项配置模板）、
@@ -336,7 +336,7 @@ docker compose up
 ```bash
 # ① 六个文件的行数（本文 1 的那组数字）
 python -c "import pathlib; [print(len(pathlib.Path(f).read_text(encoding='utf-8').splitlines()), f) for f in ['main.py','ruff.toml','requirements.txt','Dockerfile','docker-compose.yml','pytest.ini']]"
-# 预期：52 / 52 / 26 / 23 / 37 / 4，合计 242
+# 预期：52 / 52 / 26 / 23 / 37 / 4，合计 194
 
 # ② 依赖数与 ruff 规则族数
 python -c "
