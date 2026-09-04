@@ -38,6 +38,43 @@ python --version
 去 https://www.postgresql.org/download/windows/ 下载安装，
 安装向导里设置的 **postgres 超级用户密码要记住**，端口保持默认 **5432**。
 
+#### 装完需要先「把服务拉起来」吗？
+
+**通常不用** —— Windows 版安装包会把 PostgreSQL 注册成一个 **Windows 服务**，
+默认设为「自动」启动，装完就已经在跑了。但**建议确认一下**，因为
+`db_init.py` 是通过 TCP 连 `localhost:5432` 的，服务没起就会连接失败。
+
+查服务在不在跑（服务名里的 `16` 对应大版本号，装的是别的版本就改成对应数字）：
+
+```cmd
+sc query postgresql-x64-16
+```
+
+> 看到 `STATE : 4  RUNNING` 就是在跑。
+> 如果提示「指定的服务未安装」，说明服务名不对，用下面这条列出所有含 postgres 的服务：
+>
+> ```cmd
+> sc query type= service state= all | findstr /i postgres
+> ```
+
+没在跑就手动起（**需要以管理员身份打开 cmd**）：
+
+```cmd
+net start postgresql-x64-16
+```
+
+> 也可以按 `Win+R` 输入 `services.msc`，找到 `postgresql-x64-16` 右键「启动」，
+> 顺手把「启动类型」确认成「自动」，这样以后开机就自己起来了。
+
+想直接验证能不能连上（`psql` 在安装目录的 `bin` 下，装的时候勾了加 PATH 才能直接敲）：
+
+```cmd
+psql -U postgres -h localhost -c "select version();"
+```
+
+> 会提示输入密码，就是安装向导里设的那个。能打印出版本号就说明库是通的。
+> **这一步不是必须的** —— 跳过它直接做第 4 步也行，`db_init.py` 连不上会报很清楚的错。
+
 ---
 
 ## 1. 拿代码
@@ -74,6 +111,10 @@ git checkout arena/01a0599b-codemax-platform
 
 ## 2. 建虚拟环境、装依赖
 
+下面 **A（venv）与 B（conda）二选一**，两者完全等价，后面的步骤一模一样。
+
+### 方案 A：venv（Python 自带，无需额外安装）
+
 ```cmd
 python -m venv .venv
 ```
@@ -91,6 +132,41 @@ python -m pip install --upgrade pip
 ```cmd
 pip install -r requirements.txt
 ```
+
+### 方案 B：conda
+
+**关键：Python 版本必须是 3.11**（原因见 §0：`pgserver` 没有 3.13 的 wheel）。
+建环境时直接指定版本，别用 conda 的默认版本：
+
+```cmd
+conda create -n codemax python=3.11 -y
+```
+
+```cmd
+conda activate codemax
+```
+
+激活成功后命令行开头会出现 `(codemax)`。
+
+```cmd
+python -m pip install --upgrade pip
+```
+
+```cmd
+pip install -r requirements.txt
+```
+
+> **装依赖这一步用 `pip`，不要用 `conda install`。**
+> `requirements.txt` 里的版本是逐个验证过的（`fastapi==0.104.1`、`sqlalchemy==2.0.23` 等），
+> conda 渠道里的版本与这些钉子对不上，混装容易出现解析冲突。
+> **conda 只负责管 Python 解释器本身，包交给 pip** —— 这是很常见的搭配，没有冲突。
+
+> **不要用 `conda install postgresql`。** 你本机已经装了 PostgreSQL 服务，
+> conda 再装一个会变成两套互不相干的库，纯属自找麻烦（详见 §4.1）。
+
+两种方案后续完全一致：`activate` 之后，本文剩下所有 `python ...` / `pip ...`
+命令都照抄即可（本文用 `python` 而不是 `.venv\Scripts\python.exe`，
+conda 环境下正好就是这样）。
 
 **这一步在 Windows 上能装成功**（✅ 逐个依赖验证过）：
 21 个依赖都有 `win_amd64 / cp311` 的现成 wheel；只有 `jieba` 是 sdist
@@ -177,6 +253,60 @@ cd ..
 
 > ⚠️ **本项目不会自动建表。** 应用启动时不执行 `create_all`，
 > 跳过这一步的话，任何查库的接口都会报 `relation ... does not exist`。
+
+---
+
+### 4.1 用 conda 的话，本机装的 PostgreSQL 会有影响吗？
+
+**不会。两者完全不相干，这正是最常规的搭配。**
+
+原因说清楚，以后遇到类似情况自己就能判断：
+
+```text
+┌─────────────────────────┐         TCP localhost:5432        ┌──────────────────────┐
+│  Python（conda 环境）    │  ───────────────────────────────► │  PostgreSQL 服务      │
+│  psycopg2-binary        │        普通的网络连接              │  （本机独立进程）     │
+│  asyncpg                │  ◄─────────────────────────────── │  Windows 服务托管     │
+└─────────────────────────┘                                   └──────────────────────┘
+```
+
+Python 只是一个**通过网络连接的客户端**，跟它装在 conda 里、venv 里、还是系统目录里，
+**一点关系都没有**。PostgreSQL 是另一个完全独立的进程，由 Windows 服务托管。
+换 Python 不会动到数据库，换数据库也不会动到 Python。
+
+**唯一需要保证的是**：数据库驱动装在**你正在用的那个 conda 环境里**。
+而 `pip install -r requirements.txt` 已经装好了 —— 就是这两个：
+
+| 包 | 用在哪 |
+| --- | --- |
+| `psycopg2-binary==2.9.9` | 建库脚本 `db_init.py`（同步） |
+| `asyncpg==0.29.0` | 应用运行时（异步） |
+
+> **为什么钉的是 `psycopg2-binary` 而不是 `psycopg2`**：
+> `-binary` 的 wheel **自带一份 libpq**（实测包内有 `psycopg2_binary.libs/libpq-*.so`／
+> Windows 上是对应的 `.dll`）。所以它**不需要**你本机 PostgreSQL 的客户端库，
+> 也**不需要** `pg_config` 在 PATH 上 —— 装的时候不编译任何东西。
+> 换成非 binary 的 `psycopg2` 就会去调用本机的 `pg_config` 现场编译，
+> 那才会跟「conda 环境」和「本机 PG」的 PATH 纠缠起来。
+
+### 4.2 用 conda 时唯一要留意的两件小事
+
+**① 别用 `conda install postgresql`。** 你本机已经有 PostgreSQL 服务了，
+conda 再装一份会得到两套互不相干的库和数据目录，纯属自找麻烦。
+conda 在这里只管一件事：**提供一个 3.11 的 Python 解释器**。
+
+**② 手敲 `psql` 时可能敲到 conda 里的那个。** 如果某个 conda 环境里装过带 `psql` 的包，
+激活后 PATH 优先找到它，版本可能与本机服务对不上。**这不影响本项目运行**
+（项目走的是 `psycopg2-binary` / `asyncpg`，不经过命令行的 `psql`），
+只在你手动用 `psql` 排查时才需要注意。确认用的是哪一个：
+
+```cmd
+where psql
+```
+
+> 列出多行就说明 PATH 里有好几个，第一行是实际会执行的那个。
+> 想强制用本机 PostgreSQL 的，写全路径，例如
+> `"C:\Program Files\PostgreSQL\16\bin\psql.exe" -U postgres -h localhost`
 
 ---
 
@@ -305,12 +435,17 @@ python -m ruff check .
 | `db_init.py` 报 `FATAL: password authentication failed` 但密码明明对 | 在项目根目录跑的，没读到 `.env` | **先 `cd "database init"`** |
 | `/tools/mermaid` 返回 502 | 没配 `LLM_API_KEY` | 配 key，或忽略（不影响其他功能） |
 | 端口 8000 被占用 | 上次没关干净 | 换个端口：`--port 8001` |
+| `conda activate` 报 `CommandNotFoundError` | conda 没给 cmd 做过初始化 | 跑 `conda init cmd.exe`，**关掉 cmd 重开**，再 activate |
+| conda 环境里 `pip install -r requirements.txt` 报找不到某个版本 | 之前用 `conda install` 装过同名包，版本被钉住了 | `conda create` 一个**干净**环境重来，装依赖只用 `pip`（见 §2 方案 B） |
+| `psql` 敲出来的版本跟本机服务不一致 | conda 环境里也有个 `psql`，PATH 优先找到它 | 不影响项目运行；要用本机的就写全路径（见 §4.2） |
 
 ---
 
 ## 10. 一句话速查
 
-从零开始，一共这几条（假设已装好 Python 3.11 和 PostgreSQL）：
+从零开始，一共这几条（假设已装好 Python 3.11 和 PostgreSQL 服务）。
+
+**用 venv：**
 
 ```cmd
 python -m venv .venv
@@ -318,6 +453,18 @@ python -m venv .venv
 ```cmd
 .venv\Scripts\activate
 ```
+
+**或改用 conda（只有这两条不同，其余照抄）：**
+
+```cmd
+conda create -n codemax python=3.11 -y
+```
+```cmd
+conda activate codemax
+```
+
+**接下来两种方案完全一样：**
+
 ```cmd
 pip install -r requirements.txt
 ```
@@ -341,6 +488,14 @@ python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 然后浏览器打开 http://127.0.0.1:8000/docs
+
+> **`db_init.py` 报连接失败**，先确认 PostgreSQL 服务在跑（见 §0「装完需要先起服务吗」）：
+>
+> ```cmd
+> sc query postgresql-x64-16
+> ```
+>
+> 不是 `RUNNING` 就用管理员 cmd 执行 `net start postgresql-x64-16`。
 
 ---
 
