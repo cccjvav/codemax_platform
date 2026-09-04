@@ -30,7 +30,7 @@
 
 **内部（`app/tools/` 之间）：**
 
-```
+```text
                     ┌── politeness.py ◀──────────┐
                     │         ▲                  │
    llm.py ◀─────────┼── crawler.py ◀──── browser.py
@@ -548,7 +548,7 @@
 
 ### 3.1 A 链：SQL → ER 图 → Word
 
-```
+```text
 POST /tools/er-diagram  (app/routers/tools.py)
   └─ sql_ddl.parse_ddl(sql)                        L39-L49
        ├─ _strip_comments()                        L99   ← 走 _scan，认得字符串与注释
@@ -576,7 +576,7 @@ POST /tools/mermaid
 
 ### 3.2 B 链：一次客服提问
 
-```
+```text
 POST /support/ask  (app/routers/support.py:12)
   └─ support.answer(question, db, llm, router)      L120-L202
        │
@@ -607,7 +607,7 @@ POST /support/ask  (app/routers/support.py:12)
 
 ### 3.3 C 链：一次内容抓取
 
-```
+```text
 POST /admin/articles/ingest  (app/routers/admin.py)
   │
   ├─ dynamic=false ─▶ extract.parse_article(url)          L137-L149
@@ -638,7 +638,7 @@ extract.save_article(db, parsed)                          L152-L165
 
 **`crawler.fetch` 内部的顺序（L131-L135）**：
 
-```
+```text
 fetch(url)
   ├─ politeness.check_allowed(url, UA, fetch_text)   L131  ← 先 robots
   │    └─ _load_robots()                             politeness L93-L146

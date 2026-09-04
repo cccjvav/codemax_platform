@@ -16,7 +16,7 @@
 
 实测结构（用 YAML 解析取真值，不是靠数缩进）：
 
-```
+```text
 3 个 job
   lint            显示名「静态检查（ruff）」        4 步   无 service
   test-sqlite     显示名「测试（SQLite 后端）」     5 步   无 service
@@ -133,7 +133,7 @@ concurrency: group=ci-${{ github.ref }}  cancel-in-progress=true
 
 ### 3.1 一次 push 触发什么
 
-```
+```text
 git push
   │
   ├─ concurrency 检查：同一分支上一次还在跑？→ 取消它（省 Actions 分钟）

@@ -36,7 +36,7 @@
 
 ### 1.3 实测结构
 
-```
+```text
 scripts/
 └── check_schema_pg.mjs   68 行   ESM 模块（.mjs），用了顶层 await
 ```
@@ -125,7 +125,7 @@ const PGlite = await loadPGlite(process.argv[2] ?? "@electric-sql/pglite");
 
 ### 3.1 一次体检的完整过程
 
-```
+```text
 node scripts/check_schema_pg.mjs /tmp/node_modules/@electric-sql/pglite
   │
   ├─ L18-L19  定位 database init/full_init.sql（用 import.meta.url，与 cwd 无关）
@@ -146,7 +146,7 @@ node scripts/check_schema_pg.mjs /tmp/node_modules/@electric-sql/pglite
 `database init/README.md` 说的是**显式 `CREATE INDEX` 语句有 2 条**（`idx_sys_diagram_user`、`idx_article_site`）。
 本脚本 L59-L60 查 `pg_indexes` 得到 **15** —— 因为 **PostgreSQL 会为每个 `PRIMARY KEY` 与 `UNIQUE` 约束各建一个索引**：
 
-```
+```text
 7 个 PRIMARY KEY  +  6 个 UNIQUE  +  2 条显式 CREATE INDEX  =  15
 ```
 

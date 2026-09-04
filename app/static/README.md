@@ -36,7 +36,7 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 
 ### 1.3 实测结构
 
-```
+```text
 app/static/
 └── er.js   149 行   7 个常量 + 3 个函数
 ```
@@ -120,7 +120,7 @@ if (typeof module !== "undefined") module.exports = { layoutEr, nodeHeight };
 
 ### 3.1 浏览器里的完整链路
 
-```
+```text
 用户在 er.html 粘 DDL → 点「生成 ER 图」
   │
   ├─ er.html:79   POST /tools/er-diagram  {ddl}
@@ -143,7 +143,7 @@ if (typeof module !== "undefined") module.exports = { layoutEr, nodeHeight };
 
 `tests/test_er_page.py` 的做法（`AGENTS.md` 明确要求「测试要真的执行前端代码，不许退化成静态检查」）：
 
-```
+```text
 1. 起 TestClient，用**项目自己的 database init/full_init.sql** 当输入
    （tests/test_er_page.py:18 的 FULL_INIT_SQL）
 2. 真调 POST /tools/er-diagram，拿到接口真实返回

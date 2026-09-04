@@ -17,7 +17,7 @@
 
 根目录有 6 个「代码/构建」文件，共 194 行：
 
-```
+```text
 main.py              52 行   FastAPI 应用装配（唯一的应用入口）
 ruff.toml            52 行   唯一的静态检查配置（TD-145）
 requirements.txt     26 行   22 个依赖，全部钉死版本
@@ -295,7 +295,7 @@ pytest.ini            4 行   pytest 配置
 
 ### 4.1 从 `docker compose up` 到第一个请求
 
-```
+```text
 docker compose up
   │
   ├─ db 服务启动（postgres:16）

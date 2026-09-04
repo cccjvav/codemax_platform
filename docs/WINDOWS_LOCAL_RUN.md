@@ -17,7 +17,7 @@
 **为什么必须是 3.11**（✅ 实测）：`requirements.txt` 里的 `pgserver==0.1.4`
 在 PyPI 上**根本没有 Python 3.13 的发行版**：
 
-```
+```cmd
 pip download pgserver==0.1.4 --python-version 3.13
 ERROR: Could not find a version that satisfies the requirement pgserver==0.1.4
 ```
@@ -27,7 +27,7 @@ ERROR: Could not find a version that satisfies the requirement pgserver==0.1.4
 
 装完确认：
 
-```
+```cmd
 python --version
 ```
 
@@ -44,29 +44,29 @@ python --version
 
 已经克隆过的话，进目录拉最新：
 
-```
+```cmd
 cd /d 你的路径\codemax_platform
 ```
 
-```
+```cmd
 git checkout arena/01a0599b-codemax-platform
 ```
 
-```
+```cmd
 git pull origin arena/01a0599b-codemax-platform
 ```
 
 没克隆过的话：
 
-```
+```cmd
 git clone https://github.com/cccjvav/codemax_platform.git
 ```
 
-```
+```cmd
 cd /d codemax_platform
 ```
 
-```
+```cmd
 git checkout arena/01a0599b-codemax-platform
 ```
 
@@ -74,21 +74,21 @@ git checkout arena/01a0599b-codemax-platform
 
 ## 2. 建虚拟环境、装依赖
 
-```
+```cmd
 python -m venv .venv
 ```
 
-```
+```cmd
 .venv\Scripts\activate
 ```
 
 激活成功后命令行开头会出现 `(.venv)`。
 
-```
+```cmd
 python -m pip install --upgrade pip
 ```
 
-```
+```cmd
 pip install -r requirements.txt
 ```
 
@@ -101,17 +101,17 @@ pip install -r requirements.txt
 
 ## 3. 配 `.env`
 
-```
+```cmd
 copy .env.example .env
 ```
 
-```
+```cmd
 notepad .env
 ```
 
 **最少只要改这几行**（其余留空也能启动）：
 
-```
+```dotenv
 DB_HOST=localhost
 DB_PORT=5432
 DB_NAME=codemax_db
@@ -121,13 +121,13 @@ DB_PASSWORD=你装 PostgreSQL 时设的密码
 
 想让支付流程能点通（本地演示用，**不接真微信**）：
 
-```
+```dotenv
 SHOP_PAY_MODE=mock
 ```
 
 想让「自然语言转 UML」和智能客服的闲聊分支真能答（可选，不填就自动转人工）：
 
-```
+```dotenv
 LLM_API_KEY=你的key
 LLM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
 LLM_MODEL=qwen-plus
@@ -152,17 +152,17 @@ load_dotenv(dotenv_path="../.env")
 
 目录名带空格，所以路径要加引号：
 
-```
+```cmd
 cd "database init"
 ```
 
-```
+```cmd
 python db_init.py
 ```
 
 看到这两行就成功了：
 
-```
+```text
 [1/2] 数据库 codemax_db 创建成功
 [2/2] 已在 codemax_db 中执行 ...\full_init.sql，建表完成
 ```
@@ -171,7 +171,7 @@ python db_init.py
 
 回项目根目录：
 
-```
+```cmd
 cd ..
 ```
 
@@ -182,13 +182,13 @@ cd ..
 
 ## 5. 启动服务
 
-```
+```cmd
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 
 看到这行就是起来了：
 
-```
+```text
 INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 ```
 
@@ -277,7 +277,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 
 ## 8. 跑测试
 
-```
+```cmd
 python -m pytest -q
 ```
 
@@ -285,7 +285,7 @@ python -m pytest -q
 
 静态检查：
 
-```
+```cmd
 python -m ruff check .
 ```
 
@@ -312,31 +312,31 @@ python -m ruff check .
 
 从零开始，一共这几条（假设已装好 Python 3.11 和 PostgreSQL）：
 
-```
+```cmd
 python -m venv .venv
 ```
-```
+```cmd
 .venv\Scripts\activate
 ```
-```
+```cmd
 pip install -r requirements.txt
 ```
-```
+```cmd
 copy .env.example .env
 ```
-```
+```cmd
 notepad .env
 ```
-```
+```cmd
 cd "database init"
 ```
-```
+```cmd
 python db_init.py
 ```
-```
+```cmd
 cd ..
 ```
-```
+```cmd
 python -m uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 

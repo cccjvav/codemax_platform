@@ -35,7 +35,7 @@ HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面**已选 Playwri
 
 ## 3. 工程结构
 
-```
+```text
 main.py                    # FastAPI 入口（在仓库根，不是 app/ 下！）
 app/
 ├── config.py              # Settings（读 .env）：DB_* / SECRET_KEY / LLM_* / SITE_BASE_URL

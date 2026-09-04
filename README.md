@@ -167,6 +167,7 @@ cd ..
 ## 文档
 
 - 🗺️ **项目总览（文档体系入口：目录树 / 技术栈 / 分层 / 子模块索引）**：[总览.md](./总览.md)
+- ✅ **文档化 QA 审查报告**：[DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md)
 - 📋 开发路线图（To-Do List）：[ROADMAP.md](./ROADMAP.md)
 
 ### 模块说明书（逐文件、带行号）

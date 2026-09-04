@@ -26,7 +26,7 @@
 
 ### 1.2 实测结构
 
-```
+```text
 app/templates/                  491 行
 ├── base.html            42 行   唯一的父模板：TDK + 全站 CSS + header/nav + {% block content %}
 ├── index.html           11 行   首页：遍历 tools 出卡片
@@ -39,7 +39,7 @@ app/templates/                  491 行
 
 实测统计：
 
-```
+```text
 6 个模板 {% extends "base.html" %}，只有 base.html 自己不继承
 7 对 {% block content %} / {% endblock %}
 内联 <script>：4 个模板（er / mermaid / drawio / mock_pay）
@@ -336,7 +336,7 @@ app/templates/                  491 行
 
 ### 3.1 一次页面请求
 
-```
+```text
 GET /tools/er
   │
   ├─ app/routers/site.py:20-36  _page_view(tool) 闭包
@@ -357,7 +357,7 @@ GET /tools/er
 
 ### 3.2 四条「前端 ↔ 后端」链
 
-```
+```text
 【ER 图】  er.html:79  POST /tools/er-diagram   → data → renderEr() (来自 /static/er.js)
 【Word】   er.html:58  POST /tools/word-export  → blob → createObjectURL → <a download> → revoke
 【类图】   mermaid.html:44  POST /tools/mermaid → data.mermaid → mermaid.run()

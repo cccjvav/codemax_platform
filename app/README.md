@@ -32,7 +32,7 @@
 
 实测 `grep -nE "^from \." app/*.py`，共 14 条内部 import：
 
-```
+```text
                        config.py  ← 被 6 个模块依赖（最底层）
                     ↙    ↓    ↓    ↘        ↘
         database.py  ratelimit  security  startup_checks  storage  wechat_pay
@@ -274,7 +274,7 @@
 
 **`ALLOWED` 的四条边**：
 
-```
+```text
 PENDING    → PAID, CLOSED
 CLOSED     → PAID          ← 这条是故意的，见下
 PAID       → DOWNLOADED
@@ -604,7 +604,7 @@ DOWNLOADED → （终态）
 
 ### 3.1 一次请求穿过本层的顺序
 
-```
+```text
 应用启动
   │
   ├─ main.py:16-19   logging.basicConfig          ← 只设级别与格式，不动 uvicorn 的 handler

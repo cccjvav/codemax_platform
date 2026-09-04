@@ -13,7 +13,7 @@
 
 ### 1.1 规模（实测）
 
-```
+```text
 32 个 .py 文件 / 6 397 行 / 389 个测试函数
   ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
   ├─ __init__.py        0 行
@@ -87,7 +87,7 @@
 - **L99-L101 `sso_code()`** —— 从 302 的 `Location` 里取出 code
 
 **L103-L121 `client` fixture（全局唯一）**
-```
+```text
 L105-L106  create_all              建表
 L108-L110  灌种子数据（两个 OAuth 客户端）
 L112-L116  用 dependency_overrides 把 get_db 换成测试 session
@@ -265,7 +265,7 @@ L120-L121  drop_all                拆表
 
 ### 3.1 一个用例从开始到结束
 
-```
+```text
 pytest 收集 tests/（pytest.ini:3 testpaths）
   │
   ├─ import conftest.py
@@ -292,7 +292,7 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 
 ### 3.3 一次改动的验证顺序
 
-```
+```text
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job

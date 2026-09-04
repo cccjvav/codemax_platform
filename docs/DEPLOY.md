@@ -25,7 +25,7 @@
 
 ## 2. 用 Docker 起（推荐）
 
-```
+```bash
 docker compose up -d --build
 ```
 
@@ -66,7 +66,7 @@ docker compose up -d --build
 
 nginx 最小配置要点：
 
-```
+```text
 server {
     listen 443 ssl http2;
     server_name codemax.top;
@@ -113,7 +113,7 @@ server {
 
 每个请求一行：
 
-```
+```text
 2026-09-03 01:02:11 INFO codemax.access POST /tools/er-diagram -> 200 (27.1ms) rid=786e42abcf314629
 ```
 

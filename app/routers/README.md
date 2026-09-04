@@ -25,7 +25,7 @@
 
 实测路由统计（`import main` 后遍历 `main.app.routes`）：
 
-```
+```text
 路由条目总数 41  →  业务条目 36  →  唯一业务路径 31
 （差值来自同一路径支持多种方法：/diagrams 等 4 个路径各有 GET/POST/PUT/DELETE）
 按前缀：/tools 7  /shop 7  /diagrams 6  /auth 5  /oauth 3  其余各 1
@@ -401,7 +401,7 @@
 
 ### 3.1 一次请求在本层的完整路径
 
-```
+```text
 HTTP 请求
   │
   ├─ app/middleware.py         安全响应头 + CSP + 结构化日志 + X-Request-ID
@@ -422,7 +422,7 @@ HTTP 请求
 
 ### 3.2 九条业务线各自的入口
 
-```
+```text
 GET  /healthz /health          health.healthz          L27   不碰依赖
 GET  /readyz                   health.readyz           L33   真跑 SELECT 1
 

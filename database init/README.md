@@ -30,7 +30,7 @@
 
 ### 1.2 实测结构
 
-```
+```text
 database init/                     489 行
 ├── db_init.py                      95 行   建库 + 建表的两步引导脚本
 ├── full_init.sql                  115 行   7 表 / 2 索引 / 2 处种子数据（★ 必须与 app/models.py 同步）
@@ -43,7 +43,7 @@ database init/                     489 行
 
 `full_init.sql` 实测计数：
 
-```
+```text
 CREATE TABLE  7      DROP TABLE  7      CREATE INDEX  2      INSERT INTO  2
 TIMESTAMPTZ  12 列   裸 TIMESTAMP 类型  0      CURRENT_TIMESTAMP 默认值  8
 REFERENCES（外键）  4      UNIQUE  6
@@ -345,7 +345,7 @@ UPDATE sys_user SET role = 1 WHERE username = '你的管理员账号';
 
 ### 3.1 两条部署路径
 
-```
+```text
 【全新部署】
   开发者本地：
     cd "database init"          ← 必须先 cd，否则读不到 ../.env
