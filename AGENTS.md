@@ -60,6 +60,23 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
   grep -rn --exclude-dir=.venv --exclude-dir=.git --exclude-dir=__pycache__ \
        -E "41[0-9] (passed|条)|1[0-9][0-9] 条 TD" .
   ```
+- **写进文档的每一条命令与每一个文件路径，必须先实跑/`ls` 确认存在，再落笔。**
+  已踩三次同一个坑（`app/tools/README.md` 引了 3 个不存在的测试文件，`app/README.md` 引了 9 个），
+  光靠"下次记得"不管用，所以这里钉成硬约束：
+  - 引测试文件 → **不要按模块名猜文件名**。用实测覆盖关系：
+    ```
+    grep -rl "app\.<模块>" tests/*.py
+    ```
+    拿到的清单再逐个 `test -f` 确认。**没有专属测试文件的模块要如实标注"间接覆盖"，
+    不许假装它有**（本项目 `app/timeutil.py` 与 `app/schemas.py` 就属于这种）。
+  - 引行号 → **先取后写，不要写完再校**。行号一律来自
+    `ast` 的 `lineno/end_lineno`（见三份 README 附录的复算命令），**不许按 docstring 长度估**
+    （`app/routers/README.md` 靠估，首轮回验抓出 22 处偏差）。
+  - 引数字 → 当场跑命令取，不凭记忆（`PROFESSIONAL_KEYWORDS` 实测 31、旧记录写 30）。
+  - **验证脚本自己也要先被验证**：行号校验器栽过两版（把 `class`/`async` 当符号名、
+    漏 `AnnAssign` 常量、点号名 `Limiter.allow` 只取类名、同名方法字典被覆盖）。
+    扫描类命令先 `assert` 能命中一个**已知**目标，再信它报的"无残留"。
+
 - 修 bug 时补一个能复现该 bug 的回归测试。
 
 ## 「做完」的定义（七条全中才算完成）
