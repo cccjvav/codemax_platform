@@ -9,7 +9,7 @@
 >
 > 姊妹篇：`app/README.md`、`app/routers/README.md`、`app/tools/README.md`、
 > `app/templates/README.md`、`app/static/README.md`、`database init/README.md`、
-> `.github/workflows/README.md`。
+> `.github/workflows/README.md`、`tests/README.md`。
 
 ---
 

@@ -184,3 +184,4 @@ cd ..
 | `app/static/` | [README](./app/static/README.md) | 前端脚本（`er.js`） |
 | `.github/workflows/` | [README](./.github/workflows/README.md) | CI 流水线（`ci.yml`） |
 | 根目录 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | `main.py` 与 5 个构建/配置文件 |
+| `tests/` | [README](./tests/README.md) | 测试策略与分组（30 个文件 / 389 个用例） |
