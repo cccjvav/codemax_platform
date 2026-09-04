@@ -13,6 +13,7 @@ import httpx
 import pytest
 
 from app.tools.crawler import (
+    MAX_BYTES,
     MAX_TEXT,
     USER_AGENT,
     CrawlError,
@@ -20,6 +21,7 @@ from app.tools.crawler import (
     fetch,
     to_skeleton,
 )
+from app.tools.politeness import MAX_CONCURRENCY
 
 FAKE_IP = "93.184.216.34"  # 公网字面量 IP：is_global=True，请求被 MockTransport 截下
 BASE = f"http://{FAKE_IP}"
@@ -139,6 +141,30 @@ async def test_fetch_enforces_size_limit():
     with pytest.raises(CrawlError) as e:
         await fetch(f"{BASE}/big", transport=httpx.MockTransport(handler(html=big)), max_bytes=1000)
     assert "页面过大" in str(e.value)
+
+
+async def test_max_bytes_budget_is_pinned_at_2mb():
+    """`MAX_BYTES` 的**具体数值**必须被钉住 —— 现有两条测试都抓不到它被改。
+
+    本条由一个**存活的变异体**换来（写第 7 课时实测）：把 `MAX_BYTES` 从
+    2_000_000 改成 20_000_000，全量测试一条不红（当时套件是 417 条，加本条后 418）。原因是——
+
+    - `test_fetch_enforces_size_limit` 传 `max_bytes=1000` **注入小值**，测的是
+      「闸门存在且生效」，与常量取值无关（这也是对的：真造 2MB 数据太慢）；
+    - `test_dynamic_crawl` 造 `MAX_BYTES + 1` 的页面，是**相对断言** ——
+      常量取任何值它都通过。
+
+    于是「2MB」这个数就成了没人看守的策略值。它不是 arbitrary 的：这是
+    **单页内存预算**，配合 `MAX_CONCURRENCY=4` 决定最坏情况下抓取占用多少内存
+    （4 × 2MB ≈ 8MB）。放大 10 倍就是 80MB，而测试一句话都不会说。
+
+    **相对断言抓不住常量本身的改动** —— 需要钉住的具体数值，就得写具体数值。
+    """
+    assert MAX_BYTES == 2_000_000, (
+        f"MAX_BYTES 被改成 {MAX_BYTES} 了。这是单页内存预算，配合 "
+        f"MAX_CONCURRENCY={MAX_CONCURRENCY} 决定抓取的最坏内存占用；"
+        "要改请连同这条断言一起改，并在 TECH_DECISIONS.md 记一条 TD。"
+    )
 
 
 async def test_fetch_follows_redirect():
