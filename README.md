@@ -92,7 +92,7 @@ cd ..
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-预期 `417 passed, 2 skipped`（跳过的一条是真并发测试，需要真 PostgreSQL 才能复现竞态，见 `TECH_DECISIONS.md` TD-85；另一条是动态页面抓取的真浏览器用例，默认跳过，见 TD-191）。真库那一套（`418 passed, 1 skipped`）由 GitHub Actions 自动跑，
+预期 `418 passed, 2 skipped`（跳过的一条是真并发测试，需要真 PostgreSQL 才能复现竞态，见 `TECH_DECISIONS.md` TD-85；另一条是动态页面抓取的真浏览器用例，默认跳过，见 TD-191）。真库那一套（`419 passed, 1 skipped`）由 GitHub Actions 自动跑，
 本机不需要装 `pgserver`——它虽然也提供 Windows 轮子，但没有必要。
 
 ## 运行测试

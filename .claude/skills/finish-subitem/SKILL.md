@@ -79,7 +79,7 @@ CI 日志正文在本沙箱取不到（重定向到 `*.blob.core.windows.net` �
 ```
 子项：<S4-01-2 标题>
 做了什么：<要点>
-测试：SQLite 417 passed + 2 skipped；真 PostgreSQL 16.2 418 passed + 1 skipped
+测试：SQLite 418 passed + 2 skipped；真 PostgreSQL 16.2 419 passed + 1 skipped
 变异测试：<去掉 X → N 个红> ×若干
 提交：<short sha>，已推送，远端 tip 已确认
 CI：<run id> push / pull_request 均 success
