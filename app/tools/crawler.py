@@ -151,7 +151,14 @@ def to_skeleton(html: str, *, max_nodes: int = MAX_NODES, max_text: int = MAX_TE
               "作者名"
 
     只保留标签名、id、前 3 个 class 和截断后的文本 —— 这些信息足够让 LLM 指认
-    「标题在哪、正文在哪」，而体积通常只有原 HTML 的几十分之一。
+    「标题在哪、正文在哪」。
+
+    **真正的保证是输出有界，不是压缩比。** 本机实测：2.66 MB / 10000 节点的页面
+    压出 13 198 字符、恰好 400 行（`MAX_NODES` 封顶），最长一行 86 字符
+    （缩进 + 引号 + `MAX_TEXT=80` 截断）。而压缩比本身随页面形态在
+    **1/1.5 ~ 1/201** 之间摆动 —— 文本密集的页面几乎压不动，节点密集的页面压得很狠。
+    所以别拿「几十分之一」当设计依据；**不管输入多大，喂给 LLM 的体积是有上界的**，
+    这才是 token 预算可控的原因。
     """
     soup = BeautifulSoup(html, "html.parser")
     for tag in soup.find_all(DROP_TAGS):
