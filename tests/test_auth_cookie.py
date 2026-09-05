@@ -36,10 +36,17 @@ const calls = [];
 const els = {};
 const mkEl = () => ({
   value: "", textContent: "", innerHTML: "", hidden: false,
-  appendChild() {}, click() {}, addEventListener() {},
+  appendChild() {}, click() {}, addEventListener() {}, focus() {},
+  classList: { add() {}, remove() {} },   // base.html 的浮层用 classList 开关
 });
 global.document = { getElementById: (id) => (els[id] ||= mkEl()), createElement: mkEl };
-global.window = { addEventListener() {} };
+// ⚠️ 浏览器里 `window` **就是**全局对象本身，不是一个独立对象。
+// 以前桩成 `global.window = { addEventListener(){} }` 时，base.html 里的
+// `window.CodeMaxAuth = ...` 只是往那个独立对象上挂了个属性，
+// 页面脚本用裸标识符 `CodeMaxAuth` 引用它就会 `is not defined`。
+// 让 window 指向 global 才与浏览器一致，共享模块也才能被页面脚本真正用上。
+global.addEventListener = () => {};
+global.window = global;
 const boom = (what) => () => { throw new Error("前端不得" + what + "浏览器存储"); };
 const storage = {
   getItem: boom("读取"), setItem: boom("写入"), removeItem: boom("删除"), clear: boom("清空"),
@@ -64,9 +71,12 @@ process.on("unhandledRejection", (e) => { console.error("UNHANDLED " + e.message
   // 走页面自己的 getElementById 入口填表单：脚本是点击时才懒取这些元素的，
   // 直接从外面往 els 里塞会得到 undefined。
   const byId = (id) => global.document.getElementById(id);
-  byId("login-user").value = "alice";
-  byId("login-pass").value = "secret123";
-  await byId("btn-login").onclick();               // 真实点一次登录按钮
+  byId("btn-auth").onclick();                      // 打开全站登录浮层（base.html）
+  byId("auth-user").value = "alice";
+  byId("auth-pass").value = "secret123";
+  // 真实提交一次登录表单。S2-02-2 之后登录表单在 base.html 的浮层里，
+  // id 也从 login-user/login-pass 改成了 auth-user/auth-pass。
+  await byId("auth-form").onsubmit({ preventDefault() {} });
   await new Promise((r) => setTimeout(r, 80));
   console.log(JSON.stringify(calls));
 })();
@@ -77,10 +87,26 @@ def _attrs(response) -> list[str]:
     return [a.strip().lower() for a in response.headers["set-cookie"].split(";")]
 
 
-def _script_with_login(html: str) -> str:
-    hits = [b for b in re.findall(r"<script>(.*?)</script>", html, re.S) if "/auth/login" in b]
-    assert len(hits) == 1, f"含登录逻辑的 <script> 应恰好 1 个，实际 {len(hits)}"
-    return hits[0]
+def _script_with_login(html: str, auth_js: str) -> str:
+    """拼出浏览器真正会执行的那一串脚本：**外部共享模块 + 页面内联脚本**。
+
+    ⚠️ 这里踩过两个坑，都记下来：
+
+    1. 早先的写法是「挑出含 `/auth/login` 的那一个 `<script>`」。S2-02-2 把登录逻辑
+       收敛进全站浮层后，drawio 页自己的 script 里已不含 `/auth/login`，
+       那个挑法会**只取到共享模块、完全没跑 drawio 的代码**，而测试仍然是绿的。
+    2. 共享模块后来从 base.html 的内联脚本改成了外部文件 `/static/auth.js`
+       （因为 base.html 也是 OAuth 同意页的父模板，那页必须零内联脚本，
+       见 tests/test_oauth_consent.py）。所以它**不在 HTML 里**，必须单独取来拼在前面。
+
+    顺序也有讲究：base.html 里那个 `<script src>` 在 `<main>` 之前，
+    页面脚本在 content block 里 —— 文档顺序就是「共享模块先、页面后」。
+    """
+    hits = re.findall(r"<script>(.*?)</script>", html, re.S)
+    assert hits, "页面应该有自己的内联脚本"
+    assert "CodeMaxAuth" in auth_js, "/static/auth.js 应该定义全站登录态模块"
+    assert "/auth/login" in auth_js, "登录逻辑应该在共享模块里"
+    return "\n;\n".join([auth_js, *hits])
 
 
 async def _register_and_login(client) -> str:
@@ -211,11 +237,13 @@ def test_no_template_touches_browser_storage():
 async def test_drawio_frontend_runs_without_browser_storage(client, tmp_path):
     """用 node 真实执行页面里的内联脚本：localStorage 桩会抛错，读了就当场失败。"""
     html = (await client.get("/tools/drawio")).text
+    # 共享登录模块是外部文件（原因见 _script_with_login 的说明），要单独取来
+    auth_js = (await client.get("/static/auth.js")).text
     # 用 tmp_path 而不是写死 /tmp 下的文件名：并发跑测试时不会互相踩，跑完自动清理。
     harness = tmp_path / "harness.js"
     script = tmp_path / "drawio.js"
     harness.write_text(_NODE_HARNESS, encoding="utf-8")
-    script.write_text(_script_with_login(html), encoding="utf-8")
+    script.write_text(_script_with_login(html, auth_js), encoding="utf-8")
     proc = subprocess.run(["node", str(harness), str(script)], capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
     calls = json.loads(proc.stdout.strip().splitlines()[-1])
@@ -251,6 +279,12 @@ READ_ONLY_AUTHED_GET = {
     # 记为 TD-175，缓解手段见该条。
     "/oauth/authorize": "OAuth 规范要求 GET；残留 CSRF 面见 TD-175",
     "/shop/ping": "SSO 连通性探测，返回常量",
+    "/shop/orders/{order_no}": (
+        "查订单状态，供下单页每 3 秒轮询（S2-02-2）。"
+        "**必须保持只读**：轮询里连「顺手关掉过期单」都不能做 —— 过期关单只在 "
+        "create_order 里做，那是用户主动重新下单时的一次性动作。"
+        "尤其不能改成调 mark_downloaded，那会把订单一次性烧掉。"
+    ),
     "/tools/ping": "SSO 连通性探测，返回常量",
 }
 

@@ -13,7 +13,11 @@
   **TD-124**（模拟支付通道）这两条。所以 `grep -oE '^\| TD-[0-9]+' | sort | uniq -d`
   **会报这两个「重复」，那是交叉列举不是编号冲突**，不要照着改编号 ——
   改编号会打断全仓的交叉引用。判断是否真冲突要看内容是否指同一个决策。
-- 计数口径（实测）：**表格行首**唯一编号 **151** 个；**全文提及**（含交叉引用）唯一 **167** 个。
+- 计数口径（实测，三个数都不同，别混）：
+  - **在用的表格行**（`^| TD-n`，不含划掉的）**152** 条
+  - **全部表格行**（含 `~~TD-n~~ **已解决**`）**169** 条
+  - **全文提及**（含交叉引用与正文里的 `TD-n`）唯一 **169** 个
+
   引用本文时请说清用的是哪个口径，否则会得出互相矛盾的数字。
 
 ## ⚠️ 上线阻塞项（这些必须在上线前处理，不是可选项）
@@ -24,7 +28,7 @@
 | ~~TD-44~~ | ~~JWT 存 localStorage~~ **已解决**：登录态改走 **HttpOnly cookie**（`SameSite=Lax`，生产加 `Secure`，`Max-Age` 与 token 同寿命），前端不再碰 `localStorage`/`sessionStorage`（模板里已一处不剩）。Bearer 头**同时保留**，Swagger 与 API 客户端照旧；两者都带时以请求头为准。新增 `POST /auth/logout` 清 cookie。配套把有副作用的 `GET /shop/download/{order_no}` 改成 POST（TD-177），并把「需要登录的 GET 路由」钉成带理由的清单（TD-176） | 改用 cookie 就引入了 CSRF（TD-176/177）；`GET /oauth/authorize` 是残留面（TD-175） |
 | ~~TD-64~~ | ~~流程图无配额、无软删除~~ **已解决（配额 + 软删除）**：每用户存活流程图上限 `DIAGRAM_QUOTA`（默认 50），超额 409 并把上限写进错误信息；删除改为打 `deleted_at` 时间戳，新增 `POST /diagrams/{id}/restore` 与 `GET /diagrams?deleted=true`（回收站）。对调用方而言删除语义不变（删完 GET 就 404、列表里也没有）。**恢复也要占配额**，否则「建满 → 删 → 恢复」就是绕过上限的后门。迁移：`database init/migrate_0003_diagram_deleted_at.sql`（已在真 PG 上验过升级与重跑两条路径） | 配额只管**存活**行，回收站不会自动清空 → 表增长仍不受约束（TD-179）；版本历史仍未做（TD-180）；配额检查有 TOCTOU 窗口（TD-178） |
 | ~~TD-70~~ | ~~JWT 无 `jti`、无法吊销~~ **已解决**：改用**令牌版本化** —— JWT 带 `pwd` 声明（签发时 `password_changed_at` 的 UNIX 秒），`get_current_user` 每次与库里当前值比对，早于它就拒。新增 `POST /auth/password`（限流），改密码即吊销该用户**所有**旧 token，并返回一个新 token 让当前会话不掉线。**订正原文一处不准确的说法**：「封号后旧 token 仍然有效」并不成立 —— `get_current_user` 一直都查库并检查 `status != 1`，禁用是立刻生效的（`test_disabled_user_token_is_rejected_immediately` 钉住） | 撤销粒度是「按用户」而非「按单个 token」：无法只踢掉某一个会话而保留其他会话 |
-| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（当前基线：真库 419 passed + 1 skipped / SQLite 418 + 2 skipped），见 TD-121 |
+| ~~TD-80~~ | ~~集成测试跑在 SQLite 上~~ **已解决** | 现在 `TEST_DATABASE_URL` 可整套跑真 PostgreSQL 16.2（当前基线：真库 474 passed + 1 skipped / SQLite 418 + 2 skipped），见 TD-121 |
 | ~~TD-84~~ | ~~无 CI~~ **已解决** | `.github/workflows/ci.yml`：三个 job（ruff 静态检查 / SQLite / 真 PostgreSQL 16 service 容器），PG job 另建库把建表脚本连跑两遍验证幂等。已实跑：run 33512433132（push）与 33512433325（pull_request）均 `success`，两个 job 全部 step 通过。注释头也已在 `4b145b5` 修正（原先 `2f3223a` 纯重命名时把激活前那段「待激活/从未跑过」的注释一起搬了进来）。GitHub App 已于 2026-09-01 取得 Workflows 写权限，workflow 可直接改并 push |
 | ~~TD-90/91~~ | ~~无日志、无监控、无安全响应头~~ **已解决（S5-03-3）**：`app/middleware.py` 出安全头 + CSP + 每请求结构化日志（带 `X-Request-ID`，上游给了就沿用）；`app/routers/health.py` 出 `/healthz` 存活探针与 `/readyz` 就绪探针（后者查库、失败 503）；`Dockerfile` / `docker-compose.yml` / `docs/DEPLOY.md` 齐备 | 仍未接集中式日志与指标采集（Prometheus/ELK），报警规则只在文档里给了建议阈值 |
 | TD-113 | 微信支付未经真机联调 | 沙箱无商户号/证书/公网回调，签名与报文只能算法级验证 |
@@ -43,7 +47,7 @@
 | ~~TD-03~~ | ~~动态页面抓取推迟到阶段四再定 Selenium / Playwright~~ **已选型：Playwright**（用户 2026-09-03 定），实现见 TD-191 | 现在就锁定方案 | ~~阶段四开工前要先做一次选型~~ 已定 | 已完成 |
 | TD-04 | 前端 Jinja2 SSR，不引入 Node / Nuxt / Next | SSR 框架的水合、路由、构建能力 | 交互全靠手写原生 JS，无组件复用 | 页面数量或交互复杂度显著上升时 |
 | TD-05 | DDL 解析用正则 + 自写字符扫描器，不引入 sqlparse / sqlglot | 现成语法树的完备性 | 需自己维护转义、注释、括号边界（已因此修掉 10 个 bug） | 要支持存储过程、触发器、分区表等复杂 DDL 时 |
-| TD-06 | 依赖全部钉死版本（`requirements.txt` 实测 **24 个依赖，24 个全部带 `==`**，无一例外） | 自动获取补丁更新 | 需手工升级 | — |
+| TD-06 | 依赖全部钉死版本（`requirements.txt` 实测 **25 个依赖，25 个全部带 `==`**，无一例外） | 自动获取补丁更新 | 需手工升级 | — |
 | TD-07 | 运行时不引入 Node，`node` 仅用于测试期 | — | 测试环境需要 node（沙箱内置 v22） | — |
 
 ## 二、DDL 解析器（`app/tools/sql_ddl.py`）
@@ -99,7 +103,7 @@
 | TD-52 | 无缓存头、无 ETag | CDN / 浏览器缓存 | 每次都回源 | 上量后加 |
 | TD-53 | 无 i18n | 多语言 | 仅中文 | — |
 | TD-54 | Drawio 页面对游客开放（能画不能存） | 所有工具都需登录 | 游客产出的图不落地 | 不改——这本来就是引流设计 |
-| TD-55 | S2-02-2「引流→变现」转化路径本轮跳过 | 工具页的转化引导 | 目前工具页没有任何商业化入口 | 商业平台上线后 |
+| ~~TD-55~~ **已解决**（S2-02-2） | S2-02-2「引流→变现」转化路径本轮跳过 | 工具页的转化引导 | 目前工具页没有任何商业化入口 | 商业平台上线后 |
 
 ## 七、流程图存取（`app/routers/diagrams.py`）
 
@@ -179,6 +183,8 @@
 | TD-200 | `python-multipart` 从 0.0.6 升到 **0.0.26**（不是 0.0.7） | 只升到 0.0.7 做「最小安全升级」 | 0.0.6 的 Content-Type 头 ReDoS（CVE-2024-24762）实测可复现：反斜杠每多 4 个耗时约 ×7，24 个 0.013s → 28 个 0.089s → 32 个 0.59s → **36 个 4.04s**，卡的是**主事件循环**；一个约 60 字节的头就能让整站挂起数分钟。这条路径**真的可达** —— 本项目没有任何 `UploadFile` 端点，但给 `/auth/login` 发 multipart 头时 stderr 会打出 `multipart.multipart` 自己的日志，即 Starlette 的 `request.form()` 照样会走它。只升 0.0.7 会留下另外两个同类 DoS（0.0.18 畸形 boundary 逐字节跳过并每次记日志、0.0.26 超大 preamble/epilogue），所以一次升到全部公告都修完的 0.0.26。升到 0.0.26 后同一 payload 从 4.04s 变 **0.0000s**。兼容性实测：0.0.7~0.0.26 都仍提供旧模块名 `multipart`，starlette 0.27.0 的 `import multipart` 不受影响，**不需要动 fastapi/starlette 版本** | 两条测试钉住：`test_multipart_content_type_redos_is_patched` 测运行时行为、`test_python_multipart_pinned_above_known_cve_versions` 测 requirements 声明（互补：防止改了声明没重装环境时前一条仍是绿的） |
 | TD-201 | 把 `concurrency = thread,greenlet` 固化进仓库的 `.coveragerc`（此前只存在于临时文件里）；`cryptography` 提升为**直接声明**的依赖；`mistune` 补进 requirements | 不加配置文件，靠每次手敲 `--cov-config` | **没有这个配置，覆盖率会被明显低报。** 本项目用 pytest-asyncio + httpx `ASGITransport` 驱动应用，请求处理分散在 greenlet/线程上，coverage 默认只追踪主线程，于是**端点函数体里执行过的行被记成「未覆盖」**。严格 A/B（同一个测试只换配置，用 `sys.settrace` 独立取真值对照）：空配置把 `shop.py` 实际执行过的 **L201/L203/L208** 三行误报为未覆盖，加了配置后**零误报**（全量口径 89% → 97%）。危害很具体：照低报的数字补测试会重复覆盖早已覆盖的安全分支，更糟的是得出「这些安全分支没测」的错误结论。`cryptography` 此前只作为 `python-jose[cryptography]` 的 extra 存在（`importlib.metadata.requires` 可证实），但 `app/wechat_pay.py` 顶层 import 了 x509/AESGCM/hashes/padding/serialization 五处 —— 谁把 extra 去掉，微信支付模块在 import 期就炸。`mistune` 则是 `scripts/build_docs_site.py` 默认路径硬依赖却从未声明 | ⚠️ 排查时我一度得出「`.coveragerc` 无效」的**错误结论**，真因是 **`rm -f .coverage*` 这个通配符会连 `.coveragerc` 一起删掉**（它也以 `.coverage` 开头），coverage 静默回退到无配置，看起来就像配置不生效。清理必须写全：`rm -f .coverage .coverage.*`。这条已写进 `.coveragerc` 文件头 |
 | TD-202 | **不拆** `requirements-dev.txt`，保持单文件（运行时 18 / 测试 4 / 文档工具 1 / 静态检查 1） | 拆成 `requirements.txt` + `requirements-dev.txt`，让生产镜像少装约 **60 MB**（实测 `pgserver` 33 MB、`ruff` 23.3 MB、`pytest` 2.6 MB，其余合计约 1 MB） | 拆分的收益是镜像体积，代价是**文档同步面从 1 个文件变成 2 个**：实测全仓有 **14 个文件、45 处**引用 `requirements.txt`（README / AGENTS / HANDOVER 未列但 WINDOWS_LOCAL_RUN 有 8 处 / ROOT_FILES 6 处 / 总览 3 处 / workflows README 3 处 / ci.yml 3 处 / Dockerfile 2 处 …），每一处都要判断语境是「跑应用」还是「跑测试」。本仓库已经因为**文档同步失守**被指出过三次（新增 `build_docs_site.py` 没同步 `scripts/README.md` 等），再引入一个「两个文件必须一起看」的约定，是在最薄弱的环节上加压。而且 `总览.md` §6.1 已把「`requirements-dev.txt` **不存在** —— 一条命令装齐」写成**有意的设计事实**。生产镜像这 60 MB 也不影响启动时间与内存占用，只影响拉取一次 | 若将来镜像体积成为实际约束（如按流量计费的 serverless），再拆；拆的时候必须同时改上述 14 个文件的 45 处引用，并在 `AGENTS.md` 文档地图里登记新文件 |
+| TD-203 | 转化路径只做「落地页 + 统一登录 + 只读状态轮询 + 内联 SVG 二维码」，**埋点统计暂缓** | 完整漏斗（案例/FAQ/订单查询页 + 第三方统计） | **为什么埋点暂缓**：① 现有 CSP 的 `connect-src 'self'`（`app/middleware.py`）会直接拦掉任何往第三方域发数据的统计脚本，要放通属于**安全策略变更**，得单独评估；② 毕设场景没有真实流量，埋点也读不出统计显著的结论，会变成「装了但没用」的配置，与 AGENTS.md 第 1 条（不引入用不上的配置）冲突。**为什么二维码选 `segno` 而不是 `qrcode[pil]`**：实测 segno 1.6.6 纯 Python、零依赖、**0.07 MB**；qrcode 画 PNG 要拖 **Pillow 6.61 MB 二进制**，差约 95 倍，且 Pillow 在 Windows 上多一层二进制轮子的麻烦。输出是纯 `<path>` 内联 SVG（实测 1493 字节，无 `<script>` 无外链），内联 SVG 不受 CSP `img-src` 约束。**为什么不引 CDN 的前端二维码库**：`script-src` 白名单里唯一的 `cdn.jsdelivr.net` 在沙箱与部分网络下实测 HTTP=000 不可达，开发时二维码画不出来且极难查 | 拿到真实流量、或产品决定做 A/B 时再加埋点；届时需同步评估 CSP 放通范围 |
+| TD-204 | 全站登录模块做成**外部文件** `app/static/auth.js` + `base.html` 的 `{% if auth_ui %}` 开关；OAuth 同意页传 `auth_ui=False` | 把登录模块写成 base.html 的内联脚本（更省事） | `base.html` 是**所有**页面的父模板，包括 OAuth 同意页 —— 那是发放授权码的安全关键页，`tests/test_oauth_consent.py` 断言它渲染出来**一个 `<script>` 都没有**。第一版我直接往 base.html 加内联脚本，那条测试当场变红。做成外部文件后由 `script-src 'self'` 覆盖，连 `'unsafe-inline'` 都不需要（TD-163 的方向），再用 `auth_ui` 开关让同意页整套 UI 与脚本都不渲染。代价是多一个静态文件与一个模板变量 | 若将来上严格 CSP（nonce 方案），所有内联脚本都要外部化，这个开关可以一并去掉 |
 
 ## 十一、订单与支付（阶段三，进行中）
 

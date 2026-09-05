@@ -59,12 +59,20 @@
   - [x] S2-01-4 工具4：集成 `python-docx`，实现前端图表/内容一键导出为 Word 文档的功能
     - [x] 后端：`POST /tools/word-export`（`app/tools/word.py`，DDL → 数据字典 .docx）
     - [x] 前端：ER 图页面「导出 Word」按钮（现位于 SSR 页面 `/tools/er`）
-- [ ] **S2-02 SEO 与流量优化**
+- [x] **S2-02 SEO 与流量优化**
   - [x] S2-02-1 对工具平台进行 SEO 优化（TDK 设置、SSR 服务端渲染优化、站点地图生成）
     - [x] Jinja2 SSR：`app/templates/`（base/index/er/mermaid）+ `app/routers/site.py`，不引入 Node 构建链
     - [x] `TOOLS` 清单（`app/site.py`）同时驱动路由、首页导航、sitemap 与 TDK
     - [x] `GET /sitemap.xml` + `GET /robots.txt`（`SITE_BASE_URL` 可配）
-  - [ ] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示（本轮按选型决定跳过）
+  - [x] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示
+    - [x] `GET /shop` 商城落地页（`app/templates/shop.html`）—— **全站第一个能真正下单的页面**：
+          此前 `POST /shop/orders` 是裸接口、前端零调用者，用户只能翻 `/docs` 手敲
+    - [x] 全站统一登录/注册浮层（`app/static/auth.js` + `base.html`），顶栏与页脚全站可见
+          （此前只有 drawio 页有常驻登录框，er/mermaid 页**连登录入口都没有**；
+          `POST /auth/register` 也一直没有对应 UI）
+    - [x] `GET /shop/orders/{order_no}` 只读状态查询，供下单页每 3 秒轮询
+    - [x] 微信 `code_url` → 内联 SVG 二维码（`segno`，纯 Python 0.07 MB）
+    - [ ] 埋点统计（**有意暂缓**：撞 CSP `connect-src 'self'`，且无真实流量时读不出结论，见 TD-203）
 
 ### 阶段三：商业平台核心交易闭环（变现核心）
 

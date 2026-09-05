@@ -57,20 +57,33 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
         f"文档站提取与运行时不一致：多 {sorted(extracted - runtime)}，"
         f"少 {sorted(runtime - extracted)}"
     )
-    assert len(extracted) == 36, f"业务路由应为 36 条，实际 {len(extracted)}"
+    # 36 → 38：S2-02-2 加了 GET /shop（落地页）与 GET /shop/orders/{order_no}（状态轮询）
+    assert len(extracted) == 38, f"业务路由应为 38 条，实际 {len(extracted)}"
 
 
 def test_page_routes_are_extracted(client):  # noqa: ARG001
-    """`GET /` 与 3 个 `/tools/*` 页面路由必须在提取结果里（回归）。"""
+    """`GET /`、3 个 `/tools/*` 与 `/shop` 页面路由必须在提取结果里（回归）。
+
+    这些路由是 `router.add_api_route(_tool.path, ...)` 循环 PAGES 注册的，
+    路径来自变量不是字面量，装饰器扫描抓不到 —— 曾因此静默少 4 条（32 vs 36）。
+    S2-02-2 又把 `/shop` 加进了 PAGES，所以这条清单要跟着长。
+    """
     paths = {(r["method"], r["path"]) for r in bds.build_routes()}
-    for expected in [("GET", "/"), ("GET", "/tools/er"), ("GET", "/tools/mermaid"), ("GET", "/tools/drawio")]:
+    expected_pages = [
+        ("GET", "/"),
+        ("GET", "/tools/er"),
+        ("GET", "/tools/mermaid"),
+        ("GET", "/tools/drawio"),
+        ("GET", "/shop"),
+    ]
+    for expected in expected_pages:
         assert expected in paths, f"{expected} 未被提取 —— build_routes() 漏了 app/site.py 的 Tool 清单"
 
 
 def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
     """鉴权/限流计数（docs/site/README.md 把它当断言写进了文档，必须对得上）。"""
     routes = bds.build_routes()
-    assert sum(1 for r in routes if r["auth"]) == 16
+    assert sum(1 for r in routes if r["auth"]) == 17
     assert sum(1 for r in routes if r["rate_limit"]) == 8
 
 

@@ -58,7 +58,22 @@ TOOLS = (
     ),
 )
 
-PAGES = (HOME, *TOOLS)  # 路由与 sitemap 的完整页面清单（首页 + 工具页）
+SHOP = Tool(
+    key="shop",
+    title="毕设服务",
+    path="/shop",
+    description="计算机毕设全流程服务：选题、系统设计与实现、论文与答辩辅导。在线下单，微信扫码支付，支付后即可下载交付物。",
+    keywords="计算机毕设,毕业设计服务,毕设辅导,系统实现,论文辅导",
+    template="shop.html",
+)
+
+# 路由与 sitemap 的完整页面清单。
+#
+# ⚠️ SHOP 加进 PAGES 但**刻意不加进 TOOLS**：
+#   - 进 PAGES ⇒ 自动获得路由、sitemap 条目、TDK（SEO 要收录它）
+#   - 不进 TOOLS ⇒ 不会混进 base.html 的工具导航与首页的工具卡片
+#     （那两处遍历的是 TOOLS，把商业页混在免费工具里会稀释工具页的定位）
+PAGES = (HOME, *TOOLS, SHOP)
 
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
 

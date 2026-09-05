@@ -16,22 +16,11 @@ from sqlalchemy import select
 from app.config import settings
 from app.models import Order, User
 from app.storage import LocalStorage, StorageError, build_storage, sign_download, verify_download
-from tests.conftest import TestSession
 
-PRODUCT_KEY = "product/codemax_package.zip"
-PRODUCT_BYTES = b"PK\x03\x04 " + "这是商品文件的内容".encode()
+# product fixture 与商品常量已上移到 conftest（test_shop_page.py 也要用）
+from tests.conftest import PRODUCT_BYTES, PRODUCT_KEY, TestSession
 
 _seq = 0
-
-
-@pytest.fixture
-def product(tmp_path, monkeypatch):
-    """把后端指到临时目录，并造出商品文件。"""
-    monkeypatch.setattr(settings, "STORAGE_BACKEND", "local")
-    monkeypatch.setattr(settings, "STORAGE_LOCAL_ROOT", str(tmp_path))
-    monkeypatch.setattr(settings, "STORAGE_PRODUCT_KEY", PRODUCT_KEY)
-    LocalStorage(str(tmp_path), "http://test", settings.SECRET_KEY).put(PRODUCT_KEY, PRODUCT_BYTES)
-    return tmp_path
 
 
 async def auth_headers(client, username="buyer", password="secret123") -> dict:

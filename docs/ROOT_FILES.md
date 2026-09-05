@@ -20,7 +20,7 @@
 ```text
 main.py              52 行   FastAPI 应用装配（唯一的应用入口）
 ruff.toml            52 行   唯一的静态检查配置（TD-145）
-requirements.txt     44 行   24 个依赖，全部钉死版本
+requirements.txt     49 行   25 个依赖，全部钉死版本
 Dockerfile           23 行   应用镜像
 docker-compose.yml   37 行   本地/单机部署示例（app + db 两个服务）
 pytest.ini            4 行   pytest 配置
@@ -123,9 +123,9 @@ pytest.ini            4 行   pytest 配置
 
 ---
 
-### 📄 文件名：`requirements.txt`（44 行）
+### 📄 文件名：`requirements.txt`（49 行）
 
-- **文件职责**：**24 个依赖，全部钉死版本**（`==`）。分四段：运行时 18 / 测试 4 / 文档工具 1 / 静态检查 1。
+- **文件职责**：**25 个依赖，全部钉死版本**（`==`）。分四段：运行时 19 / 测试 4 / 文档工具 1 / 静态检查 1。
 
 #### 运行时依赖（L1-L16，16 个）
 

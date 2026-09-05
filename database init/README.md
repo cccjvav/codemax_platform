@@ -22,7 +22,7 @@
 | 类别 | 文件 | 回答的问题 |
 | --- | --- | --- |
 | **全新部署** | `db_init.py` + `full_init.sql` | 「从零开始，库长什么样？」 |
-| **已有数据升级** | `migrate_0001` ~ `migrate_0005` | 「线上已经有数据了，怎么加一列而不丢东西？」 |
+| **已有数据升级** | `migrate_0001` ~ `migrate_0006` | 「线上已经有数据了，怎么加一列而不丢东西？」 |
 
 **两类不能混用**，每个迁移脚本的头部都用同一句话强调（如 `migrate_0001_timestamptz.sql:15-16`）：
 
@@ -38,7 +38,8 @@ database init/                     489 行
 ├── migrate_0002_password_changed_at.sql  38 行   TD-70   加 sys_user.password_changed_at
 ├── migrate_0003_diagram_deleted_at.sql   61 行   TD-64   加 sys_diagram.deleted_at + 改索引
 ├── migrate_0004_diagram_version.sql      41 行   TD-65   加 sys_diagram.version（乐观锁）
-└── migrate_0005_user_role.sql            53 行   TD-138  加 sys_user.role（管理员）
+├── migrate_0005_user_role.sql            53 行   TD-138  加 sys_user.role（管理员）
+└── migrate_0006_order_single_pending.sql 22 行   TD-199  同一用户最多一张待支付单（部分唯一索引）
 ```
 
 `full_init.sql` 实测计数：
@@ -343,6 +344,19 @@ UPDATE sys_user SET role = 1 WHERE username = '你的管理员账号';
 
 ## 3. 执行逻辑流
 
+
+### 📄 文件名：`migrate_0006_order_single_pending.sql`（22 行）
+
+- **文件职责**：给已有库加上 `uq_sys_order_user_pending` —— 部分唯一索引
+  `ON sys_order(user_id) WHERE status = 'pending'`，由**数据库**兜底
+  「同一用户最多一张待支付单」（TD-199）。
+- **为什么必须由数据库兜底**：应用层「先查后建」在 asyncio 交错下必然漏；
+  进程内锁在多实例部署时各算各的（与限流 TD-141 同一个道理）。
+  应用侧的配合在 `app/routers/shop.py`：`flush()` 撞 `IntegrityError` 时回滚并复用已存在的那张单。
+- **⚠️ 执行前必须先清存量重复**，否则建索引会直接失败 —— 脚本头部给了排查与清理 SQL。
+- 与 `app/models.py`、`database init/full_init.sql` 三处同步（`schema-sync` skill 的要求）。
+
+
 ### 3.1 两条部署路径
 
 ```text
@@ -367,6 +381,7 @@ UPDATE sys_user SET role = 1 WHERE username = '你的管理员账号';
     migrate_0003_diagram_deleted_at.sql   加列 + 索引升级
     migrate_0004_diagram_version.sql      加列（现存行填 1）
     migrate_0005_user_role.sql            加列（现存行填 0，不提权）
+   migrate_0006_order_single_pending.sql 建部分唯一索引（**执行前须先清存量重复**）
 
   容器里从宿主机喂进去（compose 只挂了 full_init.sql，没挂迁移脚本）：
     docker compose exec -T db psql -U postgres -d codemax_db \

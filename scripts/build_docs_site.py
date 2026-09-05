@@ -199,7 +199,7 @@ def build_routes() -> list[dict]:
     #
     # 这里改成去 app/site.py 里取 `Tool(... path="..." ...)` 的字面量。
     # 仍然只用标准库 ast：刻意**不** import app，否则会破坏本脚本
-    # 「不需要数据库 / .env / 24 个依赖」的设计承诺（见 docs/site/README.md）。
+    # 「不需要数据库 / .env / 25 个依赖」的设计承诺（见 docs/site/README.md）。
     site_src = (ROOT / "app" / "site.py").read_text(encoding="utf-8")
     for call in ast.walk(ast.parse(site_src)):
         if not (isinstance(call, ast.Call) and getattr(call.func, "id", "") == "Tool"):

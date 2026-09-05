@@ -10,12 +10,14 @@
   .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
 </style>
 
+<!-- 登录入口收敛到 base.html 的全站浮层（S2-02-2）。
+     这里原先是常驻的用户名/密码输入框，问题有两个：
+     ① 把登录成本前置给了所有游客，包括只想画图不想存图的人（TD-54 的初衷是引流）；
+     ② 与顶栏的登录入口重复，两处状态还各管各的，容易一个显示已登录另一个没显示。
+     现在登录/退出都在顶栏，本页只保留一个唤起浮层的按钮 + 状态提示。 -->
 <div class="auth">
   <span>云端保存需登录：</span>
-  <input type="text" id="login-user" placeholder="用户名" size="10" />
-  <input type="password" id="login-pass" placeholder="密码" size="10" />
-  <button type="button" class="ghost" id="btn-login">登录</button>
-  <button type="button" class="ghost" id="btn-logout" hidden>退出</button>
+  <button type="button" class="ghost" id="btn-login">登录 / 注册</button>
   <span id="auth-status"></span>
 </div>
 
@@ -178,44 +180,21 @@
   };
   list.onchange = () => list.value && openFromCloud(list.value);
 
-  document.getElementById("btn-login").onclick = async () => {
-    const res = await fetch("/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        username: document.getElementById("login-user").value,
-        password: document.getElementById("login-pass").value,
-      }),
-    });
-    if (!res.ok) {
-      authStatus.textContent = `登录失败（${res.status}）`;
-      return;
-    }
-    // 响应体里的 access_token 是给 API 客户端用的，页面直接忽略 ——
-    // 登录态已经由 Set-Cookie 落到 HttpOnly cookie 里了。
-    setAuthState(true);
-    await refreshList();
-  };
-
-  document.getElementById("btn-logout").onclick = async () => {
-    await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
-    setAuthState(false);
-    authStatus.textContent = "已退出";
-  };
+  // 登录/退出都在顶栏的全站浮层里（S2-02-2），本页只负责唤起与响应状态变化。
+  document.getElementById("btn-login").onclick = () => CodeMaxAuth.open("login");
 
   function setAuthState(on) {
     loggedIn = on;
-    document.getElementById("btn-logout").hidden = !on;
-    if (on) authStatus.textContent = "已登录";
+    authStatus.textContent = on ? "已登录，可保存到云端" : "未登录，图只能在本地画";
   }
 
-  // 进页面时问一次后端有没有有效 cookie —— 不能像以前那样靠读 localStorage 判断。
-  async function checkAuth() {
-    const res = await fetch("/auth/me", { credentials: "same-origin" });
-    if (!res.ok) return;
-    setAuthState(true);
-    await refreshList();
-  }
-  checkAuth();
+  // 「是否已登录」由 CodeMaxAuth 统一问后端（GET /auth/me）——
+  // 登录态在 HttpOnly cookie 里脚本读不到（TD-44），所以只能问后端。
+  // 这里不再自己 fetch /auth/me：原来本页与顶栏各问一次，两处状态各管各的，
+  // 容易出现一个显示已登录另一个没显示。
+  CodeMaxAuth.onChange(async (u) => {
+    setAuthState(!!u);
+    if (u) await refreshList();
+  });
 </script>
 {% endblock %}

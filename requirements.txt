@@ -22,6 +22,11 @@ python-docx==1.2.0                # 导出 Word 数据字典（S2-01-4）
 beautifulsoup4==4.15.0            # 爬虫解析 HTML（S4-01-1，选型已定：不是 Jsoup）
 jieba==0.42.1                     # 中文分词（S4-02-1 FAQ 检索用；纯 Python，Windows 可直接装）
 jinja2==3.1.6                     # 页面 SSR 出 HTML 外壳与 TDK（S2-02-1）
+segno==1.6.6                      # 微信 Native 支付的 code_url → 内联 SVG 二维码（S2-02-2）。
+                                  # **刻意选它而不是 qrcode[pil]**：实测 segno 是纯 Python、
+                                  # 零依赖、0.07 MB；qrcode 画 PNG 要拖 Pillow **6.61 MB 二进制**，
+                                  # 差约 95 倍。输出是纯 <path> 内联 SVG（实测 1493 字节，
+                                  # 无 <script> 无外链），不受 CSP img-src 约束。
 
 httpx==0.25.2          # **运行时依赖，不只是测试用**。此前这行注释写的是「测试用 AsyncClient」，
                        # 是错的：实测 app/ 下有 6 个模块顶层 import 它 ——

@@ -2374,7 +2374,7 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 **复算方式：**
 
 ```bash
-python -m pytest -q                       # 418 passed, 2 skipped（SQLite）
+python -m pytest -q                       # 472 passed, 3 skipped（SQLite）
 python -m pytest tests/test_crawler.py -q # 28 passed
 
 # CI 历史结论分布（本机实测输出：{"cancelled":4,"failure":7,"success":87}）
@@ -2433,6 +2433,99 @@ python -c "import re,pathlib; t=pathlib.Path('TECH_DECISIONS.md').read_text(enco
 
 ---
 
+## 第 8 课：从「免费试用」到「付钱」—— 转化路径为什么比功能更难
+
+> 对应 ROADMAP `S2-02-2`；取舍见 TD-55（已解决）、TD-203、TD-204。
+
+### 8.1 大白话：这一课解决的不是"加个按钮"
+
+做这一课之前先去数了一遍，结果比 ROADMAP 上写的严重得多：
+
+| 后端接口 | 有吗 | 前端有入口吗 |
+| --- | --- | --- |
+| `POST /shop/orders`（下单） | ✅ | ❌ **零调用者** |
+| `POST /auth/register`（注册） | ✅ | ❌ **没有任何页面能注册** |
+
+也就是说：**收银台和开户窗口都建好了，但都没开门。** 用户从搜索进来免费用完工具，
+页面到此为止 —— 没有登录入口、没有页脚、没有"了解更多"。他就算想买 ¥199 的服务，
+也只能自己猜网址，或者翻 `/docs` 里的 Swagger 手敲接口。
+
+库里唯一的账号是 `database init/full_init.sql:63-64` 预置的 `admin`。
+
+**所以这一课的第一步不是设计话术，是把门开出来。**
+
+### 8.2 比喻：试吃摊与锁在仓库里的收银台
+
+现在的状态是「路口摆免费试吃摊，试吃的人很多，但收银台锁在仓库里，
+而且没人告诉顾客仓库在哪，连个指路牌都没有」。
+
+转化路径设计得再漂亮，顾客走不到收银台。所以顺序必须是：
+**① 先修路**（`/shop` 页 + 顶栏入口 + 页脚）→ **② 再立牌**（在恰当位置提示）→
+**③ 最后才谈话术优化**（那需要数据）。
+
+顺带说一个反面教材：drawio 页原先一进来就是**常驻的用户名/密码输入框**。
+那是把登录成本前置给了所有游客，包括只想画图不想存图的人 ——
+而工具页的定位恰恰是"免费、无需注册"（TD-15、TD-54）。现在收敛成点"保存到云端"时才唤起浮层。
+
+### 8.3 落到代码：三个必须知道的坑
+
+**① 下载是一次性的，前端绝不能自动调。**
+
+`app/routers/shop.py:218` 用 CAS 保证只有一个请求能拿到链接：
+
+```python
+won = await mark_downloaded(db, order)
+...
+if not won:
+    raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
+```
+
+只要成功调用一次，这单就**永久**不能再下载。所以下单页轮询状态**必须**走只读的
+`GET /shop/orders/{order_no}`，下载只能由用户主动点按钮触发。
+拿 download 当状态查询 = 把用户的货烧掉，现象是"付了钱下载不了"，极难排查。
+`tests/test_shop_page.py::test_status_polling_does_not_burn_the_one_time_download` 钉住这条。
+
+**② 为什么必须新增一个只读的状态接口。**
+
+微信 Native 支付的流程是：用户扫码付钱 → 微信回调 `POST /shop/pay/notify` → 订单变 `paid`。
+**浏览器那边完全不知道这件事发生了**（回调是微信打到服务端的）。所以页面只能轮询。
+这个接口刻意**不写库** —— 轮询每 3 秒一次，连"顺手关掉过期单"都不做，
+过期只在 `create_order` 里关（那是用户主动重新下单时的一次性动作）。
+
+**③ 共享脚本的位置与形态，都被一条安全不变式约束着。**
+
+登录模块要全站共用，最省事的写法是塞进 `base.html` 的内联 `<script>`。但 `base.html`
+也是 **OAuth 同意页**的父模板，而那页必须**一个脚本都没有**
+（发放授权码的安全关键页，`tests/test_oauth_consent.py` 断言 `"<script" not in html`）。
+
+两个约束叠加，结果是：
+
+- 做成**外部文件** `app/static/auth.js` —— 由 CSP 的 `script-src 'self'` 覆盖，
+  连 `'unsafe-inline'` 都不需要（TD-163 的方向）
+- `base.html` 加 `{% if auth_ui %}` 开关，同意页传 `auth_ui=False`，整套 UI 与脚本都不渲染
+- 脚本必须放在 `<main>` **之前** —— 页面脚本在文档顺序上先执行，
+  否则 `CodeMaxAuth is not defined`（这个 bug 是 node 真跑测试抓出来的）
+
+二维码选 `segno`（纯 Python、零依赖、实测 **0.07 MB**）而不是 `qrcode[pil]`
+（要拖 **Pillow 6.61 MB** 二进制），输出纯 `<path>` 内联 SVG，不受 CSP `img-src` 约束（TD-203）。
+
+### 8.4 行业术语对照
+
+| 本文做法 | 行业术语 |
+| --- | --- |
+| 免费工具完全不设墙 | **Product-Led Growth (PLG)** / freemium |
+| 用户真需要更多时才要求登录 | **"Value first, ask later"** |
+| 单页承载商品说明 + 下单 + 支付态 | **Landing page / Checkout funnel** |
+| 页脚统一放商业入口 | **Global footer navigation** |
+| 轮询订单状态 | **Polling**（进阶是 SSE / WebSocket） |
+| 一次性下载链接 | **Single-use signed URL** |
+
+**为什么埋点暂缓**（TD-203）：现有 CSP 的 `connect-src 'self'` 会直接拦掉任何往第三方域
+发数据的统计脚本，放通属于安全策略变更；而且毕设场景没有真实流量，
+埋点也读不出统计显著的结论 —— 那会变成"装了但没用"的配置。
+
+---
+
 ## 附：本文数字的统计方式
 
 所有数字都可以自己复算，不依赖任何人的记忆：
@@ -2460,6 +2553,6 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 
 （最后这条会先打印几行 jieba 加载日志，看最后一行的 `x` 值就行。）
 
-本文写作时的实测值：**41 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **36 条业务路由条目** → **31 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**38 项配置**；**418 passed + 2 skipped**。
+本文写作时的实测值：**41 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **38 条业务路由条目** → **33 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**38 项配置**；**472 passed + 3 skipped**。
 
 > 上面最后一条命令是**故意写得很丑**的单行版 —— 因为附录里的命令必须能直接粘进终端跑。想看清爽版就读 `tests/test_perf.py::test_parse_ddl_scales_linearly_not_quadratically`，它才是这条判据的真身；**文档里的复算命令只是它的投影，代码改了请以测试为准。**

@@ -98,6 +98,10 @@ async def authorize(
             "state": state or "",
             "sig": _sign(client_id, redirect_uri, state),
             "username": user.username,
+            # 同意页**必须零脚本**（发放授权码的安全关键页，见 TD-163 与
+            # tests/test_oauth_consent.py）。它也不需要登录 UI —— 能走到这页
+            # 说明用户已经登录，所以整套浮层与 auth.js 都不渲染。
+            "auth_ui": False,
         },
     )
 

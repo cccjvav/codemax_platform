@@ -38,12 +38,45 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 
 ```text
 app/static/
-└── er.js   149 行   7 个常量 + 3 个函数
+├── er.js     149 行   7 个常量 + 3 个函数
+└── auth.js   120 行   全站共享登录态模块（S2-02-2）
 ```
 
 ---
 
 ## 2. 文件级详细说明书
+
+### 📄 文件名：`auth.js`（120 行）
+
+- **文件职责**：全站共享的登录态模块，挂在 `window.CodeMaxAuth` 上。
+  顶栏的「登录 / 注册 / 退出」与登录浮层都由它驱动，`drawio.html` 与 `shop.html` 直接调用。
+
+#### 为什么是外部文件，而不是写在 `base.html` 里
+
+`base.html` 是**所有**页面的父模板，包括 OAuth 同意页 —— 那是发放授权码的安全关键页，
+`tests/test_oauth_consent.py` 明确断言它渲染出来**一个 `<script>` 都没有**。
+做成外部文件后由 CSP 的 `script-src 'self'` 覆盖，连 `'unsafe-inline'` 都不需要（TD-163 的方向）。
+
+配合 `base.html` 里的 `{% if auth_ui %}` 开关：同意页传 `auth_ui=False`，
+浮层、顶栏登录控件与这个脚本**全都不渲染**。
+
+#### 暴露的接口
+
+| 方法 | 作用 |
+| --- | --- |
+| `open(mode)` | 打开浮层，`mode` 为 `"login"` 或 `"register"` |
+| `close()` | 关闭浮层 |
+| `refresh()` | 重新问后端 `GET /auth/me` 拿登录态 |
+| `onChange(fn)` | 订阅登录态变化（drawio 用它刷新流程图列表） |
+| `user` | 当前用户对象（getter，未登录为 `null`） |
+
+#### 两个不能改的地方
+
+1. **「是否已登录」必须问后端。** 登录态在 HttpOnly cookie 里，脚本读不到（TD-44），
+   所以唯一可靠的判断是 `GET /auth/me`。用 localStorage 自己记正是 TD-44 要消灭的做法。
+2. **注册完必须再登录一次。** `POST /auth/register` 只返回 `UserOut`，**不写 cookie**；
+   写 cookie 的只有 `POST /auth/login`。所以浮层里注册成功后会紧接着自动登录。
+
 
 ### 📄 文件名：`er.js`（149 行）
 

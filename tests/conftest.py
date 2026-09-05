@@ -6,6 +6,7 @@ from urllib.parse import parse_qs, urlsplit
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))  # 仓库根加入 sys.path
 
+import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
@@ -15,6 +16,7 @@ from app.config import settings
 from app.database import Base, get_db
 from app.models import OAuthClient
 from app.security import hash_password
+from app.storage import LocalStorage
 from main import app
 
 # 测试默认关掉限流：所有用例共用同一个客户端 IP，开着的话几十个注册/登录会互相挤爆配额。
@@ -119,3 +121,25 @@ async def client():
     app.dependency_overrides.clear()
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+
+# ---------------------------------------------------------------- 共享 fixture
+#
+# 商品文件桩。**放在 conftest 而不是 test_download.py**：S2-02-2 的
+# test_shop_page.py 也要用它（测「轮询订单状态不会烧掉一次性下载」时，
+# 必须真能发出下载链接才测得出来）。
+# 跨模块 `from tests.test_download import product` 再当形参会撞 ruff F811
+# （形参名遮蔽导入名），而共享 fixture 的正确位置本来就是 conftest。
+
+PRODUCT_KEY = "product/codemax_package.zip"
+PRODUCT_BYTES = b"PK\x03\x04 " + "这是商品文件的内容".encode()
+
+
+@pytest.fixture
+def product(tmp_path, monkeypatch):
+    """把存储后端指到临时目录，并造出商品文件。"""
+    monkeypatch.setattr(settings, "STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "STORAGE_LOCAL_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "STORAGE_PRODUCT_KEY", PRODUCT_KEY)
+    LocalStorage(str(tmp_path), "http://test", settings.SECRET_KEY).put(PRODUCT_KEY, PRODUCT_BYTES)
+    return tmp_path

@@ -27,12 +27,15 @@
 ### 1.2 实测结构
 
 ```text
-app/templates/                  491 行
-├── base.html            42 行   唯一的父模板：TDK + 全站 CSS + header/nav + {% block content %}
+app/templates/                  772 行
+├── base.html           118 行   唯一的父模板：TDK + 全站 CSS + header/nav + 页脚
+│                                + 登录/注册浮层 + {% block content %}（S2-02-2 起 42 → 118 行）
 ├── index.html           11 行   首页：遍历 tools 出卡片
 ├── er.html              90 行   SQL DDL → ER 图 + Word 导出（D3.js + /static/er.js）
 ├── mermaid.html         63 行   自然语言 → UML 类图（Mermaid ESM）
-├── drawio.html         221 行   Drawio iframe + 云端保存（乐观锁）★ 最复杂
+├── drawio.html         200 行   Drawio iframe + 云端保存（乐观锁）★ 最复杂
+│                                （S2-02-2 起 221 → 200：常驻登录框换成全站浮层）
+├── shop.html           226 行   商城落地页 + 下单/支付/下载三态（S2-02-2 新增）
 ├── mock_pay.html        42 行   模拟收银台（仅 SHOP_PAY_MODE=mock）
 └── oauth_consent.html   22 行   OAuth 授权同意页（纯表单，零脚本）
 ```
@@ -40,8 +43,8 @@ app/templates/                  491 行
 实测统计：
 
 ```text
-6 个模板 {% extends "base.html" %}，只有 base.html 自己不继承
-7 对 {% block content %} / {% endblock %}
+7 个模板 {% extends "base.html" %}，只有 base.html 自己不继承
+8 对 {% block content %} / {% endblock %}
 内联 <script>：4 个模板（er / mermaid / drawio / mock_pay）
 外部源：cdn.jsdelivr.net（d3@7、mermaid@11）、embed.diagrams.net
 本地脚本：/static/er.js
@@ -241,7 +244,40 @@ app/templates/                  491 行
 
 ---
 
-### 📄 文件名：`drawio.html`（221 行）★ 最复杂
+### 📄 文件名：`shop.html`（226 行）
+
+- **文件职责**：商城落地页（S2-02-2）。**这是全站第一个能真正下单的页面** ——
+  在此之前 `POST /shop/orders` 是个裸接口，前端零调用者，用户只能翻 `/docs` 手敲。
+
+#### 四个状态区（同一页面就地切换，不跳新页）
+
+| 区块 id | 何时显示 | 关键控件 |
+| --- | --- | --- |
+| `st-landing` | 默认 | 商品名、价格、`btn-buy` |
+| `st-pending` | 下单后 | 二维码（`qr_svg`）或收银台链接；每 3 秒轮询 |
+| `st-paid` | 支付成功 | `btn-download` |
+| `st-downloaded` | 已下载 / 已关闭 | 说明文案 |
+
+#### ⚠️ 一条 UI 铁律：**绝不能自动调 `POST /shop/download/{order_no}`**
+
+那个接口会把订单一次性烧成 `downloaded`（后端 CAS 只让一个请求拿到链接，
+见 `app/routers/shop.py` 的 `won`）。所以：
+
+- **查状态只能走 `GET /shop/orders/{order_no}`**（只读，专为轮询而加）
+- **下载只能由用户主动点按钮触发**
+
+违反的后果是「付了钱下载不了」，而且极难排查。
+`tests/test_shop_page.py::test_status_polling_does_not_burn_the_one_time_download` 钉住这条。
+
+#### 其它两处细节
+
+- 价格由 `product_amount / 100` 换算（金额以「分」存储），**不在模板里写死数字**
+- 未登录点「立即购买」会唤起全站登录浮层，登录成功后自动继续下单 ——
+  即 "value first, ask later"：先让用户决定要买，再要求身份
+
+---
+
+### 📄 文件名：`drawio.html`（200 行）★ 最复杂
 
 - **文件职责**：Drawio 流程图编辑器 + 云端保存。**跨域 iframe 通信 + 乐观锁 + 登录态管理三件事叠在一起**。
 

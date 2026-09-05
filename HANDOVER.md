@@ -12,7 +12,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**：`.venv/bin/python -m pytest -q` → SQLite：**418 passed + 2 skipped**；真 PostgreSQL 16.2：**419 passed + 1 skipped**（多的那条 skip 是真浏览器用例，默认跳过）（随机红的绝对阈值性能用例已按实测换掉，见 TD-183/186）；
+- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**472 passed + 3 skipped**；真 PostgreSQL 16.2：**474 passed + 1 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -138,6 +138,40 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 - **`cryptography` 的 `InvalidTag` 不是 `ValueError` 子类**（实测 MRO 只有 Exception）：
   解密失败想统一成业务异常，必须显式 `except InvalidTag`，光catch ValueError 会漏
 - **浅克隆会让 `git merge-base --is-ancestor` 误判**：先 `git rev-parse --is-shallow-repository`
+
+### S2-02-2 这一轮新踩的（2026-09-05）
+
+1. **`base.html` 的共享脚本必须放在 `<main>` **之前****。
+   页面脚本写在 `{% block content %}` 里，文档顺序上**先执行**；
+   共享模块若定义在 `</body>` 前，页面脚本引用它就是 `CodeMaxAuth is not defined`。
+   这个 bug 在浏览器里才会暴露，是 `tests/test_auth_cookie.py` 那条 **node 真跑测试**抓到的
+   —— 又一次证明「测试要真的执行前端代码」这条要求的价值。
+
+2. **Jinja 在 HTML 注释里照样解析标签。**
+   我在注释里写了字面量 `{% block content %}` 当说明，结果整个模板报
+   `Unexpected end of template ... needs to be closed is 'block'`。注释里别写 Jinja 标签。
+
+3. **`auth_headers(client)` 会在同一个 client 上留下 cookie。**
+   它内部就是 `client.post("/auth/login", ...)`，Set-Cookie 进了 client 的 cookie jar。
+   所以「先登录拿 header、再去掉 header 测 401」这种写法**测不出来**（我第一版就返回了 200）。
+   要测未登录，必须**直接造数据**、完全不碰 client。
+
+4. **node 桩里 `global.window` 必须就是 `global` 本身。**
+   浏览器里 window 即全局对象；桩成独立对象时，`window.CodeMaxAuth = ...` 只是往那个对象挂属性，
+   页面脚本用裸标识符 `CodeMaxAuth` 取不到。
+
+5. **往 `base.html` 加内联脚本会破坏 OAuth 同意页的零脚本不变式。**
+   同意页是发放授权码的安全关键页，`tests/test_oauth_consent.py` 断言它渲染后一个 `<script>` 都没有。
+   解法不是放宽测试，而是：共享模块做成外部文件 `app/static/auth.js`（走 `script-src 'self'`，
+   连 `unsafe-inline` 都不需要）+ `base.html` 加 `{% if auth_ui %}` 开关，同意页传 `False`（TD-204）。
+
+6. **测微信支付分支必须先桩掉 `pay_config`。**
+   沙箱没有商户号，`pay_config().configured` 是 False，`POST /shop/orders` 会先撞 503 门禁，
+   根本走不到 `native_prepay`，看起来像"二维码功能坏了"。
+
+7. **`POST /shop/download/{order_no}` 是一次性的，绝不能拿它当状态查询。**
+   它成功后订单永久变 `downloaded`。查状态只能走只读的 `GET /shop/orders/{order_no}`。
+   `tests/test_shop_page.py::test_status_polling_does_not_burn_the_one_time_download` 钉住这条。
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 

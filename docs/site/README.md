@@ -111,7 +111,7 @@ start docs\site\index.html
 
 `docs/WINDOWS_LOCAL_RUN.md` 讲的是**怎么把服务跑起来**（建库、配 `.env`、起 uvicorn）；
 本节讲的是**怎么看文档站**。两者互不依赖 —— **看文档站不需要数据库、不需要 `.env`、
-不需要装 `requirements.txt` 里那 24 个依赖**，只要有 Python 和 `mistune`。
+不需要装 `requirements.txt` 里那 25 个依赖**，只要有 Python 和 `mistune`。
 
 ## 里面有什么
 
@@ -121,7 +121,7 @@ start docs\site\index.html
 | `d/<文档>.html` | **21 份文档**逐份渲染，带右侧目录、代码位置可点击 |
 | `s/<源码>.html` | **91 个源码文件**带行号展示，顶部列出该文件的全部函数/类，点一下跳到定义行 |
 | `graph.html` | **模块依赖图**（SVG）：40 个核心模块 / 85 条依赖，悬停高亮，点节点进文档 |
-| `routes.html` | **路由地图**：36 条路由，标注鉴权与限流，可按方法/鉴权/限流/路径过滤 |
+| `routes.html` | **路由地图**：38 条路由，标注鉴权与限流，可按方法/鉴权/限流/路径过滤 |
 | `symbols.html` | **符号索引**：250+ 个函数与类，点「源码」直达定义行、点「文档」跳到说明书 |
 
 **代码 ↔ 文档双向跳转**：文档正文里的 `app/routers/diagrams.py:147` 这类引用被自动
@@ -156,7 +156,7 @@ start docs\site\index.html
 | 数据 | 提取方式 | 实测规模 |
 | --- | --- | --- |
 | 模块依赖图 | `ast` 解析 `import` / `from ... import` | 72 个模块 / 179 条边 |
-| 路由地图 | `ast` 解析 `@router.*` 装饰器、函数签名，**外加 `app/site.py` 的 `Tool(path=...)` 页面清单** | 36 条路由 |
+| 路由地图 | `ast` 解析 `@router.*` 装饰器、函数签名，**外加 `app/site.py` 的 `Tool(path=...)` 页面清单** | 38 条路由 |
 | 符号索引 | `ast` 遍历 `FunctionDef` / `ClassDef` | 250+ 个符号 |
 | 文档清单 | 扫仓库 `.md` | 21 份（行数随文档增改而变） |
 
@@ -182,7 +182,7 @@ start docs\site\index.html
 python scripts/build_docs_site.py --data-only
 ```
 
-> **预期输出**：`模块 73 个 · 依赖边 180 条 · 路由 36 条 · 符号 250+ 个 · 文档 21 份`
+> **预期输出**：`模块 74 个 · 依赖边 186 条 · 路由 38 条 · 符号 250+ 个 · 文档 21 份`
 >
 > （路由数只随**路由**变，可以当断言用。**模块数与依赖边把 `tests/` 也算进去** ——
 > 所以新增一个测试文件就会 +1 模块、+若干依赖边，这不是 bug。
@@ -194,6 +194,6 @@ python scripts/build_docs_site.py --data-only
 python -c "import json;r=json.load(open('docs/site/data/routes.json',encoding='utf-8'));print('路由',len(r),'需鉴权',sum(1 for x in r if x['auth']),'限流',sum(1 for x in r if x['rate_limit']))"
 ```
 
-> **预期输出**：`路由 36 需鉴权 16 限流 8`
+> **预期输出**：`路由 38 需鉴权 17 限流 8`
 >
 > ⚠️ 这里刻意写成**单行**：多行的 `python -c "…"` 在 Windows `cmd.exe` 里会被换行截断。

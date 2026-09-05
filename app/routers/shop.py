@@ -1,8 +1,10 @@
+import io
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
 
+import segno
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -38,6 +40,29 @@ from ..wechat_pay import (
 router = APIRouter(prefix="/shop", tags=["商业平台"])
 
 MOCK_PAY_PATH = "/shop/mock-pay"  # 模拟收银台（TD-124），仅 SHOP_PAY_MODE=mock 时存在
+
+
+def _qr_svg(text: str) -> str:
+    """把微信 Native 支付返回的 `code_url` 画成**内联 SVG** 二维码。
+
+    ## 为什么服务端画，而不是前端引 JS 库
+
+    - 前端方案要引 CDN 脚本，而 `script-src` 白名单里唯一的 `cdn.jsdelivr.net`
+      在沙箱与部分网络下实测 HTTP=000 不可达 —— 开发时二维码画不出来，很难查。
+    - 服务端方案零外部依赖：实测 `segno` 1.6.6 是**纯 Python、零依赖、0.07 MB**。
+      对比 `qrcode[pil]`：qrcode 本身 0.04 MB，但画 PNG 要拖 **Pillow 6.61 MB 二进制**，
+      差约 95 倍，而 Pillow 在 Windows 上还多一层二进制轮子的麻烦。
+    - 输出是**纯 `<path>` 的内联 SVG**（实测 1493 字节，不含 `<script>`、不含外链），
+      直接塞进 HTML。内联 SVG **不受 CSP `img-src` 约束**，不用改安全策略。
+
+    ## 为什么不做成 `GET /shop/qr?url=...` 这种通用接口
+
+    那等于开了一个「任意内容二维码生成器」，会被拿去钓鱼（生成指向恶意站点的码）。
+    现在只在 `_payload` 里对**本站自己订单的 code_url** 生成，不接收外部输入。
+    """
+    buf = io.BytesIO()
+    segno.make(text, error="m").save(buf, kind="svg", xmldecl=False, svgns=False)
+    return buf.getvalue().decode("utf-8")
 
 
 @router.get("/ping")
@@ -132,6 +157,35 @@ async def create_order(
     return _payload(order, reused=False, pay_mode=mode)
 
 
+@router.get("/orders/{order_no}")
+async def order_status(
+    order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """查订单状态（S2-02-2）：给下单页轮询用。
+
+    ## 为什么必须有这个接口
+
+    微信 Native 支付的流程是：用户扫码付钱 → 微信回调 `POST /shop/pay/notify` → 订单变 `paid`。
+    **前端完全不知道这件事发生了** —— 回调是微信打到服务端的，浏览器那边没有任何推送。
+    所以页面只能轮询。而在此接口之前，全站**没有任何可以轮询的接口**：
+    `POST /shop/download/{order_no}` 虽然也能反映状态，但它**会把订单烧成 `downloaded`**
+    （一次性下载，见 download_url 里的 CAS），拿它当状态查询等于把用户的货直接销毁。
+
+    ## 两条设计约束
+
+    1. **只读**。轮询每 3 秒一次，绝不能在里面写库（连"顺手关掉过期单"都不行）——
+       过期关单只在 `create_order` 里做，那是用户主动重新下单时的一次性动作。
+       这里只**报告**是否已过期，由前端提示"二维码已失效，请重新下单"。
+    2. **非本人一律 404**，与 `download_url` 同一口径：不暴露"这个订单号存在"。
+    """
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None or order.user_id != user.id:
+        raise HTTPException(404, "订单不存在")
+    payload = _payload(order, reused=False, pay_mode=settings.SHOP_PAY_MODE)
+    payload["expired"] = is_expired(order, settings.ORDER_EXPIRE_MINUTES)
+    return payload
+
+
 # ---------------------------------------------------------------- 模拟支付通道（TD-124）
 # 只在 SHOP_PAY_MODE=mock 时存在；生产（wechat）下这两个端点一律 404，
 # 免得演示用的后门被带上生产环境。
@@ -147,7 +201,13 @@ async def mock_pay_page(request: Request, order_no: str = ""):
     if settings.SHOP_PAY_MODE != "mock":
         raise HTTPException(404, "模拟支付通道未开启（SHOP_PAY_MODE != mock）")
     return templates.TemplateResponse(
-        "mock_pay.html", {"request": request, "title": "模拟收银台", "order_no": order_no}
+        "mock_pay.html",
+        {
+            "request": request,
+            "title": "模拟收银台",
+            "order_no": order_no,
+            "auth_ui": True,
+        },
     )
 
 
@@ -272,9 +332,14 @@ def _fail(status: int, message: str) -> JSONResponse:
 
 
 def _payload(order: Order, *, reused: bool, pay_mode: str) -> dict:
+    # 只有微信 Native 支付的 `weixin://` 串需要画二维码。
+    # mock 模式（TD-124）的 code_url 是本站的 http 链接，前端直接给个按钮点开就行，
+    # 画成二维码反而多一步扫码 —— 所以这里按前缀区分，不给 http 链接生成码。
+    needs_qr = bool(order.code_url) and not order.code_url.startswith(("http://", "https://"))
     return {
         "order_no": order.order_no,
         "code_url": order.code_url,
+        "qr_svg": _qr_svg(order.code_url) if needs_qr else None,
         "product_name": order.product_name,
         "amount": order.amount,
         "status": order.status,
