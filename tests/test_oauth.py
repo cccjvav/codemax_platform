@@ -202,3 +202,47 @@ async def test_code_single_use_under_real_concurrency(client):
     assert sorted(r.status_code for r in results) == [200, 400], "必须恰好一个成功、一个失败"
     failed = next(r for r in results if r.status_code == 400)
     assert failed.json()["detail"]["error"] == "invalid_grant"
+
+
+async def test_oauth_token_still_works_after_password_change(client):
+    """改过密码的用户，**新换出的** OAuth token 必须可用（TD-197）。
+
+    令牌版本化（TD-70）的语义是「早于 `password_changed_at` 签发的 token 一律失效」，
+    所以 `/oauth/token` 签发时必须带上**库里当前的** `password_changed_at`。
+    漏传的话新 token 的 `pwd` 声明是 `None`，`get_current_user` 会立刻拒 ——
+    结果是「改过密码的人 SSO 彻底用不了」，而且旧 token 照样失效，安全性没换来任何东西。
+
+    这条测试覆盖完整链路，并同时钉住三件事：
+      ① 改密码**前**签发的 token 失效（TD-70 的本意，不能被这次修复破坏）
+      ② 改密码接口返回的新 token 可用
+      ③ OAuth 新换出的 token 也可用
+    """
+    headers = await register_and_login(client, username="pwduser")
+
+    # ① 改密码前的 token
+    r = await client.get("/tools/ping", headers=headers)
+    assert r.status_code == 200, r.text
+
+    rp = await client.post(
+        "/auth/password",
+        json={"old_password": "secret123", "new_password": "newsecret456"},
+        headers=headers,
+    )
+    assert rp.status_code == 200, rp.text
+
+    assert (await client.get("/tools/ping", headers=headers)).status_code == 401, (
+        "改密码后旧 token 必须失效（TD-70 的核心语义）"
+    )
+
+    new_headers = {"Authorization": f"Bearer {rp.json()['access_token']}"}
+    assert (await client.get("/tools/ping", headers=new_headers)).status_code == 200, (
+        "改密码接口返回的新 token 必须可用"
+    )
+
+    # ③ 走完整授权码流程换新 token
+    oauth_token = (await exchange_code(client, sso_code(await authorize(client, new_headers)))
+                   ).json()["access_token"]
+    r = await client.get("/tools/ping", headers={"Authorization": f"Bearer {oauth_token}"})
+    assert r.status_code == 200, (
+        f"❌ 改过密码后新换出的 OAuth token 被判失效：{r.status_code} {r.text[:200]}"
+    )

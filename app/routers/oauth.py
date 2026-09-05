@@ -179,10 +179,15 @@ async def token(
         raise _oauth_error("invalid_grant", "授权码无效或已使用")
 
     user = await db.get(User, oauth_code.user_id)
+    if user is None:  # 授权码签发后用户被删：不能让它变成 500
+        raise _oauth_error("invalid_grant", "用户不存在")
+    # 必须在 commit 前取值：`password_changed_at` 要原样进 token，
+    # 漏传的话 `get_current_user` 会把这枚**刚签发的** token 判成「密码已修改」（TD-197）。
+    subject, pwd_changed_at = user.username, user.password_changed_at
     await db.commit()
 
     return {
-        "access_token": create_access_token(user.username),
+        "access_token": create_access_token(subject, pwd_changed_at),
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }

@@ -166,6 +166,7 @@
 | TD-94 | `/static` 只放 `er.js`，HTML 全部走 SSR | 静态 HTML | 旧地址 `/static/er.html`、`/static/mermaid.html` 已 404 | 若外部已有旧链接需加 301 |
 | TD-195 | **讲解文档 `docs/ARCHITECTURE_GUIDE.md` 必须跟着实现走**（写进 `AGENTS.md` ALWAYS + 「做完」定义第 7 条 + `finish-subitem` 技能第 3 步） | 「先把功能做完、文档以后再补」——事实上以后永远不会补 | 每次改动都多一步文档工作；且**文档里记的数字会随之腐烂**：加 1 条测试实测导致 **24 处测试条数**过期、散落 **11 个文件** | 若文档维护成本压过收益，退化为「只在新增子系统时补一课」，但数字同步不能退 |
 | TD-196 | SSRF 校验**逐跳重做**：`crawler._request` 关掉 httpx 的 `follow_redirects`，自己按跳跟随并对每一跳重跑 `assert_public_url`；`browser._goto` 加 Playwright 路由拦截器，非公网请求直接 `abort`（不建立 TCP），`render()` 再对**最终落点 URL** 校验一次 | 交给 httpx / 浏览器自动跟随重定向，代码更少 | 原先只校验入口 URL，攻击者用一个自己控制的公网页面 302 到 `169.254.169.254` 就能读走云厂商临时凭证（已复现：`127.0.0.1`、`169.254.169.254`、`10.0.0.9`、`[::1]` 四种都能读到响应体）。代价是自己维护重定向循环与 `MAX_REDIRECTS=10`；拦截器让每个子资源多一次 DNS 解析（低频的管理端点可接受）。`_abort_non_public` 里刻意不抛 `CrawlError` —— Playwright 会吞掉拦截器里的异常，最终由 `render()` 那次校验统一表达成 400 | 若将来支持流式/大文件下载，需要重新评估逐跳校验的开销 |
+| TD-197 | `/oauth/token` 签发 access token 时必须传**库里当前的** `password_changed_at`（与 `/auth/login`、`POST /auth/password` 三处口径统一） | 只在登录端点带这个声明 | 漏传的后果不是安全性下降而是**功能直接坏掉**：token 的 `pwd` 声明变成 `None`，`get_current_user` 立刻拒 ⇒ 「改过密码的用户 SSO 彻底用不了」，而旧 token 照样失效，什么安全收益都没换来。原先三处签发只有 `oauth.py:185` 漏了；顺带补了「授权码签发后用户被删」的 `None` 兜底（原来会 500）。由 `test_oauth_token_still_works_after_password_change` 钉住全链路 | 若将来签发点继续增加，应把「取 user + 签 token」收敛成一个函数，避免再漏 |
 
 ## 十一、订单与支付（阶段三，进行中）
 
