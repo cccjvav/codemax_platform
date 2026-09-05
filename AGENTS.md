@@ -11,7 +11,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | 动作 | 命令 |
 | --- | --- |
 | 装依赖 | `.venv/bin/python -m pip install -r requirements.txt` |
-| 建库建表（幂等） | `cd "database init" && python db_init.py && cd ..` |
+| 建库建表（**仅空库**：`full_init.sql` 会 `DROP TABLE ... CASCADE`，对已有数据等于清库） | `cd "database init" && python db_init.py && cd ..` |
 | 跑测试（SQLite，日常） | `.venv/bin/python -m pytest -q` |
 | 跑测试（真 PostgreSQL） | `TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" .venv/bin/python -m pytest -q` |
 | 静态检查 | `.venv/bin/ruff check .` |

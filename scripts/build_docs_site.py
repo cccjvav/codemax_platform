@@ -4,11 +4,12 @@
 不能手画。手画的图第一天就过期，而这份数据每次重跑都与代码一致。
 
 用法：
-    python scripts/build_docs_site.py              # 只生成 docs/site/data/*.json
-    python scripts/build_docs_site.py --static     # 额外把 .md 预渲染成离线 HTML
+    python scripts/build_docs_site.py              # 默认：出数据 + 渲染整站（**需要 mistune**）
+    python scripts/build_docs_site.py --data-only  # 只出 docs/site/data/*.json，不需要 mistune
 
-依赖：--static 需要 mistune（纯 Python、零依赖）。不加 --static 时不需要任何额外依赖。
-本脚本不接入 pytest —— 它是文档工具，不是每次改动的必经检查。
+依赖：**默认那条要 mistune**（纯 Python、零依赖，`pip install mistune`）。
+只有 `--data-only` 不需要任何额外依赖 —— 它只用标准库的 ast / json 扫代码。
+本脚本不接入 pytest —— 它是文档工具，不是每次改动的必经检查（由 TD-201 记录代价）。
 """
 from __future__ import annotations
 

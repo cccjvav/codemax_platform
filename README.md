@@ -17,7 +17,8 @@ pip install -r requirements.txt
 # 2. 复制 .env.example 为 .env 并填入实际配置
 cp .env.example .env
 
-# 3. 初始化数据库（自动建库建表，幂等；测试账号 admin/123456）
+# 3. 初始化数据库（自动建库建表；测试账号 admin/123456）
+#    ⚠️ 只对**空库**安全：full_init.sql 开头是 DROP TABLE ... CASCADE，对已有数据的库跑它会清库
 cd "database init" && python db_init.py && cd ..
 
 # 4. 启动服务
@@ -65,7 +66,12 @@ cd "database init"
 cd ..
 ```
 
-看到 `[1/2] ... 创建成功` 与 `[2/2] ... 建表完成` 即可；重复执行是安全的（幂等）。
+看到 `[1/2] ... 创建成功` 与 `[2/2] ... 建表完成` 即可。
+
+> ⚠️ **「可重复执行」不等于「对已有数据安全」**：`full_init.sql` 开头是 `DROP TABLE ... CASCADE`，
+> 所以它对**空库**可以反复跑（CI 就是连跑两遍验这个），但对**已有数据的库跑它等于清库**。
+> 它也不是升级手段 —— 已有库要升级请按编号顺序跑 `database init/migrate_000N_*.sql`，
+> 清单见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
 
 **启动服务**
 
@@ -137,7 +143,7 @@ cd ..
 | POST | `/shop/mock-pay/confirm` | 模拟支付确认（复用与真实回调**完全相同**的状态机与幂等逻辑） |
 | POST | `/support/ask` | 智能客服总入口：FAQ 秒回 / 闲聊 LLM / 专业问题 RAG，兜底转人工 |
 | GET | `/admin/articles/ingest` 之外的管理端点 | 暂无（管理面只有上面那一条抓取入库） |
-| GET | `/health` | 健康检查（**查库**） |
+| GET | `/health` | **只是 `/healthz` 的别名**，同样**不查库**（TD-164 保留它是因为既有文档与测试都在用） |
 | GET | `/healthz` | 存活探针（**刻意不查库**，否则库一抖会被编排器全量重启，见 TD-167） |
 | GET | `/readyz` | 就绪探针 |
 

@@ -5,7 +5,10 @@
 ## 1. 当前状态
 
 - **main**：`9622a38`（含 PR #1、PR #2 合并进来的阶段一全部内容 —— 旧的"推送 687e60e / 48622b1"说法已作废，那两个提交不在本仓库历史里）
-- **本会话分支**：`arena/01a0599b-codemax-platform`，HEAD `7208c74`，已 push（本地 = 远端）
+- **本会话分支**：`arena/01a0599b-codemax-platform`（会话固定，不要切别的分支）。
+  **这里刻意不写 HEAD 的 commit** —— 每提交一次它就过期，写过期的 SHA 比不写更糟。
+  要确认当前状态就跑：`git log --oneline -1` 与 `git ls-remote origin arena/01a0599b-codemax-platform`，
+  两者一致即「本地 = 远端」。
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
@@ -59,7 +62,7 @@ app/
 ├── static/er.js           # ER 图 D3.js 渲染（layoutEr 是纯函数，node 可直接 require）
 └── templates/             # base / index / er / mermaid / drawio（Jinja2 SSR）
 tests/                     # 9 个测试文件，74 用例
-database init/             # db_init.py（幂等）+ full_init.sql（★ 必须与 models.py 同步）
+database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
 scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL 执行 full_init.sql
 ```
 
@@ -79,7 +82,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 .venv/bin/python -m pytest -q                        # 跑测试（209 个：SQLite 上 208 绿 + 1 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
-cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（幂等，需真库）
+cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（需真库；**会 DROP 重建，只对空库安全**）
 node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体检建表脚本
 ```
 
@@ -211,7 +214,7 @@ SHOP_PAY_MODE=mock \
 
 两重校验，缺一不可：
 
-1. **数据库状态**（主力，防倒卖）：`GET /shop/download/{order_no}` 走状态机
+1. **数据库状态**（主力，防倒卖）：`POST /shop/download/{order_no}` 走状态机
    `paid → downloaded`，同一订单第二次领链接直接 403
 2. **预签名 URL**（缩小转发窗口）：`HMAC-SHA256(SECRET_KEY, "<key>\n<expires>")`，
    `/shop/dl` 校验签名与过期时间；签名**绑定 key**，所以换一个 key 就失效
