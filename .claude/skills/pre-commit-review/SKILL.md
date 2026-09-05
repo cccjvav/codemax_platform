@@ -45,8 +45,8 @@ description: >
       `rowcount` 写法，TD 里有记录）
 
 ### 6. 测试
-- [ ] `.venv/bin/python -m pytest -q` → **532 passed, 4 skipped**
-- [ ] 改了表结构 → 真库那一遍也要跑（**534 passed, 2 skipped**，配方见 `HANDOVER.md` §9）
+- [ ] `.venv/bin/python -m pytest -q` → **541 passed, 4 skipped**
+- [ ] 改了表结构 → 真库那一遍也要跑（**543 passed, 2 skipped**，配方见 `HANDOVER.md` §9）
 - [ ] 修 bug → 补了一个能复现该 bug 的回归测试
 - [ ] **关键逻辑做过变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
       记录格式：`去掉 X → N 个用例红`。

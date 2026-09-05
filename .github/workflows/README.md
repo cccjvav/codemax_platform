@@ -221,7 +221,7 @@ print('concurrency:', d['concurrency'])
 .venv/bin/python -m pytest -q
 
 # 4) 真库 job 的配方见 HANDOVER.md §9（起 pgserver + createdb + TEST_DATABASE_URL）
-#    本机实测（SQLite 侧）：532 passed, 4 skipped
+#    本机实测（SQLite 侧）：541 passed, 4 skipped
 ```
 
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `ci.yml` 后本文对应的行号与

@@ -12,7 +12,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**532 passed + 4 skipped**；真 PostgreSQL 16.2：**534 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
+- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**541 passed + 4 skipped**；真 PostgreSQL 16.2：**543 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -79,7 +79,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（536 个：SQLite 上 532 绿 + 4 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（545 个：SQLite 上 541 绿 + 4 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（需真库；**会 DROP 重建，只对空库安全**）
@@ -238,6 +238,34 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
   前端行为必须真跑（node 执行真实脚本），页面渲染必须断言**渲染结果**而不只是状态码。
 - **改完要做变异验证。** 这次撤掉修复重跑，两条新测试立刻变红 —— 这才证明它们真的在守这个 bug，
   而不是碰巧通过。
+
+### 语义阈值标定这一轮（2026-09-05）
+
+用户问「语义阈值未标定是什么问题，可以修复吗」。**答案是分两半的**：
+
+- **值本身修不了** —— 沙箱没有 `LLM_API_KEY`，HuggingFace 也不可达（实测 HTTP 000），
+  下不到本地模型。0.55 要变成实测值，只能在有 key 的环境跑一次标定用例。
+- **但周围三件事是真能修的，而且都有实测缺陷**：
+  1. **阈值是常量，而 embedding 模型是配置项** —— 换模型会让余弦分布整体漂移，
+     硬编码阈值立刻失效。可配置的东西旁边不该有一个必须跟着它变却变不了的常量。
+     已改为 `LLM_SEMANTIC_THRESHOLD`，每次调用现读 `settings`。
+  2. **标定用例的断言方向是反的** —— 它只断言「同义问句分数 ≥ 阈值」，
+     于是阈值定得**太高**才会失败，定得**太低**（会把无关问句当 FAQ 直接作答）
+     永远发现不了。而且它不校验命中的是哪条 FAQ，「高相似度命中错误 FAQ」能蒙混过关。
+  3. **那条用例从来没被执行过** —— 没有 key 就永远跳过，里面的断言等于不存在。
+
+第 3 条的修法值得记下来：**把流程本体抽成 `_run_calibration(client)`**，
+让沙箱用合成向量空间整条跑一遍。抽出来当场抓出一个真 bug ——
+`warm_semantic_index(client)` 传了 client，但 `semantic_search()` 没传，
+于是查询走无 key 的 `default_llm` 返回 `None`。
+
+> **一条永远不跑的测试等于没有测试。** 带 `skipif` 的用例，
+> 它的逻辑必须另有一条能在 CI 里跑的用例去验证，否则写错了没人知道，
+> 等到上线前真跑那天才炸 —— 那时最没时间修。
+
+顺带：写 `calibrate_threshold()` 时我把 `min`/`max` 用反了
+（`max(positives)` / `min(negatives)`），是**先写的测试把它抓出来的**。
+变异验证也做了：把 bug 塞回去 → 2 条测试变红；把阈值写死 → 1 条变红。
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 

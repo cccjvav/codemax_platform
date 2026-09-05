@@ -26,7 +26,7 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Article
-from .faq import SEMANTIC_CONFIDENCE_THRESHOLD, FaqHit, search, semantic_search, tokenize
+from .faq import FaqHit, search, semantic_search, semantic_threshold, tokenize
 from .faq import _Index as RetrievalIndex  # 复用 BM25+余弦，别再写一遍
 from .intent import Intent, IntentResult, default_router, llm_classify
 from .llm import LLMClient, LLMError, default_llm
@@ -100,13 +100,15 @@ async def _second_opinion(
     两步都失败就返回低置信度，让上层转人工（和改动前的行为一致）。
     """
     hits = await semantic_search(text, k=1, client=llm)
-    if hits and hits[0].confidence >= SEMANTIC_CONFIDENCE_THRESHOLD:
+    # 阈值每次现读：它是配置项，换 embedding 模型就要重新标定（TD-206）
+    threshold = semantic_threshold()
+    if hits and hits[0].confidence >= threshold:
         h = hits[0]
         return (
             IntentResult(
                 Intent.FAQ,
                 h.confidence,
-                f"语义检索命中「{h.faq.q}」，余弦 {h.confidence:.2f} ≥ {SEMANTIC_CONFIDENCE_THRESHOLD}"
+                f"语义检索命中「{h.faq.q}」，余弦 {h.confidence:.2f} ≥ {threshold}"
                 f"（词袋只给到 {rule.confidence:.2f}）",
             ),
             h,

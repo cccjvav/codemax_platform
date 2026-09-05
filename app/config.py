@@ -21,6 +21,12 @@ class Settings(BaseSettings):
     # 向量模型必须单独配：对话模型不能打 /embeddings（S4-02-5 的语义 FAQ 检索用）。
     # 本地 Ollama 换成 nomic-embed-text 之类，与 LLM_MODEL 互不影响。
     LLM_EMBED_MODEL: str = "text-embedding-3-small"
+    # 语义检索判定阈值（S4-02-5）。**必须跟着 embedding 模型走**：换模型
+    # （text-embedding-3-small → nomic-embed-text → bge-m3）会让余弦分布整体
+    # 漂移，沿用旧阈值要么永远不命中、要么乱命中。所以它是配置项而不是常量。
+    # ⚠ 0.55 目前是按 text-embedding-3-small 的经验值，**尚未实测标定**，
+    # 上线前跑 tests/test_faq_semantic.py 的标定用例重新量（TD-206）。
+    LLM_SEMANTIC_THRESHOLD: float = 0.55
 
     # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL
     SITE_BASE_URL: str = "https://codemax.top"

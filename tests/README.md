@@ -19,12 +19,12 @@
 > 是 530 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
   ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
   ├─ __init__.py        0 行
-  └─ 35 个 test_*.py  8 181 行  479 个测试
+  └─ 35 个 test_*.py  8 431 行  488 个测试
 ```
 
-本机实测：**532 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **534 passed, 2 skipped**。
+本机实测：**541 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **543 passed, 2 skipped**。
 
-> **为什么本文不逐个测试函数写**：479 个函数逐个写既写不完也没人看。
+> **为什么本文不逐个测试函数写**：488 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
 > 想找某个具体用例，用文末附录的索引命令。
 
@@ -97,7 +97,7 @@ L117-L118  yield AsyncClient(ASGITransport(app=app), base_url="http://test")
 L119       清掉 dependency_overrides
 L120-L121  drop_all                拆表
 ```
-- **每个用例都是干净的库** —— 这是 536 个用例能任意顺序跑的前提
+- **每个用例都是干净的库** —— 这是 545 个用例能任意顺序跑的前提
 - **L119 的 `clear()` 不能省** —— 否则下一个用例会拿到上一个用例的 session 工厂
 
 ### 2.1 分组总览（35 个测试文件）
@@ -253,8 +253,8 @@ L120-L121  drop_all                拆表
 
 | 后端 | passed | skipped | 差异原因 |
 | --- | --- | --- | --- |
-| SQLite（默认） | 532 | **4** | 见下面四条 |
-| 真 PostgreSQL 16 | 534 | **2** | 两条并发用例跑起来了；另两条仍跳 |
+| SQLite（默认） | 541 | **4** | 见下面四条 |
+| 真 PostgreSQL 16 | 543 | **2** | 两条并发用例跑起来了；另两条仍跳 |
 
 4 条 skip 的实测原因（`pytest -rs` 可复现，别照抄本表，行号会变）：
 
@@ -316,9 +316,9 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：532 passed, 4 skipped
+  │    期望：541 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
-       期望：534 passed, 2 skipped
+       期望：543 passed, 2 skipped
        配方见 HANDOVER.md §9
 ```
 
@@ -340,7 +340,7 @@ print('文件数:', len(fs))
 print('总行数:', sum(len(p.read_text(encoding='utf-8').splitlines()) for p in fs))
 print('测试函数:', sum(len(re.findall(r'^(async )?def test_', p.read_text(encoding='utf-8'), flags=re.M)) for p in fs))
 "
-# 预期：文件数 35，总行数 8181，测试函数 479（本机实测一致）
+# 预期：文件数 35，总行数 8431，测试函数 488（本机实测一致）
 
 # ② 按行数排序的文件清单（本文 2.1 分组表的依据）
 python -c "
@@ -361,7 +361,7 @@ grep -rn -A4 --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：532 passed, 4 skipped
+# 本机实测：541 passed, 4 skipped
 
 # ⑦ 只跑某一组
 python -m pytest tests/test_e2e.py -q

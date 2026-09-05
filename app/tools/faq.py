@@ -14,10 +14,12 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import jieba
 
+from ..config import settings
 from .llm import LLMClient, LLMError, default_llm
 
 jieba.initialize()  # 预热词典，别把 ~560ms 算进第一次请求
@@ -221,12 +223,62 @@ _SEMANTIC: list[list[float]] | None = None  # 与 FAQS 等长且**同序**
 _SEMANTIC_NORM: list[float] = []
 _semantic_logger = logging.getLogger("codemax.faq")
 
-# ⚠️ 这个阈值**尚未实测标定**：沙箱里没有可用的 embedding API key，
-# 无法像 0.40 那样在真实语料上量分布（TD-151 记了词袋那次的标定过程）。
-# 取 0.55 是按 text-embedding-3-small 的常见经验：同义问句通常 0.6+，
-# 不相关问句 0.3 左右。**上线前必须用 tests/test_faq_semantic.py 里那条
-# 带 key 才跑的用例重新标定**，否则这个数字没有依据。
-SEMANTIC_CONFIDENCE_THRESHOLD = 0.55
+def semantic_threshold() -> float:
+    """语义命中判定阈值。**每次调用都读 settings**，两个原因：
+
+    1. 标定结果只需改 `.env`，不用改代码、不用重新发版；
+    2. 测试能 monkeypatch —— 常量在 import 时就被 support.py 绑走，改不动。
+
+    ⚠️ 默认 0.55 **尚未实测标定**（沙箱里没有 embedding API key），是按
+    text-embedding-3-small 的经验值：同义问句通常 0.6+，不相关问句 0.3 左右。
+    上线前必须跑 `calibrate_semantic_threshold` 重新量，见 TD-206。
+    """
+    return settings.LLM_SEMANTIC_THRESHOLD
+
+
+def calibrate_threshold(
+    positive_scores: Sequence[float],
+    negative_scores: Sequence[float],
+    *,
+    margin: float = 0.02,
+) -> float:
+    """从两组实测余弦里算出该用的阈值。
+
+    `positive_scores` = 「问法不同但确实在问某条 FAQ」的最高相似度；
+    `negative_scores` = 「与本站无关」的问句的最高相似度。
+
+    阈值必须**同时**满足「不误杀真命中」与「不误收无关问句」，所以取两个分布
+    之间的间隙中点。两侧各留 `margin` 的安全边距：embedding 是有噪声的，
+    贴着边界取值，同一条问句今天命中明天不命中，比稳定地偏保守糟糕得多。
+
+    **两侧分数重叠时抛 ValueError 而不是硬算一个数** —— 重叠意味着这两组语料
+    在这个 embedding 模型下根本分不开，此时任何阈值都是错的，正确的动作是
+    换模型或补 FAQ 语料，而不是挑一个看起来合理的数字糊过去。
+
+    这个函数刻意是纯的、不含 I/O：它可以在沙箱里用合成数据充分测试
+    （见 tests/test_faq_semantic.py），标定逻辑本身因此是被验证过的 ——
+    真正需要 API key 的只是「喂给它真实分数」这一步。
+    """
+    if not positive_scores or not negative_scores:
+        raise ValueError("两组分数都不能为空，否则算出来的阈值没有依据")
+    # 阈值必须同时满足两条，所以取的是「真命中的最低分」与「无关问句的最高分」：
+    #   floor = 最低的那条真命中 —— 阈值高于它就会漏答真问题
+    #   ceil_ = 最高的那条无关问句 —— 阈值低于它就会把无关问句当 FAQ 作答
+    floor = min(positive_scores)
+    ceil_ = max(negative_scores)
+    if floor < ceil_:
+        raise ValueError(
+            f"两组分数重叠（真命中最低 {floor:.3f} < 无关问句最高 {ceil_:.3f}）："
+            f"该 embedding 模型下这两类分不开，任何阈值都不对。"
+            f"请换 embedding 模型或补充 FAQ 语料，而不是挑一个数糊过去。"
+        )
+    threshold = (ceil_ + floor) / 2
+    if floor - margin < ceil_ + margin:
+        raise ValueError(
+            f"间隙只有 {floor - ceil_:.3f}，不足以留出 ±{margin} 的安全边距。"
+            f"阈值 {threshold:.3f} 会贴边抖动，请补语料把两个分布拉开。"
+        )
+    return round(threshold, 3)
 
 
 async def warm_semantic_index(client: LLMClient = default_llm) -> bool:

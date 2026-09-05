@@ -216,7 +216,7 @@
 
 ---
 
-### 📄 文件名：`faq.py`（303 行）
+### 📄 文件名：`faq.py`（355 行）
 
 - **文件职责**：FAQ 检索，**BM25 + 余弦相似度融合召回**。语料硬编码在代码里（12 条），不放数据库 —— 条目少、随代码评审、不需要运营后台（L32-L34 注释）。
 
@@ -285,12 +285,31 @@ FAQ 表本身就是语料，12 条在启动时向量化一次即可。
 | `semantic_ready()` | 索引是否可用 |
 | `reset_semantic_index()` | 清空缓存。**测试专用**：它是进程内全局变量，不隔离会互相污染 |
 | `async semantic_search(query, k, client)` | 语义 top-k。**索引未预热或调用失败返回 `None`，而不是空列表** —— 前者是「语义不可用，该回落」，后者是「跑了但没相关内容，该转人工」，混为一谈上层就做不出正确兜底 |
-| `SEMANTIC_CONFIDENCE_THRESHOLD = 0.55` | ⚠ **尚未实测标定**（沙箱无 embedding key）。上线前必须跑 `tests/test_faq_semantic.py` 里那条带 key 才执行的用例重新量，见 TD-206 |
+| `semantic_threshold()` | 语义命中判定阈值（默认 0.55，配置项 `LLM_SEMANTIC_THRESHOLD`）。**每次调用现读 `settings`**，标定结果只需改 `.env` 不用改代码，测试也能 monkeypatch。⚠ 默认值**仍未实测标定**，见 TD-206 |
+| `calibrate_threshold(positives, negatives, margin)` | 从两组实测余弦算出该用的阈值：取「同义问句最低分」与「无关问句最高分」之间的间隙中点，两侧各留安全边距。**纯函数、无 I/O**，所以在沙箱里就能充分测试。两组分数重叠、或间隙不足以留边距时**直接抛 `ValueError`** —— 那意味着该 embedding 模型下两类根本分不开，硬算一个数只会把模型选型问题伪装成已解决的配置问题 |
 | `FaqHit.semantic` | `True` 表示本条来自语义检索；此时 `bm25` 无意义、恒为 0 |
 
 `search()` 刻意**仍是同步**的：向量化查询要发网络请求，而 `RuleIntentRouter.classify()`
 是同步接口。所以两条路各归其位 —— `search()` 是路由的免费快车道，
 `semantic_search()` 只在快车道没把握时用。
+
+**为什么阈值是配置项而不是常量**：`LLM_EMBED_MODEL` 本来就可配置（`.env.example` 里
+写着「本地 Ollama 换成 nomic-embed-text」），而**换 embedding 模型会让余弦分布整体漂移** ——
+同一个 0.55 在 text-embedding-3-small 上偏保守，在别的模型上可能形同虚设。
+可配置的东西旁边不该有一个必须跟着它变、却变不了的常量。见 TD-210。
+
+**标定怎么跑**（需要真实 `LLM_API_KEY`）：
+
+```
+pytest tests/test_faq_semantic.py::test_calibrate_semantic_threshold -s
+```
+
+它会打印两组实测分布与建议值，把建议值写进 `.env` 的 `LLM_SEMANTIC_THRESHOLD` 即可。
+这条用例默认被跳过，所以它的断言平时永远不执行 —— 为此流程本体被抽成了
+`tests/test_faq_semantic.py::_run_calibration(client)`，沙箱里用合成向量空间整条跑一遍
+（`test_calibration_harness_has_teeth`）。这个抽取当场抓出一个真 bug：
+`warm_semantic_index(client)` 传了 client，但 `semantic_search()` 没传，
+于是查询走无 key 的 `default_llm` 返回 `None`。**一条永远不跑的测试等于没有测试。**
 
 ### 📄 文件名：`intent.py`（182 行）
 
