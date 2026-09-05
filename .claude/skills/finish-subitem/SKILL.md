@@ -1,7 +1,7 @@
 ---
 name: finish-subitem
 description: >
-  一个 ROADMAP 子项做完后的固定收尾流程：跑两套测试、TD 入账、五处文档同步、
+  一个 ROADMAP 子项做完后的固定收尾流程：跑两套测试、TD 入账、六处文档同步、
   提交推送、刷新 PR、看 CI。
   Trigger: 某个 ROADMAP 子项（如 S4-01-2）实现完成、准备交付时。
 ---
@@ -25,7 +25,7 @@ TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata"
 ```
 真库起不来时按 `HANDOVER.md` §9 重建；实在起不了要在提交信息里写明「真库未跑」。
 
-### 3. 文档同步（五处，一个都不能漏）
+### 3. 文档同步（六处，一个都不能漏）
 
 | 文件 | 改什么 |
 | --- | --- |
@@ -33,9 +33,60 @@ TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata"
 | `TECH_DECISIONS.md` | 本子项产生的取舍，每条一个 TD-xx（含代价与「何时回头改」）；解决掉的旧 TD 用 `~~TD-xx~~ **已解决**` 划掉而**不是删行** |
 | `AGENTS.md` + `HANDOVER.md` | TD 计数、测试基线数字、§1 当前状态（HEAD / PR 提交数） |
 | `HANDOVER.md` §6 / §7 | 新踩的坑 / 已完成清单 |
+| **该文件所属目录的 `README.md` + 所有上级入口** | **新增/删除/改名任何代码文件时必做**，见下方「第六处的细则」 |
 | **`docs/ARCHITECTURE_GUIDE.md`** | **有新实现/新功能就必须跟上**：新子系统或新机制**补一课**（四段式：① 大白话 → ② 生活比喻 → ③ 落到哪个文件+实测数字 → ④ 行业术语对照）；已有课讲的行为变了就**改对应小节**并写明"原来是什么、为什么变"；课末预告要与实际下一课一致 |
 
+#### 第六处的细则：新增代码文件后，「上级入口」一个都不能漏
+
+**这一条是被真实事故逼出来的**：新增 `scripts/build_docs_site.py`（898 行）之后，
+只写了代码没动文档，结果 ——
+
+- `scripts/README.md` 里**完全没提这个文件**（覆盖率从 90/90 掉到 90/91）
+- `DOCUMENTATION_SUMMARY.md` 里 5 处「90 个代码文件」全部过期
+- `总览.md` 的目录树与索引表还写着 `scripts/ · .mjs（1）`「68 行」
+- `AGENTS.md` 文档地图、根 `README.md` 都没有新东西的入口
+
+**新增一个代码文件时，按这张清单逐个过**：
+
+| # | 要改的地方 | 改什么 |
+| --- | --- | --- |
+| 1 | **该文件所属目录的 `README.md`** | 加一节文件级说明书（职责 / 关键函数带行号 / 执行流程），并更新该 README 的「实测结构」与文首「行号基准 commit」 |
+| 2 | `总览.md` | §4 目录树的该目录一行、§7 索引表的行数、§0.2 快速导航（若是核心入口）、**§8 附录的预期数字** |
+| 3 | `DOCUMENTATION_SUMMARY.md` | 覆盖率数字、按后缀统计、交付清单 |
+| 4 | `AGENTS.md` 文档地图 | 新文档要有一行入口 |
+| 5 | 根 `README.md` 「文档」段 | 新文档要能从根 README 点进去 |
+| 6 | `docs/site/` | 若新增了文档，`scripts/build_docs_site.py` 的 `DOC_GROUPS` 要加进去，然后重跑构建 |
+
+**核完不能只看，要跑命令**（下面「计数命令」里的覆盖率脚本就是干这个的）。
+**「我以为改全了」不算数，跑出来 0 遗漏才算数。**
+
+> 同类事故已经发生过两次：第一次是 `scripts/` 整个目录没有 README（靠覆盖率脚本抓出），
+> 第二次就是本条。**根因都是「按自己记得的清单改」而不是「扫一遍反推」**。
+
 计数命令（改完必须核一遍，别手写数字）：
+
+```bash
+# 覆盖率：每个代码文件是否被本目录 README 提及（0 遗漏才算过）
+python -c "
+import pathlib
+EX = {'.venv','.git','__pycache__','.pytest_cache','.ruff_cache','node_modules'}
+CODE = {'.py','.js','.mjs','.sql','.html','.yml','.yaml','.toml','.ini','.json','.css','.xml'}
+GEN = ('docs/site/d','docs/site/s','docs/site/data')
+GENF = ('docs/site/index.html','docs/site/graph.html','docs/site/routes.html','docs/site/symbols.html')
+files = [p for p in pathlib.Path('.').rglob('*')
+         if p.is_file() and p.suffix.lower() in CODE and not (set(p.parts) & EX)
+         and not str(p).replace(chr(92),'/').startswith(GEN)
+         and str(p).replace(chr(92),'/') not in GENF]
+miss = []
+for f in files:
+    own = pathlib.Path('docs/ROOT_FILES.md') if str(f.parent)=='.' else f.parent/'README.md'
+    if not own.exists() or f.name not in own.read_text(encoding='utf-8'): miss.append(f)
+print('代码文件:', len(files), ' 未被本目录 README 提及:', len(miss))
+for m in miss: print('   ❌', m)
+"
+```
+
+
 ```bash
 # TD 条目总数
 grep -oE '^\| (~{0,2})TD-[0-9]+' TECH_DECISIONS.md | grep -oE 'TD-[0-9]+' | sort -u | wc -l

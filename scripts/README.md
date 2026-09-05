@@ -1,6 +1,6 @@
 # `scripts/` 模块说明书
 
-> **行号基准 commit：`d01d5cc`**（2026-09-04）。本文所有 `L12-L35` 形式的引用都对应这个提交。
+> **行号基准 commit：`3f74718`**（2026-09-05）。本文所有 `L12-L35` 形式的引用都对应这个提交。
 > 复算方式见文末「附：行号与数字怎么复核」。
 >
 > 姊妹篇：`database init/README.md`（本脚本体检的对象）、`tests/README.md`、`app/README.md`、
@@ -13,7 +13,14 @@
 
 ### 1.1 定位
 
-**只有一个文件**：`check_schema_pg.mjs`，68 行。它是建表脚本的**深度体检工具**。
+**两个脚本，职责完全不同，互不依赖**：
+
+| 文件 | 行数 | 干什么 | 什么时候跑 |
+| --- | --- | --- | --- |
+| `check_schema_pg.mjs` | 68 | 建表脚本的**深度体检**（用 WASM 版真 PostgreSQL 执行 `full_init.sql`） | 改了建表脚本时，**可选** |
+| `build_docs_site.py` | 898 | **文档站构建**：从代码里提取依赖图/路由表/符号表，把 21 份 Markdown 渲染成静态网站 | 改了文档或代码后想看网页版时 |
+
+下面 §1.2 与 §2.1 讲第一个，§2.2 与 §3.5 讲第二个。
 
 **它解决的问题**（文件头 L4-L5 原文）：
 
@@ -22,7 +29,7 @@
 
 做法是**用 WASM 版的真 PostgreSQL（PGlite）在 node 进程里跑** —— 不需要装数据库服务、不需要网络端口，一个 `new PGlite()` 就是一个真的 PG 实例。
 
-### 1.2 它在「三道校验」里的位置
+### 1.2 `check_schema_pg.mjs` 在「三道校验」里的位置
 
 | 校验 | 位置 | 什么时候跑 | 能抓到什么 |
 | --- | --- | --- | --- |
@@ -38,14 +45,18 @@
 
 ```text
 scripts/
-└── check_schema_pg.mjs   68 行   ESM 模块（.mjs），用了顶层 await
+├── check_schema_pg.mjs    68 行   ESM 模块（.mjs），用了顶层 await
+└── build_docs_site.py    898 行   文档站构建（35 个函数，需 mistune）
 ```
+
+> **两个脚本都不接入 pytest** —— 它们是开发工具，不是每次改动的必经检查。
+> 每次必跑的建表脚本校验是 `tests/test_schema_sync.py`。
 
 ---
 
 ## 2. 文件级详细说明书
 
-### 📄 文件名：`check_schema_pg.mjs`（68 行）
+### 2.1 📄 文件名：`check_schema_pg.mjs`（68 行）
 
 - **文件职责**：起一个 WASM PostgreSQL，把 `database init/full_init.sql` 真执行两遍，然后查表/外键/索引，最后写一条数据读回冒烟。
 
@@ -121,6 +132,65 @@ const PGlite = await loadPGlite(process.argv[2] ?? "@electric-sql/pglite");
 
 ---
 
+### 2.2 📄 文件名：`build_docs_site.py`（898 行）
+
+- **文件职责**：从代码里**真实提取**站点数据（模块依赖图 / 路由表 / 符号表），
+  再把 21 份 Markdown 预渲染成**完全离线**的静态网站。
+- **依赖**：只有渲染 HTML 时需要 `mistune`（纯 Python、零传递依赖）；
+  加 `--data-only` 时**只用标准库**。
+
+#### 常量　L22-L27
+
+| 常量 | 行 | 作用 |
+| --- | --- | --- |
+| `ROOT` / `SITE` / `DATA` | L22-L24 | 仓库根、`docs/site/`、`docs/site/data/` |
+| `EXCLUDE_DIRS` | L26 | 扫描时排除的目录（`.venv` `.git` `__pycache__` 等） |
+| `CODE_EXT` | L27 | 认定为「代码文件」的后缀集合 |
+
+#### 数据提取（四个函数，都用 `ast` 而不是正则）
+
+**`build_import_graph()`　L55-L109** —— 提取内部依赖边。
+
+- **关键：必须解析相对导入**。本仓库大量使用 `from ..models import X`、`from .config import Y`。
+  **只看 `n.module.startswith("app")` 会漏到只剩 5 条边，实测真实是 179 条。**
+- **L87 `if p.name != "__init__.py"`** —— 相对导入的层级要按「当前文件是不是包」退一层
+- `_layer_of()`　L112-L126 —— 按路径给模块归层（API 层 / 业务逻辑层 / 基础设施 / 测试…）
+
+**`build_routes()`　L132-L191** —— 提取路由表。
+
+- **为什么用 AST 而不是正则**：鉴权有**两种写法**，正则只能抓到第一种 ——
+  ① 装饰器里 `@router.post("/x", dependencies=[Depends(require_admin)])`
+  ② **函数签名里** `async def f(user: User = Depends(get_current_user), ...)`
+  **只看装饰器会得出「需鉴权 0 条」这种明显错误的结论**，实测真实是 16 条。
+- **L168-L172** —— ⚠️ 不能用 `ast.get_source_segment(src, fn.args)`：
+  `ast.arguments` 节点**实测返回 `None`**。改成按行区间取「装饰器起 → 函数体第一句」。
+- `_file_anchor()`　L194-L204 —— 复刻 GitHub 的标题→锚点算法（含中文与 emoji）
+
+**`build_symbols()`　L210-L238** —— 遍历 `FunctionDef` / `ClassDef`，
+记录每个符号的文件、起止行、所属模块，以及**它对应哪份说明书**（`_DOC_MAP` L241 + `_doc_for()` L253-L259）。
+
+**`build_manifest()`　L286-L310** —— 扫 21 份文档，记录标题、行数、小节数、代码块数。
+分组顺序由 `DOC_GROUPS`（L265）决定，也就是侧边栏的顺序。
+
+#### 静态渲染
+
+**`render_site()`　L342-L438** —— 主渲染流程：21 份文档页 + 91 个源码页 + 首页 + 3 个可视化页。
+
+几个必须知道的辅助函数：
+
+| 函数 | 行 | 为什么不能省 |
+| --- | --- | --- |
+| `slug()` | L316-L322 | **必须保留中文**：仓库里有 `总览.md`，用 `[^A-Za-z0-9._-]` 会把汉字全删成空，产出 `__.md.html` 这种既难看又撞车的名字 |
+| `_inject_heading_ids()` | L485-L503 | **mistune 默认不给标题加 `id`**（实测 `<h2 id=...>` 一个都没有），不注入则右侧目录与跨文档锚点**全部失效** |
+| `_mark_mermaid()` | L472-L482 | 给 mermaid 代码块加提示条（本站刻意不加载 mermaid.js，见 `docs/site/README.md`） |
+| `_postprocess()` | L506-L541 | 改写链接：`.md` → 文档页；`file.py:12` → 源码页对应行。**必须 `unquote`** —— mistune 的 url 插件会把中文与空格百分号编码 |
+| `_rebase_nav()` | L559-L563 | 文档页与源码页在 `d/` `s/` 子目录下，站点级链接要加 `../` 前缀 |
+| `_render_graph_page()` | L668-L752 | **依赖图直接生成 SVG**（按拓扑深度分层），不依赖 D3 |
+
+**`main()`　L844-L894** —— 生成 `data/*.json`，然后渲染；`--data-only` 只到第一步。
+
+---
+
 ## 3. 执行逻辑流
 
 ### 3.1 一次体检的完整过程
@@ -176,6 +246,45 @@ node scripts/check_schema_pg.mjs /tmp/node_modules/@electric-sql/pglite
 
 ---
 
+### 3.5 一次文档站构建的完整过程
+
+```text
+python scripts/build_docs_site.py
+  │
+  ├─ L851-L854   四个提取函数
+  │     ├─ build_import_graph()   ast 解析 import（含相对导入）  → 72 模块 / 179 条边
+  │     ├─ build_routes()         ast 解析装饰器 + 函数签名     → 32 条路由（16 需鉴权）
+  │     ├─ build_symbols()        ast 遍历 FunctionDef/ClassDef → 250+ 个符号
+  │     └─ build_manifest()       扫 21 份 .md                  → 行数随文档变
+  │
+  ├─ L867-L872   写 docs/site/data/{graph,routes,symbols,manifest,meta}.json
+  │
+  ├─ --data-only 到此为止（只要数据、不渲染，此时**不需要 mistune**）
+  │
+  ├─ L884-L887   检查 mistune 是否可用，没有就报清楚的错并退出
+  │
+  └─ L890        render_site()
+        ├─ 20 份文档页   mistune 渲染 → 注入标题 id → 改写链接 → 写 docs/site/d/
+        ├─ 91 个源码页   带行号 + 该文件全部符号的跳转条 → 写 docs/site/s/
+        ├─ 首页          统计卡片 + 可视化入口 + 分组文档卡片
+        ├─ graph.html    依赖图 SVG（按拓扑深度分层，40 核心模块 / 85 条边）
+        ├─ routes.html   路由表（可按方法/鉴权/限流/路径过滤）
+        ├─ symbols.html  符号卡片（可搜索、可按类型过滤）
+        └─ data/search.json   侧栏搜索用的标题索引
+
+结果：docs/site/ 共 116 页，**完全离线、双击 index.html 即开**
+```
+
+> **生成物不入 Git**：`docs/site/` 下只有 `README.md`、`style.css`、`site.js` 是手写源文件，
+> 其余（`index.html`、`graph.html`、`routes.html`、`symbols.html`、`d/`、`s/`、`data/`）
+> 都已在 `.gitignore` 排除。改完文档或代码后重跑本脚本即可（约 1 秒）。
+
+> **本站为什么不做浏览器端渲染**：本沙箱实测 `cdn.jsdelivr.net` 不可达（HTTP 000），
+> mermaid 的 ESM 要带 206 个 chunk / 17 MB，highlight.js 的 npm 包没有现成浏览器包。
+> 三条都写在 `docs/site/README.md` 里。
+
+---
+
 ## 附：行号与数字怎么复核
 
 本文的行号与统计数字都对应 commit `d01d5cc`。复核命令（在仓库根目录）：
@@ -183,7 +292,7 @@ node scripts/check_schema_pg.mjs /tmp/node_modules/@electric-sql/pglite
 ```bash
 # 1) 行数
 python -c "import pathlib; print(len(pathlib.Path('scripts/check_schema_pg.mjs').read_text(encoding='utf-8').splitlines()))"
-# 预期：68
+# 预期：68（另一个脚本 build_docs_site.py 是 898 行，见下面第 4 条）
 
 # 2) 真跑一遍体检（需要 node 与 PGlite）
 cd /tmp
@@ -210,7 +319,23 @@ print(f'PK={pk} UNIQUE={uq} 显式CREATE INDEX={len(ci)} → pg_indexes 应为 {
 "
 # 预期：PK=7 UNIQUE=6 显式CREATE INDEX=2 → 15
 
-# 4) 每次必跑的那道校验（不是本脚本）
+# 4) build_docs_site.py 的行数与函数数
+python -c "
+import ast, pathlib
+s = pathlib.Path('scripts/build_docs_site.py').read_text(encoding='utf-8')
+t = ast.parse(s)
+fns = [n for n in ast.walk(t) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
+print('行数', len(s.splitlines()), ' 函数', len(fns))
+"
+# 预期：行数 898  函数 35
+
+# 5) 构建文档站并核对提取结果（需要 mistune）
+pip install mistune
+python scripts/build_docs_site.py --data-only
+# 预期：模块 72 个 · 依赖边 179 条 · 路由 32 条 · 文档 21 份
+# （文档行数会随文档增改而变，本次实测 9345 行；模块/边/路由数只随代码变）
+
+# 6) 每次必跑的那道校验（不是本脚本）
 python -m pytest tests/test_schema_sync.py -q
 ```
 

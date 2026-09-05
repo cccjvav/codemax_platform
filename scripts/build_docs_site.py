@@ -263,7 +263,7 @@ def _doc_for(rel: str) -> str | None:
 
 # 分组顺序即侧边栏顺序
 DOC_GROUPS = [
-    ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md"]),
+    ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
     ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/ROOT_FILES.md"]),
     (

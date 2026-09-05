@@ -7,7 +7,10 @@
 
 ## 1. 一句话结论
 
-**10 个含代码目录、90 个代码文件、12 005 行代码，已由 11 份文档（4 714 行）全覆盖。**
+**10 个含代码目录、91 个代码文件、12 903 行代码，已由 13 份文档全覆盖。**
+>
+> ⚠️ 本文的数字是**审查当时**的快照。之后仓库又新增了 `scripts/build_docs_site.py`（文档站构建，898 行）
+> 与 `docs/site/README.md`，本节数字已同步更新；再往后新增文件时，**必须重跑 §6 的复核命令并更新本文**。
 覆盖率、链接有效性、格式规范三项检查**全部通过，0 项待补**。
 
 ---
@@ -28,23 +31,25 @@
 | 6 | `database init/` | 7 | 489 | `database init/README.md` | 466 |
 | 7 | `.github/workflows/` | 1 | 181 | `.github/workflows/README.md` | 233 |
 | 8 | `app/static/` | 1 | 149 | `app/static/README.md` | 206 |
-| 9 | `scripts/` | 1 | 68 | `scripts/README.md` | 221 |
+| 9 | `scripts/` | 2 | 966 | `scripts/README.md` | 346 |
 | 10 | （仓库根） | 4 | 145 | `docs/ROOT_FILES.md` | 371 |
-| | **合计** | **90** | **12 005** | **10 份 + `总览.md`** | **4 714** |
+| | **合计** | **91** | **12 903** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **约 5 300** |
 
 > **两点说明**：
 > ① **`docs/` 与 `.claude/` 不在表内** —— 两者不含代码文件（前者是文档，后者是 7 个 Agent Skill）。
+> ③ **「文档行数」列只有 10 份说明书**，合计栏的「约 5 300」还包含 `总览.md` / 本文 / `docs/site/README.md`。
+>    **这个总数会随文档增改而漂移，不必对齐** —— 代码文件数（91）与代码行数（12 903）只随**代码**变，那两列才是断言。
 > ② **「（仓库根）4 个」是按代码后缀统计的**（`main.py` `ruff.toml` `pytest.ini` `docker-compose.yml`）。
 >    `requirements.txt`（`.txt`）与 `Dockerfile`（无后缀）不计入后缀统计，
 >    但 **`docs/ROOT_FILES.md` 实际覆盖了 6 个文件**，没有漏。
 
 ### 2.2 解析了多少个代码文件
 
-**90 个**，按类型：
+**91 个**，按类型：
 
 | 后缀 | 个数 | 说明 |
 | --- | --- | --- |
-| `.py` | 69 | 应用代码 + 测试 + 建库脚本 |
+| `.py` | 72 | 应用代码 + 测试 + 建库脚本 + 文档站构建脚本 |
 | `.html` | 7 | Jinja2 模板 |
 | `.sql` | 6 | 建表 + 5 个迁移 |
 | `.yml` | 2 | CI 流水线、docker-compose |
@@ -55,7 +60,7 @@
 
 ## 3. 覆盖率检查（第 1 项）
 
-**方法**：把 90 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
+**方法**：把 91 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
 
 | 口径 | 含义 | 结果 |
 | --- | --- | --- |
@@ -63,7 +68,7 @@
 | **B**（更严） | 被**本目录**的 `README.md` 提及 | **90 / 90，遗漏 0** |
 
 > 口径 B 是关键：一个文件可能只在别的文档里被顺带提一句，那不算「被解析」。
-> 口径 B 要求它出现在**自己所属目录**的说明书里 —— 90 个全部满足。
+> 口径 B 要求它出现在**自己所属目录**的说明书里 —— 91 个全部满足。
 >
 > **本轮无需补充任何文件夹文档。** 但审查过程中确实发现过一次遗漏（`scripts/` 曾没有 README，
 > 已于 commit `8567cd7` 补上）—— 见 §7「审查中发现并修掉的问题」。
@@ -156,20 +161,23 @@
 本报告所有数字都可复算（在仓库根目录、已激活 `.venv`）：
 
 ```bash
-# ① 覆盖率：90 个代码文件是否都被本目录 README 提及
+# ① 覆盖率：91 个代码文件是否都被本目录 README 提及
 python -c "
 import pathlib
 EX = {'.venv','.git','__pycache__','.pytest_cache','.ruff_cache','node_modules'}
 CODE = {'.py','.js','.mjs','.sql','.html','.yml','.yaml','.toml','.ini','.json','.css','.xml'}
 files = [p for p in pathlib.Path('.').rglob('*')
-         if p.is_file() and p.suffix.lower() in CODE and not (set(p.parts) & EX)]
+         if p.is_file() and p.suffix.lower() in CODE and not (set(p.parts) & EX)
+         and not str(p).replace(chr(92), '/').startswith(('docs/site/d', 'docs/site/s', 'docs/site/data'))
+         and str(p).replace(chr(92), '/') not in ('docs/site/index.html', 'docs/site/graph.html',
+                                                  'docs/site/routes.html', 'docs/site/symbols.html')]
 miss = []
 for f in files:
     own = pathlib.Path('docs/ROOT_FILES.md') if str(f.parent)=='.' else f.parent/'README.md'
     if not own.exists() or f.name not in own.read_text(encoding='utf-8'): miss.append(f)
 print('代码文件:', len(files), ' 未被本目录 README 提及:', len(miss))
 "
-# 预期：代码文件: 90   未被本目录 README 提及: 0
+# 预期：代码文件: 91   未被本目录 README 提及: 0
 
 # ② 代码块语言标记：裸块必须为 0
 python -c "
@@ -210,6 +218,7 @@ QA 阶段不是走过场 —— 本轮与前几轮的核对共抓出 **8 类问�
 | 6 | `middleware.py:123` 是 `__call__` 入口，不是取 request-id 的那行 | 行号不精确 | 改指 **L128**（起计时 L131） |
 | 7 | **109 个代码块没有语言标记** | 无法高亮 | 脚本分类 + 人工纠正 1 处，全部标注 |
 | 8 | 拼接脚本产出重复的空壳标题；校验正则漏了 `>` | 文档结构脏 / 误报 | 删除重复段、修正则后重跑通过 |
+| 9 | **新增 `scripts/build_docs_site.py` 后没同步 `scripts/README.md`** | 覆盖率从 90/90 掉到 90/91，本文数字全部过期 | 补 §2.2 与 §3.5 完整说明书，并同步 `总览.md`／`AGENTS.md`／本文；**教训写进 `.claude/skills/finish-subitem/SKILL.md`** |
 
 > **贯穿这 8 条的教训**：**文档里的每一个数字、路径、行号、函数名都必须实测**。
 > 这条已经写进 `AGENTS.md` 的 ALWAYS 段（commit `213b80c`）：
@@ -232,7 +241,8 @@ QA 阶段不是走过场 —— 本轮与前几轮的核对共抓出 **8 类问�
 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | 371 | 根目录入口与构建配置（6 个文件） |
 | [tests/README.md](./tests/README.md) | 358 | 测试策略与分组（30 个文件 / 389 个用例） |
 | [.github/workflows/README.md](./.github/workflows/README.md) | 233 | CI 流水线 |
-| [scripts/README.md](./scripts/README.md) | 221 | 建表脚本深度体检 |
+| [scripts/README.md](./scripts/README.md) | 346 | 建表脚本深度体检 + **文档站构建脚本** |
+| [docs/site/README.md](./docs/site/README.md) | 195 | **文档站**：离线静态站的用法与 Windows 指南 |
 | [app/static/README.md](./app/static/README.md) | 206 | 前端脚本（`er.js`） |
 | **DOCUMENTATION_SUMMARY.md** | 本文 | **QA 审查报告** |
 | | **4 714 + 本文** | |
