@@ -1,5 +1,6 @@
 """S5-03 运维部分：安全响应头、健康探针、生产自检、CPU 池兜底。"""
 import re
+import time
 from pathlib import Path
 
 import pytest
@@ -287,3 +288,60 @@ def test_dockerfile_does_not_copy_secrets_or_venv():
     for must in (".env", ".venv", ".git"):
         assert must in ignore, f".dockerignore 少了 {must}，会把密钥/虚拟环境打进镜像"
     assert "COPY .env" not in text, "绝不能把 .env 打进镜像"
+
+
+# ============================================================ 依赖安全（TD-200）
+
+
+def test_multipart_content_type_redos_is_patched():
+    """`python-multipart` 必须 ≥ 0.0.26：Content-Type 头的 ReDoS 不能回来（TD-200）。
+
+    这条测试的由来是实测：装 0.0.6 时，一个约 60 字节的畸形 `Content-Type` 头
+    就能让**主事件循环**卡住数秒 —— 反斜杠每多 4 个耗时约 ×7：
+
+        24 个 → 0.013s    28 个 → 0.089s    32 个 → 0.59s    36 个 → 4.04s
+
+    而且这条路径**真的可达**：给 `/auth/login` 发 multipart 头时，stderr 会打出
+    `multipart.multipart` 自己的日志。本项目没有任何 `UploadFile` 端点，
+    但 Starlette 的 `request.form()` 照样会把 multipart 头交给它解析。
+
+    为什么钉 0.0.26 而不是 0.0.7：0.0.7 只修了 Content-Type ReDoS 这一个，
+    之后还有 0.0.18（畸形 boundary 逐字节跳过 + 每次记一条日志）、
+    0.0.26（超大 preamble/epilogue）两处同类 DoS。
+
+    阈值取 1 秒而不是贴近实测值：修复后是 0.0000s、修复前是 4.04s，
+    中间差四个数量级，1 秒足够宽松又足够灵敏，不会因机器快慢抖动误报。
+    """
+    try:
+        from python_multipart import multipart as mm
+    except ImportError:  # 0.0.18 之前只有旧模块名
+        from multipart import multipart as mm
+
+    payload = b'multipart/form-data; boundary=x; filename="' + b"\\" * 36 + b"x"
+    started = time.monotonic()
+    mm.parse_options_header(payload)
+    elapsed = time.monotonic() - started
+    assert elapsed < 1.0, (
+        f"Content-Type 解析耗时 {elapsed:.3f}s —— python-multipart 疑似回退到有 ReDoS 的版本，"
+        "请确认 requirements.txt 里钉的是 >=0.0.26"
+    )
+
+
+def test_python_multipart_pinned_above_known_cve_versions():
+    """requirements.txt 里的 `python-multipart` 必须钉在已知 CVE 全部修完的版本上。
+
+    与上一条互补：上一条测**运行时行为**，这一条测**声明**，
+    防止有人改了 requirements 却没重装环境（那样上一条会是绿的）。
+    """
+    line = next(
+        (ln for ln in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
+         if ln.strip().startswith("python-multipart")),
+        None,
+    )
+    assert line, "requirements.txt 里找不到 python-multipart"
+    m = re.search(r"python-multipart\s*==\s*([0-9.]+)", line)
+    assert m, f"python-multipart 必须钉死版本（AGENTS.md：依赖全部钉死），实际写法：{line!r}"
+    got = tuple(int(x) for x in m.group(1).split("."))
+    assert got >= (0, 0, 26), (
+        f"python-multipart=={m.group(1)} 仍受已公布 CVE 影响，最低要 0.0.26（TD-200）"
+    )
