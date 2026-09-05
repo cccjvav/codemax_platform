@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -88,7 +89,30 @@ async def create_order(
             status=PENDING,
         )
         db.add(order)
-        await db.flush()  # 先拿到 id，后面 commit 才不会因为下单失败而丢单
+        # `user.id` 必须在 flush **之前**取成局部变量：下面的 rollback 会无条件过期
+        # 所有 ORM 对象（`expire_on_commit=False` 管不到 rollback），回滚后再碰
+        # `user.id` 会触发同步懒加载，在 async 上下文里就是 MissingGreenlet
+        # （真 PostgreSQL 上实测炸过，SQLite 单连接下反而看不出来）。
+        user_id = user.id
+        try:
+            await db.flush()  # 先拿到 id，后面 commit 才不会因为下单失败而丢单
+        except IntegrityError:
+            # 撞上了 uq_sys_order_user_pending（TD-199）：并发下别人先插成功了。
+            # 回滚本次插入，改用**已经存在的那张**单 —— 对客户端来说语义不变
+            # （拿到同一张待支付单），但库里不会堆出一排 pending。
+            # 这里必须由数据库兜底：应用层「先查后建」在 asyncio 交错下必然漏，
+            # 而进程内锁在多实例部署时各算各的（与限流 TD-141 同一个道理）。
+            await db.rollback()
+            order = await db.scalar(
+                select(Order)
+                .where(Order.user_id == user_id, Order.status == PENDING)
+                .order_by(Order.id.desc())
+                .limit(1)
+            )
+            if order is None:  # 极端情况：对方在我们回滚期间把单关掉了
+                raise HTTPException(409, "下单冲突，请重试") from None
+            if order.code_url:
+                return _payload(order, reused=True, pay_mode=mode)
 
     if mode == "mock":
         # 用请求的 base_url 而不是 SITE_BASE_URL：本地演示时链接要能直接点开

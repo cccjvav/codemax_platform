@@ -19,13 +19,14 @@ from urllib.parse import parse_qs, urlsplit
 
 import pytest
 from sqlalchemy import select, update
+from sqlalchemy.exc import IntegrityError
 
 import app.routers.shop as shop
 from app.config import settings
 from app.models import OAuthClient, Order, User
 from app.order_state import CLOSED, DOWNLOADED, PAID, PENDING
 from app.storage import LocalStorage
-from tests.conftest import TestSession, seed_clients, sso_authorize
+from tests.conftest import TEST_DATABASE_URL, TestSession, seed_clients, sso_authorize
 
 PRODUCT_KEY = "product/codemax_package.zip"
 
@@ -465,3 +466,65 @@ async def test_late_payment_is_idempotent(client, mock_mode):
 
     assert (await pay_via_mock(client, h, order_no)).status_code == 200
     assert (await order_row(order_no)).transaction_id == first, "重复确认不该改写支付流水号"
+
+
+@pytest.mark.asyncio
+async def test_only_one_pending_order_per_user_at_db_level(client):  # noqa: ARG001 —— 只为建表
+    """数据库层兜底：同一用户不允许有第二张 pending 单（TD-199）。
+
+    这条是**确定性**的，SQLite 与真 PostgreSQL 上都跑 —— 它验的是那个部分唯一索引
+    真的建出来了、真的生效。并发行为由下面那条真库测试负责。
+
+    为什么必须靠索引而不是应用层：`POST /shop/orders` 是「先查 pending 再新建」，
+    `asyncio.gather` 的 5 个请求会在各自 `await` 处交错，**5 个 SELECT 全都在任何一个
+    INSERT 提交之前跑完**，于是都判定「没有可复用的单」。进程内锁在多实例部署下
+    各算各的（与限流 TD-141 同一个道理），只有数据库约束是跨实例的。
+    """
+    async with TestSession() as s:
+        u = User(username="idxuser", password="x")
+        s.add(u)
+        await s.flush()
+        s.add(Order(order_no="CM-IDX-1", user_id=u.id, product_name="p", amount=1, status=PENDING))
+        await s.commit()
+        uid = u.id
+
+    async with TestSession() as s:
+        s.add(Order(order_no="CM-IDX-2", user_id=uid, product_name="p", amount=1, status=PENDING))
+        with pytest.raises(IntegrityError):
+            await s.commit()
+
+    # 已支付的历史单不受限：否则用户买第二次就下不了单了
+    async with TestSession() as s:
+        s.add(Order(order_no="CM-IDX-3", user_id=uid, product_name="p", amount=1, status=PAID))
+        await s.commit()
+        n = len((await s.execute(select(Order).where(Order.user_id == uid))).scalars().all())
+    assert n == 2, "paid 单不该被这个唯一索引挡住"
+
+
+@pytest.mark.asyncio
+@pytest.mark.skipif(
+    TEST_DATABASE_URL.startswith("sqlite"),
+    reason="需要真数据库：SQLite 用 StaticPool 共享单连接，一个请求的 rollback 会把"
+           "别人的插入一起回滚，测不出真实的并发冲突",
+)
+async def test_concurrent_orders_create_only_one_pending(client, mock_mode):
+    """并发下单**只能**落出一张活跃 pending 单（TD-199，真库）。
+
+    实测修复前 5 个并发请求拿到 5 个不同单号、库里 5 张 pending 单。
+    跑法（CI 的真 PostgreSQL job 会自动跑到）：
+      TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" pytest -q
+    """
+    await client.post("/auth/register", json={"username": "racer3", "password": "secret123"})
+    r = await client.post("/auth/login", data={"username": "racer3", "password": "secret123"})
+    h = {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+    results = await asyncio.gather(*[client.post("/shop/orders", headers=h) for _ in range(5)])
+    codes = sorted(r.status_code for r in results)
+    assert codes == [200] * 5, f"并发下单不该有人失败，实际 {codes}"
+
+    nos = {r.json()["order_no"] for r in results}
+    assert len(nos) == 1, f"5 个请求必须拿到同一张单，实际拿到 {len(nos)} 张：{nos}"
+
+    async with TestSession() as s:
+        rows = (await s.execute(select(Order).where(Order.status == PENDING))).scalars().all()
+    assert len(rows) == 1, f"库里只能有 1 张活跃 pending 单，实际 {len(rows)} 张"

@@ -16,6 +16,18 @@ storage/
 .vscode/
 .DS_Store
 
+# 测试与覆盖率产物
+.pytest_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+
+# node 只用于两处**可选**工具（scripts/check_schema_pg.mjs 的 PGlite、
+# tests/test_auth_cookie.py 的 DOM 断言），依赖不入库 —— 装法见各自文件头注释
+node_modules/
+package-lock.json
+
 # 文档站生成物（由 scripts/build_docs_site.py 生成，不入库；
 # 手写的 style.css 与 site.js 是源文件，照常入库）
 docs/site/index.html

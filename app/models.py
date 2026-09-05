@@ -1,6 +1,17 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, SmallInteger, String, Text, func
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    SmallInteger,
+    String,
+    Text,
+    func,
+    text,
+)
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
@@ -46,6 +57,23 @@ class Order(Base):
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    __table_args__ = (
+        # **同一用户同一时刻最多一张待支付单**（TD-199）。
+        # 必须由数据库兜底而不是在应用层加锁：多实例部署时进程内锁各算各的
+        # （与限流的 TD-141 同一个道理），而「先查 pending 再新建」在 asyncio
+        # 交错下必然漏 —— 5 个并发请求的 SELECT 会全部跑完才开始 INSERT。
+        # 用**部分**唯一索引而不是普通唯一约束：paid / closed / downloaded 的历史单
+        # 必须能有多张，只有 pending 这一种状态需要唯一。
+        # SQLite 3.8+ 与 PostgreSQL 都支持部分索引，两个后端口径一致。
+        Index(
+            "uq_sys_order_user_pending",
+            "user_id",
+            unique=True,
+            postgresql_where=text("status = 'pending'"),
+            sqlite_where=text("status = 'pending'"),
+        ),
+    )
 
 
 class Article(Base):

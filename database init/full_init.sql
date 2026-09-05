@@ -44,6 +44,12 @@ CREATE TABLE sys_order (
     create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
+-- **同一用户同一时刻最多一张待支付单**（TD-199）。
+-- 必须由数据库兜底：「先查 pending 再新建」在并发下必然漏（asyncio 交错时
+-- 5 个 SELECT 会全部跑完才开始 INSERT），而应用层锁在多实例部署下各算各的。
+-- 用**部分**唯一索引：paid / closed / downloaded 的历史单可以有多张，
+-- 只有 pending 需要唯一。存量库升级见 migrate_0006_order_single_pending.sql。
+CREATE UNIQUE INDEX uq_sys_order_user_pending ON sys_order (user_id) WHERE status = 'pending';
 
 -- 4. 系统配置表
 CREATE TABLE sys_config (

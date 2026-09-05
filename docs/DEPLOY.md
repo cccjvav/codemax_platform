@@ -44,10 +44,17 @@ docker compose up -d --build
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0002_password_changed_at.sql"
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0003_diagram_deleted_at.sql"
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0004_diagram_version.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0005_user_role.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0006_order_single_pending.sql"
 > ```
 >
 > 0001 = 时间列统一 `TIMESTAMPTZ`（TD-146）；0002 = `sys_user.password_changed_at`（TD-70）；
-> 0003 = `sys_diagram.deleted_at` + 索引升级（TD-64）；0004 = `sys_diagram.version` 乐观锁列（TD-65）。
+> 0003 = `sys_diagram.deleted_at` + 索引升级（TD-64）；0004 = `sys_diagram.version` 乐观锁列（TD-65）；
+> 0005 = `sys_user.role` 管理员角色列（TD-138/188）；
+> 0006 = `sys_order` 部分唯一索引「同一用户最多一张待支付单」（TD-199）。
+>
+> ⚠️ **0006 执行前必须先清存量重复**：同一用户若已有 ≥2 张 pending 单，建唯一索引会失败。
+> 脚本头部给了排查与批量关单的 SQL，先跑排查那条确认再决定。
 > 全新部署只需 `full_init.sql`，不用跑这些。
 - 等数据库健康检查通过后再起应用
 - 给应用注入 `DB_HOST=db`、`TRUST_PROXY_HEADERS=true`
