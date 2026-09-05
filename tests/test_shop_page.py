@@ -17,7 +17,11 @@
 
 from __future__ import annotations
 
+import json
 import re
+import shutil
+import subprocess
+from pathlib import Path
 from types import SimpleNamespace
 
 import pytest
@@ -259,3 +263,133 @@ async def test_user_model_has_no_leftover_fixture_user(client):
             await s.execute(select(User).where(User.username == "probe_user"))
         ).scalar_one_or_none()
     assert u is not None
+
+
+# =============================================== 前端行为：登录后自动补单（S5-05）
+#
+# 这一节是**真实执行前端代码**，不是 grep 模板。
+#
+# 起因是复审抓到的一个真 bug：`buy()` 在 401 时注册一个「登录成功后补一次下单」的
+# 监听器，但当时 `CodeMaxAuth.onChange` 只会 push、没有退订接口，而代码里写的
+# `CodeMaxAuth.onChange(() => {})` 被当成了「解绑」—— 它其实只是**再追加一个空监听器**。
+# 后果是监听器永久残留：
+#   ① 用户下次登录（哪怕根本没点购买）会再触发一次 buy()，凭空多下一单；
+#   ② 未登录时多点几次「立即购买」会累积多个监听器，一次登录触发多次 buy()。
+# 实测复现过：只重新登录一次，下单调用次数 2 → 3。
+#
+# 静态 grep 完全看不出这个 bug —— 模板里那行注释还写着「避免重复绑定」。
+# 只有把 auth.js 与页面脚本按浏览器顺序拼起来真跑一遍才暴露。
+
+_NODE_EXECUTOR = r"""
+const els = {};
+const mkEl = () => ({
+  value: "", textContent: "", innerHTML: "", hidden: false, width: 0, alt: "",
+  appendChild() {}, click() {}, addEventListener() {}, focus() {},
+  classList: { add() {}, remove() {} },
+});
+global.document = { getElementById: (id) => (els[id] ||= mkEl()), createElement: mkEl };
+global.addEventListener = () => {};
+global.window = global;              // 浏览器里 window 就是全局对象本身
+global.window.location = { href: "" };
+const store = { getItem(){}, setItem(){}, removeItem(){}, clear(){} };
+global.localStorage = store; global.sessionStorage = store;
+
+let loggedIn = false, orderCalls = 0;
+global.fetch = (url, opts = {}) => {
+  if (url === "/shop/orders") {
+    orderCalls += 1;
+    return Promise.resolve(loggedIn
+      ? { ok: true, status: 200, json: async () => ({
+          order_no: "CM1", code_url: "", qr_svg: null, qr_image: null,
+          product_name: "p", amount: 19900, status: "pending",
+          reused: false, pay_mode: "manual", expired: false }) }
+      : { ok: false, status: 401, json: async () => ({}) });
+  }
+  if (url === "/auth/me") return loggedIn
+    ? Promise.resolve({ ok: true, status: 200, json: async () => ({ id: 1, username: "a", nickname: "A" }) })
+    : Promise.resolve({ ok: false, status: 401, json: async () => ({}) });
+  if (url === "/auth/login")  { loggedIn = true;  return Promise.resolve({ ok: true, status: 200, json: async () => ({ access_token: "T" }) }); }
+  if (url === "/auth/logout") { loggedIn = false; return Promise.resolve({ ok: true, status: 204, json: async () => ({}) }); }
+  return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+};
+"""
+
+_NODE_SCENARIO = r"""
+const tick = () => new Promise((r) => setTimeout(r, 30));
+async function loginAs(name) {
+  els["auth-user"].value = name; els["auth-pass"].value = "pw123456";
+  await els["auth-form"].onsubmit({ preventDefault() {} });
+  await tick();
+}
+(async () => {
+  const at = [];
+  const snap = () => at.push(orderCalls);
+
+  await els["btn-buy"].onclick();                       snap();  // ① 一次 401
+  await els["btn-buy"].onclick();
+  await els["btn-buy"].onclick(); await tick();          snap();  // ② 连点两次：只该登记一个意图
+  await loginAs("alice");                                snap();  // ③ 登录 → 只补发一次
+  await els["btn-logout"].onclick(); await tick();
+  await loginAs("bob");                                  snap();  // ④ 没点购买就再登录 → 不许变
+  await els["btn-logout"].onclick(); await tick();
+  await els["btn-buy"].onclick(); await tick();
+  await loginAs("carol");                                snap();  // ⑤ 守卫已释放，能重新登记
+
+  console.log(JSON.stringify(at));
+})();
+"""
+
+
+def _run_shop_frontend() -> list[int]:
+    """按浏览器真实的文档顺序执行 `auth.js` + `shop.html` 内联脚本，返回各步的下单调用数。"""
+    root = Path(__file__).resolve().parents[1]
+    auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
+    shop_html = (root / "app/templates/shop.html").read_text(encoding="utf-8")
+    inline = re.findall(r"<script>(.*?)</script>", shop_html, re.S)
+    assert inline, "shop.html 应该有自己的内联脚本"
+    script = "\n;\n".join([auth, *inline])
+
+    harness = Path("/tmp/_shop_frontend_harness.js")
+    harness.write_text(_NODE_EXECUTOR + "\n;\n" + script + "\n" + _NODE_SCENARIO, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness)], capture_output=True, text=True, timeout=60)
+    assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_login_retry_does_not_replay_buy_on_later_logins():
+    """**这一节最重要的一条**：登录后自动补单必须是**一次性**的。
+
+    各步的预期下单调用数（累计）：
+      ① 点一次购买、未登录           → 1（一次 401）
+      ② 未登录再连点两次             → 3（三次 401，但只登记一个购买意图）
+      ③ 登录成功                     → 4（**只补发一次**，不是三次）
+      ④ 退出后换个人再登录、没点购买 → 4（**不许变** —— 变了就是幽灵下单）
+      ⑤ 再点一次购买并登录           → 6（守卫已释放，允许重新登记）
+    """
+    at = _run_shop_frontend()
+    assert at == [1, 3, 4, 4, 6], (
+        f"下单调用序列不符：{at}（预期 [1, 3, 4, 4, 6]）。"
+        "第 4 个数变大 = 旧监听器重放了下单；第 3 个数超过 4 = 一次登录补发了多次。"
+    )
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_auth_module_exposes_an_unsubscribe():
+    """`onChange` 必须返回退订函数 —— 没有退订能力，上面那个 bug 就无从修起。"""
+    root = Path(__file__).resolve().parents[1]
+    auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
+    assert "listeners.splice" in auth, "onChange 应当能真正把监听器移除"
+    assert "listeners.slice()" in auth, "notify 必须遍历副本，否则回调里退订会跳过元素"
+
+
+def test_shop_template_no_longer_fakes_unsubscribe():
+    """回归：那行被当成「解绑」的 `onChange(() => {})` 不许再以**代码**形式出现。
+
+    它看起来像在清理监听器，实际只是往列表里追加一个空函数 —— 纯泄漏。
+    注意要先剥掉 `//` 注释：解释这个 bug 的注释里必须引用原句，否则会自我误伤。
+    """
+    html = (Path(__file__).resolve().parents[1] / "app/templates/shop.html").read_text(encoding="utf-8")
+    code = "\n".join(re.sub(r"//.*$", "", line) for line in html.splitlines())
+    assert "onChange(() => {})" not in code, "这行是伪解绑，只会追加空监听器"
+    assert "offBuy" in code, "应当用退订函数登记唯一的待补发购买意图"

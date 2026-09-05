@@ -12,7 +12,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**526 passed + 4 skipped**；真 PostgreSQL 16.2：**528 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
+- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**532 passed + 4 skipped**；真 PostgreSQL 16.2：**534 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -61,7 +61,7 @@ app/
 │   └── word.py            # DDL → Word 数据字典
 ├── static/er.js           # ER 图 D3.js 渲染（layoutEr 是纯函数，node 可直接 require）
 └── templates/             # base / index / er / mermaid / drawio（Jinja2 SSR）
-tests/                     # 9 个测试文件，74 用例
+tests/                     # 35 个测试文件（37 个 .py），536 用例
 database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
 scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL 执行 full_init.sql
 ```
@@ -79,7 +79,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（209 个：SQLite 上 208 绿 + 1 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（536 个：SQLite 上 532 绿 + 4 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（需真库；**会 DROP 重建，只对空库安全**）
@@ -209,6 +209,35 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 7. **多段替换的 heredoc 必须每段 `assert count == 1` 且只在末尾 `write_text`。**
    这一轮又救了一次：第二段匹配失败（`support.py` 里 `_escalate` 的实参是「两参一行」的排版，
    我按「一参一行」写），因为断言在写入之前，整个文件没被写坏。
+
+### 第 3 轮复审之后（2026-09-05）
+
+外部复审提了三条，**逐条实测后三条全部成立**（这一轮没有假阳性）：
+
+1. **`onChange` 没有退订能力 ⇒ 业务动作被重放。**
+   `shop.html` 里那行 `CodeMaxAuth.onChange(() => {})` 注释写着「避免重复绑定」，
+   实际只是往列表里再追加一个空函数。**注释与实际行为不符的代码最危险** ——
+   读代码的人会相信注释，静态 grep 也看不出问题。
+   只有把 `auth.js` 与页面脚本按浏览器顺序拼起来用 node 真跑一遍才暴露。
+   见 TD-208。
+
+2. **模板上下文没有收口 ⇒ 页面渲染成空壳却返回 200。**
+   `mock_pay_page()` 自己拼字典、漏了 `site_name`/`tools`/`shop_path`，
+   页面渲染出 `<h1><a href="/"></a></h1>` 与 `<nav></nav>`。
+   而原先的测试只断言「页面能开 + 有订单号」—— **断言太弱等于没测**。
+   现在收口到 `app/site.py:page_context()`，并用集合比对钉住契约。见 TD-209。
+
+3. **文档数字大面积漂移。** 复审列了 10 个文件、30+ 处。根因是同一类：
+   我上一轮只改了「本轮改动直接涉及」的数字，没有全仓反扫所有引用同一事实的地方。
+   这次的做法是**先取实测真值、再全仓 grep 每一个旧值**，包括
+   `.claude/skills/` 下的 SKILL.md（那里也有行数与测试基线）。
+
+**两条方法论教训：**
+
+- **「测试通过」不等于「行为正确」。** 上面两个 bug 都在 472→532 条测试全绿的状态下存活了很久。
+  前端行为必须真跑（node 执行真实脚本），页面渲染必须断言**渲染结果**而不只是状态码。
+- **改完要做变异验证。** 这次撤掉修复重跑，两条新测试立刻变红 —— 这才证明它们真的在守这个 bug，
+  而不是碰巧通过。
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 

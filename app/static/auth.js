@@ -12,10 +12,6 @@
 //
 // 登录态在 HttpOnly cookie 里，脚本读不到（TD-44）。所以唯一可靠的判断方式
 // 是 GET /auth/me，不能靠 localStorage 之类自己记（那正是 TD-44 要消灭的做法）。
-// 全站共用的登录态模块。挂在 window 上，子页面（drawio / shop）直接用。
-//
-// 为什么「是否已登录」必须问后端：登录态在 HttpOnly cookie 里，脚本读不到（TD-44）。
-// 所以唯一可靠的判断方式是 GET /auth/me。
 window.CodeMaxAuth = (function () {
   const mask = document.getElementById("auth-mask");
   const who = document.getElementById("auth-who");
@@ -37,7 +33,9 @@ window.CodeMaxAuth = (function () {
     if (on) who.textContent = user.nickname || user.username;
   }
 
-  function notify() { listeners.forEach((f) => f(user)); }
+  // 遍历**副本**：监听器可能在回调里退订自己（shop 页的「登录后补一次下单」就是这样），
+  // 直接 forEach 原数组会因 splice 导致后续元素被跳过 —— 那类 bug 只在有多个监听器时出现。
+  function notify() { listeners.slice().forEach((f) => f(user)); }
 
   function setMode(m) {
     mode = m;
@@ -116,5 +114,24 @@ window.CodeMaxAuth = (function () {
   }
 
   refresh(); // 进页面就问一次
-  return { open, close, refresh, onChange: (f) => listeners.push(f), get user() { return user; } };
+  return {
+    open,
+    close,
+    refresh,
+    // **返回退订函数**。早先只 push、没有退订接口，于是 shop 页那个
+    // 「登录成功后自动补一次下单」的监听器永久残留：用户下次登录（哪怕没点购买）
+    // 会再触发一次 buy()；未登录时多点几次「立即购买」还会累积多个监听器，
+    // 一次登录就触发多次下单。实测复现过：只重新登录一次，下单调用 2 → 3。
+    // 返回函数而不是提供 off(f)，是因为调用方不必自己保存 f 的引用，也不会退订错人。
+    onChange: (f) => {
+      listeners.push(f);
+      return () => {
+        const i = listeners.indexOf(f);
+        if (i >= 0) listeners.splice(i, 1);
+      };
+    },
+    get user() {
+      return user;
+    },
+  };
 })();

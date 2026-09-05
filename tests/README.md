@@ -19,12 +19,12 @@
 > 是 530 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
   ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
   ├─ __init__.py        0 行
-  └─ 30 个 test_*.py  6 276 行  389 个测试
+  └─ 35 个 test_*.py  8 181 行  479 个测试
 ```
 
-本机实测：**526 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **528 passed, 2 skipped**。
+本机实测：**532 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **534 passed, 2 skipped**。
 
-> **为什么本文不逐个测试函数写**：389 个函数逐个写既写不完也没人看。
+> **为什么本文不逐个测试函数写**：479 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
 > 想找某个具体用例，用文末附录的索引命令。
 
@@ -97,10 +97,10 @@ L117-L118  yield AsyncClient(ASGITransport(app=app), base_url="http://test")
 L119       清掉 dependency_overrides
 L120-L121  drop_all                拆表
 ```
-- **每个用例都是干净的库** —— 这是 389 个用例能任意顺序跑的前提
+- **每个用例都是干净的库** —— 这是 536 个用例能任意顺序跑的前提
 - **L119 的 `clear()` 不能省** —— 否则下一个用例会拿到上一个用例的 session 工厂
 
-### 2.1 分组总览（32 个测试文件）
+### 2.1 分组总览（35 个测试文件）
 
 > 行数为 `wc -l` 实测值（2026-09-05）。**别手抄**：历史上这张表大面积过期过 ——
 > 本次一核对，9 组里有 8 个文件的行数都是旧的（如 `test_e2e` 427 → 530、
@@ -253,8 +253,17 @@ L120-L121  drop_all                拆表
 
 | 后端 | passed | skipped | 差异原因 |
 | --- | --- | --- | --- |
-| SQLite（默认） | 418 | **2** | `test_oauth.py:188` + `test_dynamic_crawl.py:322` 都跳 |
-| 真 PostgreSQL 16 | 419 | **1** | 前者跑起来了；浏览器那条仍跳（沙箱下不到二进制） |
+| SQLite（默认） | 532 | **4** | 见下面四条 |
+| 真 PostgreSQL 16 | 534 | **2** | 两条并发用例跑起来了；另两条仍跳 |
+
+4 条 skip 的实测原因（`pytest -rs` 可复现，别照抄本表，行号会变）：
+
+| 位置 | 原因 | 真库上 |
+| --- | --- | --- |
+| `test_e2e.py` 并发下单（TD-199） | SQLite + StaticPool 共享单连接，一个请求的 `rollback` 会把别人的插入一起回滚 | **跑起来** |
+| `test_oauth.py` 授权码并发（TD-85） | 同上，排不成真正的并发 | **跑起来** |
+| `test_dynamic_crawl.py` 动态抓取（TD-191） | 要 `playwright install chromium`，沙箱下不到二进制 | 仍跳 |
+| `test_faq_semantic.py` 语义阈值标定（TD-206） | 要真实 embedding API，设 `LLM_API_KEY` 才跑 | 仍跳 |
 
 > ⚠️ **`test_dynamic_crawl.py:322` 在沙箱里永远跑不了** —— `cdn.playwright.dev` 与
 > `playwright.azureedge.net` 都 HTTP 000。**这条需要用户在本机 Windows 上验**，期望 19 passed。
@@ -307,9 +316,9 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：526 passed, 4 skipped
+  │    期望：532 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
-       期望：528 passed, 2 skipped
+       期望：534 passed, 2 skipped
        配方见 HANDOVER.md §9
 ```
 
@@ -331,7 +340,7 @@ print('文件数:', len(fs))
 print('总行数:', sum(len(p.read_text(encoding='utf-8').splitlines()) for p in fs))
 print('测试函数:', sum(len(re.findall(r'^(async )?def test_', p.read_text(encoding='utf-8'), flags=re.M)) for p in fs))
 "
-# 预期：文件数 32，总行数 6397，测试函数 389（本机实测一致）
+# 预期：文件数 35，总行数 8181，测试函数 479（本机实测一致）
 
 # ② 按行数排序的文件清单（本文 2.1 分组表的依据）
 python -c "
@@ -352,7 +361,7 @@ grep -rn -A4 --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：526 passed, 4 skipped
+# 本机实测：532 passed, 4 skipped
 
 # ⑦ 只跑某一组
 python -m pytest tests/test_e2e.py -q

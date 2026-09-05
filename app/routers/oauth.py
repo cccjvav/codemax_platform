@@ -15,7 +15,7 @@ from ..database import get_db
 from ..deps import get_current_user
 from ..models import OAuthClient, OAuthCode, User
 from ..security import create_access_token, verify_password
-from ..site import SITE_NAME, TOOLS, templates
+from ..site import page_context, templates
 from ..timeutil import as_utc
 
 router = APIRouter(prefix="/oauth", tags=["OAuth2 授权码 SSO"])
@@ -87,22 +87,20 @@ async def authorize(
     client = await _active_client(db, client_id, redirect_uri)
     return templates.TemplateResponse(
         "oauth_consent.html",
-        {
-            "request": request,
-            "title": f"授权 {client.name}",
-            "site_name": SITE_NAME,
-            "tools": TOOLS,
-            "client_name": client.name,
-            "client_id": client_id,
-            "redirect_uri": redirect_uri,
-            "state": state or "",
-            "sig": _sign(client_id, redirect_uri, state),
-            "username": user.username,
+        page_context(
+            request,
+            title=f"授权 {client.name}",
             # 同意页**必须零脚本**（发放授权码的安全关键页，见 TD-163 与
             # tests/test_oauth_consent.py）。它也不需要登录 UI —— 能走到这页
             # 说明用户已经登录，所以整套浮层与 auth.js 都不渲染。
-            "auth_ui": False,
-        },
+            auth_ui=False,
+            client_name=client.name,
+            client_id=client_id,
+            redirect_uri=redirect_uri,
+            state=state or "",
+            sig=_sign(client_id, redirect_uri, state),
+            username=user.username,
+        ),
     )
 
 

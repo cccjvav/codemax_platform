@@ -7,7 +7,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
+from fastapi import Request
 from fastapi.templating import Jinja2Templates
+
+from .config import settings
 
 SITE_NAME = "CodeMax 在线工具"
 
@@ -81,3 +84,43 @@ templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "tem
 def page_title(tool: Tool) -> str:
     """首页用站名本身，工具页拼站名后缀。"""
     return tool.title if tool.key == "home" else f"{tool.title} - {SITE_NAME}"
+
+
+def page_context(
+    request: Request,
+    *,
+    title: str,
+    description: str = "",
+    keywords: str = "",
+    canonical: str = "",
+    auth_ui: bool = True,
+    **extra,
+) -> dict:
+    """`base.html` 需要的公共上下文。**所有**渲染 base.html 的页面都必须走这里。
+
+    为什么要收口成一个函数：base.html 依赖 `site_name` / `tools` / `shop_path` /
+    `product_name` 以及 SEO 三件套（description / keywords / canonical）。
+    曾经 `/shop/mock-pay` 自己拼了一份、只传 `title` 和 `order_no`，结果页面渲染出
+    `<h1><a href="/"></a></h1>` 空品牌、`<nav></nav>` 空导航、CTA 的 `href=""` ——
+    它照样返回 200，而当时的测试只断言了「页面能开 + 有订单号」，所以一直没被发现。
+
+    用 `**extra` 而不是固定参数：各页面自己的业务字段（`order_no`、ER 图的初始数据…）
+    形状各异，但**公共字段必须齐**。这样新增页面时漏传公共字段这件事在结构上就不可能发生。
+    """
+    ctx: dict = {
+        "request": request,
+        "title": title,
+        "description": description,
+        "keywords": keywords,
+        "canonical": canonical,
+        "site_name": SITE_NAME,
+        "tools": TOOLS,
+        "shop_path": SHOP.path,
+        # 商业页要展示商品与价格，但 `Tool` 数据类里不该塞商品字段（那是 SEO 元信息的
+        # 容器）。单一 SKU 的事实来源仍是 settings，模板里不写死价格，改配置就跟着变。
+        "product_name": settings.SHOP_PRODUCT_NAME,
+        "product_amount": settings.SHOP_PRODUCT_AMOUNT,
+        "auth_ui": auth_ui,  # 只有 OAuth 同意页传 False（那页必须零脚本，TD-204）
+    }
+    ctx.update(extra)
+    return ctx

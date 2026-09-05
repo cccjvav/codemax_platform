@@ -26,7 +26,7 @@ from ..order_state import (
     mark_downloaded,
     mark_paid,
 )
-from ..site import templates
+from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
     WeChatPayError,
@@ -207,14 +207,12 @@ async def mock_pay_page(request: Request, order_no: str = ""):
     """模拟收银台页面（答辩演示用）。"""
     if settings.SHOP_PAY_MODE != "mock":
         raise HTTPException(404, "模拟支付通道未开启（SHOP_PAY_MODE != mock）")
+    # 必须走 page_context：base.html 还要 site_name / tools / shop_path / product_name
+    # 与 SEO 三件套。早先这里只传了 title 与 order_no，页面渲染出空品牌、空导航、
+    # CTA 的 href="" —— 返回 200、测试也只断言「页面能开」，所以一直没被发现。
     return templates.TemplateResponse(
         "mock_pay.html",
-        {
-            "request": request,
-            "title": "模拟收银台",
-            "order_no": order_no,
-            "auth_ui": True,
-        },
+        page_context(request, title="模拟收银台", order_no=order_no),
     )
 
 

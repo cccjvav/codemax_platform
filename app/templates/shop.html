@@ -185,6 +185,9 @@
 
   function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
+  // 待补发的「登录后自动下单」监听器的退订函数；null 表示当前没有待补发的购买意图。
+  let offBuy = null;
+
   async function buy() {
     const errEl = document.getElementById("buy-error");
     errEl.textContent = "";
@@ -193,12 +196,23 @@
       // 未登录：唤起全站统一浮层，登录成功后自动继续下单 ——
       // 这就是「value first, ask later」：先让用户决定要买，再要求身份。
       CodeMaxAuth.open("login");
-      const once = (u) => {
-        if (!u) return;
-        CodeMaxAuth.onChange(() => {}); // 保留监听器列表语义，避免重复绑定
+      // 已经有一个待补发的购买意图了：只把浮层再打开一次，不重复注册监听器。
+      // 否则未登录时连点几次「立即购买」就会累积几个监听器，登录成功后一次触发多次下单
+      // （后端「同一用户最多一张 pending 单」能兜住结果，但多余请求与错误意图不该发出去）。
+      if (offBuy) return;
+      // 登录成功后**只补发一次**下单，然后立刻退订。
+      // 早先这里写的是 `CodeMaxAuth.onChange(() => {})` 当作「解绑」，但那个调用只会
+      // **再追加一个空监听器**，旧的 `once` 一直留着 —— 于是：
+      //   ① 用户下次登录（哪怕没点购买）会再触发一次 buy()，凭空多下一单；
+      //   ② 未登录时多点几次「立即购买」会累积多个监听器，一次登录触发多次 buy()。
+      // 实测复现过：只重新登录一次，下单调用次数 2 → 3；连点两次购买再登录，一次跳到 6。
+      offBuy = CodeMaxAuth.onChange((u) => {
+        if (!u) return;   // 退出登录时 user 为 null，不补单
+        const off = offBuy;
+        offBuy = null;    // 先清标记再退订：下单本身可能又 401，要允许重新登记
+        if (off) off();
         buy();
-      };
-      CodeMaxAuth.onChange(once);
+      });
       return;
     }
     if (res.status === 503) {
@@ -238,9 +252,9 @@
     document.getElementById("x-no").textContent = currentNo;
   };
 
-  // 进页面时如果已登录，看看有没有已存在的订单（复用逻辑在后端 create_order 里）——
-  // 但**不自动下单**：自动下单会在用户还没决定时就产生订单。
-  // 这里只在用户点「立即购买」后才与后端交互。
-  CodeMaxAuth.onChange(() => {});
+  // 进页面时**不自动下单**：自动下单会在用户还没决定时就产生订单。
+  // 只有点了「立即购买」才与后端交互（复用已有 pending 单的逻辑在后端 create_order 里）。
+  // 早先这里有一行 `CodeMaxAuth.onChange(() => {})`，它什么都不做、只是往监听器列表里
+  // 塞一个空函数 —— 纯粹的泄漏，已删除。
 </script>
 {% endblock %}

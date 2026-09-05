@@ -8,7 +8,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request, Response
 
 from ..config import settings
-from ..site import PAGES, SHOP, SITE_NAME, TOOLS, Tool, page_title, templates
+from ..site import PAGES, Tool, page_context, page_title, templates
 
 router = APIRouter(tags=["站点页面"])
 
@@ -21,23 +21,13 @@ def _page_view(tool: Tool):
     async def view(request: Request):
         return templates.TemplateResponse(
             tool.template,
-            {
-                "request": request,
-                "title": page_title(tool),
-                "description": tool.description,
-                "keywords": tool.keywords,
-                "canonical": _base() + tool.path,
-                "site_name": SITE_NAME,
-                "tools": TOOLS,
-                # 商业页要展示商品与价格，但 `Tool` 数据类里不该塞商品字段
-                # （那是 SEO 元信息的容器）。所以由这里从 settings 直接补给模板：
-                # 单一 SKU 的事实来源仍是 `SHOP_PRODUCT_NAME` / `SHOP_PRODUCT_AMOUNT`，
-                # 模板里不写死价格，改配置就跟着变。
-                "product_name": settings.SHOP_PRODUCT_NAME,
-                "product_amount": settings.SHOP_PRODUCT_AMOUNT,
-                "shop_path": SHOP.path,
-                "auth_ui": True,  # 普通页面要登录/注册入口
-            },
+            page_context(
+                request,
+                title=page_title(tool),
+                description=tool.description,
+                keywords=tool.keywords,
+                canonical=_base() + tool.path,
+            ),
         )
 
     view.__name__ = f"page_{tool.key}"  # 路由名可读，便于 url_path_for 与排错

@@ -2374,7 +2374,7 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 **复算方式：**
 
 ```bash
-python -m pytest -q                       # 526 passed, 4 skipped（SQLite）
+python -m pytest -q                       # 532 passed, 4 skipped（SQLite）
 python -m pytest tests/test_crawler.py -q # 28 passed
 
 # CI 历史结论分布（本机实测输出：{"cancelled":4,"failure":7,"success":87}）
@@ -2553,6 +2553,6 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 
 （最后这条会先打印几行 jieba 加载日志，看最后一行的 `x` 值就行。）
 
-本文写作时的实测值：**42 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**40 项配置**；**526 passed + 4 skipped**。
+本文写作时的实测值：**42 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**40 项配置**；**532 passed + 4 skipped**。
 
 > 上面最后一条命令是**故意写得很丑**的单行版 —— 因为附录里的命令必须能直接粘进终端跑。想看清爽版就读 `tests/test_perf.py::test_parse_ddl_scales_linearly_not_quadratically`，它才是这条判据的真身；**文档里的复算命令只是它的投影，代码改了请以测试为准。**

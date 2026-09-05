@@ -19,9 +19,9 @@ description: >
 
 ### 2. 两套测试都要绿
 ```bash
-.venv/bin/python -m pytest -q                       # 526 passed, 4 skipped
+.venv/bin/python -m pytest -q                       # 532 passed, 4 skipped
 TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-  .venv/bin/python -m pytest -q                     # 528 passed, 2 skipped
+  .venv/bin/python -m pytest -q                     # 534 passed, 2 skipped
 ```
 真库起不来时按 `HANDOVER.md` §9 重建；实在起不了要在提交信息里写明「真库未跑」。
 
@@ -38,7 +38,7 @@ TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata"
 
 #### 第六处的细则：新增代码文件后，「上级入口」一个都不能漏
 
-**这一条是被真实事故逼出来的**：新增 `scripts/build_docs_site.py`（898 行）之后，
+**这一条是被真实事故逼出来的**：新增 `scripts/build_docs_site.py`（现 935 行）之后，
 只写了代码没动文档，结果 ——
 
 - `scripts/README.md` 里**完全没提这个文件**（覆盖率从 90/90 掉到 90/91）
@@ -204,7 +204,7 @@ CI 日志正文在本沙箱取不到（重定向到 `*.blob.core.windows.net` �
 ```
 子项：<S4-01-2 标题>
 做了什么：<要点>
-测试：SQLite 526 passed + 4 skipped；真 PostgreSQL 16.2 528 passed + 2 skipped
+测试：SQLite 532 passed + 4 skipped；真 PostgreSQL 16.2 534 passed + 2 skipped
 变异测试：<去掉 X → N 个红> ×若干
 提交：<short sha>，已推送，远端 tip 已确认
 CI：<run id> push / pull_request 均 success

@@ -4,9 +4,13 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{{ title }}</title>
-    <meta name="description" content="{{ description }}" />
-    <meta name="keywords" content="{{ keywords }}" />
-    <link rel="canonical" href="{{ canonical }}" />
+    {#- 三个 SEO 标签都按「有值才输出」处理。空值输出出去比不输出更糟：
+        空 canonical 会让搜索引擎把当前 URL 当成规范地址的替身，空 description
+        会让搜索结果摘要被搜索引擎自己瞎猜。开发用的收银台页（mock-pay）
+        没有 SEO 诉求，正好走这条空值分支。 -#}
+    {% if description %}<meta name="description" content="{{ description }}" />{% endif %}
+    {% if keywords %}<meta name="keywords" content="{{ keywords }}" />{% endif %}
+    {% if canonical %}<link rel="canonical" href="{{ canonical }}" />{% endif %}
     <style>
       * { box-sizing: border-box; }
       body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b;

@@ -27,15 +27,15 @@
 ### 1.2 实测结构
 
 ```text
-app/templates/                  772 行
-├── base.html           118 行   唯一的父模板：TDK + 全站 CSS + header/nav + 页脚
-│                                + 登录/注册浮层 + {% block content %}（S2-02-2 起 42 → 118 行）
+app/templates/                  810 行
+├── base.html           122 行   唯一的父模板：TDK + 全站 CSS + header/nav + 页脚
+│                                + 登录/注册浮层 + {% block content %}（S2-02-2 起 42 → 118 → 122 行）
 ├── index.html           11 行   首页：遍历 tools 出卡片
 ├── er.html              90 行   SQL DDL → ER 图 + Word 导出（D3.js + /static/er.js）
 ├── mermaid.html         63 行   自然语言 → UML 类图（Mermaid ESM）
 ├── drawio.html         200 行   Drawio iframe + 云端保存（乐观锁）★ 最复杂
 │                                （S2-02-2 起 221 → 200：常驻登录框换成全站浮层）
-├── shop.html           226 行   商城落地页 + 下单/支付/下载三态（S2-02-2 新增）
+├── shop.html           260 行   商城落地页 + 下单/支付/下载三态（S2-02-2 新增）
 ├── mock_pay.html        42 行   模拟收银台（仅 SHOP_PAY_MODE=mock）
 └── oauth_consent.html   22 行   OAuth 授权同意页（纯表单，零脚本）
 ```
@@ -45,7 +45,7 @@ app/templates/                  772 行
 ```text
 7 个模板 {% extends "base.html" %}，只有 base.html 自己不继承
 8 对 {% block content %} / {% endblock %}
-内联 <script>：4 个模板（er / mermaid / drawio / mock_pay）
+内联 <script>：5 个模板（er / mermaid / drawio / mock_pay / shop）
 外部源：cdn.jsdelivr.net（d3@7、mermaid@11）、embed.diagrams.net
 本地脚本：/static/er.js
 ```
@@ -59,9 +59,19 @@ app/templates/                  772 行
 | 模板 | 渲染方 | 上下文变量 |
 | --- | --- | --- |
 | `base.html` | 不直接渲染，被继承 | — |
-| `index.html` `er.html` `mermaid.html` `drawio.html` | `app/routers/site.py:20-36` 的 `_page_view()` 闭包 | `title` `description` `keywords` `canonical` `site_name` `tools` `request` |
-| `mock_pay.html` | `app/routers/shop.py:125-127` | `title` `order_no` `request` |
-| `oauth_consent.html` | `app/routers/oauth.py:88-102` | `title` `site_name` `tools` `client_name` `client_id` `redirect_uri` `state` `sig` `username` `request` |
+| `index.html` `er.html` `mermaid.html` `drawio.html` `shop.html` | `app/routers/site.py` 的 `_page_view()` 闭包 | 见下 |
+| `mock_pay.html` | `app/routers/shop.py` 的 `mock_pay_page()` | 公共字段 + `order_no` |
+| `oauth_consent.html` | `app/routers/oauth.py` 的 `authorize_form()` | 公共字段 + `client_name` `client_id` `redirect_uri` `state` `sig` `username`，且 `auth_ui=False` |
+
+**所有渲染 base.html 的地方都必须走 `app/site.py` 的 `page_context()`** —— 它统一提供
+`request` `title` `description` `keywords` `canonical` `site_name` `tools` `shop_path`
+`product_name` `product_amount` `auth_ui` 这 11 个公共字段，页面自己的业务字段用 `**extra` 传。
+
+这条不是洁癖：`mock_pay_page()` 曾经自己拼上下文、只传了 `title` 和 `order_no`，
+结果页面渲染出 `<h1><a href="/"></a></h1>` 空品牌、`<nav></nav>` 空导航、CTA 的 `href=""`
+—— 它照样返回 200，而当时的测试只断言「页面能开 + 有订单号」，所以一直没被发现。
+现在 `tests/test_mock_pay.py::test_page_context_is_the_single_source_of_base_template_fields`
+会把 base.html 实际用到的变量与 `page_context()` 提供的做集合比对，漏一个就红。
 
 **「加一个工具页」只需往 `app/site.py` 的 `TOOLS` 加一条** —— 路由、导航、sitemap、TDK 自动跟上，**不用碰这个目录**（除非要新建模板文件）。
 
@@ -90,8 +100,10 @@ app/templates/                  772 行
 
 **L1-L9 `<head>` 的元信息**
 - **L6 `<title>{{ title }}</title>`**
-- **L7-L8 `description` / `keywords`** —— SEO 的 D 与 K
-- **L9 `<link rel="canonical" href="{{ canonical }}" />`** —— 由 `app/routers/site.py:26` 用 `SITE_BASE_URL + tool.path` 拼出
+- **SEO 三件套按「有值才输出」** —— `{% if description %}` / `{% if keywords %}` / `{% if canonical %}`。
+  空值输出出去比不输出更糟：空 `canonical` 会让搜索引擎把当前 URL 当成规范地址的替身，
+  空 `description` 会让摘要被搜索引擎自己瞎猜。开发用的收银台页没有 SEO 诉求，正好走空值分支。
+  `canonical` 由 `app/routers/site.py` 用 `SITE_BASE_URL + tool.path` 拼出
 
 **L10-L31 全站 CSS（内联 `<style>`）** —— 21 条规则。**关键几条**：
 - **L18 `.split`** —— `grid-template-columns: 380px 1fr`，左输入右预览的两栏布局（`er.html` 与 `mermaid.html` 都用它）
@@ -244,7 +256,7 @@ app/templates/                  772 行
 
 ---
 
-### 📄 文件名：`shop.html`（226 行）
+### 📄 文件名：`shop.html`（260 行）
 
 - **文件职责**：商城落地页（S2-02-2）。**这是全站第一个能真正下单的页面** ——
   在此之前 `POST /shop/orders` 是个裸接口，前端零调用者，用户只能翻 `/docs` 手敲。
@@ -461,7 +473,7 @@ for p in sorted(pathlib.Path('app/templates').glob('*.html')):
     ext = re.findall(r'https?://[A-Za-z0-9.-]+', t)
     print(f'{p.name:<20} extends={\"extends\" in t!s:<5} 内联script={inline} 外部源={sorted(set(ext))}')
 "
-# 预期：只有 base.html extends=False；内联 script 为 4 个模板（er / mermaid / drawio / mock_pay）
+# 预期：只有 base.html extends=False；内联 script 为 5 个模板（er / mermaid / drawio / mock_pay / shop）
 
 # 3) 守住这些模板的 4 条测试（本文 3.4）
 python -m pytest tests/test_ops.py tests/test_oauth_consent.py tests/test_auth_cookie.py -q

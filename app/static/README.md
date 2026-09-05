@@ -39,7 +39,7 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 ```text
 app/static/
 ├── er.js        149 行   7 个常量 + 3 个函数
-├── auth.js      120 行   全站共享登录态模块（S2-02-2）
+├── auth.js      137 行   全站共享登录态模块（S2-02-2）
 └── pay_qr.svg    17 行   manual 支付模式的占位收款码（S5-04）
 ```
 
@@ -47,7 +47,7 @@ app/static/
 
 ## 2. 文件级详细说明书
 
-### 📄 文件名：`auth.js`（120 行）
+### 📄 文件名：`auth.js`（137 行）
 
 - **文件职责**：全站共享的登录态模块，挂在 `window.CodeMaxAuth` 上。
   顶栏的「登录 / 注册 / 退出」与登录浮层都由它驱动，`drawio.html` 与 `shop.html` 直接调用。

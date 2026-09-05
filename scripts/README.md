@@ -46,7 +46,7 @@
 ```text
 scripts/
 ├── check_schema_pg.mjs    68 行   ESM 模块（.mjs），用了顶层 await
-└── build_docs_site.py    898 行   文档站构建（35 个函数，需 mistune）
+└── build_docs_site.py    935 行   文档站构建（32 个函数，需 mistune）
 ```
 
 > **两个脚本都不接入 pytest** —— 它们是开发工具，不是每次改动的必经检查。
@@ -132,7 +132,7 @@ const PGlite = await loadPGlite(process.argv[2] ?? "@electric-sql/pglite");
 
 ---
 
-### 2.2 📄 文件名：`build_docs_site.py`（898 行）
+### 2.2 📄 文件名：`build_docs_site.py`（935 行）
 
 - **文件职责**：从代码里**真实提取**站点数据（模块依赖图 / 路由表 / 符号表），
   再把 21 份 Markdown 预渲染成**完全离线**的静态网站。
@@ -293,7 +293,7 @@ python scripts/build_docs_site.py
 ```bash
 # 1) 行数
 python -c "import pathlib; print(len(pathlib.Path('scripts/check_schema_pg.mjs').read_text(encoding='utf-8').splitlines()))"
-# 预期：68（另一个脚本 build_docs_site.py 是 898 行，见下面第 4 条）
+# 预期：68（另一个脚本 build_docs_site.py 是 935 行，见下面第 4 条）
 
 # 2) 真跑一遍体检（需要 node 与 PGlite）
 cd /tmp

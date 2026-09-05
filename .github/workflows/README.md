@@ -12,7 +12,7 @@
 
 ### 1.1 定位
 
-**只有一个文件**：`ci.yml`，181 行。它是本仓库唯一的 CI 流水线（TD-84）。
+**只有一个文件**：`ci.yml`，229 行。它是本仓库唯一的 CI 流水线（TD-84）。
 
 实测结构（用 YAML 解析取真值，不是靠数缩进）：
 
@@ -52,7 +52,7 @@ concurrency: group=ci-${{ github.ref }}  cancel-in-progress=true
 
 ## 2. 文件级详细说明书
 
-### 📄 文件名：`ci.yml`（181 行）
+### 📄 文件名：`ci.yml`（229 行）
 
 #### 文件头注释（L1-L25）—— 这段是全文件信息密度最高的部分
 
@@ -221,7 +221,7 @@ print('concurrency:', d['concurrency'])
 .venv/bin/python -m pytest -q
 
 # 4) 真库 job 的配方见 HANDOVER.md §9（起 pgserver + createdb + TEST_DATABASE_URL）
-#    本机实测（SQLite 侧）：526 passed, 4 skipped
+#    本机实测（SQLite 侧）：532 passed, 4 skipped
 ```
 
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `ci.yml` 后本文对应的行号与

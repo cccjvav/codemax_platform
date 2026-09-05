@@ -7,9 +7,9 @@
 
 ## 1. 一句话结论
 
-**10 个含代码目录、99 个代码文件、15 594 行代码，已由 13 份文档全覆盖。**
+**10 个含代码目录、99 个代码文件、15 847 行代码，已由 13 份文档全覆盖。**
 >
-> ⚠️ 本文的数字是**审查当时**的快照。之后仓库又新增了 `scripts/build_docs_site.py`（文档站构建，898 行）
+> ⚠️ 本文的数字是**审查当时**的快照。之后仓库又新增了 `scripts/build_docs_site.py`（文档站构建，935 行）
 > 与 `docs/site/README.md`，本节数字已同步更新；再往后新增文件时，**必须重跑 §6 的复核命令并更新本文**。
 覆盖率、链接有效性、格式规范三项检查**全部通过，0 项待补**。
 
@@ -24,16 +24,16 @@
 | # | 目录 | 代码文件 | 代码行数 | 对应文档 | 文档行数 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `app/tools/` | 11 | 1 962 | `app/tools/README.md` | 714 |
-| 2 | `app/`（根） | 16 | 1 381 | `app/README.md` | 707 |
-| 3 | `app/routers/` | 10 | 1 290 | `app/routers/README.md` | 502 |
-| 4 | `tests/` | 37 | 7 994 | `tests/README.md` | 369 |
-| 5 | `app/templates/` | 8 | 792 | `app/templates/README.md` | 493 |
+| 2 | `app/`（根） | 16 | 1 424 | `app/README.md` | 707 |
+| 3 | `app/routers/` | 10 | 1 278 | `app/routers/README.md` | 502 |
+| 4 | `tests/` | 37 | 8 181 | `tests/README.md` | 378 |
+| 5 | `app/templates/` | 8 | 810 | `app/templates/README.md` | 493 |
 | 6 | `database init/` | 8 | 521 | `database init/README.md` | 491 |
 | 7 | `.github/workflows/` | 1 | 229 | `.github/workflows/README.md` | 233 |
-| 8 | `app/static/` | 2 | 269 | `app/static/README.md` | 263 |
+| 8 | `app/static/` | 2 | 286 | `app/static/README.md` | 263 |
 | 9 | `scripts/` | 2 | 1 003 | `scripts/README.md` | 347 |
 | 10 | （仓库根） | 4 | 153 | `docs/ROOT_FILES.md` | 371 |
-| | **合计** | **99** | **15 594** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **5 480** |
+| | **合计** | **99** | **15 847** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **5 489** |
 
 > **两点说明**：
 > ① **`docs/` 与 `.claude/` 不在表内** —— 两者不含代码文件（前者是文档，后者是 7 个 Agent Skill）。
@@ -239,7 +239,7 @@ QA 阶段不是走过场 —— 本轮与前几轮的核对共抓出 **8 类问�
 | [database init/README.md](<./database init/README.md>) | 466 | 建库建表 + 5 个迁移 |
 | [app/templates/README.md](./app/templates/README.md) | 457 | 前端模板（7 个） |
 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | 371 | 根目录入口与构建配置（6 个文件） |
-| [tests/README.md](./tests/README.md) | 358 | 测试策略与分组（30 个文件 / 389 个用例） |
+| [tests/README.md](./tests/README.md) | 372 | 测试策略与分组（35 个测试文件 / 536 个用例） |
 | [.github/workflows/README.md](./.github/workflows/README.md) | 233 | CI 流水线 |
 | [scripts/README.md](./scripts/README.md) | 346 | 建表脚本深度体检 + **文档站构建脚本** |
 | [docs/site/README.md](./docs/site/README.md) | 195 | **文档站**：离线静态站的用法与 Windows 指南 |
