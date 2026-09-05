@@ -276,6 +276,28 @@ async def test_dynamic_records_final_url_after_redirect(client, net, monkeypatch
     assert r.json()["source_site"] == FAKE_IP
 
 
+@pytest.mark.parametrize("evil", ["http://127.0.0.1/x", "http://169.254.169.254/latest/meta-data/"])
+async def test_dynamic_final_url_after_redirect_is_revalidated(client, net, monkeypatch, evil):
+    """动态路径也要校验**重定向之后的最终落点**，不能只校验最初那个 URL。
+
+    浏览器自己会跟随重定向，所以入口 URL 是公网、渲染完落在内网是完全可能的。
+    沙箱下不到浏览器二进制，这里用替身把 `_goto` 的最终 URL 换成内网地址，
+    验的是「拿到最终 URL 之后有没有再校验一次」这段逻辑本身。
+    """
+
+    async def fake_goto(url: str):
+        return crawler.Page(url=evil, status=200, html=RENDERED_HTML)
+
+    monkeypatch.setattr(browser, "_goto", fake_goto)
+    await _admin(client)
+    r = await client.post("/admin/articles/ingest", json={"url": URL, "dynamic": True})
+    assert r.status_code == 400, f"最终落点 {evil} 必须被拒，实际 {r.status_code} {r.text[:200]}"
+
+    async with TestSession() as s:
+        n = len((await s.execute(select(Article))).scalars().all())
+    assert n == 0, "被拒的页面绝不能入库"
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("url", ["http://10.0.0.9/x", "http://169.254.169.254/latest/meta-data/"])
 async def test_dynamic_ssrf_still_blocked_at_endpoint(client, net, no_browser, url):

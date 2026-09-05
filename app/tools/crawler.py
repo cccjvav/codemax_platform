@@ -38,6 +38,9 @@ MAX_NODES = 400  # 骨架最多多少个节点，防止 LLM 输入失控
 MAX_TEXT = 80  # 每个文本节点截断到多少字符
 # HTTP 头只能 latin-1 编码，UA 里写中文会在发请求时抛 UnicodeEncodeError（已踩过）
 USER_AGENT = "codemax-platform/1.0 (+https://codemax.top; content-bootstrap-crawler)"
+# 自己跟重定向（见 `_request` 的说明），所以要自己定次数上限，防重定向环
+MAX_REDIRECTS = 10
+_REDIRECT_CODES = frozenset({301, 302, 303, 307, 308})
 
 # 这些标签对"识别文章结构"没有帮助，先丢掉：既减体积也减噪声
 DROP_TAGS = (
@@ -98,15 +101,38 @@ async def _request(
 
     这一层的存在理由就是给 robots.txt 的抓取用：robots 请求自己也要防 SSRF，
     但绝不能再触发一次 `check_allowed`。
+
+    ## 为什么自己跟重定向，而不用 `follow_redirects=True`
+
+    交给 httpx 自动跟随的话，SSRF 校验只作用于**最初那个 URL**，而重定向目标不再
+    校验 —— 攻击者拿一个自己控制的公网页面 302 到 `http://169.254.169.254/` 就能读走
+    云厂商临时凭证（已用 `test_redirect_to_internal_address_is_blocked` 钉住）。
+    所以这里刻意关掉自动跟随，改成**每跳一次就重新校验一次**，校验不过就不发那一跳。
+
+    注意断言的是「请求根本没发出去」而不是「没把内容返回给调用方」：请求一旦发出，
+    内网服务就已经被打到了，事后丢弃响应体毫无意义。
     """
     await assert_public_url(url)
     async with httpx.AsyncClient(
         transport=transport,
         timeout=TIMEOUT,
-        follow_redirects=True,
+        follow_redirects=False,
         headers={"User-Agent": USER_AGENT},
     ) as client:
-        r = await client.get(url)
+        current = url
+        r: httpx.Response | None = None
+        for _ in range(MAX_REDIRECTS):
+            r = await client.get(current)
+            if r.status_code not in _REDIRECT_CODES:
+                break
+            location = r.headers.get("location")
+            if not location:
+                break  # 3xx 但没给 Location，按普通响应处理
+            current = str(r.url.join(location))  # 相对 Location 要按当前 URL 解析
+            await assert_public_url(current)
+        else:
+            raise CrawlError(f"重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）")
+    assert r is not None
     if len(r.content) > max_bytes:
         raise CrawlError(f"页面过大：{len(r.content)} 字节，超过上限 {max_bytes}")
     return r

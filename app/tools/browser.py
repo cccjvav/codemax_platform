@@ -74,6 +74,13 @@ async def render(url: str, *, transport: httpx.BaseTransport | None = None) -> P
         # 4) 到这里才碰浏览器。
         page = await _goto(url)
 
+    # 5) **校验重定向之后的最终落点**。浏览器自己会跟随重定向，所以入口 URL 是公网、
+    #    渲染完落在内网是完全可能的 —— 只校验入口 URL 等于给 SSRF 留了后门
+    #    （与 crawler._request 逐跳校验同一个理由，见 TD-196）。
+    #    放在 `_goto` 外面是刻意的：`_goto` 的 except 会把异常洗成 BrowserUnavailable，
+    #    而 SSRF 是安全问题，必须原样抛 CrawlError 让上层返回 400 而不是 503。
+    await assert_public_url(page.url)
+
     # 体积上限放在 `render` 而不是 `_goto` 里：这样它不需要真浏览器就能被测到
     # （与 crawler.fetch 的 MAX_BYTES 同一个上限，渲染后的 DOM 往往比原始 HTML 更大）。
     if len(page.html) > MAX_BYTES:
@@ -97,6 +104,11 @@ async def _goto(url: str) -> Page:
             browser = await p.chromium.launch()
             try:
                 pg = await browser.new_page(user_agent=USER_AGENT)
+                # 逐请求拦截：浏览器会自己跟随重定向、也会加载一堆子资源，
+                # 只在入口校验一次是不够的（与 crawler._request 同一个理由）。
+                # 这里对**每一个**要发出的请求重做 SSRF 校验，不过就直接 abort，
+                # 连 TCP 都不建立 —— 否则等于给内网留了盲打/端口扫描的口子。
+                await pg.route("**/*", _abort_non_public)
                 await pg.goto(url, timeout=RENDER_TIMEOUT_MS, wait_until="networkidle")
                 html = await pg.content()
                 final_url = pg.url
@@ -105,8 +117,9 @@ async def _goto(url: str) -> Page:
     except BrowserUnavailable:
         raise
     except Exception as e:
-        # 这里刻意宽接：SSRF 与 robots 已经在上面跑完了，**没有任何安全检查在这个 try 里**，
-        # 所以不存在「把安全错误洗成业务错误」的问题（这正是把校验放在前面的原因）。
+        # 这里刻意宽接：SSRF 与 robots 已经在上面跑完了，`_abort_non_public` 只会 abort
+        # 不会往外抛，**所以没有任何安全检查的异常会落进这个 except** —— 不存在
+        # 「把安全错误洗成业务错误」的问题（这正是把校验放在前后的原因）。
         # 最常见的原因是浏览器二进制没下载，报错里要直接给出命令，而不是让人猜。
         raise BrowserUnavailable(
             f"浏览器渲染失败：{e}\n"
@@ -115,3 +128,17 @@ async def _goto(url: str) -> Page:
         ) from e
 
     return Page(url=final_url, status=200, html=html)
+
+
+async def _abort_non_public(route) -> None:
+    """Playwright 路由拦截器：非公网目标直接 abort，不建立连接。
+
+    刻意不把 `CrawlError` 往外抛 —— 拦截器里抛出的异常 Playwright 会吞掉，
+    抛了也没用。放行/拦截的结果由 `render()` 里对最终 URL 的那次校验统一表达成 400。
+    """
+    try:
+        await assert_public_url(route.request.url)
+    except CrawlError:
+        await route.abort()
+        return
+    await route.continue_()

@@ -178,6 +178,66 @@ async def test_fetch_follows_redirect():
     assert "毕业设计" in page.html
 
 
+@pytest.mark.parametrize(
+    "evil",
+    [
+        "http://127.0.0.1/secret",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.9/internal",
+        "http://[::1]/ipv6-loopback",
+    ],
+)
+async def test_redirect_to_internal_address_is_blocked(evil):
+    """**每一跳都要重新做 SSRF 校验**，不能只校验最初那个 URL。
+
+    首跳是公网、302 到内网/云元数据地址，是绕过 SSRF 防护最经典的一招：
+    只校验入口 URL 的话，攻击者拿一个自己控制的公网页面就能让服务器去读
+    `169.254.169.254` 的临时凭证。这里断言的是**根本没跟过去**（`reached` 为空），
+    而不只是「没把内容返回给调用方」—— 请求一旦发出，内网服务就已经被打到了。
+    """
+    reached: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        if request.url.host == FAKE_IP:
+            return httpx.Response(302, headers={"location": evil})
+        reached.append(str(request.url))
+        return httpx.Response(200, text="INTERNAL-SECRET")
+
+    with pytest.raises(CrawlError):
+        await fetch(f"{BASE}/page", transport=httpx.MockTransport(handler))
+    assert reached == [], f"重定向到 {evil} 未被再校验，请求实际发出去了：{reached}"
+
+
+async def test_redirect_chain_public_to_public_still_works():
+    """收紧重定向校验不能把正常多跳重定向弄坏。"""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        if request.url.path == "/a":
+            return httpx.Response(302, headers={"location": f"{BASE}/b"})
+        if request.url.path == "/b":
+            return httpx.Response(302, headers={"location": f"{BASE}/c"})
+        return httpx.Response(200, text=BLOG_HTML)
+
+    page = await fetch(f"{BASE}/a", transport=httpx.MockTransport(handler))
+    assert page.url == f"{BASE}/c"
+    assert "毕业设计" in page.html
+
+
+async def test_too_many_redirects_is_rejected():
+    """无限重定向必须被次数上限挡住，否则会一直打目标站。"""
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        n = int(request.url.path.lstrip("/hop"))
+        return httpx.Response(302, headers={"location": f"{BASE}/hop{n + 1}"})
+
+    with pytest.raises(CrawlError, match="重定向"):
+        await fetch(f"{BASE}/hop0", transport=httpx.MockTransport(handler))
+
+
 # ---------------------------------------------------------------- DOM 骨架
 
 
