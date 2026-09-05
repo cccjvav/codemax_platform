@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..database import get_db
-from ..deps import get_current_user
+from ..deps import get_current_user, require_admin
 from ..models import Order, User
 from ..order_state import (
     CLOSED,
@@ -83,8 +83,8 @@ async def create_order(
     `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
     """
     mode = settings.SHOP_PAY_MODE
-    if mode not in ("wechat", "mock"):
-        raise HTTPException(500, f"SHOP_PAY_MODE 只能是 wechat 或 mock，当前是 {mode!r}")
+    if mode not in ("wechat", "mock", "manual"):
+        raise HTTPException(500, f"SHOP_PAY_MODE 只能是 wechat / mock / manual，当前是 {mode!r}")
     cfg = pay_config()
     if mode == "wechat" and not cfg.configured:
         raise HTTPException(503, "支付未配置：请在 .env 填齐 WX_APPID/WX_MCHID/WX_SERIAL_NO/"
@@ -101,7 +101,9 @@ async def create_order(
     if pending is not None and is_expired(pending, settings.ORDER_EXPIRE_MINUTES):
         await mark_closed(db, pending)
         pending = None
-    if pending is not None and pending.code_url:
+    # manual 模式**没有** code_url（收款码是全站共用的一张静态图，不是每单一串），
+    # 所以「这张单能不能直接用」不能只看 code_url，否则每次下单都会新建一张。
+    if pending is not None and (pending.code_url or mode == "manual"):
         return _payload(pending, reused=True, pay_mode=mode)
 
     order = pending
@@ -139,7 +141,12 @@ async def create_order(
             if order.code_url:
                 return _payload(order, reused=True, pay_mode=mode)
 
-    if mode == "mock":
+    if mode == "manual":
+        # 刻意**不写** code_url：收款码是 settings.SHOP_MANUAL_QR 那张静态图，
+        # 与具体订单无关。往这一列塞图片路径会让「有 code_url 就代表能扫码付款」
+        # 这个隐含前提失效，也让 _payload 去给一个路径字符串画二维码。
+        pass
+    elif mode == "mock":
         # 用请求的 base_url 而不是 SITE_BASE_URL：本地演示时链接要能直接点开
         base = str(request.base_url).rstrip("/")
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
@@ -234,6 +241,48 @@ async def mock_pay_confirm(
         "status": order.status,
         "transaction_id": order.transaction_id,
         "pay_mode": "mock",
+    }
+
+
+# ---------------------------------------------------------------- 人工确认收款（S5-04）
+
+
+@router.post("/orders/{order_no}/confirm")
+async def confirm_paid_manually(
+    order_no: str,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """把订单人工标记为已支付。**仅 `SHOP_PAY_MODE=manual` 时存在**，否则 404。
+
+    为什么需要它：manual 模式展示的是个人收款码，**服务端收不到任何支付通知** ——
+    没有商户号就没有回调（TD-113 / TD-205）。既然机器不知道钱到没到，
+    就只能由人告诉系统。
+
+    与 `mock_pay_confirm` 的关键区别是**谁能调**：mock 是登录用户自己点，
+    等于免费发货按钮（所以只能开在开发环境）；这里是 `require_admin`，
+    只有管理员能确认，可以留在生产上。
+
+    状态机刻意复用真实回调那条（`mark_paid`）：幂等、且 `CLOSED` 也能收 ——
+    用户扫了旧码照样可能付钱，钱到账就必须发货（TD-156）。
+    """
+    if settings.SHOP_PAY_MODE != "manual":
+        raise HTTPException(404, "人工确认收款未开启（SHOP_PAY_MODE != manual）")
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None:
+        # 这里**可以**返回 404 而不是像用户侧那样刻意模糊：调用方是管理员，
+        # 「这个单号不存在」是他需要知道的运维信息，不是要对他保密的东西。
+        raise HTTPException(404, "订单不存在")
+    if order.status in (PENDING, CLOSED):
+        order.transaction_id = f"MANUAL-{order.order_no}"
+        order.paid_at = datetime.now(timezone.utc)  # TIMESTAMPTZ，必须带时区（TD-146）
+    await mark_paid(db, order)
+    return {
+        "order_no": order.order_no,
+        "status": order.status,
+        "transaction_id": order.transaction_id,
+        "pay_mode": "manual",
+        "confirmed_by": admin.username,  # 留个审计线索：谁确认的这笔款
     }
 
 
@@ -340,6 +389,9 @@ def _payload(order: Order, *, reused: bool, pay_mode: str) -> dict:
         "order_no": order.order_no,
         "code_url": order.code_url,
         "qr_svg": _qr_svg(order.code_url) if needs_qr else None,
+        # manual 模式的静态收款码地址。只在 manual 下非空，前端据此二选一渲染：
+        # 有 qr_svg 就内联 SVG，否则用 <img> 引这张图。
+        "qr_image": settings.SHOP_MANUAL_QR if pay_mode == "manual" else None,
         "product_name": order.product_name,
         "amount": order.amount,
         "status": order.status,

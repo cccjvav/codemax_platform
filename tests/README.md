@@ -14,15 +14,15 @@
 ### 1.1 规模（实测）
 
 ```text
-34 个 .py 文件（其中 `test_*.py` 32 个）/ 7 241 行 / 430 个测试函数
+37 个 .py 文件（其中 `test_*.py` 35 个）/ 7 994 行 / 473 个测试函数
 > ⚠️ 口径说明：**测试函数** 430 个是 `def test_` 的个数；pytest 实际**收集到的用例**
-> 是 475 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
+> 是 530 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
   ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
   ├─ __init__.py        0 行
   └─ 30 个 test_*.py  6 276 行  389 个测试
 ```
 
-本机实测：**472 passed, 3 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **474 passed, 1 skipped**。
+本机实测：**526 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **528 passed, 2 skipped**。
 
 > **为什么本文不逐个测试函数写**：389 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
@@ -110,10 +110,10 @@ L120-L121  drop_all                拆表
 | --- | --- | --- | --- |
 | **认证与授权** | 5 | 1020 | `test_auth`(67) `test_auth_cookie`(314) `test_oauth`(248) `test_oauth_consent`(154) `test_token_revocation`(237) |
 | **工具功能** | 4 | 674 | `test_sql_ddl`(254) `test_er_page`(159) `test_mermaid`(169) `test_word_export`(92) |
-| **电商与支付** | 6 | 1357 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(104) `test_download`(200) `test_shop_page`(261) |
+| **电商与支付** | 7 | 1611 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(104) `test_download`(200) `test_shop_page`(261) `test_manual_pay`(254) |
 | **流程图** | 3 | 414 | `test_diagrams`(115) `test_diagram_quota`(153) `test_diagram_concurrency`(146) |
 | **爬虫** | 5 | 1517 | `test_crawler`(299) `test_politeness`(284) `test_extract`(240) `test_admin_ingest`(333) `test_dynamic_crawl`(361) |
-| **智能客服** | 2 | 383 | `test_faq`(131) `test_support`(252) |
+| **智能客服** | 4 | 877 | `test_faq`(131) `test_support`(252) `test_faq_semantic`(281) `test_intent_cascade`(213) |
 | **运维与横切** | 4 | 933 | `test_ops`(347) `test_ratelimit`(152) `test_schema_sync`(74) `test_perf`(360) |
 | **页面与文档站** | 2 | 268 | `test_site`(64) `test_docs_site`(204) |
 | **端到端** | 1 | 530 | `test_e2e`(530) |
@@ -162,6 +162,7 @@ L120-L121  drop_all                拆表
 | `test_wechat_pay.py` | NATIVE 下单 + 签名 |
 | `test_wechat_notify.py` | **回调验签、AES-GCM 解密、幂等**（同一通知来两遍只生效一次） |
 | `test_mock_pay.py` | 模拟通道；**生产模式下必须 404** |
+| `test_manual_pay.py` | **人工确认收款（S5-04/TD-205）**：只有管理员能确认；非 manual 模式下端点不存在；复用 `mark_paid` 故幂等且 `CLOSED` 也能收；另钉住 `full_init.sql` 种子账号必须带 `role=1` |
 | `test_download.py` | **预签名 URL + 一次性下载双重校验** |
 
 **代表用例**（`test_order_state.py`）：
@@ -201,6 +202,8 @@ L120-L121  drop_all                拆表
 
 - `test_faq.py` —— BM25 + 向量融合召回（`BM25_WEIGHT=0.6`）
 - `test_support.py` —— 意图路由、三层编排（规则/FAQ/RAG）、兜底转人工
+- `test_faq_semantic.py` —— 语义 FAQ 检索（S4-02-5）：`/embeddings` 乱序返回也要还原输入顺序；预热失败只退回词袋不拖垮启动；`None`（不可用）与空列表（没内容）必须区分
+- `test_intent_cascade.py` —— 三级级联：**规则有把握时绝不调 LLM**（靠调用计数守）；语义/LLM 都失败仍转人工；每次级联落一条标注样本日志
 
 #### ⑦ 运维与横切（4 文件 / 1075 行 / 49 个测试）
 
@@ -304,9 +307,9 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：472 passed, 3 skipped
+  │    期望：526 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
-       期望：474 passed, 1 skipped
+       期望：528 passed, 2 skipped
        配方见 HANDOVER.md §9
 ```
 
@@ -349,7 +352,7 @@ grep -rn -A4 --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：472 passed, 3 skipped
+# 本机实测：526 passed, 4 skipped
 
 # ⑦ 只跑某一组
 python -m pytest tests/test_e2e.py -q
@@ -360,7 +363,7 @@ python -m pytest tests/test_e2e.py -q
 > 本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > **两条特别提醒**：
-> ① 本文 1.1 的「472 passed / 430 个测试函数」这类数字，**加一个用例就会变** ——
+> ① 本文 1.1 的「passed 数 / 473 个测试函数」这类数字，**加一个用例就会变** ——
 >    历史上已经因为「加 1 条测试」导致 24 处条数、11 个文件过期。改完必须重跑再写；
 > ② 断言里的关键策略值**写死数值**，不要用 `MAX_BYTES + 1` 这种相对写法
 >    （取任何值都能过，等于没测）。

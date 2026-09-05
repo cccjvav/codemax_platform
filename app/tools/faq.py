@@ -12,10 +12,13 @@
 """
 from __future__ import annotations
 
+import logging
 import math
 from dataclasses import dataclass
 
 import jieba
+
+from .llm import LLMClient, LLMError, default_llm
 
 jieba.initialize()  # 预热词典，别把 ~560ms 算进第一次请求
 
@@ -151,6 +154,7 @@ class FaqHit:
     bm25: float  # 归一化后的 BM25 分量
     cosine: float  # 归一化后的余弦分量
     confidence: float  # 绝对置信度 [0,1]：由未归一化的原始分算出，**可以**跨查询比较
+    semantic: bool = False  # True = 本条来自语义检索（S4-02-5）。此时 bm25 无意义、恒为 0
 
 
 # BM25 无上界，不能直接和 [0,1] 的余弦相加。用饱和函数 x/(x+S) 压到 [0,1)，
@@ -196,3 +200,104 @@ def search(query: str, k: int = 3) -> list[FaqHit]:
         for i in ranked[:k]
         if fused[i] > 0
     ]
+
+
+# ------------------------------------------------- 语义检索（S4-02-5）
+#
+# 词袋只认字面：「多少钱」和「怎么收费」对不上，除非有人在 keywords 里手写召回词。
+# 语义向量让「贵不贵」「怎么算钱」也能命中，而且**不需要任何标注数据** ——
+# FAQ 表本身就是语料，12 条在启动时向量化一次即可。
+#
+# 为什么 `search()` 仍然是同步的：向量化查询要发网络请求，而
+# `RuleIntentRouter.classify()` 是同步接口（将来接 BERT 同样是同步的）。
+# 所以分成两条路，各归其位：
+#   search()            同步、纯本地、零成本 —— 路由的快车道
+#   semantic_search()   异步、要调 /embeddings —— 只在快车道没把握时用
+#
+# 索引是**进程内缓存**，不是数据库：12 条向量几 KB，重启时重新预热一次比
+# 引入一张表划算。预热失败就退回词袋，功能不缺失（见 warm_semantic_index）。
+
+_SEMANTIC: list[list[float]] | None = None  # 与 FAQS 等长且**同序**
+_SEMANTIC_NORM: list[float] = []
+_semantic_logger = logging.getLogger("codemax.faq")
+
+# ⚠️ 这个阈值**尚未实测标定**：沙箱里没有可用的 embedding API key，
+# 无法像 0.40 那样在真实语料上量分布（TD-151 记了词袋那次的标定过程）。
+# 取 0.55 是按 text-embedding-3-small 的常见经验：同义问句通常 0.6+，
+# 不相关问句 0.3 左右。**上线前必须用 tests/test_faq_semantic.py 里那条
+# 带 key 才跑的用例重新标定**，否则这个数字没有依据。
+SEMANTIC_CONFIDENCE_THRESHOLD = 0.55
+
+
+async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
+    """把 FAQS 向量化并缓存。返回是否成功。
+
+    **失败只记日志、绝不抛**：语义检索是增强项，不是依赖项。
+    没配 `LLM_API_KEY`、网络不通、模型不支持中文，任何一条都只意味着
+    「退回词袋」，而不是「客服功能挂掉」。启动流程不能因为一个可选增强而拒绝起服务。
+    """
+    global _SEMANTIC, _SEMANTIC_NORM
+    if _SEMANTIC is not None:
+        return True
+    try:
+        vectors = await client.embeddings([f.q for f in FAQS])
+    except LLMError as exc:
+        _semantic_logger.info("语义 FAQ 索引未启用，退回词袋检索：%s", exc)
+        return False
+    if len(vectors) != len(FAQS):
+        _semantic_logger.warning("向量条数 %d ≠ FAQ 条数 %d，丢弃", len(vectors), len(FAQS))
+        return False
+    _SEMANTIC = vectors
+    _SEMANTIC_NORM = [math.sqrt(sum(x * x for x in v)) or 1.0 for v in vectors]
+    _semantic_logger.info("语义 FAQ 索引已预热：%d 条，维度 %d", len(vectors), len(vectors[0]))
+    return True
+
+
+def semantic_ready() -> bool:
+    """语义索引是否可用（供上层决定走哪条路、供测试断言）。"""
+    return _SEMANTIC is not None
+
+
+def reset_semantic_index() -> None:
+    """清空缓存。测试专用：不同用例注入不同的假客户端，必须能隔离。"""
+    global _SEMANTIC, _SEMANTIC_NORM
+    _SEMANTIC = None
+    _SEMANTIC_NORM = []
+
+
+async def semantic_search(
+    query: str, k: int = 3, client: LLMClient = default_llm
+) -> list[FaqHit] | None:
+    """语义 top-k。**索引未预热或调用失败时返回 None**，由调用方回落词袋。
+
+    返回 None 而不是空列表，是为了区分两种完全不同的情况：
+    「语义检索不可用」（该回落）和「语义检索跑了但没相关内容」（该转人工）。
+    用空列表会把这两件事混成一件，上层就没法做正确的兜底。
+    """
+    if _SEMANTIC is None or not query.strip():
+        return None
+    try:
+        qv = await client.embeddings([query])
+    except LLMError as exc:
+        _semantic_logger.info("查询向量化失败，本次退回词袋：%s", exc)
+        return None
+    if not qv or not qv[0]:
+        return None
+    q = qv[0]
+    qn = math.sqrt(sum(x * x for x in q)) or 1.0
+    hits: list[FaqHit] = []
+    for i, vec in enumerate(_SEMANTIC):
+        dot = sum(a * b for a, b in zip(q, vec, strict=True))
+        cos = max(0.0, dot / (qn * _SEMANTIC_NORM[i]))  # 截断负值：方向相反不是「负相关」
+        hits.append(
+            FaqHit(
+                faq=FAQS[i],
+                score=cos,  # 语义分数天然同量纲，不需要归一化
+                bm25=0.0,
+                cosine=cos,
+                confidence=cos,
+                semantic=True,
+            )
+        )
+    hits.sort(key=lambda h: h.score, reverse=True)
+    return hits[:k]

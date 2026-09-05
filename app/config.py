@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     LLM_API_KEY: str = ""
     LLM_BASE_URL: str = "https://api.openai.com/v1"
     LLM_MODEL: str = "gpt-4o-mini"
+    # 向量模型必须单独配：对话模型不能打 /embeddings（S4-02-5 的语义 FAQ 检索用）。
+    # 本地 Ollama 换成 nomic-embed-text 之类，与 LLM_MODEL 互不影响。
+    LLM_EMBED_MODEL: str = "text-embedding-3-small"
 
     # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL
     SITE_BASE_URL: str = "https://codemax.top"
@@ -38,9 +41,16 @@ class Settings(BaseSettings):
     # 解决 TD-109：过期二维码的订单被无限复用、扫了必失败。
     ORDER_EXPIRE_MINUTES: int = 30
 
-    # 支付通道：wechat = 微信支付（生产必须用这个）；mock = 模拟收银台
+    # 支付通道：wechat = 微信支付（生产必须用这个）；mock = 模拟收银台；
+    #   manual = 展示静态收款码 + 管理员人工确认收款（S5-04）
     # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
+    # manual 与 mock 的区别：mock 任何人都能点「确认支付」，manual 只有管理员能确认（TD-205）
     SHOP_PAY_MODE: str = "wechat"
+
+    # manual 模式展示的收款码图片路径。**换成自己的收款码即可**，代码不用动。
+    # 刻意指向 static 下的一个文件而不是把图片塞进配置：图片是二进制，
+    # 配置项只该存「在哪」，不该存「是什么」。
+    SHOP_MANUAL_QR: str = "/static/pay_qr.svg"
 
     # 云存储（S3-02）：local = 本地目录（开发/演示）；oss / cos 需密钥，尚未实现（TD-128）
     STORAGE_BACKEND: str = "local"

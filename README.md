@@ -98,9 +98,10 @@ cd ..
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-预期 `472 passed, 3 skipped`。3 条 skip 的实测原因（`pytest -rs` 可复现）：
+预期 `526 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
 **2 条并发用例需要真数据库**（`test_e2e.py:504` 并发下单 TD-199、`test_oauth.py:184` 授权码并发 TD-85）—— SQLite 用 StaticPool 共享单连接，一个请求的 `rollback` 会把别人的插入一起回滚，排不成真正的并发；
-**1 条需要真浏览器**（`test_dynamic_crawl.py:338`，要 `playwright install chromium`，见 TD-191）。真库那一套（`474 passed, 1 skipped`）由 GitHub Actions 自动跑，
+**1 条需要真浏览器**（`test_dynamic_crawl.py:338`，要 `playwright install chromium`，见 TD-191）；
+**1 条需要真实 embedding API**（`test_faq_semantic.py:264` 的语义阈值标定，要设 `LLM_API_KEY`，见 TD-206）。真库那一套（`528 passed, 2 skipped`）由 GitHub Actions 自动跑，
 本机不需要装 `pgserver`——它虽然也提供 Windows 轮子，但没有必要。
 
 ## 运行测试

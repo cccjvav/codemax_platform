@@ -12,7 +12,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**472 passed + 3 skipped**；真 PostgreSQL 16.2：**474 passed + 1 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
+- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**526 passed + 4 skipped**；真 PostgreSQL 16.2：**528 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -172,6 +172,43 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 7. **`POST /shop/download/{order_no}` 是一次性的，绝不能拿它当状态查询。**
    它成功后订单永久变 `downloaded`。查状态只能走只读的 `GET /shop/orders/{order_no}`。
    `tests/test_shop_page.py::test_status_polling_does_not_burn_the_one_time_download` 钉住这条。
+
+### S4-02-5 / S5-04 这一轮新踩的（2026-09-05）
+
+1. **`/embeddings` 只保证每条带 `index`，不保证数组有序。**
+   语料和向量错一位的后果是「检索永远返回错的那条」，而它**不会抛异常**，只会安静地答错。
+   必须按 `index` 排序后再取，并断言条数与输入相等。
+
+2. **语义索引是进程内全局变量 ⇒ 测试必须显式隔离。**
+   `warm_semantic_index()` 写的 `_SEMANTIC` 会跨用例残留。
+   `tests/test_faq_semantic.py` 用 `autouse` fixture 前后各 `reset_semantic_index()` 一次。
+   另一面：**预热与查询必须传同一个客户端** —— `semantic_search()` 默认走 `default_llm`，
+   而测试环境里它没有 `api_key`，查询向量化会直接失败返回 `None`，看起来像"语义没生效"。
+
+3. **`classify()` 是同步的、LLM 是异步的，别硬塞进同一个 Protocol。**
+   把 `IntentRouter.classify` 改成 `async` 会波及全部同步调用点，还会丢掉
+   「确定性、可离线测试、将来接 BERT 也是同步」这三个好处。
+   正解：快车道保持同步，LLM 那层单独做成 `async llm_classify()`，级联由 `support.answer()` 编排。
+
+4. **`require_admin` 是依赖，比函数体里的模式判断先跑。**
+   所以 `POST /shop/orders/{no}/confirm` 在非 manual 模式下，非管理员拿到的是 **403 而不是 404**。
+   这与 `require_admin` 文档里写明的设计一致（「端点存在与否不是本站的秘密」），
+   写测试时别想当然断言 404 —— 我第一版就写错了。
+
+5. **删函数时别把装饰器留下。**
+   我把 `db` fixture 从 `test_support.py` 上移到 `conftest.py`，删了函数体却漏了
+   `@pytest.fixture` 那一行 ⇒ 它挂到了下一个函数 `_seed_articles` 上，
+   报的是 `Failed: Fixture "_seed_articles" ...`，完全看不出真因。
+
+6. **`full_init.sql` 的种子 `admin` 漏写 `role` 列**（真 bug，已修）。
+   DDL 默认 `0`、`require_admin` 要 `1` ⇒ 预置管理员进不了任何管理端点。
+   测试一直发现不了，因为 `test_admin_ingest.py` 每个用例都显式 `_set_role(..., 1)`，
+   而测试库用 `create_all` 建表、根本不读这个 SQL 文件。
+   **教训：种子 SQL 的字段完整性没有测试覆盖，只能靠直接钉住 SQL 文本的用例。**
+
+7. **多段替换的 heredoc 必须每段 `assert count == 1` 且只在末尾 `write_text`。**
+   这一轮又救了一次：第二段匹配失败（`support.py` 里 `_escalate` 的实参是「两参一行」的排版，
+   我按「一参一行」写），因为断言在写入之前，整个文件没被写坏。
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 

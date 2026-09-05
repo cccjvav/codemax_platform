@@ -7,7 +7,7 @@
 
 ## 1. 一句话结论
 
-**10 个含代码目录、96 个代码文件、14 463 行代码，已由 13 份文档全覆盖。**
+**10 个含代码目录、99 个代码文件、15 594 行代码，已由 13 份文档全覆盖。**
 >
 > ⚠️ 本文的数字是**审查当时**的快照。之后仓库又新增了 `scripts/build_docs_site.py`（文档站构建，898 行）
 > 与 `docs/site/README.md`，本节数字已同步更新；再往后新增文件时，**必须重跑 §6 的复核命令并更新本文**。
@@ -23,17 +23,17 @@
 
 | # | 目录 | 代码文件 | 代码行数 | 对应文档 | 文档行数 |
 | --- | --- | --- | --- | --- | --- |
-| 1 | `app/tools/` | 11 | 1 625 | `app/tools/README.md` | 679 |
-| 2 | `app/`（根） | 16 | 1 328 | `app/README.md` | 698 |
-| 3 | `app/routers/` | 10 | 1 132 | `app/routers/README.md` | 499 |
-| 4 | `tests/` | 32 | 6 397 | `tests/README.md` | 358 |
-| 5 | `app/templates/` | 7 | 491 | `app/templates/README.md` | 457 |
-| 6 | `database init/` | 7 | 489 | `database init/README.md` | 466 |
-| 7 | `.github/workflows/` | 1 | 181 | `.github/workflows/README.md` | 233 |
-| 8 | `app/static/` | 1 | 149 | `app/static/README.md` | 206 |
-| 9 | `scripts/` | 2 | 966 | `scripts/README.md` | 346 |
-| 10 | （仓库根） | 4 | 145 | `docs/ROOT_FILES.md` | 371 |
-| | **合计** | **91** | **12 903** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **约 5 300** |
+| 1 | `app/tools/` | 11 | 1 962 | `app/tools/README.md` | 714 |
+| 2 | `app/`（根） | 16 | 1 381 | `app/README.md` | 707 |
+| 3 | `app/routers/` | 10 | 1 290 | `app/routers/README.md` | 502 |
+| 4 | `tests/` | 37 | 7 994 | `tests/README.md` | 369 |
+| 5 | `app/templates/` | 8 | 792 | `app/templates/README.md` | 493 |
+| 6 | `database init/` | 8 | 521 | `database init/README.md` | 491 |
+| 7 | `.github/workflows/` | 1 | 229 | `.github/workflows/README.md` | 233 |
+| 8 | `app/static/` | 2 | 269 | `app/static/README.md` | 263 |
+| 9 | `scripts/` | 2 | 1 003 | `scripts/README.md` | 347 |
+| 10 | （仓库根） | 4 | 153 | `docs/ROOT_FILES.md` | 371 |
+| | **合计** | **99** | **15 594** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **5 480** |
 
 > **两点说明**：
 > ① **`docs/` 与 `.claude/` 不在表内** —— 两者不含代码文件（前者是文档，后者是 7 个 Agent Skill）。
@@ -60,7 +60,7 @@
 
 ## 3. 覆盖率检查（第 1 项）
 
-**方法**：把 96 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
+**方法**：把 99 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
 
 | 口径 | 含义 | 结果 |
 | --- | --- | --- |
@@ -161,7 +161,7 @@
 本报告所有数字都可复算（在仓库根目录、已激活 `.venv`）：
 
 ```bash
-# ① 覆盖率：96 个代码文件是否都被本目录 README 提及
+# ① 覆盖率：99 个代码文件是否都被本目录 README 提及
 python -c "
 import pathlib
 EX = {'.venv','.git','__pycache__','.pytest_cache','.ruff_cache','node_modules'}
@@ -177,7 +177,7 @@ for f in files:
     if not own.exists() or f.name not in own.read_text(encoding='utf-8'): miss.append(f)
 print('代码文件:', len(files), ' 未被本目录 README 提及:', len(miss))
 "
-# 预期：代码文件: 96   未被本目录 README 提及: 0
+# 预期：代码文件: 99   未被本目录 README 提及: 0
 
 # ② 代码块语言标记：裸块必须为 0
 python -c "

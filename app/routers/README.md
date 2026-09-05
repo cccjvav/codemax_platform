@@ -28,7 +28,7 @@
 ```text
 路由条目总数 41  →  业务条目 36  →  唯一业务路径 31
 （差值来自同一路径支持多种方法：/diagrams 等 4 个路径各有 GET/POST/PUT/DELETE）
-按前缀：/tools 7  /shop 7  /diagrams 6  /auth 5  /oauth 3  其余各 1
+按前缀：/tools 7  /shop 9  /diagrams 6  /auth 5  /oauth 3  其余各 1
 ```
 
 ### 1.2 依赖关系
@@ -447,12 +447,15 @@ PUT  /diagrams/{id}            diagrams.update_...    L114   鉴权 + If-Match �
 DEL  /diagrams/{id}            diagrams.delete_...    L161   鉴权 → 软删除
 POST /diagrams/{id}/restore    diagrams.restore_...   L174   鉴权 + 恢复也占配额
 
-POST /shop/orders              shop.create_order       L49   鉴权 → 复用/超时关单/新建
-GET  /shop/mock-pay            shop.mock_pay_page     L121   仅 mock 模式，否则 404
-POST /shop/mock-pay/confirm    shop.mock_pay_confirm  L131   仅 mock 模式；复用真状态机
-POST /shop/download/{no}       shop.download_url      L164   鉴权 + CAS 一次性(403)
-GET  /shop/dl                  shop.serve_download    L212   仅 local 后端；验签
-POST /shop/pay/notify          shop.pay_notify        L263   无鉴权；验签 → 幂等 mark_paid
+GET  /shop/ping                shop.ping               L68   鉴权探活
+POST /shop/orders              shop.create_order       L74   鉴权 → 复用/超时关单/新建
+GET  /shop/orders/{no}         shop.order_status      L167   鉴权 + 归属(404)；**只读**，不写库（S2-02-2）
+GET  /shop/mock-pay            shop.mock_pay_page     L205   仅 mock 模式，否则 404
+POST /shop/mock-pay/confirm    shop.mock_pay_confirm  L221   仅 mock 模式；复用真状态机
+POST /shop/orders/{no}/confirm shop.confirm_paid_manually L250 仅 manual 模式；**require_admin**；复用 mark_paid（S5-04/TD-205）
+POST /shop/download/{no}       shop.download_url      L296   鉴权 + CAS 一次性(403)
+GET  /shop/dl                  shop.serve_download    L344   仅 local 后端；验签
+POST /shop/pay/notify          shop.pay_notify        L403   无鉴权；验签 → 幂等 mark_paid
 
 GET  /<工具页>×N               site._page_view         L20   SSR 出 TDK
 GET  /sitemap.xml              site.sitemap            L44   读同一份 PAGES 清单

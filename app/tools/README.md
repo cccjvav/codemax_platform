@@ -24,7 +24,7 @@
 | **B. 智能客服** | `faq.py` → `intent.py` → `support.py` | FAQ 检索 → 意图路由 → 三层编排（FAQ / 闲聊 / RAG）+ 转人工兜底 | S4-02 |
 | **C. 内容抓取** | `politeness.py` → `crawler.py` → `extract.py`、`browser.py` | robots 礼仪 → SSRF 校验 + 抓取 → LLM 指认选择器 → 入库；SPA 站点用无头浏览器兜底 | S4-01 |
 
-三条链之间**没有相互依赖**（唯一的跨链复用是 `support.py` 复用 `faq.py` 的检索索引，两者同属 B 链）。
+三条链之间**没有相互依赖**（B 链内部 `faq.py` / `intent.py` 都依赖 `llm.py` 做语义向量化与 LLM 路由）。
 
 ### 1.2 依赖关系
 
@@ -39,8 +39,9 @@
      ├── extract.py ┘─────────┘
      │
      ├── faq.py ◀── intent.py ◀── support.py ──▶ llm.py
-     │      ▲                          │
-     │      └──────────────────────────┘（复用 _Index 做 RAG 检索）
+     │      ▲  ▲          │              │
+     │      │  └──────────┴──────────────┘（语义检索与 LLM 路由都要 llm）
+     │      └─────────────────────────────┘（复用 _Index 做 RAG 检索）
      │
    sql_ddl.py      word.py        （A 链两个文件互不依赖）
 ```
@@ -52,10 +53,11 @@
 | `browser.py` | `politeness`（整模块）、`crawler`（`MAX_BYTES`/`TIMEOUT`/`USER_AGENT`/`CrawlError`/`Page`/`_request`/`assert_public_url`） | L25-L26 |
 | `crawler.py` | `politeness`（整模块） | L33 |
 | `extract.py` | `crawler`（`fetch`/`to_skeleton`）、`llm`（`LLMClient`/`LLMError`/`default_llm`） | L27-L28 |
-| `intent.py` | `faq`（`search`） | L24 |
-| `support.py` | `faq`（`_Index as RetrievalIndex`、`tokenize`、局部导入 `search`）、`intent`、`llm` | L27-L30、L150 |
+| `intent.py` | `faq`（`search`）、`llm`（`LLMClient`/`LLMError`/`default_llm`，供 `llm_classify`） | L24-L25 |
+| `support.py` | `faq`（`SEMANTIC_CONFIDENCE_THRESHOLD`/`FaqHit`/`search`/`semantic_search`/`tokenize`/`_Index as RetrievalIndex`）、`intent`（含 `llm_classify`）、`llm` | L29-L32 |
 | `politeness.py` | `crawler`（**函数内延迟导入** `CrawlError`，避免循环） | L114 |
-| `sql_ddl.py` / `word.py` / `llm.py` / `faq.py` | 无（叶子模块） | — |
+| `sql_ddl.py` / `word.py` / `llm.py` | 无（叶子模块） | — |
+| `faq.py` | `llm`（`LLMClient`/`LLMError`/`default_llm`，供语义向量化） | L21 |
 
 **唯一的循环依赖**：`crawler` ⇄ `politeness`。`crawler.py:33` 在模块级导入 `politeness`，而 `politeness.py:114` 在 `_load_robots()` **函数体内**导入 `CrawlError` —— 延迟导入把环断开了，理由写在 L112-L113 的注释里。
 
@@ -178,7 +180,7 @@
 
 ---
 
-### 📄 文件名：`llm.py`（105 行）
+### 📄 文件名：`llm.py`（146 行）
 
 - **文件职责**：OpenAI 兼容的 LLM 客户端 + 自然语言转 Mermaid 类图。**客户端必须可注入**，否则测试会真打网络（模块 docstring L3-L4）。
 
@@ -214,7 +216,7 @@
 
 ---
 
-### 📄 文件名：`faq.py`（198 行）
+### 📄 文件名：`faq.py`（303 行）
 
 - **文件职责**：FAQ 检索，**BM25 + 余弦相似度融合召回**。语料硬编码在代码里（12 条），不放数据库 —— 条目少、随代码评审、不需要运营后台（L32-L34 注释）。
 
@@ -271,7 +273,26 @@
 
 ---
 
-### 📄 文件名：`intent.py`（112 行）
+#### S4-02-5 新增：语义检索（`app/tools/faq.py`）
+
+词袋只认字面：「多少钱」和「怎么收费」对不上，除非有人在 `keywords` 里手写召回词。
+语义向量让「贵不贵」「怎么算钱」也能命中，而且**不需要任何标注数据** ——
+FAQ 表本身就是语料，12 条在启动时向量化一次即可。
+
+| 名称 | 作用 |
+| --- | --- |
+| `async warm_semantic_index(client)` | 启动时把 12 条 FAQ 向量化并缓存。**失败只记日志、绝不抛** —— 没配 `LLM_API_KEY`、网络不通、模型不支持中文，任何一条都只意味着「退回词袋」，不能让一个可选增强拖垮启动 |
+| `semantic_ready()` | 索引是否可用 |
+| `reset_semantic_index()` | 清空缓存。**测试专用**：它是进程内全局变量，不隔离会互相污染 |
+| `async semantic_search(query, k, client)` | 语义 top-k。**索引未预热或调用失败返回 `None`，而不是空列表** —— 前者是「语义不可用，该回落」，后者是「跑了但没相关内容，该转人工」，混为一谈上层就做不出正确兜底 |
+| `SEMANTIC_CONFIDENCE_THRESHOLD = 0.55` | ⚠ **尚未实测标定**（沙箱无 embedding key）。上线前必须跑 `tests/test_faq_semantic.py` 里那条带 key 才执行的用例重新量，见 TD-206 |
+| `FaqHit.semantic` | `True` 表示本条来自语义检索；此时 `bm25` 无意义、恒为 0 |
+
+`search()` 刻意**仍是同步**的：向量化查询要发网络请求，而 `RuleIntentRouter.classify()`
+是同步接口。所以两条路各归其位 —— `search()` 是路由的免费快车道，
+`semantic_search()` 只在快车道没把握时用。
+
+### 📄 文件名：`intent.py`（182 行）
 
 - **文件职责**：把用户输入分成 **FAQ / 闲聊 / 专业问题** 三类，交给 `support.py` 分流。
 
@@ -305,7 +326,7 @@
 
 ---
 
-### 📄 文件名：`support.py`（202 行）
+### 📄 文件名：`support.py`（270 行）
 
 - **文件职责**：智能客服**三层编排**的总入口。任何一层出问题都退到「转人工」，**不抛异常给用户**（S4-02-4）。
 
@@ -347,6 +368,20 @@
   - **专业问题 → RAG（L178-L202）**：L179 检索；**L180-L184 `refs is None` → 「知识库不可用」**；**L185-L189 `not refs` → 「无相关内容」**（两条兜底理由不同）；L190 拼材料；L191-L194 调 LLM，失败转人工；L195-L201 成功返回 `source="rag"`，`references` 带上文章标题
 
 ---
+
+#### S4-02-5 新增：LLM 二意见（`llm_classify`）
+
+`classify()` 保持**同步**，是刻意的：它走纯本地判据（词袋 + 词表），将来换
+`BertIntentRouter` 也是同步的 —— 权重在本地推理，不发网络。而 LLM 二意见必须发
+HTTP 请求，天生异步。硬把两者塞进同一个 Protocol，会逼着所有同步调用点变成 async，
+还会丢掉「确定性、可离线测试、每条判定都有 `reason`」这三个优点。
+
+| 名称 | 作用 |
+| --- | --- |
+| `LLM_ROUTER_SYSTEM` | 分类提示词。**必须输出四选一**：`faq` / `chitchat` / `professional` / `unknown`，拿不准就 `unknown` |
+| `LLM_ROUTER_CONFIDENCE = 0.8` | 答对时给的置信度。刻意**不给 1.0** —— 大模型不输出校准过的概率，它「自信」和它「正确」没有必然关系。0.8 足以压过 `LOW_CONFIDENCE(0.35)` 让答案生效，又不至于在日志里冒充确定结论 |
+| `_LLM_LABEL_MAP` | 只收精确标签与少量常见变体。**刻意不做子串模糊匹配**：「这不是faq，是professional」里两个标签都出现，模糊匹配只会猜错，不如老实认不出、走转人工 |
+| `async llm_classify(text, llm)` | **不抛异常**。它在兜底链路上，自己再抛就没意义了 —— LLM 挂了就返回 0.0 置信度交给转人工 |
 
 ### 📄 文件名：`politeness.py`（183 行）
 

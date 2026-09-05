@@ -162,9 +162,19 @@ REFERENCES（外键）  4      UNIQUE  6
 
 **L48-L54 第 4 段：`sys_config`** —— 键值配置表，`config_key` 唯一。
 
-**L56-L58 第 5 段：种子管理员**
+**L62-L68 第 5 段：种子管理员**
 - **插入 `admin` 账号，密码 `123456`**，库里只存 **bcrypt(rounds=12) 哈希**
-- **L56 注释明确了明文只在注释里**，不落库
+- **L62 注释明确了明文只在注释里**，不落库
+- **L67 列清单必须包含 `role` 且值为 `1`**。这里曾经漏写：`role` 的 DDL 默认是 `0`（L27），
+  而 `app/deps.py:63` 的 `require_admin` 要求 `role == 1` —— 结果**昵称叫「管理员」的
+  预置账号打任何管理端点都是 403**。实测复现：库里 `role = 0`，
+  `POST /admin/articles/ingest` 返回 `403 {"detail":"需要管理员权限"}`。
+  之所以一直没被发现：`tests/test_admin_ingest.py` 每个用例都显式调 `_set_role(..., 1)`，
+  从来没依赖过种子数据；而测试库用 `create_all` 建表、根本不读这个文件。
+  现在由 `tests/test_manual_pay.py::test_full_init_sql_grants_admin_role_to_the_seeded_account`
+  直接钉住 SQL 文本 —— 这是唯一能守住它的地方。
+- **已建库的环境**需要手工补一次（迁移脚本刻意不做提权，见 `migrate_0005_user_role.sql:11-12`）：
+  `UPDATE sys_user SET role = 1 WHERE username = 'admin';`
 
 **L60-L68 第 6 段：`oauth_client`**
 - **L64 `client_secret_hash`** —— **只存哈希，不存明文**

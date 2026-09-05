@@ -60,8 +60,12 @@ CREATE TABLE sys_config (
 );
 
 -- 5. 插入测试账号 (密码为 123456，此处填入 bcrypt(rounds=12) 加密后的哈希)
-INSERT INTO sys_user (username, password, nickname)
-VALUES ('admin', '$2b$12$toA/MNcYjF.wehRbK3g9IuWPOWO.7IGreBqiEMFabdxbiTecJTI3a', '管理员');
+--    role 必须**显式写 1**：该列默认是 0（普通用户），而 app/deps.py 的
+--    require_admin 要求 role == 1。漏写这一列的后果是「昵称叫管理员的账号
+--    进不了任何管理端点，一律 403」—— 而测试发现不了，因为
+--    tests/test_admin_ingest.py 每个用例都显式调用 _set_role(..., 1)。
+INSERT INTO sys_user (username, password, nickname, role)
+VALUES ('admin', '$2b$12$toA/MNcYjF.wehRbK3g9IuWPOWO.7IGreBqiEMFabdxbiTecJTI3a', '管理员', 1);
 
 -- 6. OAuth2 客户端表（SSO 接入方：工具平台 / 商业平台）
 CREATE TABLE oauth_client (

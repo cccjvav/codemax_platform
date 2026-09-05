@@ -333,7 +333,7 @@ print('行数', len(s.splitlines()), ' 函数', len(fns))
 # 5) 构建文档站并核对提取结果（需要 mistune）
 pip install mistune
 python scripts/build_docs_site.py --data-only
-# 预期：模块 74 个 · 依赖边 186 条 · 路由 38 条 · 文档 21 份
+# 预期：模块 77 个 · 依赖边 198 条 · 路由 39 条 · 文档 21 份
 # （文档行数会随文档增改而变，本次实测 9345 行；模块/边/路由数只随代码变）
 
 # 6) 每次必跑的那道校验（不是本脚本）

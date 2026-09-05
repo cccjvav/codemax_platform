@@ -411,7 +411,7 @@ INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
 python -m pytest -q
 ```
 
-✅ 预期：**472 passed, 3 skipped**（SQLite 后端，约 3 分半）。
+✅ 预期：**526 passed, 4 skipped**（SQLite 后端，约 3 分半）。
 
 静态检查：
 

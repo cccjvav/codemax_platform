@@ -182,7 +182,7 @@ start docs\site\index.html
 python scripts/build_docs_site.py --data-only
 ```
 
-> **预期输出**：`模块 74 个 · 依赖边 186 条 · 路由 38 条 · 符号 250+ 个 · 文档 21 份`
+> **预期输出**：`模块 77 个 · 依赖边 198 条 · 路由 39 条 · 符号 265 个 · 文档 21 份`
 >
 > （路由数只随**路由**变，可以当断言用。**模块数与依赖边把 `tests/` 也算进去** ——
 > 所以新增一个测试文件就会 +1 模块、+若干依赖边，这不是 bug。
@@ -194,6 +194,6 @@ python scripts/build_docs_site.py --data-only
 python -c "import json;r=json.load(open('docs/site/data/routes.json',encoding='utf-8'));print('路由',len(r),'需鉴权',sum(1 for x in r if x['auth']),'限流',sum(1 for x in r if x['rate_limit']))"
 ```
 
-> **预期输出**：`路由 38 需鉴权 17 限流 8`
+> **预期输出**：`路由 39 需鉴权 18 限流 8`
 >
 > ⚠️ 这里刻意写成**单行**：多行的 `python -c "…"` 在 Windows `cmd.exe` 里会被换行截断。

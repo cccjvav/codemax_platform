@@ -22,6 +22,7 @@ from enum import Enum
 from typing import Protocol
 
 from .faq import search
+from .llm import LLMClient, LLMError, default_llm
 
 
 class Intent(str, Enum):
@@ -110,3 +111,72 @@ class RuleIntentRouter:
 
 
 default_router: IntentRouter = RuleIntentRouter()
+
+
+# ------------------------------------------------- LLM 二意见（S4-02-5）
+#
+# 为什么 `classify()` 保持同步、这个却是异步的：
+#   `classify()` 走纯本地判据（词袋 + 词表），将来换成 `BertIntentRouter` 同样是
+#   同步的 —— 权重在本地推理，不发网络。而 LLM 二意见必须发 HTTP 请求，天生异步。
+#   硬把两者塞进同一个 Protocol，会逼着所有同步调用点变成 async，还会丢掉
+#   「确定性、可离线测试、每条判定都有 reason」这三个优点。
+#   所以刻意分开：快车道同步、二意见异步，级联由 support.answer() 编排。
+#
+# 定位是**级联的第二级**，不是替换：只有规则路由置信度 < LOW_CONFIDENCE
+# （也就是原本直接转人工的那一桶）才会走到这里。绝大多数流量根本到不了这一步，
+# 所以既不加延迟也不花钱。
+
+LLM_ROUTER_SYSTEM = (
+    "你是意图分类器，把用户的客服提问分成三类之一，**只输出一个词**，不要解释、不要标点：\n"
+    "- faq：问平台自身的规则与流程（收费、发票、交付周期、下载、账号、退款等）\n"
+    "- chitchat：寒暄、感谢、与平台无关的闲聊\n"
+    "- professional：具体技术问题（代码、报错、部署、数据库、算法等）\n"
+    "- unknown：信息太少无法判断，或三类都不像\n"
+    "拿不准时输出 unknown，不要猜。"
+)
+
+# 答对时给的置信度。刻意**不给 1.0**：大模型不会输出校准过的概率，
+# 它「自信」和它「正确」没有必然关系。0.8 足以压过 LOW_CONFIDENCE(0.35)
+# 让它的答案生效，但不至于在日志里冒充确定结论。
+LLM_ROUTER_CONFIDENCE = 0.8
+
+# 模型爱写的各种变体都收进来，但**不做模糊匹配** —— 认不出就走 unknown，
+# 宁可转人工，也不要把「不太像技术问题」硬猜成专业问题去调 RAG 烧钱。
+_LLM_LABEL_MAP: dict[str, Intent] = {
+    "faq": Intent.FAQ,
+    "chitchat": Intent.CHITCHAT,
+    "闲聊": Intent.CHITCHAT,
+    "professional": Intent.PROFESSIONAL,
+    "专业": Intent.PROFESSIONAL,
+    "专业问题": Intent.PROFESSIONAL,
+}
+
+
+async def llm_classify(text: str, llm: LLMClient = default_llm) -> IntentResult:
+    """问一次大模型。失败/超时/答非所问一律返回低置信度，由上层转人工。
+
+    这个函数**不抛异常**：它在兜底链路上，兜底自己再抛就没意义了。
+    """
+    try:
+        reply = await llm.chat(LLM_ROUTER_SYSTEM, text)
+    except LLMError as exc:
+        return IntentResult(Intent.CHITCHAT, 0.0, f"LLM 路由调用失败：{exc}")
+
+    label = reply.strip().lower().strip("`。．.！!，, ").strip()
+    intent = _LLM_LABEL_MAP.get(label)
+    if intent is None and label:
+        # 模型偶尔会回「意图：faq」这种带前缀的形式。按空白与常见分隔符切开取最后一段
+        # 再试一次；**不做子串模糊匹配** —— 「这不是faq，是professional」这种
+        # 话里两个标签都出现，模糊匹配只会猜错，不如老实认不出、走转人工。
+        for sep in ("：", ":", "，", ",", " "):
+            label = label.replace(sep, " ")
+        intent = _LLM_LABEL_MAP.get(label.split()[-1]) if label.split() else None
+    if intent is None:
+        return IntentResult(
+            Intent.CHITCHAT, 0.0, f"LLM 路由答非所问（原文 {reply[:40]!r}），按未知处理"
+        )
+    return IntentResult(
+        intent,
+        LLM_ROUTER_CONFIDENCE,
+        f"LLM 路由判定为 {intent.value}",
+    )

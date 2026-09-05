@@ -58,7 +58,8 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
         f"少 {sorted(runtime - extracted)}"
     )
     # 36 → 38：S2-02-2 加了 GET /shop（落地页）与 GET /shop/orders/{order_no}（状态轮询）
-    assert len(extracted) == 38, f"业务路由应为 38 条，实际 {len(extracted)}"
+    # 38 → 39：S5-04 加了 POST /shop/orders/{order_no}/confirm（人工确认收款，TD-205）
+    assert len(extracted) == 39, f"业务路由应为 39 条，实际 {len(extracted)}"
 
 
 def test_page_routes_are_extracted(client):  # noqa: ARG001
@@ -83,7 +84,8 @@ def test_page_routes_are_extracted(client):  # noqa: ARG001
 def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
     """鉴权/限流计数（docs/site/README.md 把它当断言写进了文档，必须对得上）。"""
     routes = bds.build_routes()
-    assert sum(1 for r in routes if r["auth"]) == 17
+    # 17 → 18：人工确认收款端点走 require_admin（S5-04）
+    assert sum(1 for r in routes if r["auth"]) == 18
     assert sum(1 for r in routes if r["rate_limit"]) == 8
 
 

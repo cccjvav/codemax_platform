@@ -17,6 +17,8 @@
 """
 from __future__ import annotations
 
+import json
+import logging
 from dataclasses import dataclass, field
 
 from sqlalchemy import select
@@ -24,10 +26,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import Article
+from .faq import SEMANTIC_CONFIDENCE_THRESHOLD, FaqHit, search, semantic_search, tokenize
 from .faq import _Index as RetrievalIndex  # 复用 BM25+余弦，别再写一遍
-from .faq import tokenize
-from .intent import Intent, IntentResult, default_router
+from .intent import Intent, IntentResult, default_router, llm_classify
 from .llm import LLMClient, LLMError, default_llm
+
+# 级联标注样本的落地日志（S4-02-5）。单独一个 logger 名，方便运维按名字分流到
+# 一个文件里 —— 那就是将来训 BERT 的训练集（见 _log_labeling_sample）。
+_label_logger = logging.getLogger("codemax.intent.labels")
 
 # 低于这个置信度就不作答，直接转人工（S4-02-4）
 LOW_CONFIDENCE = 0.35
@@ -60,6 +66,55 @@ class SupportReply:
     escalated: bool = False  # 是否转人工
     reason: str = ""  # 判定/兜底依据
     references: tuple[str, ...] = field(default=())  # RAG 引用的文章标题
+
+
+def _log_labeling_sample(question: str, rule: IntentResult, final: IntentResult) -> None:
+    """把一次「规则没把握 → LLM 定夺」的判定记成一行 JSON。
+
+    **这就是将来训 BERT 的训练数据来源。** 现在没有标注数据所以训不了模型；
+    而级联跑一段时间后，这个日志里就是 (原文, 标签) 对，而且是**真实用户分布**的 ——
+    比拿 BQ / LCQMC 那种「句子对相似度」语料硬套意图分类靠谱得多
+    （那些语料的任务定义就不是三分类）。
+
+    用日志而不是建表：写入零成本、不影响主链路，导出也只是 `grep` + `jq`。
+    真要上规模了再改成表，接口不用动。
+    """
+    _label_logger.info(
+        json.dumps(
+            {"q": question, "rule": rule.intent.value, "label": final.intent.value,
+             "rule_conf": round(rule.confidence, 3), "label_conf": round(final.confidence, 3)},
+            ensure_ascii=False,
+        )
+    )
+
+
+async def _second_opinion(
+    text: str, rule: IntentResult, llm: LLMClient
+) -> tuple[IntentResult, FaqHit | None]:
+    """规则路由没把握时的级联第二级。返回 (新的判定, 语义命中的 FAQ 或 None)。
+
+    顺序是**先便宜后贵**：
+    1. 语义检索 —— 一次 embeddings 调用，而且命中就能直接作答，连 RAG 都省了。
+       它专治词袋的死穴：「贵不贵」和「怎么收费」字面不重合，词袋永远匹配不上。
+    2. LLM 分类 —— 语义也没命中时才问，纯分类不作答。
+    两步都失败就返回低置信度，让上层转人工（和改动前的行为一致）。
+    """
+    hits = await semantic_search(text, k=1, client=llm)
+    if hits and hits[0].confidence >= SEMANTIC_CONFIDENCE_THRESHOLD:
+        h = hits[0]
+        return (
+            IntentResult(
+                Intent.FAQ,
+                h.confidence,
+                f"语义检索命中「{h.faq.q}」，余弦 {h.confidence:.2f} ≥ {SEMANTIC_CONFIDENCE_THRESHOLD}"
+                f"（词袋只给到 {rule.confidence:.2f}）",
+            ),
+            h,
+        )
+
+    verdict = await llm_classify(text, llm)
+    reason = f"规则无把握（{rule.reason}）→ {verdict.reason}"
+    return IntentResult(verdict.intent, verdict.confidence, reason), None
 
 
 def _escalate(question: str, reason: str, intent: Intent, confidence: float) -> SupportReply:
@@ -133,10 +188,19 @@ async def answer(
     if hit:
         return _escalate(question, f"用户明确要求人工（命中 {hit}）", Intent.CHITCHAT, 1.0)
 
-    # ---- 第二层：意图路由 ----
-    result: IntentResult = router.classify(text)
+    # ---- 第二层：意图路由（同步、零成本、确定性）----
+    rule_result: IntentResult = router.classify(text)
+    result = rule_result
+    semantic_hit: FaqHit | None = None
 
-    # ---- 兜底 2：路由自己也没把握 ----
+    # ---- 第二层半：级联（S4-02-5）----
+    # 改动前这一桶直接转人工；现在先做两次更贵的尝试（语义检索 → LLM 分类），
+    # 都不行才转人工。级联判定同时记一条标注样本，那是将来训 BERT 的训练集。
+    if result.confidence < LOW_CONFIDENCE:
+        result, semantic_hit = await _second_opinion(text, rule_result, llm)
+        _log_labeling_sample(question, rule_result, result)
+
+    # ---- 兜底 2：级联之后仍然没把握 ----
     if result.confidence < LOW_CONFIDENCE:
         return _escalate(
             question,
@@ -147,17 +211,18 @@ async def answer(
 
     # ---- 第三层：分支处理 ----
     if result.intent is Intent.FAQ:
-        from .faq import search  # 局部导入避免模块级循环
-
-        hits = search(text, k=1)
-        if hits:
+        # 级联里语义命中的那条直接就是答案，不必再查一遍；
+        # 否则走词袋（`search` 已是模块级导入 —— 本模块早就从 .faq 引了
+        # `_Index` 和 `tokenize`，不存在循环，原先那句局部导入的理由已不成立）。
+        hit = semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)
+        if hit is not None:
             return SupportReply(
-                answer=hits[0].faq.a,
+                answer=hit.faq.a,
                 intent=Intent.FAQ,
                 confidence=result.confidence,
-                source="faq",
+                source="faq-semantic" if hit.semantic else "faq",
                 reason=result.reason,
-                references=(hits[0].faq.q,),
+                references=(hit.faq.q,),
             )
         return _escalate(question, "路由判为 FAQ 但检索已无命中", Intent.FAQ, result.confidence)
 
@@ -179,12 +244,15 @@ async def answer(
     refs = await _retrieve_articles(db, text)
     if refs is None:
         return _escalate(
-            question, "知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答",
+            question,
+            f"知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答"
+            f"（路由依据：{result.reason}）",
             Intent.PROFESSIONAL, result.confidence,
         )
     if not refs:
         return _escalate(
-            question, "知识库（sys_article）无相关内容，RAG 无法作答",
+            question,
+            f"知识库（sys_article）无相关内容，RAG 无法作答（路由依据：{result.reason}）",
             Intent.PROFESSIONAL, result.confidence,
         )
     context = "\n\n".join(f"【{title}】\n{body}" for title, body in refs)

@@ -8,8 +8,6 @@ from app.tools.intent import FAQ_CONFIDENCE_THRESHOLD, Intent, RuleIntentRouter
 from app.tools.llm import LLMError
 from app.tools.support import ESCALATE_KEYWORDS, LOW_CONFIDENCE, answer
 
-from .conftest import Base, TestSession, engine
-
 
 class FakeLLM:
     """假客户端：绝不真打网络，同时记录被调用了几次、拿到什么 system prompt。"""
@@ -29,16 +27,6 @@ class FakeLLM:
 @pytest.fixture
 def router() -> RuleIntentRouter:
     return RuleIntentRouter()
-
-
-@pytest.fixture
-async def db():
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    async with TestSession() as session:
-        yield session
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 async def _seed_articles(db, rows=(("Nginx 反向代理配置", "用 proxy_pass 把 80 转发到 8000。"),)):

@@ -125,7 +125,27 @@
       document.getElementById("p-no").textContent = o.order_no;
       document.getElementById("p-expired").hidden = !o.expired;
       document.getElementById("p-tip").hidden = !!o.expired;
-      document.getElementById("p-qr").innerHTML = o.qr_svg || "";
+      // 收款码有两种来源，二选一渲染：
+      //   qr_svg   —— 微信 Native 的 code_url 现画的内联 SVG（segno，纯 <path>）
+      //   qr_image —— manual 模式的静态收款码（S5-04），服务端收不到回调，
+      //               要管理员核对到账后人工确认（POST /shop/orders/{no}/confirm）
+      // 用 createElement + .src 而不是把路径塞进 innerHTML：路径虽来自服务端配置，
+      // 但它将来可能变成运营可配的值，从一开始就不给它 XSS 的机会。
+      const box = document.getElementById("p-qr");
+      box.innerHTML = "";
+      if (o.qr_svg) {
+        box.innerHTML = o.qr_svg;
+      } else if (o.qr_image) {
+        const img = document.createElement("img");
+        img.src = o.qr_image;
+        img.alt = "扫码付款";
+        img.width = 220;
+        box.appendChild(img);
+        if (!o.expired) {
+          document.getElementById("p-tip").textContent =
+            "请扫码付款。付款后由客服核对到账并确认，本页会自动刷新状态。";
+        }
+      }
       const link = document.getElementById("p-link");
       // mock 模式（TD-124）的 code_url 是本站 http 链接，给个按钮比让人扫码方便
       if (o.code_url && /^https?:/.test(o.code_url)) {

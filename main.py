@@ -10,6 +10,7 @@ from app.config import settings
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers import admin, auth, diagrams, health, oauth, shop, site, support, tools
 from app.startup_checks import enforce_production_settings
+from app.tools.faq import warm_semantic_index
 
 # 日志配置放在导入应用之前：uvicorn 自己也会配 logging，这里只设定级别与格式，
 # 不去动它的 handler，避免两边打架（TD-165）。
@@ -23,6 +24,13 @@ enforce_production_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # 语义 FAQ 索引预热（S4-02-5）：把 12 条 FAQ 向量化一次缓存住。
+    # **best-effort** —— 没配 LLM_API_KEY、网络不通、模型不支持中文，任何一条都只
+    # 意味着退回词袋检索，绝不让启动失败。
+    #
+    # 刻意 await 而不是丢后台任务：后台任务可能晚于第一个请求才写完全局变量，
+    # 那样同一个问题会出现「有时走语义、有时走词袋」的随机行为，极难排查。
+    await warm_semantic_index()
     yield
     cpu_pool.shutdown()  # 回收进程池子进程，否则会留下孤儿进程
 

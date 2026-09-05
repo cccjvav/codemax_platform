@@ -123,6 +123,21 @@ async def client():
         await conn.run_sync(Base.metadata.drop_all)
 
 
+@pytest_asyncio.fixture
+async def db():
+    """一个能直接用的 AsyncSession（建表 → yield → 拆表）。
+
+    从 test_support.py 上移到这里：S4-02-5 的 test_intent_cascade.py 也要用它。
+    与 `client` 的区别是它**不起 HTTP 层**，适合直接测 tools/ 里的业务函数。
+    """
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    async with TestSession() as session:
+        yield session
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.drop_all)
+
+
 # ---------------------------------------------------------------- 共享 fixture
 #
 # 商品文件桩。**放在 conftest 而不是 test_download.py**：S2-02-2 的
