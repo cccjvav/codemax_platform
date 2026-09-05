@@ -7,7 +7,7 @@
 
 ## 1. 一句话结论
 
-**10 个含代码目录、99 个代码文件、16 155 行代码，已由 13 份文档全覆盖。**
+**10 个含代码目录、100 个代码文件、16 341 行代码，已由 13 份文档全覆盖。**
 >
 > ⚠️ 本文的数字是**审查当时**的快照。之后仓库又新增了 `scripts/build_docs_site.py`（文档站构建，935 行）
 > 与 `docs/site/README.md`，本节数字已同步更新；再往后新增文件时，**必须重跑 §6 的复核命令并更新本文**。
@@ -24,16 +24,16 @@
 | # | 目录 | 代码文件 | 代码行数 | 对应文档 | 文档行数 |
 | --- | --- | --- | --- | --- | --- |
 | 1 | `app/tools/` | 11 | 2 016 | `app/tools/README.md` | 733 |
-| 2 | `app/`（根） | 16 | 1 430 | `app/README.md` | 707 |
+| 2 | `app/`（根） | 16 | 1 440 | `app/README.md` | 707 |
 | 3 | `app/routers/` | 10 | 1 276 | `app/routers/README.md` | 502 |
-| 4 | `tests/` | 37 | 8 431 | `tests/README.md` | 378 |
-| 5 | `app/templates/` | 8 | 810 | `app/templates/README.md` | 505 |
+| 4 | `tests/` | 38 | 8 597 | `tests/README.md` | 379 |
+| 5 | `app/templates/` | 8 | 820 | `app/templates/README.md` | 505 |
 | 6 | `database init/` | 8 | 521 | `database init/README.md` | 491 |
-| 7 | `.github/workflows/` | 1 | 229 | `.github/workflows/README.md` | 233 |
-| 8 | `app/static/` | 2 | 286 | `app/static/README.md` | 263 |
+| 7 | `.github/workflows/` | 1 | 229 | `.github/workflows/README.md` | 237 |
+| 8 | `app/static/` | 2 | 286 | `app/static/README.md` | 264 |
 | 9 | `scripts/` | 2 | 1 003 | `scripts/README.md` | 347 |
 | 10 | （仓库根） | 4 | 153 | `docs/ROOT_FILES.md` | 371 |
-| | **合计** | **99** | **16 155** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **5 520** |
+| | **合计** | **100** | **16 341** | **10 份说明书 + `总览.md` + 本文 + `docs/site/README.md`** | **5 527** |
 
 > **两点说明**：
 > ① **`docs/` 与 `.claude/` 不在表内** —— 两者不含代码文件（前者是文档，后者是 7 个 Agent Skill）。
@@ -60,7 +60,7 @@
 
 ## 3. 覆盖率检查（第 1 项）
 
-**方法**：把 99 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
+**方法**：把 100 个代码文件的文件名，逐个在文档语料里查找。用了两种口径，从严到宽：
 
 | 口径 | 含义 | 结果 |
 | --- | --- | --- |
@@ -161,7 +161,7 @@
 本报告所有数字都可复算（在仓库根目录、已激活 `.venv`）：
 
 ```bash
-# ① 覆盖率：99 个代码文件是否都被本目录 README 提及
+# ① 覆盖率：100 个代码文件是否都被本目录 README 提及
 python -c "
 import pathlib
 EX = {'.venv','.git','__pycache__','.pytest_cache','.ruff_cache','node_modules'}
@@ -239,7 +239,7 @@ QA 阶段不是走过场 —— 本轮与前几轮的核对共抓出 **8 类问�
 | [database init/README.md](<./database init/README.md>) | 466 | 建库建表 + 5 个迁移 |
 | [app/templates/README.md](./app/templates/README.md) | 457 | 前端模板（7 个） |
 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | 371 | 根目录入口与构建配置（6 个文件） |
-| [tests/README.md](./tests/README.md) | 378 | 测试策略与分组（35 个测试文件 / 545 个用例） |
+| [tests/README.md](./tests/README.md) | 378 | 测试策略与分组（36 个测试文件 / 565 个用例） |
 | [.github/workflows/README.md](./.github/workflows/README.md) | 233 | CI 流水线 |
 | [scripts/README.md](./scripts/README.md) | 346 | 建表脚本深度体检 + **文档站构建脚本** |
 | [docs/site/README.md](./docs/site/README.md) | 195 | **文档站**：离线静态站的用法与 Windows 指南 |

@@ -1,6 +1,6 @@
 # tests/test_docs_site.py
 #
-# `scripts/build_docs_site.py`（898 行 / 35 个函数）此前**零测试**，且 CI 不构建文档站 ——
+# `scripts/build_docs_site.py`（935 行 / 32 个函数）**曾经零测试、CI 也不构建文档站** ——
 # 于是它静默烂掉也没人知道：`build_routes()` 漏掉 4 条路由（`GET /` 与 3 个 `/tools/*`），
 # 生成的 `routes.json` 是 32 条而运行时真实是 36 条，7 处文档跟着写成 32 并互相「印证」。
 #

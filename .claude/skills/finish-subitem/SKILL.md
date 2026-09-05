@@ -19,9 +19,9 @@ description: >
 
 ### 2. 两套测试都要绿
 ```bash
-.venv/bin/python -m pytest -q                       # 541 passed, 4 skipped
+.venv/bin/python -m pytest -q                       # 561 passed, 4 skipped
 TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-  .venv/bin/python -m pytest -q                     # 543 passed, 2 skipped
+  .venv/bin/python -m pytest -q                     # 563 passed, 2 skipped
 ```
 真库起不来时按 `HANDOVER.md` §9 重建；实在起不了要在提交信息里写明「真库未跑」。
 
@@ -204,7 +204,7 @@ CI 日志正文在本沙箱取不到（重定向到 `*.blob.core.windows.net` �
 ```
 子项：<S4-01-2 标题>
 做了什么：<要点>
-测试：SQLite 541 passed + 4 skipped；真 PostgreSQL 16.2 543 passed + 2 skipped
+测试：SQLite 561 passed + 4 skipped；真 PostgreSQL 16.2 563 passed + 2 skipped
 变异测试：<去掉 X → N 个红> ×若干
 提交：<short sha>，已推送，远端 tip 已确认
 CI：<run id> push / pull_request 均 success

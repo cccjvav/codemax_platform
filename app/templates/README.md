@@ -77,7 +77,7 @@ app/templates/                  810 行
 
 ### 1.4 全目录统一的四条约定
 
-**① 一律 `{% extends "base.html" %}` + `{% block content %}`。** 7 个模板无一例外（`base.html` 自己除外）。
+**① 一律 `{% extends "base.html" %}` + `{% block content %}`。** 7 个子模板无一例外（`base.html` 自己除外）。
 
 **② 登录态只走 HttpOnly cookie，脚本不碰 token。** 这是 TD-44 的直接后果，模板里有三处显式说明：
 - `drawio.html:49-50`：**登录态由 HttpOnly cookie 携带，脚本读不到也不需要读 token。因此「是否已登录」只能问后端**

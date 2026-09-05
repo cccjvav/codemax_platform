@@ -1,5 +1,13 @@
 # 复审报告（第 4 轮，超全面全目录版）
 
+> ⚠️ **历史审查快照，仅供存档**
+>
+> 本文是某一轮的第三方复审记录，里面的统计数字、行号与结论都只代表**当时**的仓库状态，
+> 之后已经变过。做全仓 `grep` 时很容易把它误当成当前事实来源 —— 当前真值请以
+> `DOCUMENTATION_SUMMARY.md`、各目录 README 与实跑命令为准。
+> 本文指出的问题是否已修复，见 `HANDOVER.md` §6 与 `TECH_DECISIONS.md`。
+
+
 **审查目标**  
 `arena/01a0599b-codemax-platform` 最新 fetched tip：`80a7b87d17684bc352ee5dc002246852dda4cf11`
 

@@ -17,16 +17,17 @@
 实测结构（用 YAML 解析取真值，不是靠数缩进）：
 
 ```text
-3 个 job
-  lint            显示名「静态检查（ruff）」        4 步   无 service
-  test-sqlite     显示名「测试（SQLite 后端）」     5 步   无 service
-  test-postgres   显示名「测试（真 PostgreSQL 16）」 6 步   service: postgres:16
+4 个 job
+  lint            显示名「静态检查（ruff）」                      4 步   无 service
+  docs            显示名「文档站构建（scripts/build_docs_site.py）」 5 步   无 service
+  test-sqlite     显示名「测试（SQLite 后端）」                   5 步   无 service
+  test-postgres   显示名「测试（真 PostgreSQL 16）」               6 步   service: postgres:16
 permissions: contents: read  +  pull-requests: write
 on: push（所有分支）+ pull_request
 concurrency: group=ci-${{ github.ref }}  cancel-in-progress=true
 ```
 
-### 1.2 为什么要三个 job 而不是一个
+### 1.2 为什么要四个 job 而不是一个
 
 | job | 回答的问题 | 为什么不能合并 |
 | --- | --- | --- |
@@ -56,7 +57,7 @@ concurrency: group=ci-${{ github.ref }}  cancel-in-progress=true
 
 #### 文件头注释（L1-L25）—— 这段是全文件信息密度最高的部分
 
-- **L4-L7 三个 job 各自干什么**
+- **L4-L7 四个 job 各自干什么**
 - **L9-L11 历史**：`2f3223a` 由仓库管理员从 `docs/github-actions-ci.yml` 纯重命名激活；`aa87c52` 把 actions 升到 v7（消 Node 20 弃用告警，TD-144）；`b47044b` 加入 lint job
 - **L13-L16 权限历史**：本会话的 GitHub App **已于 2026-09-01 获得 Workflows 写权限**，现在可以直接改并 push 本文件。此前它被 `remote rejected ... without 'workflows' permission` 拒绝过多次，当时的绕行办法（`git mv` / `git am` 补丁）已不再需要
 - **L18-L24 关于日志**：**CI 日志正文在本沙箱取不到** —— 下载被重定向到 `productionresultssa18.blob.core.windows.net`，实测 HTTP 000（**DNS 能解析、`api.github.com` 同时是 200，所以是出口被墙而不是权限问题**）。绕行办法就是下面每个 test job 末尾那一步
@@ -141,8 +142,9 @@ git push
   ├─ 触发**两条** run（push 一条、pull_request 一条，若在 PR 分支上）
   │    ⚠️ 查 CI 状态时两条都要看，只看一条会漏
   │
-  └─ 三个 job **并行**跑
+  └─ 四个 job **并行**跑
        ├─ lint            ~1 分钟（只装 ruff）
+       ├─ docs            ~1 分钟（装 mistune，渲染整站并校验页数）
        ├─ test-sqlite     ~5 分钟
        └─ test-postgres   ~7 分钟（要起 PG service + 跑两遍建表脚本）
             │
@@ -170,16 +172,18 @@ git push
 - **`${{ job.name }}` 与 `${{ github.job }}` 在 `run:` 步骤里都渲染成空串** —— 而 `${{ github.sha }}` 是正常的。所以 job 名只能写死
 - **加 `if: failure()` 的步骤必须金丝雀实测** —— 故意推一个会失败的 commit，确认评论真的发出来了，而不是等真出问题时才发现这一步本身是坏的
 
-### 3.3 三个 job 各能抓到什么、抓不到什么
+### 3.3 四个 job 各能抓到什么、抓不到什么
 
-| 问题类型 | lint | test-sqlite | test-postgres |
-| --- | --- | --- | --- |
-| 未使用 import、裸 except、`datetime` 没带时区 | ✅ | — | — |
-| 业务逻辑错 | — | ✅ | ✅ |
-| 建表脚本与 ORM 不一致 | — | ✅（`test_schema_sync.py`，**只解析不执行**） | ✅（**真执行两遍**） |
-| **建表脚本在 PostgreSQL 上语法不接受** | — | **❌ 抓不到** | ✅ |
-| **只在真库出现的时间/类型行为** | — | **❌** | ✅ |
-| 性能回归 | — | ✅（`tests/test_perf.py`） | ✅ |
+| 问题类型 | lint | docs | test-sqlite | test-postgres |
+| --- | --- | --- | --- | --- |
+| 未使用 import、裸 except、`datetime` 没带时区 | ✅ | — | — | — |
+| 业务逻辑错 | — | — | ✅ | ✅ |
+| 建表脚本与 ORM 不一致 | — | — | ✅（`test_schema_sync.py`，**只解析不执行**） | ✅（**真执行两遍**） |
+| **建表脚本在 PostgreSQL 上语法不接受** | — | — | **❌ 抓不到** | ✅ |
+| **只在真库出现的时间/类型行为** | — | — | **❌** | ✅ |
+| 性能回归 | — | — | ✅（`tests/test_perf.py`） | ✅ |
+| **文档站构建脚本坏掉 / 生成页数不对** | — | ✅ | ❌（`test_docs_site.py` 只测纯函数，不渲染整站） | ❌ |
+| **`DOC_GROUPS` 漏登记新写的 README** | — | ✅ | ✅（`test_docs_site.py` 会查文件存在性） | ✅ |
 
 **第 4 行是关键**：`tests/test_schema_sync.py` 用**项目自己的 DDL 解析器**读 `full_init.sql` 与 ORM 比对，**它不执行 SQL**。所以「PostgreSQL 其实不接受这句」这类问题只有 `test-postgres` 的 L152-L153 能抓到。
 
@@ -221,7 +225,7 @@ print('concurrency:', d['concurrency'])
 .venv/bin/python -m pytest -q
 
 # 4) 真库 job 的配方见 HANDOVER.md §9（起 pgserver + createdb + TEST_DATABASE_URL）
-#    本机实测（SQLite 侧）：541 passed, 4 skipped
+#    本机实测（SQLite 侧）：561 passed, 4 skipped
 ```
 
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `ci.yml` 后本文对应的行号与

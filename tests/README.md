@@ -14,15 +14,15 @@
 ### 1.1 规模（实测）
 
 ```text
-37 个 .py 文件（其中 `test_*.py` 35 个）/ 7 994 行 / 473 个测试函数
-> ⚠️ 口径说明：**测试函数** 430 个是 `def test_` 的个数；pytest 实际**收集到的用例**
-> 是 530 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
+38 个 .py 文件（其中 `test_*.py` 36 个）/ 8 597 行 / 493 个测试函数
+> ⚠️ 口径说明：**测试函数** 493 个是 `def test_` 的个数；pytest 实际**收集到的用例**
+> 是 565 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
   ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
   ├─ __init__.py        0 行
   └─ 35 个 test_*.py  8 431 行  488 个测试
 ```
 
-本机实测：**541 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **543 passed, 2 skipped**。
+本机实测：**561 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **563 passed, 2 skipped**。
 
 > **为什么本文不逐个测试函数写**：488 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
@@ -31,7 +31,7 @@
 ### 1.2 五条贯穿全目录的测试策略
 
 **① 一律走真实 HTTP 层，不直接调业务函数。**
-25 / 32 个文件用 `client` fixture（`httpx.AsyncClient` + `ASGITransport`），请求真的经过中间件、依赖注入、鉴权、异常处理器。**只有 4 个不用**：`test_crawler.py`、`test_faq.py`、`test_politeness.py`、`test_schema_sync.py` —— 它们测的是不依赖 HTTP 的纯逻辑。
+25 / 33 个文件用 `client` fixture（`httpx.AsyncClient` + `ASGITransport`），请求真的经过中间件、依赖注入、鉴权、异常处理器。**只有 5 个不用**：`test_crawler.py`、`test_faq.py`、`test_politeness.py`、`test_schema_sync.py`、`test_config_validation.py` —— 它们测的是不依赖 HTTP 的纯逻辑。
 
 **② 前端代码要被真执行，不许退化成静态字符串检查。**
 `test_er_page.py` 与 `test_auth_cookie.py` 用 `subprocess` 真跑 `node`：
@@ -97,10 +97,10 @@ L117-L118  yield AsyncClient(ASGITransport(app=app), base_url="http://test")
 L119       清掉 dependency_overrides
 L120-L121  drop_all                拆表
 ```
-- **每个用例都是干净的库** —— 这是 545 个用例能任意顺序跑的前提
+- **每个用例都是干净的库** —— 这是 565 个用例能任意顺序跑的前提
 - **L119 的 `clear()` 不能省** —— 否则下一个用例会拿到上一个用例的 session 工厂
 
-### 2.1 分组总览（35 个测试文件）
+### 2.1 分组总览（36 个测试文件）
 
 > 行数为 `wc -l` 实测值（2026-09-05）。**别手抄**：历史上这张表大面积过期过 ——
 > 本次一核对，9 组里有 8 个文件的行数都是旧的（如 `test_e2e` 427 → 530、
@@ -110,12 +110,12 @@ L120-L121  drop_all                拆表
 | --- | --- | --- | --- |
 | **认证与授权** | 5 | 1020 | `test_auth`(67) `test_auth_cookie`(314) `test_oauth`(248) `test_oauth_consent`(154) `test_token_revocation`(237) |
 | **工具功能** | 4 | 674 | `test_sql_ddl`(254) `test_er_page`(159) `test_mermaid`(169) `test_word_export`(92) |
-| **电商与支付** | 7 | 1611 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(104) `test_download`(200) `test_shop_page`(261) `test_manual_pay`(254) |
+| **电商与支付** | 7 | 1867 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(157) `test_download`(200) `test_shop_page`(464) `test_manual_pay`(254) |
 | **流程图** | 3 | 414 | `test_diagrams`(115) `test_diagram_quota`(153) `test_diagram_concurrency`(146) |
 | **爬虫** | 5 | 1517 | `test_crawler`(299) `test_politeness`(284) `test_extract`(240) `test_admin_ingest`(333) `test_dynamic_crawl`(361) |
-| **智能客服** | 4 | 877 | `test_faq`(131) `test_support`(252) `test_faq_semantic`(281) `test_intent_cascade`(213) |
-| **运维与横切** | 4 | 933 | `test_ops`(347) `test_ratelimit`(152) `test_schema_sync`(74) `test_perf`(360) |
-| **页面与文档站** | 2 | 268 | `test_site`(64) `test_docs_site`(204) |
+| **智能客服** | 4 | 1115 | `test_faq`(131) `test_support`(240) `test_faq_semantic`(531) `test_intent_cascade`(213) |
+| **运维与横切** | 5 | 1030 | `test_ops`(347) `test_ratelimit`(152) `test_schema_sync`(74) `test_perf`(360) `test_config_validation`(97) |
+| **页面与文档站** | 2 | 270 | `test_site`(64) `test_docs_site`(206) |
 | **端到端** | 1 | 530 | `test_e2e`(530) |
 
 ### 2.2 九组各自守住的不变量
@@ -213,6 +213,7 @@ L120-L121  drop_all                拆表
 | `test_ratelimit.py` | **TD-15：限流**（滑动窗口、按 key 独立、`X-Forwarded-For` 默认不信任） |
 | `test_schema_sync.py` | **建表脚本与 ORM 必须同步**（HANDOVER 点名的坑） |
 | `test_perf.py` | **S5-02：性能预算**（FAQ 80 ms、DDL 线性而非平方、重活不阻塞事件循环） |
+| `test_config_validation.py` | **数值配置的范围约束**（越界必须启动即失败；含 `RATE_LIMIT_WINDOW=0` 会让限流 fail-open 的实测、以及 `.env.example` 自身必须合法） |
 
 **`test_ops.py` 里两条设计得最巧的**：
 - `test_every_external_origin_used_by_frontend_is_allowed_by_csp` —— **反向校验**：扫模板与静态资源里每个外部域，逐个断言在 CSP 白名单里。没有它，「加了新 CDN 忘了改 CSP」的故障**不是测试红，而是上线后页面白屏**
@@ -253,8 +254,8 @@ L120-L121  drop_all                拆表
 
 | 后端 | passed | skipped | 差异原因 |
 | --- | --- | --- | --- |
-| SQLite（默认） | 541 | **4** | 见下面四条 |
-| 真 PostgreSQL 16 | 543 | **2** | 两条并发用例跑起来了；另两条仍跳 |
+| SQLite（默认） | 561 | **4** | 见下面四条 |
+| 真 PostgreSQL 16 | 563 | **2** | 两条并发用例跑起来了；另两条仍跳 |
 
 4 条 skip 的实测原因（`pytest -rs` 可复现，别照抄本表，行号会变）：
 
@@ -306,7 +307,7 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 
 | 方式 | 用在哪 | 为什么 |
 | --- | --- | --- |
-| **直接调函数** | `test_crawler` `test_faq` `test_politeness` `test_schema_sync` | 测的是纯逻辑，不需要 HTTP 开销 |
+| **直接调函数** | `test_crawler` `test_faq` `test_politeness` `test_schema_sync` `test_config_validation` | 测的是纯逻辑，不需要 HTTP 开销 |
 | **`subprocess` 跑 node** | `test_er_page:79/127/151`、`test_auth_cookie:219` | **要真执行前端 JS**，Python 里没法跑 |
 | **多进程** | `test_perf.py` | 要压真并发，单进程 asyncio 压不出来 |
 
@@ -316,9 +317,9 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：541 passed, 4 skipped
+  │    期望：561 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
-       期望：543 passed, 2 skipped
+       期望：563 passed, 2 skipped
        配方见 HANDOVER.md §9
 ```
 
@@ -361,7 +362,7 @@ grep -rn -A4 --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：541 passed, 4 skipped
+# 本机实测：561 passed, 4 skipped
 
 # ⑦ 只跑某一组
 python -m pytest tests/test_e2e.py -q
@@ -372,7 +373,7 @@ python -m pytest tests/test_e2e.py -q
 > 本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > **两条特别提醒**：
-> ① 本文 1.1 的「passed 数 / 473 个测试函数」这类数字，**加一个用例就会变** ——
+> ① 本文 1.1 的「passed 数 / 493 个测试函数」这类数字，**加一个用例就会变** ——
 >    历史上已经因为「加 1 条测试」导致 24 处条数、11 个文件过期。改完必须重跑再写；
 > ② 断言里的关键策略值**写死数值**，不要用 `MAX_BYTES + 1` 这种相对写法
 >    （取任何值都能过，等于没测）。

@@ -19,7 +19,7 @@
 
 | 组 | 文件 | 职责 |
 | --- | --- | --- |
-| **配置** | `config.py` `startup_checks.py` | 38 项配置 + 生产环境启动自检 |
+| **配置** | `config.py` `startup_checks.py` | 41 项配置 + 生产环境启动自检 |
 | **数据** | `database.py` `models.py` `timeutil.py` | 引擎/会话、7 张表、跨后端时间归一化 |
 | **安全** | `security.py` `deps.py` | 密码哈希、JWT 签发/解析、鉴权依赖 |
 | **协议** | `schemas.py` `wechat_pay.py` `storage.py` | 入参出参模型、微信支付签名、存储策略 |
@@ -78,7 +78,7 @@
 
 ### 📄 文件名：`config.py`（84 行）
 
-- **文件职责**：全部 38 项配置，从 `.env` 读取。
+- **文件职责**：全部 41 项配置，从 `.env` 读取。
 
 #### 核心类/常量
 
@@ -676,7 +676,7 @@ DOWNLOADED → （终态）
 # 1) 每个文件的类/函数与精确行范围（本文所有 Lxx-Lyy 的来源）
 python -c "import ast,pathlib;[print(f'{p.name} {n.lineno}-{n.end_lineno} {n.name}') for p in sorted(pathlib.Path('app').glob('*.py')) for n in ast.walk(ast.parse(p.read_text(encoding='utf-8'))) if isinstance(n,(ast.FunctionDef,ast.AsyncFunctionDef,ast.ClassDef))]"
 
-# 2) 配置项数与 .env.example 是否 1:1（本文 1.1 的「38 项」）
+# 2) 配置项数与 .env.example 是否 1:1（本文 1.1 的「41 项」）
 python -c "from app.config import Settings; fs=set(Settings.model_fields); env={l.split('=')[0].strip() for l in open('.env.example',encoding='utf-8') if l.strip() and not l.startswith('#') and '=' in l}; print(len(fs), len(env), fs^env)"
 # 预期：38 38 set()      ← 对称差为空即 1:1
 

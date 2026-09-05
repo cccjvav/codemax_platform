@@ -295,9 +295,27 @@ const store = { getItem(){}, setItem(){}, removeItem(){}, clear(){} };
 global.localStorage = store; global.sessionStorage = store;
 
 let loggedIn = false, orderCalls = 0;
+// parkNext=true 时，下一个下单请求会被挂起，由场景代码手动放行 ——
+// 用来制造「旧请求迟到返回」这种乱序时序（默认 false，不影响顺序场景）。
+const parked = [];
+let parkNext = false;
 global.fetch = (url, opts = {}) => {
   if (url === "/shop/orders") {
     orderCalls += 1;
+    if (parkNext) {
+      parkNext = false;
+      // **必须在请求发出时就冻结登录态**：迟到的响应反映的是「当时」的状态，
+      // 不是放行那一刻的状态。写成放行时才求值，用户在等待期间登录后
+      // 这个「迟到的 401」就变成了 200 —— 乱序场景根本没被测到，用例假绿。
+      const wasLoggedIn = loggedIn;
+      const resp = wasLoggedIn
+        ? { ok: true, status: 200, json: async () => ({
+            order_no: "CM1", code_url: "", qr_svg: null, qr_image: null,
+            product_name: "p", amount: 19900, status: "pending",
+            reused: false, pay_mode: "manual", expired: false }) }
+        : { ok: false, status: 401, json: async () => ({}) };
+      return new Promise((r) => parked.push(() => r(resp)));
+    }
     return Promise.resolve(loggedIn
       ? { ok: true, status: 200, json: async () => ({
           order_no: "CM1", code_url: "", qr_svg: null, qr_image: null,
@@ -340,7 +358,7 @@ async function loginAs(name) {
 """
 
 
-def _run_shop_frontend() -> list[int]:
+def _run_shop_frontend(scenario: str = _NODE_SCENARIO) -> list[int]:
     """按浏览器真实的文档顺序执行 `auth.js` + `shop.html` 内联脚本，返回各步的下单调用数。"""
     root = Path(__file__).resolve().parents[1]
     auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
@@ -350,7 +368,7 @@ def _run_shop_frontend() -> list[int]:
     script = "\n;\n".join([auth, *inline])
 
     harness = Path("/tmp/_shop_frontend_harness.js")
-    harness.write_text(_NODE_EXECUTOR + "\n;\n" + script + "\n" + _NODE_SCENARIO, encoding="utf-8")
+    harness.write_text(_NODE_EXECUTOR + "\n;\n" + script + "\n" + scenario, encoding="utf-8")
     proc = subprocess.run(["node", str(harness)], capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
     return json.loads(proc.stdout.strip().splitlines()[-1])
@@ -393,3 +411,54 @@ def test_shop_template_no_longer_fakes_unsubscribe():
     code = "\n".join(re.sub(r"//.*$", "", line) for line in html.splitlines())
     assert "onChange(() => {})" not in code, "这行是伪解绑，只会追加空监听器"
     assert "offBuy" in code, "应当用退订函数登记唯一的待补发购买意图"
+
+
+_NODE_RACE_SCENARIO = r"""
+const tick = () => new Promise((r) => setTimeout(r, 30));
+async function loginAs(name) {
+  // auth.js 是懒取 auth-user/auth-pass 的（只在 open() 与提交时取），
+  // 真实浏览器里这些元素一直在 base.html 中；harness 里先摸一下让它建出来。
+  document.getElementById("auth-user").value = name;
+  document.getElementById("auth-pass").value = "pw123456";
+  await document.getElementById("auth-form").onsubmit({ preventDefault() {} });
+  await tick();
+}
+(async () => {
+  const at = [];
+  const snap = () => at.push(orderCalls);
+
+  parkNext = true;                       // 请求 A 被挂起，模拟慢网络
+  const pA = els["btn-buy"].onclick();
+  await tick();                                                    snap();  // ① 1
+  await loginAs("alice");                                          snap();  // ② 1（用户从顶栏登录）
+  await els["btn-buy"].onclick(); await tick();                    snap();  // ③ 2（请求 B 成功下单）
+  parked.shift()();                        // 迟到的 A 现在才带着 401 回来
+  await pA; await tick();                                          snap();  // ④ 2
+  await els["btn-logout"].onclick(); await tick();
+  await loginAs("bob");                                            snap();  // ⑤ 2（不许变）
+
+  console.log(JSON.stringify(at));
+})();
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_a_stale_401_cannot_revive_a_purchase_intent():
+    """**乱序场景**：迟到的 401 不许把补单意图重新挂回去。
+
+    时序（每一步的累计下单调用数）：
+      ① 未登录点购买，请求 A 被挂起        → 1
+      ② 用户从顶栏登录（与 A 无关）        → 1
+      ③ 再点一次购买，请求 B 成功下单      → 2
+      ④ 旧请求 A 这时才迟到返回 401        → 2
+      ⑤ 将来某次重新登录（**没点购买**）   → 2  ← 变 3 就是幽灵下单
+
+    第 ⑤ 步是关键：A 是在「未登录」时发出的，它带回来的 401 早已过期 ——
+    用户此刻不但登录了，还已经下过单。若照旧登记补单监听器，
+    用户将来某次登录就会凭空多出一张 pending 订单。
+    """
+    at = _run_shop_frontend(_NODE_RACE_SCENARIO)
+    assert at == [1, 1, 2, 2, 2], (
+        f"乱序时序不符：{at}（预期 [1, 1, 2, 2, 2]）。"
+        "第 5 个数变成 3 = 迟到的 401 复活了补单意图，未来登录会幽灵下单。"
+    )

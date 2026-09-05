@@ -54,7 +54,7 @@
 | `crawler.py` | `politeness`（整模块） | L33 |
 | `extract.py` | `crawler`（`fetch`/`to_skeleton`）、`llm`（`LLMClient`/`LLMError`/`default_llm`） | L27-L28 |
 | `intent.py` | `faq`（`search`）、`llm`（`LLMClient`/`LLMError`/`default_llm`，供 `llm_classify`） | L24-L25 |
-| `support.py` | `faq`（`SEMANTIC_CONFIDENCE_THRESHOLD`/`FaqHit`/`search`/`semantic_search`/`tokenize`/`_Index as RetrievalIndex`）、`intent`（含 `llm_classify`）、`llm` | L29-L32 |
+| `support.py` | `faq`（`semantic_threshold`/`FaqHit`/`search`/`semantic_search`/`tokenize`/`_Index as RetrievalIndex`）、`intent`（含 `llm_classify`）、`llm` | L29-L32 |
 | `politeness.py` | `crawler`（**函数内延迟导入** `CrawlError`，避免循环） | L114 |
 | `sql_ddl.py` / `word.py` / `llm.py` | 无（叶子模块） | — |
 | `faq.py` | `llm`（`LLMClient`/`LLMError`/`default_llm`，供语义向量化） | L21 |

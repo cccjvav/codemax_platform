@@ -28,7 +28,7 @@ pytest.ini            4 行   pytest 配置
                     194 行
 ```
 
-另有几个非代码文件，本文只在第 3 节点到，不逐行展开：`.env.example`（38 项配置模板）、
+另有几个非代码文件，本文只在第 3 节点到，不逐行展开：`.env.example`（41 项配置模板）、
 `.dockerignore`、`.gitignore`、`.gitattributes`。
 
 ---
@@ -273,7 +273,7 @@ pytest.ini            4 行   pytest 配置
 
 | 文件 | 职责 | 详细说明在哪 |
 | --- | --- | --- |
-| `.env.example` | **38 项配置模板**，与 `app/config.py` 的 `Settings` **1:1 对应** | `app/README.md` 的 `config.py` 一节 |
+| `.env.example` | **41 项配置模板**，与 `app/config.py` 的 `Settings` **1:1 对应** | `app/README.md` 的 `config.py` 一节 |
 | `.dockerignore` | 排除 14 项不进镜像：**`.env` `.venv` `.git` `.github` `.claude` `__pycache__` `*.pyc` `.pytest_cache` `.ruff_cache` `storage` `docs` `*.md` `database init`** | — |
 | `.gitignore` | 17 行，排除 `.env` / `.venv` / `storage` 等 | — |
 | `.gitattributes` | 行尾与二进制属性 | — |
@@ -325,7 +325,7 @@ docker compose up
 | Python 3.11 | `Dockerfile:3`、`ruff.toml:9`（`py311`）、`.github/workflows/ci.yml`（3 处 `python-version: "3.11"`） | **人工**（没有自动检查） |
 | ruff 版本 | `requirements.txt:26` | **`ci.yml:62` 从 requirements 里抠**，自动一致 |
 | PostgreSQL 16 | `docker-compose.yml:5`、`ci.yml:115` | **人工** |
-| 38 项配置 | `app/config.py`、`.env.example` | **`app/README.md` 附录命令 ② 的对称差检查** |
+| 41 项配置 | `app/config.py`、`.env.example` | **`app/README.md` 附录命令 ② 的对称差检查** |
 
 ---
 

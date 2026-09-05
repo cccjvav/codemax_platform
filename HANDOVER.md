@@ -12,7 +12,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（2026-09-05 实测）：`.venv/bin/python -m pytest -q` → SQLite：**541 passed + 4 skipped**；真 PostgreSQL 16.2：**543 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
+- **测试基线**（2026-09-06 实测）：`.venv/bin/python -m pytest -q` → SQLite：**561 passed + 4 skipped**；真 PostgreSQL 16.2：**563 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
@@ -61,7 +61,7 @@ app/
 │   └── word.py            # DDL → Word 数据字典
 ├── static/er.js           # ER 图 D3.js 渲染（layoutEr 是纯函数，node 可直接 require）
 └── templates/             # base / index / er / mermaid / drawio（Jinja2 SSR）
-tests/                     # 35 个测试文件（37 个 .py），536 用例
+tests/                     # 36 个测试文件（38 个 .py），565 用例
 database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
 scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL 执行 full_init.sql
 ```
@@ -79,7 +79,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（545 个：SQLite 上 541 绿 + 4 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（565 个：SQLite 上 561 绿 + 4 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（需真库；**会 DROP 重建，只对空库安全**）
@@ -266,6 +266,41 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 顺带：写 `calibrate_threshold()` 时我把 `min`/`max` 用反了
 （`max(positives)` / `min(negatives)`），是**先写的测试把它抓出来的**。
 变异验证也做了：把 bug 塞回去 → 2 条测试变红；把阈值写死 → 1 条变红。
+
+### 第 4 轮复审之后（2026-09-06）
+
+复审提了三条，**逐条实测后全部成立**：
+
+1. **商城补单仍有异步竞态**（高）。上一轮修掉了「监听器永久残留」，
+   但没管**响应乱序**：未登录时发出的请求 A 若迟到返回 401，
+   会把补单意图重新挂回去，用户将来某次登录凭空多下一单。
+   node 实测 `fetchCalls` 2 → 3。修法是给每次 `buy()` 发递增序号，
+   只有最新尝试的响应才算数。见 TD-211。
+
+2. **`LLM_SEMANTIC_THRESHOLD` 无范围校验**（中）。顺着查发现**同类问题有一批**，
+   其中一条是安全级的 —— 见下面第 3 条。
+
+3. **文档系统性漂移**（中，10 个子项）。
+
+**我自己额外扫出两条复审没提的：**
+
+- **`RATE_LIMIT_WINDOW=0`（或负数）会让限流彻底失效且静默** —— 实测
+  `Limiter.allow()` 在这种窗口下把历史命中全弹出，`len(hits) >= limit` 永不成立，
+  于是任意多次请求全部放行（fail-open）。这是安全回归，不是体验问题。
+- **`总览.md` 有 5 个断掉的锚点**（都指向「文件名（NNN 行）」这种把行数写进标题的锚点）。
+
+**这一轮踩到的三个自己的坑，都值得记：**
+
+- **变异测试救了一次假绿。** 我加的乱序用例第一次是假绿的：mock 里迟到的响应
+  写成「放行时才求值」，于是用户在等待期间登录后，那个「迟到的 401」变成了 200，
+  乱序场景根本没被测到。是撤掉修复重跑（本该变红却全绿）才暴露的。
+  **迟到的响应必须在请求发出时就冻结状态。**
+- **验证脚本本身又坏了一次。** 锚点检查脚本用 `parts[-len(cwd.parts):]` 算相对路径，
+  off-by-one 导致每个目标都查不到、被 `continue` 跳过，于是报告「0 处断链」。
+  实际有 5 处。改用 `relative_to()` 才对。**这类脚本要先用它必然能抓到的东西自测。**
+- **去重判断要看位置，不能看全文。** 给历史 review 报告加存档标注时，
+  我用 `if "历史审查快照" in t: continue` 去重 —— 而 r5 正文里本来就出现这几个字，
+  于是它被误判成「已标注」跳过。改成只看开头 10 行。
 
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 

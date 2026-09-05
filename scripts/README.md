@@ -18,7 +18,7 @@
 | 文件 | 行数 | 干什么 | 什么时候跑 |
 | --- | --- | --- | --- |
 | `check_schema_pg.mjs` | 68 | 建表脚本的**深度体检**（用 WASM 版真 PostgreSQL 执行 `full_init.sql`） | 改了建表脚本时，**可选** |
-| `build_docs_site.py` | 898 | **文档站构建**：从代码里提取依赖图/路由表/符号表，把 21 份 Markdown 渲染成静态网站 | 改了文档或代码后想看网页版时 |
+| `build_docs_site.py` | 935 | **文档站构建**：从代码里提取依赖图/路由表/符号表，把 21 份 Markdown 渲染成静态网站 | 改了文档或代码后想看网页版时 |
 
 下面 §1.2 与 §2.1 讲第一个，§2.2 与 §3.5 讲第二个。
 
@@ -252,9 +252,9 @@ node scripts/check_schema_pg.mjs /tmp/node_modules/@electric-sql/pglite
 python scripts/build_docs_site.py
   │
   ├─ L851-L854   四个提取函数
-  │     ├─ build_import_graph()   ast 解析 import（含相对导入）  → 72 模块 / 179 条边
+  │     ├─ build_import_graph()   ast 解析 import（含相对导入）  → 78 模块 / 206 条边
   │     ├─ build_routes()         ast 解析装饰器 + 函数签名，
-  │     │                         外加 site.py 的 Tool(path=)  → 38 条路由（17 需鉴权）
+  │     │                         外加 site.py 的 Tool(path=)  → 39 条路由（18 需鉴权）
   │     ├─ build_symbols()        ast 遍历 FunctionDef/ClassDef → 250+ 个符号
   │     └─ build_manifest()       扫 21 份 .md                  → 行数随文档变
   │
@@ -328,13 +328,13 @@ t = ast.parse(s)
 fns = [n for n in ast.walk(t) if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))]
 print('行数', len(s.splitlines()), ' 函数', len(fns))
 "
-# 预期：行数 898  函数 35
+# 预期：行数 935  函数 32
 
 # 5) 构建文档站并核对提取结果（需要 mistune）
 pip install mistune
 python scripts/build_docs_site.py --data-only
-# 预期：模块 77 个 · 依赖边 198 条 · 路由 39 条 · 文档 21 份
-# （文档行数会随文档增改而变，本次实测 9345 行；模块/边/路由数只随代码变）
+# 预期：模块 78 个 · 依赖边 206 条 · 路由 39 条 · 符号 268 个 · 文档 21 份
+# （文档行数会随文档增改而变，本次实测 10066 行；模块/边/路由数只随代码变）
 
 # 6) 每次必跑的那道校验（不是本脚本）
 python -m pytest tests/test_schema_sync.py -q

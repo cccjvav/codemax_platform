@@ -98,10 +98,10 @@ cd ..
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-预期 `541 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
+预期 `561 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
 **2 条并发用例需要真数据库**（`test_e2e.py:504` 并发下单 TD-199、`test_oauth.py:184` 授权码并发 TD-85）—— SQLite 用 StaticPool 共享单连接，一个请求的 `rollback` 会把别人的插入一起回滚，排不成真正的并发；
 **1 条需要真浏览器**（`test_dynamic_crawl.py:338`，要 `playwright install chromium`，见 TD-191）；
-**1 条需要真实 embedding API**（`test_faq_semantic.py:514` 的语义阈值标定，要设 `LLM_API_KEY`，见 TD-206）。真库那一套（`543 passed, 2 skipped`）由 GitHub Actions 自动跑，
+**1 条需要真实 embedding API**（`test_faq_semantic.py:514` 的语义阈值标定，要设 `LLM_API_KEY`，见 TD-206）。真库那一套（`563 passed, 2 skipped`）由 GitHub Actions 自动跑，
 本机不需要装 `pgserver`——它虽然也提供 Windows 轮子，但没有必要。
 
 ## 运行测试
@@ -224,7 +224,7 @@ start docs\site\index.html
 | `app/static/` | [README](./app/static/README.md) | 前端脚本（`er.js`） |
 | `.github/workflows/` | [README](./.github/workflows/README.md) | CI 流水线（`ci.yml`） |
 | 根目录 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | `main.py` 与 5 个构建/配置文件 |
-| `tests/` | [README](./tests/README.md) | 测试策略与分组（35 个测试文件 / 545 个用例） |
+| `tests/` | [README](./tests/README.md) | 测试策略与分组（36 个测试文件 / 565 个用例） |
 | `scripts/` | [README](./scripts/README.md) | 建表脚本深度体检（WASM 版真 PostgreSQL） |
 
 > 上面这些说明书在**文档站**里都有网页版（带目录、可跳转）：

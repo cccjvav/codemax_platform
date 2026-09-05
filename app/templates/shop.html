@@ -187,11 +187,21 @@
 
   // 待补发的「登录后自动下单」监听器的退订函数；null 表示当前没有待补发的购买意图。
   let offBuy = null;
+  // 每次 buy() 领一个递增序号。**只有最新尝试的响应才算数。**
+  // 少了这一层会出乱序 bug：用户未登录时点购买（请求 A 发出）→ 从顶栏登录 →
+  // 再点一次购买（请求 B 成功下单）→ 此时 A 才迟到返回 401 → A 照样把补单监听器
+  // 挂回去 → 用户将来某次重新登录（没点购买）凭空多下一单。
+  // 实测复现过：fetchCalls 2 → 3。
+  let buySeq = 0;
 
   async function buy() {
+    const mySeq = ++buySeq;
     const errEl = document.getElementById("buy-error");
     errEl.textContent = "";
     const res = await fetch("/shop/orders", { method: "POST", credentials: "same-origin" });
+    // 响应回来时若已有更新的下单尝试，这一份就是过期的，整条丢掉 ——
+    // 既不弹登录浮层（用户可能早就登录了），也不登记补单意图。
+    if (mySeq !== buySeq) return;
     if (res.status === 401) {
       // 未登录：唤起全站统一浮层，登录成功后自动继续下单 ——
       // 这就是「value first, ask later」：先让用户决定要买，再要求身份。
