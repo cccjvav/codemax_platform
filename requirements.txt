@@ -7,6 +7,10 @@ python-dotenv==1.0.0   # 加载 .env 配置文件
 pydantic==2.5.2
 pydantic-settings==2.1.0
 python-jose[cryptography]==3.3.0  # 用于 JWT 生成和解析
+cryptography==50.0.1              # **直接依赖，不只是 python-jose 的 extra**：
+                                  # app/wechat_pay.py 顶层 import 了 x509 / AESGCM / hashes /
+                                  # padding / serialization 五处。只靠上面那个 extra 带进来的话，
+                                  # 谁把 [cryptography] 去掉，微信支付模块会在 import 期就炸。
 passlib[bcrypt]==1.7.4            # 用于密码哈希加密
 bcrypt==4.0.1                     # 固定版本，兼容 passlib 1.7.4
 python-multipart==0.0.26          # 表单解析（登录 / OAuth）。**不要降到 0.0.26 以下**：
@@ -25,6 +29,12 @@ pytest-asyncio==0.23.6
 httpx==0.25.2          # 测试用 AsyncClient
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
+
+# ---- 文档工具（可选，运行时不需要）----
+mistune==3.3.4           # scripts/build_docs_site.py 默认那条命令要把 .md 渲染成静态站。
+                         # 只有 `--data-only` 不需要它（那条只用标准库 ast/json）。
+                         # 刻意放进主 requirements 而不是另开一个文件：纯 Python、零依赖、
+                         # 体积可忽略，拆文件的收益低于「装了就能跑」的收益。
 
 # ---- 静态检查 ----
 ruff==0.16.5           # 唯一的 linter，规则集见 ruff.toml（TD-145）。刻意不引入 mypy
