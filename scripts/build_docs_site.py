@@ -188,6 +188,42 @@ def build_routes() -> list[dict]:
                         "snippet": lines[line - 1].strip() if line - 1 < len(lines) else "",
                     }
                 )
+    # ---- 页面路由（GET / 与 /tools/*）：注册方式不同，必须单独处理 ----
+    #
+    # app/routers/site.py:39-40 是这样注册的：
+    #     for _tool in PAGES:
+    #         router.add_api_route(_tool.path, _page_view(_tool), methods=["GET"], ...)
+    #
+    # 路径来自**变量**（`_tool.path`）而不是字面量，所以上面那套「扫 @router.get 装饰器
+    # 取 dec.args[0]」的逻辑一条都抓不到 —— 实测漏了 4 条（GET / 与 3 个 /tools/*）。
+    #
+    # 这里改成去 app/site.py 里取 `Tool(... path="..." ...)` 的字面量。
+    # 仍然只用标准库 ast：刻意**不** import app，否则会破坏本脚本
+    # 「不需要数据库 / .env / 24 个依赖」的设计承诺（见 docs/site/README.md）。
+    site_src = (ROOT / "app" / "site.py").read_text(encoding="utf-8")
+    for call in ast.walk(ast.parse(site_src)):
+        if not (isinstance(call, ast.Call) and getattr(call.func, "id", "") == "Tool"):
+            continue
+        kws = {k.arg: k.value for k in call.keywords}
+        pv, kv = kws.get("path"), kws.get("key")
+        if not (isinstance(pv, ast.Constant) and isinstance(kv, ast.Constant)):
+            continue
+        # add_api_route 那行是所有页面共用的，行号取 Tool 定义处更有定位价值。
+        out.append(
+            {
+                "method": "GET",
+                "path": pv.value,
+                "file": "app/site.py",
+                "line": call.lineno,
+                "handler": f"_page_view({kv.value})",
+                "auth": False,  # 页面公开可访问（SEO 引流），见 TD-141
+                "admin": False,
+                "rate_limit": False,
+                "doc": "app/README.md",
+                "snippet": f'Tool(key="{kv.value}", path="{pv.value}", ...)  ← PAGES 清单',
+            }
+        )
+
     out.sort(key=lambda r: (r["path"], r["method"]))
     return out
 

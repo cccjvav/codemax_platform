@@ -9,6 +9,13 @@ WORKDIR /srv/app
 
 # 先只拷 requirements 再装依赖：改代码不会让依赖层缓存失效
 COPY requirements.txt .
+# ⚠️ 这里会连测试与 lint 依赖一起装进生产镜像，多占约 60 MB
+#    （实测 pgserver 33 MB、ruff 23.3 MB、pytest 2.6 MB）。
+#    **这是有意的，不是疏漏 —— 见 TD-202。** 本仓库刻意只有 requirements.txt 一个清单
+#    （总览.md §6.1 把「requirements-dev.txt 不存在 —— 一条命令装齐」写成设计事实），
+#    因为拆成两个文件要同步改 14 个文件里 45 处引用，而文档同步恰是本仓库反复失守的环节。
+#    这 60 MB 只影响一次拉取，不影响启动时间与内存占用。
+#    若将来镜像体积成为实际约束，再拆；拆时必须同时更新那 45 处。
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .

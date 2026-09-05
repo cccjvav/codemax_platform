@@ -253,7 +253,8 @@ python scripts/build_docs_site.py
   │
   ├─ L851-L854   四个提取函数
   │     ├─ build_import_graph()   ast 解析 import（含相对导入）  → 72 模块 / 179 条边
-  │     ├─ build_routes()         ast 解析装饰器 + 函数签名     → 32 条路由（16 需鉴权）
+  │     ├─ build_routes()         ast 解析装饰器 + 函数签名，
+  │     │                         外加 site.py 的 Tool(path=)  → 36 条路由（16 需鉴权）
   │     ├─ build_symbols()        ast 遍历 FunctionDef/ClassDef → 250+ 个符号
   │     └─ build_manifest()       扫 21 份 .md                  → 行数随文档变
   │
@@ -332,7 +333,7 @@ print('行数', len(s.splitlines()), ' 函数', len(fns))
 # 5) 构建文档站并核对提取结果（需要 mistune）
 pip install mistune
 python scripts/build_docs_site.py --data-only
-# 预期：模块 72 个 · 依赖边 179 条 · 路由 32 条 · 文档 21 份
+# 预期：模块 73 个 · 依赖边 180 条 · 路由 36 条 · 文档 21 份
 # （文档行数会随文档增改而变，本次实测 9345 行；模块/边/路由数只随代码变）
 
 # 6) 每次必跑的那道校验（不是本脚本）

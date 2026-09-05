@@ -8,6 +8,13 @@
 
 - **取舍**＝选了什么；**放弃了什么**＝另一条路；**代价**＝现在要承受的后果；**何时回头改**＝触发条件。
 - 大部分取舍是"毕设阶段够用、且符合 AGENTS.md 第 1 条（代码尽量简洁）"的结果，不是能力缺失。
+- **同一个 TD 可能在两处出现**：上面「上线阻塞项」摘要表（3 列、精简口径）与后面按主题分的
+  明细表（5 列、完整口径）会各列一次。实测目前是 **TD-113**（微信支付未真机联调）与
+  **TD-124**（模拟支付通道）这两条。所以 `grep -oE '^\| TD-[0-9]+' | sort | uniq -d`
+  **会报这两个「重复」，那是交叉列举不是编号冲突**，不要照着改编号 ——
+  改编号会打断全仓的交叉引用。判断是否真冲突要看内容是否指同一个决策。
+- 计数口径（实测）：**表格行首**唯一编号 **151** 个；**全文提及**（含交叉引用）唯一 **167** 个。
+  引用本文时请说清用的是哪个口径，否则会得出互相矛盾的数字。
 
 ## ⚠️ 上线阻塞项（这些必须在上线前处理，不是可选项）
 
@@ -36,7 +43,7 @@
 | ~~TD-03~~ | ~~动态页面抓取推迟到阶段四再定 Selenium / Playwright~~ **已选型：Playwright**（用户 2026-09-03 定），实现见 TD-191 | 现在就锁定方案 | ~~阶段四开工前要先做一次选型~~ 已定 | 已完成 |
 | TD-04 | 前端 Jinja2 SSR，不引入 Node / Nuxt / Next | SSR 框架的水合、路由、构建能力 | 交互全靠手写原生 JS，无组件复用 | 页面数量或交互复杂度显著上升时 |
 | TD-05 | DDL 解析用正则 + 自写字符扫描器，不引入 sqlparse / sqlglot | 现成语法树的完备性 | 需自己维护转义、注释、括号边界（已因此修掉 10 个 bug） | 要支持存储过程、触发器、分区表等复杂 DDL 时 |
-| TD-06 | 依赖全部钉死版本（`requirements.txt` 实测 **22 个依赖，22 个全部带 `==`**，无一例外） | 自动获取补丁更新 | 需手工升级 | — |
+| TD-06 | 依赖全部钉死版本（`requirements.txt` 实测 **24 个依赖，24 个全部带 `==`**，无一例外） | 自动获取补丁更新 | 需手工升级 | — |
 | TD-07 | 运行时不引入 Node，`node` 仅用于测试期 | — | 测试环境需要 node（沙箱内置 v22） | — |
 
 ## 二、DDL 解析器（`app/tools/sql_ddl.py`）
@@ -170,6 +177,8 @@
 | TD-198 | 写支付元数据的条件从 `status == PENDING` 放宽到 `status in (PENDING, CLOSED)`（`mock_pay_confirm` 与 `pay_notify` 两处同步改） | 只认 `PENDING`，迟到支付不留流水 | `CLOSED → PAID` 这条边是 TD-156 刻意留的（关单后用户扫旧二维码付了钱，钱收了必须发货），但支付元数据只在 `PENDING` 时写 ⇒ 实测迟到支付后 `status='paid'` 而 `transaction_id=None`、`paid_at=None`：**钱收了、货发了、账上没有支付流水**，对账与客诉时无从查证。放宽条件**不影响幂等** —— `mark_paid` 对已支付订单直接返回 `False` 且不提交，多余的赋值会随 session 关闭被丢弃（由两条 idempotent 测试钉住）。两条入账路径各写各的元数据，所以测试也**分路径各一条**，只修一条等于漏一半 | 若将来入账路径继续增加，应把「写流水 + mark_paid」收敛进 `order_state` |
 | TD-199 | 「同一用户最多一张待支付单」由**数据库部分唯一索引**兜底（`uq_sys_order_user_pending ON sys_order(user_id) WHERE status='pending'`），应用层撞 `IntegrityError` 后回滚并复用已存在的那张单 | 应用层「先查 pending 再新建」，或加进程内锁 | 原实现在并发下必然漏：`asyncio.gather` 的 5 个请求在各自 `await` 处交错，**5 个 SELECT 全都在任何一个 INSERT 提交之前跑完**，于是都判定「没有可复用的单」，实测落出 5 张 pending 单 —— 且**不需要真并行**，SQLite 单连接下同样复现。进程内锁在多实例部署时各算各的（与限流 TD-141 同一个道理），只有数据库约束跨实例有效。用**部分**索引而非普通唯一约束：paid/closed/downloaded 的历史单必须能有多张。迁移 `migrate_0006_order_single_pending.sql`，**执行前须先清存量重复**否则建索引失败 | ① `rollback()` 会无条件过期 ORM 对象（`expire_on_commit=False` 管不到它），回滚后再访问 `user.id` 会触发同步懒加载 ⇒ 真 PG 上 `MissingGreenlet`，必须提前取成局部变量；② SQLite StaticPool 单连接下一个请求的 rollback 会连带回滚别人的插入，所以并发行为只能在真库上测（与 TD-80 同一个理由） |
 | TD-200 | `python-multipart` 从 0.0.6 升到 **0.0.26**（不是 0.0.7） | 只升到 0.0.7 做「最小安全升级」 | 0.0.6 的 Content-Type 头 ReDoS（CVE-2024-24762）实测可复现：反斜杠每多 4 个耗时约 ×7，24 个 0.013s → 28 个 0.089s → 32 个 0.59s → **36 个 4.04s**，卡的是**主事件循环**；一个约 60 字节的头就能让整站挂起数分钟。这条路径**真的可达** —— 本项目没有任何 `UploadFile` 端点，但给 `/auth/login` 发 multipart 头时 stderr 会打出 `multipart.multipart` 自己的日志，即 Starlette 的 `request.form()` 照样会走它。只升 0.0.7 会留下另外两个同类 DoS（0.0.18 畸形 boundary 逐字节跳过并每次记日志、0.0.26 超大 preamble/epilogue），所以一次升到全部公告都修完的 0.0.26。升到 0.0.26 后同一 payload 从 4.04s 变 **0.0000s**。兼容性实测：0.0.7~0.0.26 都仍提供旧模块名 `multipart`，starlette 0.27.0 的 `import multipart` 不受影响，**不需要动 fastapi/starlette 版本** | 两条测试钉住：`test_multipart_content_type_redos_is_patched` 测运行时行为、`test_python_multipart_pinned_above_known_cve_versions` 测 requirements 声明（互补：防止改了声明没重装环境时前一条仍是绿的） |
+| TD-201 | 把 `concurrency = thread,greenlet` 固化进仓库的 `.coveragerc`（此前只存在于临时文件里）；`cryptography` 提升为**直接声明**的依赖；`mistune` 补进 requirements | 不加配置文件，靠每次手敲 `--cov-config` | **没有这个配置，覆盖率会被明显低报。** 本项目用 pytest-asyncio + httpx `ASGITransport` 驱动应用，请求处理分散在 greenlet/线程上，coverage 默认只追踪主线程，于是**端点函数体里执行过的行被记成「未覆盖」**。严格 A/B（同一个测试只换配置，用 `sys.settrace` 独立取真值对照）：空配置把 `shop.py` 实际执行过的 **L201/L203/L208** 三行误报为未覆盖，加了配置后**零误报**（全量口径 89% → 97%）。危害很具体：照低报的数字补测试会重复覆盖早已覆盖的安全分支，更糟的是得出「这些安全分支没测」的错误结论。`cryptography` 此前只作为 `python-jose[cryptography]` 的 extra 存在（`importlib.metadata.requires` 可证实），但 `app/wechat_pay.py` 顶层 import 了 x509/AESGCM/hashes/padding/serialization 五处 —— 谁把 extra 去掉，微信支付模块在 import 期就炸。`mistune` 则是 `scripts/build_docs_site.py` 默认路径硬依赖却从未声明 | ⚠️ 排查时我一度得出「`.coveragerc` 无效」的**错误结论**，真因是 **`rm -f .coverage*` 这个通配符会连 `.coveragerc` 一起删掉**（它也以 `.coverage` 开头），coverage 静默回退到无配置，看起来就像配置不生效。清理必须写全：`rm -f .coverage .coverage.*`。这条已写进 `.coveragerc` 文件头 |
+| TD-202 | **不拆** `requirements-dev.txt`，保持单文件（运行时 18 / 测试 4 / 文档工具 1 / 静态检查 1） | 拆成 `requirements.txt` + `requirements-dev.txt`，让生产镜像少装约 **60 MB**（实测 `pgserver` 33 MB、`ruff` 23.3 MB、`pytest` 2.6 MB，其余合计约 1 MB） | 拆分的收益是镜像体积，代价是**文档同步面从 1 个文件变成 2 个**：实测全仓有 **14 个文件、45 处**引用 `requirements.txt`（README / AGENTS / HANDOVER 未列但 WINDOWS_LOCAL_RUN 有 8 处 / ROOT_FILES 6 处 / 总览 3 处 / workflows README 3 处 / ci.yml 3 处 / Dockerfile 2 处 …），每一处都要判断语境是「跑应用」还是「跑测试」。本仓库已经因为**文档同步失守**被指出过三次（新增 `build_docs_site.py` 没同步 `scripts/README.md` 等），再引入一个「两个文件必须一起看」的约定，是在最薄弱的环节上加压。而且 `总览.md` §6.1 已把「`requirements-dev.txt` **不存在** —— 一条命令装齐」写成**有意的设计事实**。生产镜像这 60 MB 也不影响启动时间与内存占用，只影响拉取一次 | 若将来镜像体积成为实际约束（如按流量计费的 serverless），再拆；拆的时候必须同时改上述 14 个文件的 45 处引用，并在 `AGENTS.md` 文档地图里登记新文件 |
 
 ## 十一、订单与支付（阶段三，进行中）
 

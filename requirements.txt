@@ -23,10 +23,14 @@ beautifulsoup4==4.15.0            # 爬虫解析 HTML（S4-01-1，选型已定�
 jieba==0.42.1                     # 中文分词（S4-02-1 FAQ 检索用；纯 Python，Windows 可直接装）
 jinja2==3.1.6                     # 页面 SSR 出 HTML 外壳与 TDK（S2-02-1）
 
+httpx==0.25.2          # **运行时依赖，不只是测试用**。此前这行注释写的是「测试用 AsyncClient」，
+                       # 是错的：实测 app/ 下有 6 个模块顶层 import 它 ——
+                       # routers/admin.py、tools/{browser,crawler,extract,llm}.py、wechat_pay.py。
+                       # 按「测试依赖」挪走会让应用直接 ImportError。
+
 # ---- 测试依赖 ----
 pytest==7.4.4
 pytest-asyncio==0.23.6
-httpx==0.25.2          # 测试用 AsyncClient
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
 

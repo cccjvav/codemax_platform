@@ -1,8 +1,9 @@
 # ============================================================================
 # GitHub Actions CI（TD-84）
 #
-# 三个 job：
+# 四个 job：
 #   lint          —— ruff check .（规则集见 ruff.toml，TD-145）
+#   docs          —— 构建文档站（scripts/build_docs_site.py），核对路由数与页数
 #   test-sqlite   —— 默认后端，全量 pytest
 #   test-postgres —— postgres:16 service 容器，另建库把建表脚本连跑两遍验证幂等
 #
@@ -63,6 +64,53 @@ jobs:
 
       - name: ruff check
         run: ruff check .
+
+  docs:
+    name: 文档站构建（scripts/build_docs_site.py）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # 只装 mistune：这个脚本的顶层 import 全是标准库（argparse/ast/json/re/sys/pathlib），
+      # mistune 是唯一的外部依赖，且只在渲染那一步用到。
+      # 刻意**不**装 requirements.txt —— 里面有 pgserver（自带 PG 二进制，33 MB），构建文档用不上。
+      # 这也顺便验证了 docs/site/README.md 的承诺：构建文档站不需要数据库、.env 与那 24 个依赖。
+      - name: 安装 mistune
+        run: |
+          python -m pip install --upgrade pip
+          pip install "$(grep -oE '^mistune==[0-9.]+' requirements.txt)"
+
+      # 为什么要单独一个 job：这个脚本 898 行 / 35 个函数，此前**零测试且 CI 不构建**，
+      # 于是它静默烂掉也没人发现 —— build_routes() 曾漏掉 4 条路由（GET / 与 3 个 /tools/*），
+      # 生成的 routes.json 是 32 条而运行时真实是 36 条，7 处文档跟着写错并互相「印证」。
+      # 路由数与运行时的一致性由 tests/test_docs_site.py 在 test job 里钉住；
+      # 这里补的是另一半：**整站渲染不能崩**（21 份文档 → 116 页）。
+      - name: 生成数据并渲染整站
+        run: |
+          set -o pipefail
+          python scripts/build_docs_site.py 2>&1 | tee docs-build.txt
+          grep -E "路由 [0-9]+ 条" docs-build.txt
+
+      - name: 核对生成物页数（漏页会在这里炸，而不是等读者发现 404）
+        run: |
+          set -euo pipefail
+          # ⚠️ 必须用 find，不能用 `ls ... | wc -l`：
+          # `.github/workflows/README.md` 生成的页面叫 `.github_workflows_README.md.html`，
+          # **以点开头**，`ls` 会把它当隐藏文件藏起来 —— 实测 ls 数出 20 个而 find 数出 21 个，
+          # 用 ls 的话这个 job 会在第一次运行时就假失败。
+          d=$(find docs/site/d -name '*.html' | wc -l)
+          s=$(find docs/site/s -name '*.html' | wc -l)
+          echo "文档页 $d 个 · 源码页 $s 个"
+          for f in index.html graph.html routes.html symbols.html; do
+            test -f "docs/site/$f" || { echo "缺 docs/site/$f"; exit 1; }
+          done
+          test "$d" -ge 21 || { echo "文档页少于 21（实际 $d）—— DOC_GROUPS 或渲染出问题了"; exit 1; }
+          test "$s" -ge 70 || { echo "源码页少于 70（实际 $s）—— AST 提取出问题了"; exit 1; }
 
   test-sqlite:
     name: 测试（SQLite 后端）
