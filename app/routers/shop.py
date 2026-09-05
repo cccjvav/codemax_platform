@@ -141,7 +141,7 @@ async def mock_pay_confirm(
     order = await db.scalar(select(Order).where(Order.order_no == payload.order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
-    if order.status == PENDING:
+    if order.status in (PENDING, CLOSED):  # 迟到支付（TD-156/TD-198）同样要留下支付流水
         order.transaction_id = f"MOCK-{order.order_no}"
         order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
     await mark_paid(db, order)
@@ -314,7 +314,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
         return _fail(400, f"金额不符：回调 {total} 分，订单 {order.amount} 分")
 
     # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
-    if order.status == PENDING:
+    if order.status in (PENDING, CLOSED):  # 迟到支付（TD-156/TD-198）同样要留下支付流水
         order.transaction_id = data.get("transaction_id")
         order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
     try:

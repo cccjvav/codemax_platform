@@ -342,3 +342,38 @@ async def test_notify_decrypt_failure_returns_400(client, notify_ready, monkeypa
     assert r.status_code == 400
     assert "解密失败" in r.json()["message"]
     assert (await fetch(order_no)).status == "pending"
+
+
+async def test_notify_on_closed_order_records_payment_metadata(client, notify_ready):
+    """**迟到支付**（`closed → paid`）也要留下完整支付记录（TD-198）。
+
+    `CLOSED → PAID` 这条边是刻意留的（TD-156）：关单只是我们不再等它，用户完全可能
+    已经扫了旧二维码把钱付了，钱收了就必须发货。但端点里写支付信息的条件是
+    `order.status == PENDING`，于是关单后才到的回调虽然把状态迁成了 `paid`，
+    `transaction_id` / `paid_at` 却仍是 NULL —— 钱收了、货发了、账上没有支付流水，
+    对账与客诉时完全无从查证。
+    """
+    order_no = await make_order(status="closed")
+    raw, headers = build_notify(txn(order_no, txid="TX-LATE-001"))
+    r = await post_notify(client, raw, headers)
+    assert r.status_code == 200, r.text
+
+    order = await fetch(order_no)
+    assert order.status == "paid", "迟到支付必须照样发货"
+    assert order.transaction_id == "TX-LATE-001", "❌ 迟到支付没写 transaction_id"
+    assert order.paid_at is not None, "❌ 迟到支付没写 paid_at"
+
+
+async def test_notify_on_closed_order_is_still_idempotent(client, notify_ready):
+    """迟到支付修好后，幂等语义不能被破坏：重复通知不覆盖首笔支付信息。"""
+    order_no = await make_order(status="closed")
+    first, h1 = build_notify(txn(order_no, txid="TX-LATE-FIRST"))
+    assert (await post_notify(client, first, h1)).status_code == 200
+
+    again, h2 = build_notify(txn(order_no, txid="TX-LATE-SECOND"))
+    r = await post_notify(client, again, h2)
+    assert r.status_code == 200 and r.json()["code"] == "SUCCESS"
+
+    order = await fetch(order_no)
+    assert order.status == "paid"
+    assert order.transaction_id == "TX-LATE-FIRST", "重复通知不该覆盖首次的微信支付订单号"

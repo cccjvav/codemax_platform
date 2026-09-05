@@ -425,3 +425,43 @@ async def test_order_belongs_to_exactly_one_user_after_full_chain(client, mock_m
     assert o.amount == settings.SHOP_PRODUCT_AMOUNT
     assert o.status == DOWNLOADED
     assert o.paid_at is not None, "付过钱的单必须留下支付时间"
+
+
+@pytest.mark.asyncio
+async def test_late_payment_records_transaction_metadata(client, mock_mode, product_zip):
+    """**迟到支付**（`closed → paid`）也要留下完整支付记录（TD-198，mock 路径）。
+
+    与 `test_notify_on_closed_order_records_payment_metadata`（微信回调路径）配对：
+    两条入账路径共用同一个 `mark_paid` 状态机，但支付元数据是各写各的，
+    所以必须分别钉住 —— 只修一条等于漏一半。
+    """
+    h = await signup(client)
+    order_no = await place_order(client, h)
+    await backdate(order_no, minutes=999)
+    await place_order(client, h)                      # 触发关单
+    assert (await order_row(order_no)).status == CLOSED
+
+    r = await pay_via_mock(client, h, order_no)       # 关单之后才付钱
+    assert r.status_code == 200, "已关单的订单收到真实支付，不能拒"
+
+    row = await order_row(order_no)
+    assert row.status == PAID
+    assert row.transaction_id, "❌ 迟到支付没写 transaction_id"
+    assert row.paid_at is not None, "❌ 迟到支付没写 paid_at"
+
+
+@pytest.mark.asyncio
+async def test_late_payment_is_idempotent(client, mock_mode):
+    """迟到支付修好后，重复确认不得覆盖首笔支付信息。"""
+    h = await signup(client)
+    order_no = await place_order(client, h)
+    await backdate(order_no, minutes=999)
+    await place_order(client, h)
+    assert (await order_row(order_no)).status == CLOSED
+
+    assert (await pay_via_mock(client, h, order_no)).status_code == 200
+    first = (await order_row(order_no)).transaction_id
+    assert first, "首次确认必须留下支付流水号"
+
+    assert (await pay_via_mock(client, h, order_no)).status_code == 200
+    assert (await order_row(order_no)).transaction_id == first, "重复确认不该改写支付流水号"
