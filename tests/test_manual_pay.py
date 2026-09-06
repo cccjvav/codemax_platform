@@ -252,3 +252,55 @@ def test_full_init_sql_grants_admin_role_to_the_seeded_account():
     values = sql[sql.index(inserts[0]):]
     values = values[: values.index(";")]
     assert values.rstrip().endswith("1)"), f"role 必须填 1，实际结尾：{values[-40:]!r}"
+
+
+# ---------------------------------------------------------------- 审计痕迹（N-3）
+
+
+async def test_manual_confirm_leaves_an_audit_trail(client, manual_mode, caplog):
+    """人工确认收款必须留下「谁确认的」这条记录。
+
+    这个端点是**人**替机器做了「钱到账了」的判断 —— manual 模式下服务端收不到
+    任何支付通知，钱到没到全凭管理员一句话。所以事后必须能回答
+    「这一单是谁放的货」。
+
+    之前只在响应体里回一个 `confirmed_by`，那等于没记录：调用方关掉页面
+    就什么都没了。`sys_order` 也没有能放备注的列（`remark` 属于 `SysConfig`，
+    不是 `Order` —— review 里那半条是看错了表），所以走结构化审计日志。
+    """
+    h = await _login(client)
+    no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
+
+    admin = await _login(client, "boss9")
+    await _promote("boss9")
+
+    with caplog.at_level("INFO", logger="codemax.audit"):
+        r = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+    assert r.status_code == 200, r.text
+
+    audit = [rec for rec in caplog.records if rec.name == "codemax.audit"]
+    assert len(audit) == 1, f"期望 1 条审计日志，实际 {len(audit)} 条"
+    rec = audit[0]
+    # 三要素：谁、哪一单、多少钱 —— 少一样这条记录就没法用来对账
+    assert getattr(rec, "audit_event", None) == "manual_payment_confirmed"
+    assert getattr(rec, "order_no", None) == no
+    assert "boss9" in rec.getMessage(), f"审计日志必须记确认人，实际：{rec.getMessage()!r}"
+    assert no in rec.getMessage(), "审计日志必须记订单号"
+
+
+async def test_rejected_confirm_writes_no_audit_record(client, manual_mode, caplog):
+    """对照组：确认没成功就不该留审计记录。
+
+    只测「成功会记」是单侧断言 —— 万一写成了进函数就打日志，
+    被 403/404 挡掉的尝试也会留下痕迹，审计日志立刻变成噪音。
+    """
+    h = await _login(client)
+    no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
+
+    with caplog.at_level("INFO", logger="codemax.audit"):
+        r = await client.post(f"/shop/orders/{no}/confirm", headers=h)  # 非管理员
+    assert r.status_code == 403
+
+    assert [rec for rec in caplog.records if rec.name == "codemax.audit"] == [], (
+        "被权限挡掉的尝试不该写审计日志"
+    )

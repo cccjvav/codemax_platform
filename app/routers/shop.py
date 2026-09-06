@@ -1,5 +1,6 @@
 import io
 import json
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 from urllib.parse import quote
@@ -245,6 +246,13 @@ async def mock_pay_confirm(
     }
 
 
+# 人工确认收款是**人**替机器做了「钱到账了」这个判断，必须留下可追溯的记录。
+# 没有审计表（sys_order 也没有可放备注的列 —— `remark` 属于 SysConfig 不是 Order），
+# 所以走结构化日志：这也是这类运维动作的行业标准做法，进日志管道、可集中检索，
+# 且不会因为业务表结构调整而丢。
+_audit_logger = logging.getLogger("codemax.audit")
+
+
 # ---------------------------------------------------------------- 人工确认收款（S5-04）
 
 
@@ -278,12 +286,24 @@ async def confirm_paid_manually(
         order.transaction_id = f"MANUAL-{order.order_no}"
         order.paid_at = datetime.now(timezone.utc)  # TIMESTAMPTZ，必须带时区（TD-146）
     await mark_paid(db, order)
+    # 谁、什么时候、把哪一单标成已支付 —— 这三件事必须落盘。
+    # 只在响应体里回一个 confirmed_by 等于没记录：调用方关掉页面就什么都没了，
+    # 事后要查「这单是谁放的货」时无从查起（钱货争议时这是唯一证据）。
+    _audit_logger.info(
+        "人工确认收款 order_no=%s user_id=%s amount=%s status=%s confirmed_by=%s",
+        order.order_no,
+        order.user_id,
+        order.amount,
+        order.status,
+        admin.username,
+        extra={"audit_event": "manual_payment_confirmed", "order_no": order.order_no},
+    )
     return {
         "order_no": order.order_no,
         "status": order.status,
         "transaction_id": order.transaction_id,
         "pay_mode": "manual",
-        "confirmed_by": admin.username,  # 留个审计线索：谁确认的这笔款
+        "confirmed_by": admin.username,
     }
 
 
