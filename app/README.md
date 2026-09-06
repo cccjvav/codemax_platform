@@ -427,7 +427,7 @@ DOWNLOADED → （终态）
 
 ---
 
-### 📄 文件名：`schemas.py`（76 行）
+### 📄 文件名：`schemas.py`（112 行）
 
 - **文件职责**：全部入参/出参的 Pydantic 模型（11 个类）。
 
@@ -435,19 +435,19 @@ DOWNLOADED → （终态）
 
 | 类 | 行 | 字段与约束 |
 | --- | --- | --- |
-| `RegisterIn` | L6-L8 | `username` 3-50、`password` **6-64** |
-| `UserOut` | L11-L17 | `id` `username` `nickname` `avatar`；**L12 `from_attributes=True`** 让它能直接从 ORM 对象转 |
-| `PasswordChangeIn` | L20-L24 | **L21 docstring**：新密码规则与 `RegisterIn` 保持一致，**避免两套标准** |
-| `TokenOut` | L27-L29 | `token_type` 默认 `"bearer"` |
-| `ErDiagramIn` | L32-L33 | `ddl` 1-**20000**（限流与性能测试都按这个上限算） |
-| `MermaidIn` | L36-L37 | `text` 1-10000 |
-| `ArticleIngestIn` | L40-L52 | `url` 1-500、`dynamic` 默认 False |
-| `SupportIn` | L55-L56 | `text` 1-2000 |
-| `DiagramIn` | L59-L61 | `name` 1-100、`content` 1-**500000**（L61 注释：drawio XML 可能较大） |
-| `DiagramSummary` | L64-L72 | `id` `name` `update_time` `version` |
-| `DiagramOut` | L75-L76 | 继承 Summary，加 `content` |
+| `RegisterIn` | L18-L44 | `username` 3-50 + **L25-L44 `field_validator`：白名单 `^[\w-]+$`（含中文）+ 保留名 `admin`/`administrator`/`root`/`system`（大小写不敏感）**、`password` **6-64** |
+| `UserOut` | L47-L53 | `id` `username` `nickname` `avatar`；**L48 `from_attributes=True`** 让它能直接从 ORM 对象转 |
+| `PasswordChangeIn` | L56-L60 | **L57 docstring**：新密码规则与 `RegisterIn` 保持一致，**避免两套标准** |
+| `TokenOut` | L63-L65 | `token_type` 默认 `"bearer"` |
+| `ErDiagramIn` | L68-L69 | `ddl` 1-**20000**（限流与性能测试都按这个上限算） |
+| `MermaidIn` | L72-L73 | `text` 1-10000 |
+| `ArticleIngestIn` | L76-L88 | `url` 1-500、`dynamic` 默认 False |
+| `SupportIn` | L91-L92 | `text` 1-2000 |
+| `DiagramIn` | L95-L97 | `name` 1-100、`content` 1-**500000**（L97 注释：drawio XML 可能较大） |
+| `DiagramSummary` | L100-L108 | `id` `name` `update_time` `version` |
+| `DiagramOut` | L111-L112 | 继承 Summary，加 `content` |
 
-**`ArticleIngestIn`（L40-L52）的两条注释值得单独看**：
+**`ArticleIngestIn`（L76-L88）的两条注释值得单独看**：
 
 - **L43-L46 为什么只用长度卡 url、不做格式校验**：真正的校验是 `crawler.assert_public_url`（协议白名单 + 逐个解析结果必须 `is_global`）。**在 schema 里再写一套 URL 规则等于两处真相，SSRF 判定必须只有一处**。500 与 `sys_article.url VARCHAR(500)` 对齐，超长直接在入口挡掉
 - **L50-L51 `dynamic` 默认 False**（TD-191）：True 时用无头浏览器渲染后再解析，给 httpx 抓不到正文的 SPA 站点兜底。**默认 False —— 渲染比一次 HTTP GET 贵一个数量级，不该是默认行为**

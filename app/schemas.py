@@ -1,11 +1,47 @@
+import re
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
+
+# 用户名白名单：看得见的字母/数字/下划线（`\w` 在 Python 的 str 模式下含中文），
+# 外加连字符。用**白名单**而不是把 `<>&"'` 逐个拉黑 —— 黑名单永远漏，
+# 而这里能列举的合法字符本来就只有这几类。
+_USERNAME_RE = re.compile(r"^[\w-]+$", re.UNICODE)
+
+# 保留名（比较时统一转小写）。种子管理员就叫 `admin`
+# （`database init/full_init.sql` 第 68 行），而登录是精确匹配、
+# PostgreSQL 的 VARCHAR `=` 区分大小写 ⇒ `Admin` 是个独立账号却能注册，
+# 唯一用途就是在界面上冒充管理员。
+_RESERVED_USERNAMES = frozenset({"admin", "administrator", "root", "system"})
 
 
 class RegisterIn(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=64)
+
+    @field_validator("username")
+    @classmethod
+    def _check_username(cls, v: str) -> str:
+        """格式 + 保留名。
+
+        为什么要在 schema 层挡而不是在路由里判：
+          · 422 由 FastAPI 自动生成，错误信息结构化、前端能直接展示；
+          · 所有走 `RegisterIn` 的入口（现在只有 `/auth/register`）自动一致，
+            不会因为将来多一个注册入口而漏掉。
+
+        为什么这三类字符必须挡（不是为了防 SQL 注入 —— 全站参数化查询，
+        注入本来就打不进去）：
+          ① **可辨识性**：`'   '` 与 `'  bob  '` 在管理端列表里与正常账号
+             无法区分，出了钱货纠纷查不到人。
+          ② **上下文安全**：用户名会进 HTML（OAuth 同意页）、JSON 响应、
+             日志与导出文件。Jinja 的 autoescape 只保得住 HTML 那一处。
+          ③ **日志完整性**：`\n` 能让攻击者在日志里伪造整行记录。
+        """
+        if not _USERNAME_RE.match(v):
+            raise ValueError("用户名只能包含字母、数字、下划线、连字符或中文，不能有空格与特殊符号")
+        if v.lower() in _RESERVED_USERNAMES:
+            raise ValueError("该用户名为系统保留名，请换一个")
+        return v
 
 
 class UserOut(BaseModel):

@@ -14,12 +14,12 @@
 ### 1.1 规模（实测）
 
 ```text
-38 个 .py 文件（其中 `test_*.py` 36 个）/ 8 597 行 / 493 个测试函数
-> ⚠️ 口径说明：**测试函数** 493 个是 `def test_` 的个数；pytest 实际**收集到的用例**
-> 是 565 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
-  ├─ conftest.py      121 行   全局 fixture（唯一的一个 fixture：client）
+41 个 .py 文件（其中 `test_*.py` 39 个）/ 9 145 行 / 511 个测试函数
+> ⚠️ 口径说明：**测试函数** 511 个是 `def test_` 的个数；pytest 实际**收集到的用例**
+> 是 603 条（`parametrize` 会展开）。两个数都对，引用时说清是哪个。
+  ├─ conftest.py      178 行   全局 fixture（`client` `db` `mock_mode` `product` + SSO 辅助）
   ├─ __init__.py        0 行
-  └─ 35 个 test_*.py  8 431 行  488 个测试
+  └─ 39 个 test_*.py  8 967 行  511 个测试
 ```
 
 本机实测：**561 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **563 passed, 2 skipped**。
@@ -56,51 +56,55 @@
 
 ## 2. 公共基础设施
 
-### 📄 文件名：`conftest.py`（121 行）
+### 📄 文件名：`conftest.py`（178 行）
 
-- **文件职责**：**全局唯一的 fixture 来源**，加上 SSO 流程辅助函数。
+- **文件职责**：**全局唯一的 fixture 来源**（`client` `db` `mock_mode` `product`），加上 SSO 流程辅助函数。
 
 #### 结构
 
 **L7 `sys.path.insert(0, ...)`** —— 把仓库根加进 `sys.path`（`pytest.ini:4` 的 `pythonpath = .` 是另一道保险）。
 
-**L20-L22 全局关限流**
-- **L20-L21 注释说明了原因**：所有用例共用同一个客户端 IP，**开着的话几十个注册/登录会互相挤爆配额**
+**L22-L24 全局关限流**
+- **L22-L23 注释说明了原因**：所有用例共用同一个客户端 IP，**开着的话几十个注册/登录会互相挤爆配额**
 - **限流本身由 `tests/test_ratelimit.py` 显式打开后测试**
 
-**L24-L41 数据库引擎（本文件最关键的一段）**
-- **L30 `TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite://")`**
-  - **L24-L29 注释**：设 `TEST_DATABASE_URL` 就能整套跑在真 PostgreSQL 上，用来消掉「集成测试只跑 SQLite」这个上线阻塞项（TD-80）
-  - **L29 有一句警告**：**别指向正在用的业务库 —— fixture 每个用例都会 `create_all` / `drop_all`**
-- **L32-L35 SQLite 分支** —— `poolclass=StaticPool`，**保证所有连接共享同一内存库**（否则每个连接各自一个空库）
-- **L36-L41 真库分支** —— `poolclass=NullPool`。**L37-L40 的注释是一个真实踩过的坑**：
+**L26-L44 数据库引擎（本文件最关键的一段）**
+- **L32 `TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite://")`**
+  - **L26-L31 注释**：设 `TEST_DATABASE_URL` 就能整套跑在真 PostgreSQL 上，用来消掉「集成测试只跑 SQLite」这个上线阻塞项（TD-80）
+  - **L31 有一句警告**：**别指向正在用的业务库 —— fixture 每个用例都会 `create_all` / `drop_all`**
+- **L34-L37 SQLite 分支** —— `poolclass=StaticPool`，**保证所有连接共享同一内存库**（否则每个连接各自一个空库）
+- **L38-L43 真库分支** —— `poolclass=NullPool`。**L39-L42 的注释是一个真实踩过的坑**：
   > 真库必须用 `NullPool`：**asyncpg 的连接绑死在创建它的事件循环上**，而 pytest-asyncio **每个用例开一个新 loop**。用默认连接池会复用到上一个 loop 的连接，报 `"got Future attached to a different loop"`。**SQLite 那边因为是 StaticPool 单连接才没暴露这个问题。**
 
-**L44-L60 `seed_clients()`**
-- **L45 注释**：**必须每次调用新建实例，否则 ORM 对象跨测试复用会泄漏状态**
+**L46-L60 `seed_clients()`**
+- **L47 注释**：**必须每次调用新建实例，否则 ORM 对象跨测试复用会泄漏状态**
 - 造两个 SSO 接入平台（`tools` / `shop`），**与 `database init/full_init.sql` 一致**
 
-**L63-L101 SSO 流程辅助**
-- **L64-L66 注释解释了为什么必须走两步**：TD-78 之后 `GET /oauth/authorize` **只渲染同意页、不签发授权码**，签发在 POST。所以「拿到一个 code」必须 **GET 取同意页 → 从隐藏表单里抠出 `sig` → POST 提交**。
+**L63-L103 SSO 流程辅助**
+- **L66-L67 注释解释了为什么必须走两步**：TD-78 之后 `GET /oauth/authorize` **只渲染同意页、不签发授权码**，签发在 POST。所以「拿到一个 code」必须 **GET 取同意页 → 从隐藏表单里抠出 `sig` → POST 提交**。
   > **这也正是浏览器真实做的事，测试跟着走一遍才不会把签名校验测成摆设。**
-- **L67 `_SIG_RE`** —— 从 HTML 里抠 `name="sig" value="..."`
-- **L70-L96 `sso_authorize()`** —— 走完整同意流程，返回 POST 的响应
-  - **L87 断言消息带了实际响应片段** —— `f"同意页应返回 200，实际 {page.status_code}：{page.text[:200]}"`，**失败时不用再去复现**
-- **L99-L101 `sso_code()`** —— 从 302 的 `Location` 里取出 code
+- **L72 `sso_authorize()`** —— 走完整同意流程，返回 POST 的响应；**断言消息带实际响应片段**，失败时不用再去复现
+- **L101-L103 `sso_code()`** —— 从 302 的 `Location` 里取出 code
 
-**L103-L121 `client` fixture（全局唯一）**
+**L105-L123 `client` fixture**
 ```text
-L105-L106  create_all              建表
-L108-L110  灌种子数据（两个 OAuth 客户端）
-L112-L116  用 dependency_overrides 把 get_db 换成测试 session
-L117-L118  yield AsyncClient(ASGITransport(app=app), base_url="http://test")
-L119       清掉 dependency_overrides
-L120-L121  drop_all                拆表
+L107-L108  create_all              建表
+L110-L112  灌种子数据（两个 OAuth 客户端）
+L114-L118  用 dependency_overrides 把 get_db 换成测试 session
+L119-L120  yield AsyncClient(ASGITransport(app=app), base_url="http://test")
+L121       清掉 dependency_overrides
+L122-L123  drop_all                拆表
 ```
-- **每个用例都是干净的库** —— 这是 565 个用例能任意顺序跑的前提
-- **L119 的 `clear()` 不能省** —— 否则下一个用例会拿到上一个用例的 session 工厂
+- **每个用例都是干净的库** —— 这是 603 个用例能任意顺序跑的前提
+- **L121 的 `clear()` 不能省** —— 否则下一个用例会拿到上一个用例的 session 工厂
 
-### 2.1 分组总览（36 个测试文件）
+**L126-L150 `db` fixture** —— 一个能直接用的 `AsyncSession`（建表 → yield → 拆表）。**从 `test_support.py` 上移到这里**：`test_intent_cascade.py` 也要用它。
+
+**L153-L169 `mock_mode` fixture** —— 走模拟收银台（TD-124）。⚠️ **打 `/shop/orders` 的测试必须带它**：默认 `SHOP_PAY_MODE=wechat` 而沙箱没有商户号，下单会直接 503，很容易被误判成代码 bug。**原本在 `test_shop_page.py` 里，`test_shop_polling.py` 也要用，所以按「共享 fixture 放 conftest」的约定上移。**
+
+**L171-L178 `product` fixture** —— 把存储后端指到临时目录并造出商品文件。
+
+### 2.1 分组总览（39 个测试文件）
 
 > 行数为 `wc -l` 实测值（2026-09-05）。**别手抄**：历史上这张表大面积过期过 ——
 > 本次一核对，9 组里有 8 个文件的行数都是旧的（如 `test_e2e` 427 → 530、
@@ -108,29 +112,32 @@ L120-L121  drop_all                拆表
 
 | 组 | 文件数 | 行数 | 文件 |
 | --- | --- | --- | --- |
-| **认证与授权** | 5 | 1020 | `test_auth`(67) `test_auth_cookie`(314) `test_oauth`(248) `test_oauth_consent`(154) `test_token_revocation`(237) |
+| **认证与授权** | 7 | 1230 | `test_auth`(67) `test_auth_cookie`(314) `test_auth_crypto`(101) `test_username_validation`(109) `test_oauth`(248) `test_oauth_consent`(154) `test_token_revocation`(237) |
 | **工具功能** | 4 | 674 | `test_sql_ddl`(254) `test_er_page`(159) `test_mermaid`(169) `test_word_export`(92) |
-| **电商与支付** | 7 | 1867 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(157) `test_download`(200) `test_shop_page`(464) `test_manual_pay`(254) |
+| **电商与支付** | 8 | 2087 | `test_order_state`(134) `test_wechat_pay`(279) `test_wechat_notify`(379) `test_mock_pay`(157) `test_download`(200) `test_shop_page`(450) `test_shop_polling`(182) `test_manual_pay`(306) |
 | **流程图** | 3 | 414 | `test_diagrams`(115) `test_diagram_quota`(153) `test_diagram_concurrency`(146) |
 | **爬虫** | 5 | 1517 | `test_crawler`(299) `test_politeness`(284) `test_extract`(240) `test_admin_ingest`(333) `test_dynamic_crawl`(361) |
-| **智能客服** | 4 | 1115 | `test_faq`(131) `test_support`(240) `test_faq_semantic`(531) `test_intent_cascade`(213) |
-| **运维与横切** | 5 | 1030 | `test_ops`(347) `test_ratelimit`(152) `test_schema_sync`(74) `test_perf`(360) `test_config_validation`(97) |
-| **页面与文档站** | 2 | 270 | `test_site`(64) `test_docs_site`(206) |
+| **智能客服** | 4 | 1189 | `test_faq`(131) `test_support`(240) `test_faq_semantic`(605) `test_intent_cascade`(213) |
+| **运维与横切** | 5 | 1054 | `test_ops`(347) `test_ratelimit`(152) `test_schema_sync`(74) `test_perf`(360) `test_config_validation`(121) |
+| **页面与文档站** | 2 | 272 | `test_site`(64) `test_docs_site`(208) |
 | **端到端** | 1 | 530 | `test_e2e`(530) |
 
 ### 2.2 九组各自守住的不变量
 
-#### ① 认证与授权（5 文件 / 942 行 / 56 个测试）
+#### ① 认证与授权（7 文件 / 1230 行 / 66 个测试）
 
 | 文件 | 守住的不变量 |
 | --- | --- |
 | `test_auth.py` | 登录/登出/改密码/`/auth/me` 的基本行为 |
+| `test_auth_crypto.py` | **bcrypt 必须在事件循环之外**（A-1/A-1b/A-8）：连跑 5 次 verify 期间 `asyncio.sleep(10ms)` 的最大漂移必须 < 80 ms（改前实测 1280 ms、改后 4 ms）；登录的用户名枚举时序差必须拉平（改前 58 倍、改后 1.0 倍）；`/oauth/token` 必须挂限流 |
+| `test_username_validation.py` | **用户名白名单与保留名**（A-5）：空白/控制字符/标记语言一律 422；`admin` 大小写不敏感地保留（登录是精确匹配，`Admin` 会是独立账号却能冒充管理员）；对照组钉住中文名与大写名不被误杀 |
 | `test_auth_cookie.py` | **TD-44：登录态走 HttpOnly cookie，前端不碰 `localStorage`** |
 | `test_oauth.py` | 授权码签发与兑换；**code 一次性** |
 | `test_oauth_consent.py` | **TD-78 + TD-175：同意页的签名校验、`approve` 语义、零内联脚本** |
 | `test_docs_site.py` | **文档站构建脚本的回归测试**：`build_routes()` 提取的路由必须**等于**运行时 `app.routes`（曾静默少 4 条：32 vs 36）；`DOC_GROUPS` 登记的文档必须真实存在；生成物必须全在 `.gitignore` 里 |
 | `test_token_revocation.py` | **TD-70：改密码后旧 token 必须失效** |
 | `test_shop_page.py` | **S2-02-2：轮询订单状态绝不能烧掉一次性下载**（`GET /shop/orders/{no}` 必须只读）；同意页之外的页面都有登录与商城入口；二维码是内联 SVG、不引外部请求 |
+| `test_shop_polling.py` | **轮询生命周期**（N-2）：用 node 跑 `shop.html` 真实内联脚本 + 假时钟，钉住「订单过期必须停表」（改前 9.5 秒内打 3 次且永不停止）与「未过期照常轮询」的对照组；`GET /shop/orders/{no}` 必须带 `Cache-Control: no-store`，否则页面永远看不到订单变 paid |
 
 **代表用例**（`test_token_revocation.py`）：
 - `test_old_token_is_rejected_after_password_change` —— 核心不变量
@@ -154,7 +161,7 @@ L120-L121  drop_all                拆表
 > **`test_er_page.py` 的输入是项目自己的 `database init/full_init.sql`**（L18）——
 > 用真实 DDL 而不是造一个玩具样例，这样解析器的回归会连带被测出来。
 
-#### ③ 电商与支付（5 文件 / 1282 行 / 69 个测试）
+#### ③ 电商与支付（8 文件 / 2087 行 / 110 个测试）
 
 | 文件 | 守住的不变量 |
 | --- | --- |
@@ -162,7 +169,7 @@ L120-L121  drop_all                拆表
 | `test_wechat_pay.py` | NATIVE 下单 + 签名 |
 | `test_wechat_notify.py` | **回调验签、AES-GCM 解密、幂等**（同一通知来两遍只生效一次） |
 | `test_mock_pay.py` | 模拟通道；**生产模式下必须 404** |
-| `test_manual_pay.py` | **人工确认收款（S5-04/TD-205）**：只有管理员能确认；非 manual 模式下端点不存在；复用 `mark_paid` 故幂等且 `CLOSED` 也能收；另钉住 `full_init.sql` 种子账号必须带 `role=1` |
+| `test_manual_pay.py` | **人工确认收款（S5-04/TD-205）**：只有管理员能确认；非 manual 模式下端点不存在；复用 `mark_paid` 故幂等且 `CLOSED` 也能收；另钉住 `full_init.sql` 种子账号必须带 `role=1`；**必须写 `codemax.audit` 审计日志**（N-3：谁确认的这一单事后要能查到），且被 403 挡掉的尝试不留记录 |
 | `test_download.py` | **预签名 URL + 一次性下载双重校验** |
 
 **代表用例**（`test_order_state.py`）：
@@ -171,7 +178,7 @@ L120-L121  drop_all                拆表
 - `test_mark_paid_twice_is_idempotent` / `test_late_paid_notification_after_download_is_noop` —— **幂等**
 - **但 `CLOSED → PAID` 是刻意允许的**（TD-156：**收到钱就必须发货**）
 
-#### ④ 流程图（3 文件 / 404 行 / 27 个测试）
+#### ④ 流程图（3 文件 / 414 行 / 27 个测试）
 
 | 文件 | 守住的不变量 |
 | --- | --- |
@@ -185,7 +192,7 @@ L120-L121  drop_all                拆表
 - `test_concurrent_saves_only_one_wins` —— 真并发
 - **`test_non_owner_gets_404_not_412`** —— **越权必须返回 404 而不是 412**，否则就泄漏了「这个 id 存在」
 
-#### ⑤ 爬虫（5 文件 / 1435 行 / 67 个测试）
+#### ⑤ 爬虫（5 文件 / 1517 行 / 82 个测试）
 
 | 文件 | 守住的不变量 |
 | --- | --- |
@@ -198,14 +205,14 @@ L120-L121  drop_all                拆表
 > **`test_politeness.py` 有一个隔离要求**：`politeness._states` 按 origin 缓存 1 小时，
 > **setup 与 teardown 都要 `reset_cache()`**，否则用例之间会互相污染。
 
-#### ⑥ 智能客服（2 文件 / 383 行 / 37 个测试）
+#### ⑥ 智能客服（4 文件 / 1189 行 / 79 个测试）
 
 - `test_faq.py` —— BM25 + 向量融合召回（`BM25_WEIGHT=0.6`）
 - `test_support.py` —— 意图路由、三层编排（规则/FAQ/RAG）、兜底转人工
 - `test_faq_semantic.py` —— 语义 FAQ 检索（S4-02-5）：`/embeddings` 乱序返回也要还原输入顺序；预热失败只退回词袋不拖垮启动；`None`（不可用）与空列表（没内容）必须区分
 - `test_intent_cascade.py` —— 三级级联：**规则有把握时绝不调 LLM**（靠调用计数守）；语义/LLM 都失败仍转人工；每次级联落一条标注样本日志
 
-#### ⑦ 运维与横切（4 文件 / 1075 行 / 49 个测试）
+#### ⑦ 运维与横切（5 文件 / 1054 行 / 56 个测试）
 
 | 文件 | 守住的不变量 |
 | --- | --- |
@@ -222,11 +229,11 @@ L120-L121  drop_all                拆表
 **`test_schema_sync.py` 的边界要说清**：它**只比表名与列名，不比类型/默认值/索引**。
 「PostgreSQL 其实不接受这句 SQL」只有 CI 的真库 job 能抓到（`ci.yml:152-153` 真执行两遍）。
 
-#### ⑧ 页面（1 文件 / 64 行 / 6 个测试）
+#### ⑧ 页面与文档站（2 文件 / 272 行 / 17 个测试）
 
 `test_site.py` —— `TOOLS` 清单驱动的 SSR 页面 / TDK / 导航 / sitemap / robots。
 
-#### ⑨ 端到端（1 文件 / 427 行 / 18 个测试）
+#### ⑨ 端到端（1 文件 / 530 行 / 22 个测试）
 
 `test_e2e.py` —— **S5-01：把前面各阶段的单元测试串成完整业务旅程**。三段：
 
@@ -373,7 +380,7 @@ python -m pytest tests/test_e2e.py -q
 > 本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > **两条特别提醒**：
-> ① 本文 1.1 的「passed 数 / 493 个测试函数」这类数字，**加一个用例就会变** ——
+> ① 本文 1.1 的「passed 数 / 511 个测试函数」这类数字，**加一个用例就会变** ——
 >    历史上已经因为「加 1 条测试」导致 24 处条数、11 个文件过期。改完必须重跑再写；
 > ② 断言里的关键策略值**写死数值**，不要用 `MAX_BYTES + 1` 这种相对写法
 >    （取任何值都能过，等于没测）。
