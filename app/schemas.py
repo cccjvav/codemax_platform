@@ -14,10 +14,36 @@ _USERNAME_RE = re.compile(r"^[\w-]+$", re.UNICODE)
 # 唯一用途就是在界面上冒充管理员。
 _RESERVED_USERNAMES = frozenset({"admin", "administrator", "root", "system"})
 
+# bcrypt 的输入上限是 **72 字节**（不是 72 个字符），超出部分**静默丢弃**、不报错。
+# 实测：`verify("密"*24, hash("密"*64))` 返回 True —— 两个完全不同的密码被当成同一个。
+# 而下面的 `max_length=64` 卡的是**字符数**：一个 64 汉字的密码是 192 字节，
+# 照样能通过。所以必须额外卡一道字节数。
+_BCRYPT_MAX_BYTES = 72
+
+
+def _check_password_bytes(v: str) -> str:
+    """拒绝 UTF-8 编码后超过 72 字节的密码。
+
+    为什么这比「让 bcrypt 截断」危险得多：截断之后**两个不同的密码能互相登录**。
+    受害者注册了 64 个汉字的密码，攻击者只要知道前 24 个汉字就能进他的账号 ——
+    而「密码前缀」恰恰是最容易被猜到的部分。
+
+    为什么不在 bcrypt 之前先做 SHA-256 预哈希（那样就没有长度上限了）：
+    那会改变哈希格式，库里已有的哈希（含 `full_init.sql` 的种子管理员）全部失效。
+    而拒绝的代价很小 —— 只影响「24 个汉字以上」的密码，正常使用碰不到，
+    而且 `max_length=64` 本来就已经设了字符上限。
+    """
+    n = len(v.encode("utf-8"))
+    if n > _BCRYPT_MAX_BYTES:
+        raise ValueError(f"密码编码后为 {n} 字节，超过 bcrypt 的 72 字节上限，请缩短")
+    return v
+
 
 class RegisterIn(BaseModel):
     username: str = Field(min_length=3, max_length=50)
     password: str = Field(min_length=6, max_length=64)
+
+    _password_bytes = field_validator("password")(_check_password_bytes)
 
     @field_validator("username")
     @classmethod
@@ -58,6 +84,10 @@ class PasswordChangeIn(BaseModel):
 
     old_password: str = Field(min_length=1, max_length=64)
     new_password: str = Field(min_length=6, max_length=64)
+
+    # 与 RegisterIn 同一条 72 字节规则 —— 否则绕过注册就能塞进超长密码，
+    # 本类 docstring 里「新密码规则与 RegisterIn 保持一致」那句话也就成了空话。
+    _password_bytes = field_validator("new_password")(_check_password_bytes)
 
 
 class TokenOut(BaseModel):

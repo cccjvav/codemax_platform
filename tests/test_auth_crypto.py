@@ -18,6 +18,7 @@ import time
 import pytest
 
 from app.security import ahash_password, averify_password, hash_password
+from tests.test_download import auth_headers
 
 # 事件循环漂移的阈值取得很松（80 ms）：单次 bcrypt 就要 260 ms，
 # 只要有一发留在事件循环里，漂移必然远超这个数。留余量是为了不在慢 CI 上抖。
@@ -99,3 +100,78 @@ async def test_async_wrapper_agrees_with_sync(plain):
         assert await averify_password(plain, hashed) is verify_password(plain, hashed) is True
     else:
         assert await averify_password(plain, hashed) is False
+
+
+# ---------------------------------------------------------------- 72 字节截断（A-6）
+#
+# bcrypt 的输入上限是 **72 字节**（不是 72 个字符），超出部分**静默丢弃**、不报错。
+# 实测：hash("密"*64)（192 字节）之后，用 "密"*24（正好 72 字节）就能登录成功 ——
+# 两个完全不同的密码被当成同一个。
+#
+# 而 schema 的 `max_length=64` 卡的是**字符数**，一个 64 汉字的密码是 192 字节，
+# 完全能通过校验。所以这道口子是真实可达的。
+
+
+# (密码, 错误信息里必须出现的关键词)
+# `"a"*73` 会先被 `max_length=64` 的**字符数**规则拦下，所以它那条不该要求出现 "72"；
+# 两个汉字用例才是真正只有字节规则能拦住的（25 / 64 个字符都在 64 以内）。
+@pytest.mark.parametrize(
+    ("password", "marker"),
+    [
+        ("密" * 25, "72"),  # 75 字节，字符数 25 合法 ⇒ 只有字节规则能拦
+        ("密" * 64, "72"),  # 192 字节，字符数 64 刚好合法 ⇒ 同上
+        ("a" * 73, "64"),  # 73 字节，但字符数 73 已超 max_length=64 ⇒ 先被字符规则拦
+    ],
+)
+async def test_password_longer_than_72_bytes_is_rejected(client, password, marker):
+    """超过 72 字节的密码必须被明确拒绝，而不是静默截断。
+
+    为什么这比「截断」危险得多：截断之后**两个不同的密码能互相登录**。
+    受害者注册了 64 个汉字的密码，攻击者只要知道前 24 个汉字就能进他的账号 ——
+    而「密码前缀」恰恰是最容易被猜到的部分。
+
+    为什么不在 bcrypt 之前先做 SHA-256 预哈希（那样就没有长度上限了）：
+    那会改变哈希格式，库里已有的哈希（含 `full_init.sql` 的种子管理员）全部失效。
+    而拒绝的代价很小 —— 64 字节上限只影响「24 个汉字以上」的密码，
+    正常使用完全碰不到；schema 本来也已经有 64 字符的上限。
+    """
+    r = await client.post("/auth/register", json={"username": "longpw_user", "password": password})
+    assert r.status_code == 422, (
+        f"{len(password.encode())} 字节的密码竟然注册成功（{r.status_code}）—— "
+        "bcrypt 会静默截断，导致不同密码互相登录。"
+    )
+    assert marker in r.text, (
+        f"错误信息应提到 {marker!r}（{'字节上限' if marker == '72' else '字符上限'}），"
+        f"实际：{r.text[:200]}"
+    )
+
+
+async def test_truncation_collision_is_actually_closed():
+    """直接钉住后果本身：截断碰撞必须不可能发生。
+
+    上一条测的是「HTTP 层拒绝」，这一条测的是「碰撞不存在」——
+    万一将来有人把校验挪走或放宽，这条会立刻抓住。
+    """
+    from pydantic import ValidationError
+
+    from app.schemas import RegisterIn
+
+    with pytest.raises(ValidationError):
+        RegisterIn(username="collision_u", password="密" * 64)
+
+
+async def test_password_change_has_the_same_72_byte_limit(client):
+    """改密码必须同一条规则，否则绕过注册就能塞进超长密码。
+
+    `PasswordChangeIn` 的 docstring 本来就写着「新密码规则与 RegisterIn 保持一致，
+    避免两套标准」—— 这条把那句话变成可执行的断言。
+    """
+    h = await auth_headers(client, "pwlimit_u")
+    r = await client.post(
+        "/auth/password",
+        headers=h,
+        json={"old_password": "secret123", "new_password": "密" * 64},
+    )
+    assert r.status_code == 422, (
+        f"改密码接受了 {len(('密' * 64).encode())} 字节的新密码（{r.status_code}）"
+    )
