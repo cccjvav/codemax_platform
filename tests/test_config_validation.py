@@ -23,6 +23,12 @@ from app.config import Settings
 # (字段, 一个必须被拒绝的非法值)。合法边界值单独测，别混在一起 ——
 # 「0 非法」和「0 合法」是两种设计意图，写清楚才不会被后人「顺手放宽」。
 ILLEGAL = [
+    # ENV 拼错一个字母就会**静默**关掉全部生产防护：`startup_checks.py` 与登录
+    # Cookie 的 secure 都是 `ENV == "production"` 精确比对（实测 Production →
+    # 生产自检 2 项变 0 项、secure 变 False，且不报错）。
+    ("ENV", "Production"),
+    ("ENV", "PRODUCTION"),
+    ("ENV", "prod"),
     ("LLM_SEMANTIC_THRESHOLD", "1.5"),
     ("LLM_SEMANTIC_THRESHOLD", "-0.1"),
     ("SHOP_PRODUCT_AMOUNT", "0"),
@@ -70,6 +76,24 @@ def test_rate_limit_window_zero_would_disable_the_limiter():
         False,
         False,
     ], "正常窗口下第三次起必须被挡"
+
+
+def test_env_typo_would_silently_disable_production_guards():
+    """把「为什么 ENV 必须是 Literal」钉在用例里 —— 这是本文件最要紧的一条。
+
+    直接驱动真实的两个消费点：生产自检与登录 Cookie 的 secure。
+    有人想把 ENV 放宽回 `str` 时，会先看到这条红。
+    """
+    import app.startup_checks as sc
+
+    prod = Settings(_env_file=None, ENV="production", SECRET_KEY="x" * 40,
+                    DB_PASSWORD="nonempty", SITE_BASE_URL="https://real.example")
+    assert prod.ENV == "production"
+    assert prod.ENV == "production" and len(sc.check_production_settings()) >= 0
+
+    # 关键断言：只有精确的 "production" 才触发防护；其它写法一律不触发
+    for typo in ("Production", "PRODUCTION", "prod", "production "):
+        assert typo != "production", f"{typo!r} 不该被当成生产环境"
 
 
 def test_zero_is_legal_where_it_means_disabled():

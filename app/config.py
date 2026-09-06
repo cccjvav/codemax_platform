@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -89,7 +91,11 @@ class Settings(BaseSettings):
 
     # ---- 部署与运维（S5-03）----
     # development / production。production 下会强制若干安全检查，见 app/startup_checks.py
-    ENV: str = "development"
+    # **必须是 Literal 而不是自由字符串**：`startup_checks.py` 与登录 Cookie 的 `secure`
+    # 都是 `ENV == "production"` 精确比对，写成 "Production"/"prod" 时四项生产硬检查
+    # 会**全部静默跳过**、Cookie 同时丢掉 Secure —— 实测过，且没有任何报错。
+    # 这是「配置暴露给 .env 就必须约束取值」里最要紧的一条（TD-212 的同类问题）。
+    ENV: Literal["development", "production"] = "development"
     LOG_LEVEL: str = "INFO"
     # HSTS 的 max-age（秒），默认一年。只在请求确实是 https 时才下发 ——
     # 在 http 上下发没有意义，还会把仍在用 http 的本地环境锁死一年。
