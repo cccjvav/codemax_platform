@@ -13,6 +13,7 @@
 不写替身 —— 否则测的是替身，不是要上线的那段代码。
 """
 import json
+from dataclasses import dataclass
 
 import httpx
 import pytest
@@ -529,3 +530,76 @@ async def test_calibrate_semantic_threshold():
     再更新 TD-206 把「尚未标定」那条划掉。
     """
     await _run_calibration(default_llm)
+
+
+# ---------------------------------------------------------- 预热超时（N-1）
+#
+# ⚠️ 这里**不能**用「让 handler 睡很久、看预热多久放弃」来测：
+# `httpx.MockTransport` 没有真实 I/O，**不执行 timeout** —— 实测 `timeout=1.0`
+# 的 client 配一个 `sleep(30)` 的 handler，照样等满 30 秒。那样写出来的用例
+# 会永远挂着（我第一版就是这么写的，直接把测试跑超时了）。
+# 所以改成直接断言「预热时真正生效的 timeout 是多少」。
+
+
+@dataclass
+class _TimeoutSpyClient(LLMClient):
+    """记录 `embeddings` 被调用时自己身上挂的 timeout。
+
+    必须是 `LLMClient` 的子类而不是替身：`warm_semantic_index` 用
+    `dataclasses.replace(client, timeout=...)` 造副本，替身没有这些字段就炸；
+    而 `replace` 会保留子类，所以记录到的正是预热那一次真正生效的值。
+    """
+
+    async def embeddings(self, texts: list[str]) -> list[list[float]]:
+        _SEEN_TIMEOUTS.append(self.timeout)
+        return [[1.0, 0.0] for _ in texts]
+
+
+_SEEN_TIMEOUTS: list[float] = []
+
+
+@pytest.fixture(autouse=True)
+def _clear_seen_timeouts():
+    _SEEN_TIMEOUTS.clear()
+    yield
+    _SEEN_TIMEOUTS.clear()
+
+
+async def test_warm_up_uses_a_short_timeout_not_the_60s_default():
+    """**启动路径不能被一次外部调用挂住 60 秒。**
+
+    实测：LLM 网关不可达时 `await warm_semantic_index()` 会整整等满
+    `LLMClient.timeout`（默认 60.0 s）才返回 —— 那 60 秒里应用还没开始监听
+    业务流量，编排器看到的是「启动探针一直不过」，可能直接判失败反复重启，
+    滚动发布时每个副本还要各挨一次。预热失败本来就只意味着退回词袋。
+    """
+    from app.tools.faq import WARM_UP_TIMEOUT
+
+    client = _TimeoutSpyClient(api_key="k", base_url="http://llm.test/v1", timeout=60.0)
+    assert await warm_semantic_index(client) is True
+
+    assert _SEEN_TIMEOUTS == [WARM_UP_TIMEOUT], (
+        f"预热实际用的 timeout 是 {_SEEN_TIMEOUTS}，期望 [{WARM_UP_TIMEOUT}] —— "
+        "短超时没生效，启动又会被外部 HTTP 挂住。"
+    )
+    assert WARM_UP_TIMEOUT <= 5.0, "预热超时不该超过 5 秒"
+
+
+async def test_warm_up_does_not_shrink_the_callers_client():
+    """短超时只能作用于预热那一次调用，不能顺带改掉调用方的 client。
+
+    改传进来的实例是这里最容易犯的错：测试之间互相污染，而且线上对话调用
+    会因为一个 5 秒上限而频繁超时（对话本来就该允许等久一点）。
+    """
+    client = _TimeoutSpyClient(api_key="k", base_url="http://llm.test/v1", timeout=60.0)
+    await warm_semantic_index(client)
+    assert client.timeout == 60.0, "预热不许修改传进来的 client"
+
+
+async def test_warm_up_keeps_an_already_short_timeout():
+    """调用方给的超时本来就比上限短时，不该被放大。"""
+    from app.tools.faq import WARM_UP_TIMEOUT
+
+    client = _TimeoutSpyClient(api_key="k", base_url="http://llm.test/v1", timeout=1.0)
+    await warm_semantic_index(client)
+    assert _SEEN_TIMEOUTS == [1.0], f"不该把 1.0 放大成 {WARM_UP_TIMEOUT}"

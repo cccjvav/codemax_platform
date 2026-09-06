@@ -15,7 +15,7 @@ from __future__ import annotations
 import logging
 import math
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import jieba
 
@@ -281,6 +281,14 @@ def calibrate_threshold(
     return round(threshold, 3)
 
 
+# 预热专用超时。`LLMClient.timeout` 默认 60 s 是为对话调用留的，但预热跑在
+# **启动路径**上：实测网关不可达时 `await warm_semantic_index()` 会整整挂住
+# 60.1 秒才开始监听业务流量 —— 编排器看到的是「启动探针一直不过」，可能直接判
+# 失败反复重启，滚动发布时每个副本还要各挨一次。预热失败本来就只意味着退回词袋，
+# 没有任何理由为它等一分钟。
+WARM_UP_TIMEOUT = 5.0
+
+
 async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     """把 FAQS 向量化并缓存。返回是否成功。
 
@@ -289,6 +297,10 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     「退回词袋」，而不是「客服功能挂掉」。启动流程不能因为一个可选增强而拒绝起服务。
     """
     global _SEMANTIC, _SEMANTIC_NORM
+    # 只给预热这一步换短超时，不动全局 client：对话调用该等就得等。
+    # 用 replace 造副本而不是改属性 —— 改全局实例会让测试之间互相污染。
+    if client.timeout > WARM_UP_TIMEOUT:
+        client = replace(client, timeout=WARM_UP_TIMEOUT)
     if _SEMANTIC is not None:
         return True
     try:
