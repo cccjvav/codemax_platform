@@ -119,3 +119,62 @@ def test_env_example_values_are_all_within_range():
             continue  # 模板里留空 = 用默认值
         s = Settings(_env_file=None, **{field: raw})
         assert getattr(s, field) is not None
+
+
+# ---------------------------------------------------------------- DB 密码转义（A-10）
+#
+# `sqlalchemy_url` 是用 f-string 直接把 DB_USER / DB_PASSWORD 拼进 URL 的。
+# 密码里只要有 `@ : / # ?` 中任何一个，URL 的结构就被改写了 ——
+# 实测 `DB_PASSWORD='p@ss:w/rd#1'` 时 SQLAlchemy 把端口解析成 `'w'`，抛
+# `ValueError: invalid literal for int() with base 10: 'w'`。
+#
+# 更糟的是它**不一定报错**：`p@ss` 会让 host 变成 `ss`，连的是另一台机器。
+
+
+@pytest.mark.parametrize(
+    "password",
+    [
+        "p@ss:w/rd#1",  # @ : / # 全都有
+        "pass@word",  # 只有 @
+        "p/w",  # 只有 /
+        "a#b",  # 只有 #（后面全被当成 fragment 丢掉）
+        "100%natural",  # % 会被当成百分号转义的开头
+        "p?q=1",  # ? 后面被当成 query
+    ],
+)
+def test_db_password_with_url_metacharacters_still_builds_a_valid_url(password):
+    """密码含 URL 元字符时，连接串必须仍然解析出**原本的**那几段。
+
+    这不是理论问题：托管数据库（RDS / Cloud SQL / Supabase）自动生成的密码
+    经常就带 `@ / #`，而 `.env` 里直接写原值是最自然的用法。
+    """
+    from sqlalchemy.engine import make_url
+
+    s = Settings(
+        _env_file=None,
+        DATABASE_URL="",
+        DB_USER="postgres",
+        DB_PASSWORD=password,
+        DB_HOST="db.internal",
+        DB_PORT=5432,
+        DB_NAME="codemax_db",
+    )
+    url = make_url(s.sqlalchemy_url)  # 解析不了会直接抛
+
+    # 必须逐段还原，不能只断言「没报错」——
+    # `pass@word` 不转义时解析**不会失败**，它只是悄悄把 host 变成了别的东西。
+    assert url.username == "postgres", f"用户名被改写：{url.username!r}"
+    assert url.password == password, f"密码没有原样还原：{url.password!r}"
+    assert url.host == "db.internal", f"host 被密码里的 @ 改写成了 {url.host!r}"
+    assert url.port == 5432, f"端口被解析成 {url.port!r}"
+    assert url.database == "codemax_db", f"库名被改写成 {url.database!r}"
+
+
+def test_explicit_database_url_still_wins():
+    """显式给了 `DATABASE_URL` 就不能再去拼 —— 否则转义逻辑会二次编码。"""
+    from sqlalchemy.engine import make_url
+
+    raw = "postgresql+asyncpg://u:p%40ss@h:5432/d"
+    s = Settings(_env_file=None, DATABASE_URL=raw, DB_PASSWORD="ignored")
+    assert s.sqlalchemy_url == raw
+    assert make_url(s.sqlalchemy_url).password == "p@ss"

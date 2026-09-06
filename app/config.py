@@ -1,4 +1,5 @@
 from typing import Literal
+from urllib.parse import quote_plus
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -105,10 +106,29 @@ class Settings(BaseSettings):
 
     @property
     def sqlalchemy_url(self) -> str:
+        """拼数据库连接串。**用户名与密码必须做 URL 转义。**
+
+        为什么不能直接 f-string 拼：密码里只要有 `@ : / # ? %` 中任何一个，
+        URL 的结构就被改写了。实测 `DB_PASSWORD='p@ss:w/rd#1'` 时 SQLAlchemy
+        把端口解析成 `'w'`，抛 `ValueError: invalid literal for int() with base 10: 'w'`。
+
+        更糟的是它**不一定报错**：`pass@word` 这种只会悄悄把 host / 密码解析成
+        别的东西，于是连到错的机器、或者用错的密码反复认证失败 —— 现象与
+        「数据库挂了」一模一样，极难排查。
+
+        这不是理论问题：托管数据库（RDS / Cloud SQL / Supabase）自动生成的密码
+        经常就带 `@ / #`，而在 `.env` 里直接写原值是最自然的用法。
+
+        用 `quote_plus` 而不是 `quote`：连接串的 userinfo 段里空格必须编成 `+`
+        而不是 `%20` 之外的形式，且 `/` 也要转义（`quote` 默认放行 `/`）。
+
+        显式给了 `DATABASE_URL` 就直接原样返回 —— 那是用户自己写好的完整 URL，
+        再转义一遍会把已经编好的 `%40` 变成 `%2540`（双重编码）。
+        """
         if self.DATABASE_URL:
             return self.DATABASE_URL
         return (
-            f"postgresql+asyncpg://{self.DB_USER}:{self.DB_PASSWORD}"
+            f"postgresql+asyncpg://{quote_plus(self.DB_USER)}:{quote_plus(self.DB_PASSWORD)}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
 
