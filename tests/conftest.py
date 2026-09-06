@@ -151,6 +151,24 @@ PRODUCT_BYTES = b"PK\x03\x04 " + "这是商品文件的内容".encode()
 
 
 @pytest.fixture
+def mock_mode(monkeypatch):
+    """走模拟收银台（TD-124）。
+
+    ⚠️ 打 `/shop/orders` 的测试**必须**带这个 fixture：默认 `SHOP_PAY_MODE=wechat`
+    而沙箱没有商户号，下单会直接 503，很容易被误判成代码 bug。
+    """
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
+
+    from app.routers import shop  # 局部 import：conftest 不该在模块级拉路由
+
+    async def no_wechat(cfg, **kw):
+        raise AssertionError("模拟模式不该调用微信支付")
+
+    monkeypatch.setattr(shop, "native_prepay", no_wechat)
+
+
+
+@pytest.fixture
 def product(tmp_path, monkeypatch):
     """把存储后端指到临时目录，并造出商品文件。"""
     monkeypatch.setattr(settings, "STORAGE_BACKEND", "local")

@@ -178,19 +178,22 @@ async def order_status(
     `POST /shop/download/{order_no}` 虽然也能反映状态，但它**会把订单烧成 `downloaded`**
     （一次性下载，见 download_url 里的 CAS），拿它当状态查询等于把用户的货直接销毁。
 
-    ## 两条设计约束
+    ## 三条设计约束
 
     1. **只读**。轮询每 3 秒一次，绝不能在里面写库（连"顺手关掉过期单"都不行）——
        过期关单只在 `create_order` 里做，那是用户主动重新下单时的一次性动作。
        这里只**报告**是否已过期，由前端提示"二维码已失效，请重新下单"。
     2. **非本人一律 404**，与 `download_url` 同一口径：不暴露"这个订单号存在"。
+    3. **禁止缓存**。这是个轮询接口（前端 3 秒一次），而浏览器/中间代理完全可能
+       缓存一个 200 GET。一旦命中缓存，页面会**永远看不到订单变 paid** ——
+       用户付了钱页面却一直转圈。`no-store` 同时挡掉浏览器与中间代理。
     """
     order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")
     payload = _payload(order, reused=False, pay_mode=settings.SHOP_PAY_MODE)
     payload["expired"] = is_expired(order, settings.ORDER_EXPIRE_MINUTES)
-    return payload
+    return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
 
 # ---------------------------------------------------------------- 模拟支付通道（TD-124）

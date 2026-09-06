@@ -161,7 +161,17 @@
       } else {
         link.textContent = "";
       }
-      if (!o.expired && !timer) timer = setInterval(poll, 3000);
+      // 过期就把定时器停掉。**只判断「不 expired 才起表」是不够的**：
+      // 订单在页面开着的时候到期，此时 status 仍是 pending ——
+      //   · show("pending") 不清定时器（它的条件是 name !== "pending"）
+      //   · poll() 里 `o.status !== "pending"` 也为假，不会 stop()
+      // 于是一张已经失效的二维码会以 3 秒一次**无限**打 GET /shop/orders/{no}
+      // （实测 9.5 秒内 3 次，且永远不停）。用户开着标签页去吃个午饭 = 上千次请求。
+      if (o.expired) {
+        stop();
+        return;
+      }
+      if (!timer) timer = setInterval(poll, 3000);
       return;
     }
     if (o.status === "paid") {

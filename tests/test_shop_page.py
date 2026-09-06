@@ -38,20 +38,6 @@ from tests.test_download import auth_headers, make_order, status_of
 _seq = 0
 
 
-@pytest.fixture
-def mock_mode(monkeypatch):
-    """走模拟收银台（TD-124）。
-
-    ⚠️ 打 `/shop/orders` 的测试**必须**带这个 fixture：默认 `SHOP_PAY_MODE=wechat`
-    而沙箱没有商户号，下单会直接 503，很容易被误判成代码 bug。
-    """
-    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
-
-    async def no_wechat(cfg, **kw):
-        raise AssertionError("模拟模式不该调用微信支付")
-
-    monkeypatch.setattr(shop, "native_prepay", no_wechat)
-
 
 # ---------------------------------------------------------------- 落地页
 
