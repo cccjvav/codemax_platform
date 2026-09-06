@@ -408,3 +408,45 @@ async def test_shutdown_disposes_the_engine():
         "lifespan 的收尾里没有 engine.dispose() —— 连接会被硬断开，"
         "在 PostgreSQL 侧留下悬挂连接直到超时。"
     )
+
+
+# ---------------------------------------------------------------- 依赖漏洞（P1-7）
+
+
+def test_python_jose_is_not_downgraded_below_the_cve_fix():
+    """`python-jose` 必须 ≥ 3.4.0。
+
+    3.3.0 带两条已确认的 CVE，都在 3.4.0 修复：
+      · **CVE-2024-33663** —— OpenSSH ECDSA 等密钥格式的**算法混淆**，
+        可以用公钥签名（GHSA-6c5p-j8vq-pqhj）
+      · **CVE-2024-33664** —— JWE 高压缩比解压 DoS（3.4.0 起限制 250 KiB）
+
+    本站用 python-jose 签发/校验**登录令牌**，算法混淆这类问题正好打在它的核心用途上。
+
+    为什么除了 CI 的 pip-audit 还要在这里再钉一道：CI 可能被跳过、
+    分支保护可能没开，而这条测试跟着每一次 `pytest` 跑 ——
+    本地降级就会立刻发现，不用等推上去。
+    """
+    req = (ROOT / "requirements.txt").read_text(encoding="utf-8")
+    m = re.search(r"^python-jose\[cryptography\]==(\d+)\.(\d+)\.(\d+)", req, re.M)
+    assert m, "requirements.txt 里找不到 python-jose 的钉版本行"
+    version = tuple(int(x) for x in m.groups())
+    assert version >= (3, 4, 0), (
+        f"python-jose 被钉在 {'.'.join(m.groups())}，低于 3.4.0 —— "
+        "会带回 CVE-2024-33663（算法混淆）与 CVE-2024-33664（JWE 解压 DoS）。"
+    )
+
+
+def test_ci_has_a_dependency_audit_job():
+    """CI 里必须有依赖漏洞扫描。
+
+    `requirements.txt` 是**手工钉版本**的 —— 钉死之后没有任何机制会在上游
+    披露新 CVE 时通知我们。本次审查就是这么发现 python-jose 3.3.0 那两条的：
+    它们在文件里躺了很久，没人知道。
+    """
+    ci = (ROOT / ".github/workflows/ci.yml").read_text(encoding="utf-8")
+    assert "pip-audit" in ci, "ci.yml 里没有 pip-audit —— 新披露的 CVE 不会被发现"
+    assert "--strict" in ci, (
+        "pip-audit 必须带 --strict：拿不到漏洞数据时要失败，"
+        "否则「扫描器没报错」和「扫描器没扫到」区分不开。"
+    )

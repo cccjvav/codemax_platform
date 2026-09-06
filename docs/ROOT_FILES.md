@@ -139,7 +139,7 @@ pytest.ini            4 行   pytest 配置
 | `python-dotenv` | L6 | 1.0.0 | 加载 `.env` 配置文件 |
 | `pydantic` | L7 | 2.5.2 | — |
 | `pydantic-settings` | L8 | 2.1.0 | — |
-| `python-jose[cryptography]` | L9 | 3.3.0 | 用于 JWT 生成和解析 |
+| `python-jose[cryptography]` | L9 | 3.5.0 | 用于 JWT 生成和解析（**不要降回 3.3.0** —— 带 CVE-2024-33663/33664，见 TD-213） |
 | `passlib[bcrypt]` | L10 | 1.7.4 | 用于密码哈希加密 |
 | **`bcrypt`** | L11 | 4.0.1 | **固定版本，兼容 passlib 1.7.4** |
 | `python-multipart` | L12 | 0.0.6 | 用于处理表单和 OAuth2 |

@@ -6,7 +6,12 @@ psycopg2-binary==2.9.9 # PostgreSQL 驱动（数据库初始化脚本 db_init.py
 python-dotenv==1.0.0   # 加载 .env 配置文件
 pydantic==2.5.2
 pydantic-settings==2.1.0
-python-jose[cryptography]==3.3.0  # 用于 JWT 生成和解析
+python-jose[cryptography]==3.5.0  # 用于 JWT 生成和解析
+                                  # ⚠️ **不要降回 3.3.0**：3.3.0 有两条已确认的 CVE，
+                                  #   都在 3.4.0 修复 —— CVE-2024-33663（OpenSSH ECDSA
+                                  #   等密钥格式的算法混淆，可用公钥签名）与
+                                  #   CVE-2024-33664（JWE 高压缩比解压 DoS，3.4.0 起限 250KiB）。
+                                  #   CI 的 pip-audit job 会在有人降级时直接红。
 cryptography==50.0.1              # **直接依赖，不只是 python-jose 的 extra**：
                                   # app/wechat_pay.py 顶层 import 了 x509 / AESGCM / hashes /
                                   # padding / serialization 五处。只靠上面那个 extra 带进来的话，
