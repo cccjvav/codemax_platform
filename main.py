@@ -7,6 +7,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import cpu_pool
 from app.config import settings
+from app.database import engine
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers import admin, auth, diagrams, health, oauth, shop, site, support, tools
 from app.startup_checks import enforce_production_settings
@@ -33,6 +34,10 @@ async def lifespan(_: FastAPI):
     await warm_semantic_index()
     yield
     cpu_pool.shutdown()  # 回收进程池子进程，否则会留下孤儿进程
+    # 干净归还数据库连接。少了这一句，进程被 SIGTERM 时池里的连接是**硬断开**的 ——
+    # PostgreSQL 那边会留下一堆悬挂连接直到超时才回收。滚动发布频繁时，
+    # 这些连接会把 max_connections 吃满，新副本反而起不来。
+    await engine.dispose()
 
 
 app = FastAPI(title="codemax_platform", version="0.1.0", lifespan=lifespan)

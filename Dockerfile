@@ -26,5 +26,17 @@ USER app
 
 EXPOSE 8000
 
+# 自带健康检查：没有它，编排器只能靠「进程还在不在」判断健康 ——
+# 而进程活着但事件循环被堵死、或连接池耗尽时，进程照样在，
+# 于是坏副本一直留在负载均衡里接流量，滚动发布也不会被判定失败。
+#
+# ⚠️ 用 python 发请求而不是 curl/wget：**python:3.11-slim 两者都没有**，
+#    写 curl 会让每一次健康检查都失败，好副本反而被反复重启。
+# 打 /healthz（存活探针）而不是 /readyz：readyz 会真连一次数据库，
+#    数据库抖一下就会把**所有**副本同时判死、一起重启，是典型的雪崩放大器。
+HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=4).status == 200 else 1)"
+
+
 # 容器里必须监听 0.0.0.0，绑 127.0.0.1 的话宿主机连不进来
 CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

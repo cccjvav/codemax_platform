@@ -1,4 +1,5 @@
 """S5-03 运维部分：安全响应头、健康探针、生产自检、CPU 池兜底。"""
+import inspect
 import re
 import time
 from pathlib import Path
@@ -344,4 +345,66 @@ def test_python_multipart_pinned_above_known_cve_versions():
     got = tuple(int(x) for x in m.group(1).split("."))
     assert got >= (0, 0, 26), (
         f"python-multipart=={m.group(1)} 仍受已公布 CVE 影响，最低要 0.0.26（TD-200）"
+    )
+
+# ---------------------------------------------------------------- 容器运维（A-15）
+#
+# ⚠️ 先纠正 review 的一处误判：它说「无 `.dockerignore`」—— 实际**有**，
+# 而且上面 `test_dockerfile_does_not_copy_secrets_or_venv` 已经在守它。
+# 真正缺的是下面这两条。
+
+
+def test_dockerfile_has_a_healthcheck_against_a_real_endpoint():
+    """镜像必须自带 HEALTHCHECK，且打的是**真实存在**的探针端点。
+
+    没有 HEALTHCHECK 时，编排器只能靠「进程还在不在」判断健康 ——
+    而进程活着但事件循环被堵死、或数据库连接池耗尽时，进程照样在。
+    于是坏副本一直留在负载均衡里接流量，滚动发布也不会被判定失败。
+
+    这里顺带钉住端点名：HEALTHCHECK 打一个不存在的路径是最常见的写法错误，
+    它会让**每一个**健康检查都失败，反而把好副本全部重启。
+    """
+    text = (ROOT / "Dockerfile").read_text(encoding="utf-8")
+    lines = text.splitlines()
+    idx = [k for k, s in enumerate(lines) if s.startswith("HEALTHCHECK")]
+    assert idx, "Dockerfile 缺 HEALTHCHECK 指令"
+
+    # ⚠️ HEALTHCHECK 通常写成续行（行尾反斜杠），CMD 在下一行。
+    # 只取匹配到的那一行会漏掉端点 —— 必须把续行拼回来再解析。
+    k = idx[0]
+    line = lines[k].rstrip()
+    while line.endswith("\\") and k + 1 < len(lines):
+        line = line[:-1].rstrip() + " " + lines[k + 1].strip()
+        k += 1
+
+    probe = re.search(r"(/health\w*)", line)
+    assert probe, f"HEALTHCHECK 必须打一个具体端点，实际：{line}"
+
+    from app.routers import health
+
+    paths = {r.path for r in health.router.routes}
+    assert probe.group(1) in paths, (
+        f"HEALTHCHECK 打的 {probe.group(1)!r} 不是真实端点（health 路由有 {sorted(paths)}）—— "
+        "这样写会让每一次健康检查都失败，好副本反而被反复重启。"
+    )
+    # python:3.11-slim 里没有 curl 也没有 wget，必须用自带的 python 发请求
+    assert "curl" not in line and "wget" not in line, (
+        "python:3.11-slim 不含 curl/wget，这样写 HEALTHCHECK 永远返回非 0"
+    )
+
+
+async def test_shutdown_disposes_the_engine():
+    """退出时必须 `engine.dispose()`，否则连接不会干净归还。
+
+    `cpu_pool.shutdown()` 已经在 lifespan 里了，但连接池没有对应动作。
+    进程被 SIGTERM 时，池里的连接是被**硬断开**的 —— PostgreSQL 那边会留下
+    一堆 `idle in transaction` 直到超时才回收。滚动发布频繁时，
+    这些悬挂连接会把 `max_connections` 吃满，新副本起不来。
+    """
+    import main
+
+    src = inspect.getsource(main.lifespan)
+    assert "dispose" in src, (
+        "lifespan 的收尾里没有 engine.dispose() —— 连接会被硬断开，"
+        "在 PostgreSQL 侧留下悬挂连接直到超时。"
     )
