@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user, require_admin
+from ..middleware import public_base_url
 from ..models import Order, User
 from ..order_state import (
     CLOSED,
@@ -148,8 +149,10 @@ async def create_order(
         # 这个隐含前提失效，也让 _payload 去给一个路径字符串画二维码。
         pass
     elif mode == "mock":
-        # 用请求的 base_url 而不是 SITE_BASE_URL：本地演示时链接要能直接点开
-        base = str(request.base_url).rstrip("/")
+        # 用请求推出来的站点根而不是 SITE_BASE_URL：本地演示时链接要能直接点开。
+        # 必须走 public_base_url() 而不是 str(request.base_url) —— 后者不看转发头，
+        # 在反向代理之后会退化成 http://，浏览器按混合内容拦掉（A-9）。
+        base = public_base_url(request)
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
     else:
         try:
@@ -387,7 +390,9 @@ async def serve_download(request: Request, key: str, expires: int, signature: st
 
 def _storage(request: Request):
     try:
-        return build_storage(str(request.base_url))
+        # 同 A-9：预签名链接的 scheme/host 必须与 HSTS 用同一套转发头信任规则，
+        # 否则会出现「HSTS 说本站只有 https，下载链接却给 http」的自相矛盾响应。
+        return build_storage(public_base_url(request))
     except StorageError as e:
         raise HTTPException(503, str(e)) from e
 
