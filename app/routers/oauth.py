@@ -14,7 +14,8 @@ from ..config import settings
 from ..database import get_db
 from ..deps import get_current_user
 from ..models import OAuthClient, OAuthCode, User
-from ..security import create_access_token, verify_password
+from ..ratelimit import rate_limit
+from ..security import adummy_verify, averify_password, create_access_token
 from ..site import page_context, templates
 from ..timeutil import as_utc
 
@@ -145,7 +146,8 @@ async def authorize_submit(
     return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=302)
 
 
-@router.post("/token")
+@router.post("/token",
+             dependencies=[Depends(rate_limit("token", "RATE_LIMIT_AUTH"))])
 async def token(
     grant_type: str = Form(...),
     code: str = Form(...),
@@ -158,7 +160,12 @@ async def token(
     if grant_type != "authorization_code":
         raise _oauth_error("unsupported_grant_type")
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
-    if not client or client.status != 1 or not verify_password(client_secret, client.client_secret_hash):
+    if client is None or client.status != 1:
+        # 与登录端点同理：不跑 bcrypt 就返回，「未知 client_id」会比「密钥错」快几十倍，
+        # 响应时间直接变成 client_id 枚举侧信道。跑一次假哈希把耗时拉平。
+        await adummy_verify(client_secret)
+        raise _oauth_error("invalid_client", "客户端凭证无效")
+    if not await averify_password(client_secret, client.client_secret_hash):
         raise _oauth_error("invalid_client", "客户端凭证无效")
 
     oauth_code = await db.scalar(select(OAuthCode).where(OAuthCode.code == code))

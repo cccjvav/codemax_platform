@@ -11,7 +11,13 @@ from ..deps import get_current_user
 from ..models import User
 from ..ratelimit import rate_limit
 from ..schemas import PasswordChangeIn, RegisterIn, TokenOut, UserOut
-from ..security import AUTH_COOKIE, create_access_token, hash_password, verify_password
+from ..security import (
+    AUTH_COOKIE,
+    adummy_verify,
+    ahash_password,
+    averify_password,
+    create_access_token,
+)
 
 router = APIRouter(prefix="/auth", tags=["认证中心"])
 
@@ -45,7 +51,7 @@ def _set_auth_cookie(response: Response, token: str) -> None:
 async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     if await db.scalar(select(User).where(User.username == data.username)):
         raise HTTPException(400, "用户名已存在")
-    user = User(username=data.username, password=hash_password(data.password))
+    user = User(username=data.username, password=await ahash_password(data.password))
     db.add(user)
     await db.commit()
     await db.refresh(user)
@@ -63,7 +69,13 @@ async def login(
     API 客户端 / Swagger 吃响应体里的 access_token 走 Bearer 头。
     """
     user = await db.scalar(select(User).where(User.username == form.username))
-    if not user or not verify_password(form.password, user.password):
+    if user is None:
+        # **不能短路**：直接返回会让「用户不存在」比「密码错」快 58 倍
+        # （实测 4.6 ms vs 263 ms），响应时间就成了用户名枚举侧信道。
+        # 跑一次假哈希把耗时拉平，对外仍是同一句错误、同一个状态码。
+        await adummy_verify(form.password)
+        raise HTTPException(401, "用户名或密码错误")
+    if not await averify_password(form.password, user.password):
         raise HTTPException(401, "用户名或密码错误")
     if user.status != 1:
         raise HTTPException(403, "账号已禁用")
@@ -87,12 +99,12 @@ async def change_password(
 
     返回一个**新** token：当前这次会话不该被自己踢下线，要踢的是**其他**会话。
     """
-    if not verify_password(data.old_password, user.password):
+    if not await averify_password(data.old_password, user.password):
         # 与登录端点一样不透露具体原因，避免变成密码枚举接口
         raise HTTPException(400, "原密码不正确")
     if data.new_password == data.old_password:
         raise HTTPException(400, "新密码不能与原密码相同")
-    user.password = hash_password(data.new_password)
+    user.password = await ahash_password(data.new_password)
     # 用带时区的 UTC，列是 TIMESTAMPTZ（TD-146 的约定）
     user.password_changed_at = datetime.now(timezone.utc)
     await db.commit()

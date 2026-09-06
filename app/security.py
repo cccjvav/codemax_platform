@@ -3,6 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
+from starlette.concurrency import run_in_threadpool
 
 from .config import settings
 from .timeutil import as_utc
@@ -21,6 +22,41 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
+
+# ⚠️ **HTTP 处理路径上必须用下面这两个 async 版本。**
+#
+# bcrypt 是刻意的慢函数（本机实测单次 verify ≈ 260 ms），而它是**同步**的。
+# 直接在 async 端点里调用会把整个事件循环冻住那么久 —— 实测在事件循环里连跑
+# 5 次 verify，同期 `asyncio.sleep(10ms)` 的最大漂移达到 1280 ms，也就是
+# 这 1.3 秒内**全站所有请求**（含不需要鉴权的工具页）都排不上队。
+# 这与 TD-159/183/186「重 CPU 不留在事件循环」是同一条原则。
+#
+# 用线程池而不是 `cpu_pool` 的进程池：bcrypt 在哈希期间会释放 GIL，线程就够；
+# 进程池还要 pickle 参数、在 Windows 上 spawn 重新导入模块，不划算。
+# 同步版保留给测试与脚本用（`tests/conftest.py` 造种子数据是同步上下文）。
+async def ahash_password(password: str) -> str:
+    return await run_in_threadpool(pwd_context.hash, password)
+
+
+async def averify_password(plain: str, hashed: str) -> bool:
+    return await run_in_threadpool(pwd_context.verify, plain, hashed)
+
+
+_DUMMY_HASH: str | None = None
+
+
+async def adummy_verify(plain: str) -> None:
+    """对固定假哈希跑一次 verify，只为把耗时拉平。结果恒为 False，直接丢弃。
+
+    用户不存在时若不跑 bcrypt，登录失败耗时差就是**用户名枚举侧信道**：
+    实测用户不存在 4.6 ms vs 密码错 263 ms，差 58 倍 —— 攻击者不用撞密码，
+    光看响应时间就能把有效用户名列出来。
+    """
+    global _DUMMY_HASH
+    if _DUMMY_HASH is None:
+        _DUMMY_HASH = await ahash_password("dummy-password-for-timing-equalization")
+    await averify_password(plain, _DUMMY_HASH)
 
 
 @dataclass(frozen=True)
