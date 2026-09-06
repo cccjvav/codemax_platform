@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 from collections.abc import Sequence
@@ -289,6 +290,26 @@ def calibrate_threshold(
 WARM_UP_TIMEOUT = 5.0
 
 
+def _with_warm_up_timeout(client: LLMClient) -> LLMClient:
+    """给预热单独造一个短超时的 client 副本，**不改传进来的那个**。
+
+    为什么是副本而不是直接改：改全局实例会让对话调用也被 5 秒上限卡住
+    （对话本来就该允许等久一点），而且测试之间会互相污染。
+
+    为什么还要 is_dataclass + 字段类型检查：调用方可能传测试替身
+    （`tests/test_intent_cascade.py` 的 `FakeLLM` 就是个普通类，没有
+    `timeout` 字段）。`dataclasses.replace` 对它会直接抛 TypeError ——
+    而这条路径的契约是「失败只记日志、绝不抛」，抛出去等于把增强项
+    变成硬依赖，正是上面注释明令禁止的。替身没有超时概念，原样用即可。
+    """
+    if not dataclasses.is_dataclass(client):
+        return client
+    current = getattr(client, "timeout", None)
+    if not isinstance(current, (int, float)) or current <= WARM_UP_TIMEOUT:
+        return client  # 调用方给的超时本来就够短，不该被放大
+    return replace(client, timeout=WARM_UP_TIMEOUT)
+
+
 async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     """把 FAQS 向量化并缓存。返回是否成功。
 
@@ -299,8 +320,7 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     global _SEMANTIC, _SEMANTIC_NORM
     # 只给预热这一步换短超时，不动全局 client：对话调用该等就得等。
     # 用 replace 造副本而不是改属性 —— 改全局实例会让测试之间互相污染。
-    if client.timeout > WARM_UP_TIMEOUT:
-        client = replace(client, timeout=WARM_UP_TIMEOUT)
+    client = _with_warm_up_timeout(client)
     if _SEMANTIC is not None:
         return True
     try:

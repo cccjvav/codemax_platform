@@ -86,7 +86,9 @@ def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
     routes = bds.build_routes()
     # 17 → 18：人工确认收款端点走 require_admin（S5-04）
     assert sum(1 for r in routes if r["auth"]) == 18
-    assert sum(1 for r in routes if r["rate_limit"]) == 8
+    # 8 → 9：/oauth/token 补挂 rate_limit("token", "RATE_LIMIT_AUTH")。
+    # 它是密码交换端点，此前是全站唯一没有速率约束的敏感端点。
+    assert sum(1 for r in routes if r["rate_limit"]) == 9
 
 
 # ---------------------------------------------------------------- 纯函数

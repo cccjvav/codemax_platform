@@ -194,6 +194,6 @@ python scripts/build_docs_site.py --data-only
 python -c "import json;r=json.load(open('docs/site/data/routes.json',encoding='utf-8'));print('路由',len(r),'需鉴权',sum(1 for x in r if x['auth']),'限流',sum(1 for x in r if x['rate_limit']))"
 ```
 
-> **预期输出**：`路由 39 需鉴权 18 限流 8`
+> **预期输出**：`路由 39 需鉴权 18 限流 9`
 >
 > ⚠️ 这里刻意写成**单行**：多行的 `python -c "…"` 在 Windows `cmd.exe` 里会被换行截断。
