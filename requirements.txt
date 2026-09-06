@@ -1,11 +1,15 @@
-fastapi==0.104.1
+fastapi==0.141.1                  # ⚠️ 0.141 起 `include_router` 不再把子路由摊平进
+                                  #   `app.routes`，而是塞一个 `_IncludedRouter` 包装对象。
+                                  #   遍历路由的代码必须走 tests/conftest.py 的
+                                  #   `iter_app_routes()` 递归展平（生产代码不受影响，
+                                  #   build_docs_site.py 走 AST 解析）。
 uvicorn[standard]==0.24.0.post1
 sqlalchemy==2.0.23
 asyncpg==0.29.0       # PostgreSQL 高性能异步驱动（应用运行时）
 psycopg2-binary==2.9.9 # PostgreSQL 驱动（数据库初始化脚本 db_init.py 使用）
-python-dotenv==1.0.0   # 加载 .env 配置文件
-pydantic==2.5.2
-pydantic-settings==2.1.0
+python-dotenv==1.2.2   # 加载 .env 配置文件（1.0.0 有 PYSEC-2026-2270）
+pydantic==2.13.5                  # fastapi 0.141 要求 >=2.9.0，随之升级
+pydantic-settings==2.15.0         # 配套 pydantic 2.13（要求 >=2.7.0）
 python-jose[cryptography]==3.5.0  # 用于 JWT 生成和解析
                                   # ⚠️ **不要降回 3.3.0**：3.3.0 有两条已确认的 CVE，
                                   #   都在 3.4.0 修复 —— CVE-2024-33663（OpenSSH ECDSA
@@ -18,11 +22,12 @@ cryptography==50.0.1              # **直接依赖，不只是 python-jose 的 e
                                   # 谁把 [cryptography] 去掉，微信支付模块会在 import 期就炸。
 passlib[bcrypt]==1.7.4            # 用于密码哈希加密
 bcrypt==4.0.1                     # 固定版本，兼容 passlib 1.7.4
-python-multipart==0.0.26          # 表单解析（登录 / OAuth）。**不要降到 0.0.26 以下**：
+python-multipart==0.0.31          # 表单解析（登录 / OAuth）。**不要降到 0.0.26 以下**：
                                   # 0.0.6 有 Content-Type 头 ReDoS（CVE-2024-24762，实测一个约
                                   # 60 字节的头能让主事件循环卡 4 秒），0.0.18 修畸形 boundary
                                   # 的逐字节日志 DoS，0.0.26 修超大 preamble/epilogue DoS。
-                                  # 由 tests/test_ops.py 两条测试钉住（TD-200）
+                                  # 由 tests/test_ops.py 两条测试钉住（TD-200）。
+                                  # 0.0.31 另修 PYSEC-2026-3036/3037/3039/3040 四条 DoS。
 python-docx==1.2.0                # 导出 Word 数据字典（S2-01-4）
 beautifulsoup4==4.15.0            # 爬虫解析 HTML（S4-01-1，选型已定：不是 Jsoup）
 jieba==0.42.1                     # 中文分词（S4-02-1 FAQ 检索用；纯 Python，Windows 可直接装）
@@ -39,8 +44,11 @@ httpx==0.25.2          # **运行时依赖，不只是测试用**。此前这行
                        # 按「测试依赖」挪走会让应用直接 ImportError。
 
 # ---- 测试依赖 ----
-pytest==7.4.4
-pytest-asyncio==0.23.6
+pytest==9.0.3                     # 7.4.4 有 PYSEC-2026-1845；9.x 跨两个大版本，
+                                  # 但**仅测试依赖、不进生产镜像**（.dockerignore 不管它，
+                                  # 但生产 CMD 不跑 pytest）。升级后全量 624 passed 不变。
+pytest-asyncio==1.4.0             # 配套 pytest 9（1.4.0 要求 pytest<10,>=8.4）。
+                                  # asyncio_mode=auto 与 loop_scope="session" 用法不变。
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
 

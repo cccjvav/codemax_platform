@@ -21,6 +21,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.conftest import iter_app_routes
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
@@ -45,7 +47,7 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
 
     runtime = {
         (m, r.path)
-        for r in app.routes
+        for r in iter_app_routes(app.routes)
         for m in getattr(r, "methods", ())
         if m in {"GET", "POST", "PUT", "DELETE", "PATCH"}
         and not r.path.startswith("/openapi")

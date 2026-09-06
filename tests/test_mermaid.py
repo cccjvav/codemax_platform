@@ -10,6 +10,7 @@ import pytest
 
 from app.tools.llm import LLMClient, LLMError, default_llm, generate_mermaid, get_llm
 from main import app
+from tests.conftest import iter_app_routes
 
 
 class FakeLLM:
@@ -157,7 +158,7 @@ async def test_mermaid_page_served_and_wired(client):
     # 调用的接口地址必须是真实注册过的路由，且读的是接口真正返回的字段
     urls = re.findall(r'"(/tools/[\w-]+)"', r.text)
     assert urls, "页面里没有调用任何 /tools 接口"
-    registered = {getattr(route, "path", None) for route in app.routes}
+    registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
     assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
     app.dependency_overrides[get_llm] = lambda: FakeLLM("classDiagram\nclass A")

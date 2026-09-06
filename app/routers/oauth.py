@@ -86,7 +86,9 @@ async def authorize(
     if response_type != "code":
         raise _oauth_error("unsupported_response_type")
     client = await _active_client(db, client_id, redirect_uri)
+    # Starlette 1.x：request 是第一个位置参数（见 site.py 的同款注释）
     return templates.TemplateResponse(
+        request,
         "oauth_consent.html",
         page_context(
             request,

@@ -1,5 +1,6 @@
 """S2-01-3 测试：Drawio 流程图存取 —— 需鉴权，且只能操作自己的记录。"""
 from main import app
+from tests.conftest import iter_app_routes
 
 SAMPLE_XML = "<mxfile><diagram><mxGraphModel><root/></mxGraphModel></diagram></mxfile>"
 
@@ -99,7 +100,7 @@ async def test_drawio_page_is_wired_to_the_api(client):
     assert "embed.diagrams.net" in r.text, "页面必须 iframe 嵌入 Drawio"
     assert 'id="drawio-frame"' in r.text
 
-    registered = {getattr(route, "path", None) for route in app.routes}
+    registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
 
     # /diagrams 仍由 drawio 页自己的脚本调用
     assert "/diagrams" in r.text, "页面没有调用 /diagrams"

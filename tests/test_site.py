@@ -10,6 +10,7 @@ import pytest
 from app.config import settings
 from app.site import PAGES, TOOLS, page_title
 from main import app
+from tests.conftest import iter_app_routes
 
 BASE = settings.SITE_BASE_URL.rstrip("/")
 
@@ -20,7 +21,7 @@ def test_site_base_url_is_absolute():
 
 def test_every_page_route_registered():
     """清单里每个页面都得有对应路由（路由由清单生成，防止有人手工删掉）。"""
-    registered = {getattr(route, "path", None) for route in app.routes}
+    registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
     assert {p.path for p in PAGES} <= registered
 
 
@@ -51,7 +52,7 @@ async def test_sitemap_matches_page_list_exactly(client):
     assert r.headers["content-type"].startswith("application/xml")
     locs = re.findall(r"<loc>(.*?)</loc>", r.text)
     assert locs == [BASE + p.path for p in PAGES], "sitemap 必须与页面清单不多不少"
-    registered = {getattr(route, "path", None) for route in app.routes}
+    registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
     for loc in locs:
         assert loc.removeprefix(BASE) in registered, f"{loc} 不是已注册路由"
 

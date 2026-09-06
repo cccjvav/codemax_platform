@@ -12,6 +12,7 @@ import subprocess
 from pathlib import Path
 
 from main import app
+from tests.conftest import iter_app_routes
 
 ROOT = Path(__file__).resolve().parents[1]
 ER_JS = ROOT / "app" / "static" / "er.js"
@@ -60,7 +61,7 @@ async def test_er_page_calls_a_registered_route(client):
     assert 'id="er-word"' in html, "页面缺导出 Word 入口"
     urls = re.findall(r'"(/tools/[\w-]+)"', html)
     assert urls, "页面里没有调用任何 /tools 接口"
-    registered = {getattr(route, "path", None) for route in app.routes}
+    registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
     assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
 

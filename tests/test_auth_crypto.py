@@ -18,6 +18,7 @@ import time
 import pytest
 
 from app.security import ahash_password, averify_password, hash_password
+from tests.conftest import iter_app_routes
 from tests.test_download import auth_headers
 
 # 事件循环漂移的阈值取得很松（80 ms）：单次 bcrypt 就要 260 ms，
@@ -78,7 +79,9 @@ async def test_oauth_token_endpoint_is_rate_limited():
     """
     from main import app
 
-    route = next(r for r in app.routes if getattr(r, "path", "") == "/oauth/token")
+    route = next(
+        r for r in iter_app_routes(app.routes) if getattr(r, "path", "") == "/oauth/token"
+    )
     deps = {d.call.__qualname__ for d in route.dependant.dependencies if d.call}
     assert any("rate_limit" in d for d in deps), (
         f"/oauth/token 没有挂限流（实际依赖：{deps or '无'}）。"

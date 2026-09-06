@@ -43,6 +43,40 @@ else:
     engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
 
+def iter_app_routes(routes):
+    """把 `app.routes` 递归展平成一条条真实路由。
+
+    ## 为什么需要它
+
+    **FastAPI 0.141 改了 `include_router` 的行为**：不再把子路由摊平进
+    `app.routes`，而是塞一个 `_IncludedRouter` 包装对象进去。实测升级后
+    `{getattr(r, "path", None) for r in app.routes}` 只剩
+    `{'/docs', '/openapi.json', '/redoc', '/static', None, ...}` ——
+    业务路由一个都没有，10 处靠遍历 `app.routes` 断言的测试当场全红。
+
+    ## 为什么不直接读 `_IncludedRouter`
+
+    它是 `fastapi.routing` 里的**私有类**，名字和结构都可能再变。
+    这里只用它公开的 `original_router` 属性拿回被包含的那个 router，
+    并且**递归**处理（router 里还能再 include router）。
+
+    ## 为什么写成版本无关
+
+    `getattr(r, "original_router", None)` 在旧版 FastAPI 上恒为 None，
+    于是直接 yield 原对象 —— 同一份代码在新旧两版上都给出正确结果。
+    这样万一有人把 FastAPI 降回去，这批测试不会反过来变红。
+
+    生产代码不受此变更影响：`scripts/build_docs_site.py` 是用 `ast`
+    解析 `@router.*` 装饰器统计路由的，不碰运行期的 `app.routes`。
+    """
+    for r in routes:
+        inner = getattr(r, "original_router", None)
+        if inner is not None:
+            yield from iter_app_routes(inner.routes)
+        else:
+            yield r
+
+
 # 测试种子：两个 SSO 接入平台（与 database init/full_init.sql 一致）
 # 注意：必须每次调用新建实例，否则 ORM 对象跨测试复用会泄漏状态
 def seed_clients() -> list[OAuthClient]:

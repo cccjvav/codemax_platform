@@ -23,6 +23,7 @@ from app.config import settings
 from app.deps import get_current_user
 from app.security import AUTH_COOKIE
 from main import app
+from tests.conftest import iter_app_routes
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATES = ROOT / "app" / "templates"
@@ -292,7 +293,7 @@ READ_ONLY_AUTHED_GET = {
 def test_authed_get_routes_are_read_only():
     from fastapi.routing import APIRoute
 
-    got = {r.path for r in app.routes
+    got = {r.path for r in iter_app_routes(app.routes)
            if isinstance(r, APIRoute) and "GET" in r.methods and _uses_auth(r.dependant)}
     assert got == set(READ_ONLY_AUTHED_GET), (
         "需要登录的 GET 路由变了。Lax 挡不住跨站顶层导航的 GET，"
@@ -306,7 +307,10 @@ def test_download_is_post_not_get():
     """一次性下载会烧掉额度（paid→downloaded），有副作用的接口不能是 GET。"""
     from fastapi.routing import APIRoute
 
-    route = next(r for r in app.routes if isinstance(r, APIRoute) and r.path == "/shop/download/{order_no}")
+    route = next(
+        r for r in iter_app_routes(app.routes)
+        if isinstance(r, APIRoute) and r.path == "/shop/download/{order_no}"
+    )
     assert route.methods == {"POST"}
 
 

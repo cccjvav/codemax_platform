@@ -19,7 +19,11 @@ def _base() -> str:
 
 def _page_view(tool: Tool):
     async def view(request: Request):
+        # ⚠️ Starlette 1.x 的签名是 TemplateResponse(request, name, context)。
+        # 旧签名 (name, context) 会把 context 字典当成模板名，Jinja 的模板缓存
+        # 拿 dict 当 key 直接抛 TypeError: unhashable type: 'dict'。
         return templates.TemplateResponse(
+            request,
             tool.template,
             page_context(
                 request,

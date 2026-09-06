@@ -217,7 +217,9 @@ async def mock_pay_page(request: Request, order_no: str = ""):
     # 必须走 page_context：base.html 还要 site_name / tools / shop_path / product_name
     # 与 SEO 三件套。早先这里只传了 title 与 order_no，页面渲染出空品牌、空导航、
     # CTA 的 href="" —— 返回 200、测试也只断言「页面能开」，所以一直没被发现。
+    # Starlette 1.x：request 是第一个位置参数（见 site.py 的同款注释）
     return templates.TemplateResponse(
+        request,
         "mock_pay.html",
         page_context(request, title="模拟收银台", order_no=order_no),
     )

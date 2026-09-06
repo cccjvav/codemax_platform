@@ -157,7 +157,7 @@ pip install -r requirements.txt
 ```
 
 > **装依赖这一步用 `pip`，不要用 `conda install`。**
-> `requirements.txt` 里的版本是逐个验证过的（`fastapi==0.104.1`、`sqlalchemy==2.0.23` 等），
+> `requirements.txt` 里的版本是逐个验证过的（`fastapi==0.141.1`、`sqlalchemy==2.0.23` 等），
 > conda 渠道里的版本与这些钉子对不上，混装容易出现解析冲突。
 > **conda 只负责管 Python 解释器本身，包交给 pip** —— 这是很常见的搭配，没有冲突。
 

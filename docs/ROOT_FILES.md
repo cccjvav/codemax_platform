@@ -127,42 +127,45 @@ pytest.ini            4 行   pytest 配置
 
 - **文件职责**：**25 个依赖，全部钉死版本**（`==`）。分四段：运行时 19 / 测试 4 / 文档工具 1 / 静态检查 1。
 
-#### 运行时依赖（L1-L16，16 个）
+#### 运行时依赖（L1-L41，18 个）
 
 | 包 | 行 | 版本 | 备注（原文注释） |
 | --- | --- | --- | --- |
-| `fastapi` | L1 | 0.104.1 | — |
-| `uvicorn[standard]` | L2 | 0.24.0.post1 | — |
-| `sqlalchemy` | L3 | 2.0.23 | — |
-| `asyncpg` | L4 | 0.29.0 | **PostgreSQL 高性能异步驱动（应用运行时）** |
-| `psycopg2-binary` | L5 | 2.9.9 | **PostgreSQL 驱动（数据库初始化脚本 `db_init.py` 使用）** |
-| `python-dotenv` | L6 | 1.0.0 | 加载 `.env` 配置文件 |
-| `pydantic` | L7 | 2.5.2 | — |
-| `pydantic-settings` | L8 | 2.1.0 | — |
-| `python-jose[cryptography]` | L9 | 3.5.0 | 用于 JWT 生成和解析（**不要降回 3.3.0** —— 带 CVE-2024-33663/33664，见 TD-213） |
-| `passlib[bcrypt]` | L10 | 1.7.4 | 用于密码哈希加密 |
-| **`bcrypt`** | L11 | 4.0.1 | **固定版本，兼容 passlib 1.7.4** |
-| `python-multipart` | L12 | 0.0.6 | 用于处理表单和 OAuth2 |
-| `python-docx` | L13 | 1.2.0 | 导出 Word 数据字典（S2-01-4） |
-| `beautifulsoup4` | L14 | 4.15.0 | 爬虫解析 HTML（S4-01-1，**选型已定：不是 Jsoup**） |
-| `jieba` | L15 | 0.42.1 | 中文分词（S4-02-1 FAQ 检索用；**纯 Python，Windows 可直接装**） |
-| `jinja2` | L16 | 3.1.6 | 页面 SSR 出 HTML 外壳与 TDK（S2-02-1） |
+| `fastapi` | L1 | 0.141.1 | ⚠️ 0.141 起 `include_router` 不再把子路由摊平进 `app.routes`，改塞 `_IncludedRouter`；遍历路由要走 `tests/conftest.py` 的 `iter_app_routes()`（TD-213） |
+| `uvicorn[standard]` | L6 | 0.24.0.post1 | — |
+| `sqlalchemy` | L7 | 2.0.23 | — |
+| `asyncpg` | L8 | 0.29.0 | **PostgreSQL 高性能异步驱动（应用运行时）** |
+| `psycopg2-binary` | L9 | 2.9.9 | **PostgreSQL 驱动（数据库初始化脚本 `db_init.py` 使用）** |
+| `python-dotenv` | L10 | 1.2.2 | 加载 `.env` 配置文件 |
+| `pydantic` | L11 | 2.13.5 | fastapi 0.141 要求 >=2.9.0，随之升级 |
+| `pydantic-settings` | L12 | 2.15.0 | 配套 pydantic 2.13 |
+| `python-jose[cryptography]` | L13 | 3.5.0 | 用于 JWT 生成和解析（**不要降回 3.3.0** —— 带 CVE-2024-33663/33664，见 TD-213） |
+| `cryptography` | L19 | 50.0.1 | **直接依赖，不只是 python-jose 的 extra**：`app/wechat_pay.py` 顶层 import 了 5 处 |
+| `passlib[bcrypt]` | L23 | 1.7.4 | 用于密码哈希加密 |
+| **`bcrypt`** | L24 | 4.0.1 | **固定版本，兼容 passlib 1.7.4** |
+| `python-multipart` | L25 | 0.0.31 | 表单解析（登录 / OAuth）。**不要降到 0.0.26 以下**（三条 DoS，TD-200）；0.0.31 另修 4 条 CVE |
+| `python-docx` | L31 | 1.2.0 | 导出 Word 数据字典（S2-01-4） |
+| `beautifulsoup4` | L32 | 4.15.0 | 爬虫解析 HTML（S4-01-1，**选型已定：不是 Jsoup**） |
+| `jieba` | L33 | 0.42.1 | 中文分词（S4-02-1 FAQ 检索用；**纯 Python，Windows 可直接装**） |
+| `jinja2` | L34 | 3.1.6 | 页面 SSR 出 HTML 外壳与 TDK（S2-02-1）。⚠️ Starlette 1.x 的 `TemplateResponse` 第一个参数改成了 `request` |
+| `segno` | L35 | 1.6.6 | 微信 Native 支付 code_url → 内联 SVG 二维码 |
+| **`httpx`** | L41 | 0.25.2 | **运行时依赖，不只是测试用** —— `app/` 下有 6 个模块顶层 import 它 |
 
 > **两个 PostgreSQL 驱动并存是刻意的**：`asyncpg` 给应用运行时（异步），
 > `psycopg2-binary` 给 `database init/db_init.py`（同步脚本，要执行 `CREATE DATABASE`）。
 
-> **`bcrypt` 为什么要单独钉版本**（L11）：`passlib 1.7.4` 与新版 `bcrypt` 不兼容，
+> **`bcrypt` 为什么要单独钉版本**（L24）：`passlib 1.7.4` 与新版 `bcrypt` 不兼容，
 > 不钉的话装上新版会在**运行时**报 `AttributeError`。
 
-#### 测试依赖（L18-L23，5 个）
+#### 测试依赖（L47-L53，4 个）
 
 | 包 | 行 | 版本 | 备注 |
 | --- | --- | --- | --- |
-| `pytest` | L19 | 7.4.4 | — |
-| `pytest-asyncio` | L20 | 0.23.6 | — |
-| `httpx` | L21 | 0.25.2 | 测试用 `AsyncClient` |
-| `aiosqlite` | L22 | 0.19.0 | **测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）** |
-| `pgserver` | L23 | 0.1.4 | **可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）** |
+| `pytest` | L47 | 9.0.3 | 7.4.4 有 PYSEC-2026-1845；**仅测试依赖，不进生产镜像** |
+| `pytest-asyncio` | L50 | 1.4.0 | 配套 pytest 9（要求 `pytest<10,>=8.4`）；`asyncio_mode = auto` 用法不变 |
+| `aiosqlite` | L52 | 0.19.0 | **测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）** |
+| `pgserver` | L53 | 0.1.4 | **可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）** |
+
 
 > **`pgserver` 就是 `Dockerfile:1-2` 必须钉 Python 3.11 的原因** ——
 > 它在 PyPI 上**没有 Python 3.13 的发行版**。

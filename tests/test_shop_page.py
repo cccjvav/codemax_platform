@@ -30,7 +30,7 @@ from sqlalchemy import select
 from app.config import settings
 from app.models import Order, User
 from app.routers import shop
-from tests.conftest import TestSession
+from tests.conftest import TestSession, iter_app_routes
 
 # product fixture 在 conftest 里（pytest 自动发现），这里只需要这三个 helper
 from tests.test_download import auth_headers, make_order, status_of
@@ -237,7 +237,7 @@ async def test_qr_is_only_generated_for_own_orders(client, mock_mode):
 
     from main import app
 
-    paths = {r.path for r in app.routes if isinstance(r, APIRoute)}
+    paths = {r.path for r in iter_app_routes(app.routes) if isinstance(r, APIRoute)}
     assert not [p for p in paths if "qr" in p.lower()], f"不该有独立的二维码接口：{paths}"
 
 
