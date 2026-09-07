@@ -1,0 +1,47 @@
+// Vite 构建配置。
+//
+// ## 这个工具链的定位（TD-221）
+//
+// Node 只在**打包这一刻**用。产物 `app/static/js/*.js` 是普通静态文件、提交进
+// 仓库，服务器上**不需要装 Node**，部署仍然是「pip install + 起一个 uvicorn 进程」。
+//
+// ## 为什么是多入口而不是一个大 bundle
+//
+// 单 bundle 会把 d3（压缩后约 90KB）塞进每一个页面，包括完全用不到它的 shop /
+// oauth 同意页。按页拆入口，每页只加载自己要的那份。
+//
+// ## 为什么关掉文件名 hash
+//
+// 产物要提交进 Git，并在 CI 里做「产物是否与源码同步」的漂移检查（见
+// .github/workflows/ci.yml）。带 hash 的文件名每次构建都变，diff 全是噪音，
+// 模板里的 <script src> 也得跟着改。改用固定文件名 + 中间件的 Cache-Control。
+import { defineConfig } from "vite";
+import vue from "@vitejs/plugin-vue";
+
+export default defineConfig({
+  plugins: [vue()],
+  build: {
+    outDir: "app/static/js",
+    emptyOutDir: true,
+    // ⚠️ 不要写 `minify: "esbuild"`：Vite 8 改用 rolldown，那条已废弃且要求单独安装
+    // esbuild 包，否则构建直接报 `Cannot find package 'esbuild'`。留空用默认压缩器。
+    minify: true,
+    // 让报错带上原始行号，否则压缩后的堆栈没法读
+    sourcemap: false,
+    rollupOptions: {
+      input: {
+        // base.html 全站加载：登录态。
+        // ER 图页的入口（含 d3 vendoring）留到下一个提交单独做 —— 那一步会同时
+        // 改掉 3 条供应链测试（tests/test_frontend_supply_chain.py）的断言口径，
+        // 混在一起会让这一步无法独立验证。
+        auth: "app/frontend/auth.js",
+      },
+      output: {
+        // 固定文件名（见上面「为什么关掉 hash」）
+        entryFileNames: "[name].js",
+        chunkFileNames: "[name].js",
+        assetFileNames: "[name][extname]",
+      },
+    },
+  },
+});

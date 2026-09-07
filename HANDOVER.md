@@ -184,7 +184,7 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 
 5. **往 `base.html` 加内联脚本会破坏 OAuth 同意页的零脚本不变式。**
    同意页是发放授权码的安全关键页，`tests/test_oauth_consent.py` 断言它渲染后一个 `<script>` 都没有。
-   解法不是放宽测试，而是：共享模块做成外部文件 `app/static/auth.js`（走 `script-src 'self'`，
+   解法不是放宽测试，而是：共享模块做成外部文件 `app/frontend/auth.js`（源码）→ 构建产物 `app/static/js/auth.js`（走 `script-src 'self'`，
    连 `unsafe-inline` 都不需要）+ `base.html` 加 `{% if auth_ui %}` 开关，同意页传 `False`（TD-204）。
 
 6. **测微信支付分支必须先桩掉 `pay_config`。**

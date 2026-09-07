@@ -98,7 +98,7 @@ global.__advance = async (ms) => {
 def _run_expiry_scenario(scenario: str) -> dict:
     """按浏览器真实顺序执行 auth.js + shop.html 内联脚本，返回末行 JSON。"""
     root = Path(__file__).resolve().parents[1]
-    auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
+    auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
     shop_html = (root / "app/templates/shop.html").read_text(encoding="utf-8")
     inline = re.findall(r"<script>(.*?)</script>", shop_html, re.S)
     assert inline, "shop.html 应该有自己的内联脚本"

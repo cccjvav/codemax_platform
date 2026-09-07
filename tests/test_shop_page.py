@@ -84,7 +84,7 @@ async def test_every_page_has_global_entry_points(client, path):
     assert "<footer>" in html, f"{path} 缺页脚"
     assert 'id="btn-auth"' in html, f"{path} 缺登录入口"
     assert 'href="/shop"' in html, f"{path} 缺商城入口"
-    assert "/static/auth.js" in html, f"{path} 没加载共享登录模块"
+    assert "/static/js/auth.js" in html, f"{path} 没加载共享登录模块"
 
 
 async def test_auth_js_is_served_and_defines_module(client):
@@ -93,7 +93,7 @@ async def test_auth_js_is_served_and_defines_module(client):
     做成外部文件的原因：base.html 也是 OAuth 同意页的父模板，
     而那页必须零内联脚本（见 test_oauth_consent.py）。
     """
-    r = await client.get("/static/auth.js")
+    r = await client.get("/static/js/auth.js")
     assert r.status_code == 200
     assert "CodeMaxAuth" in r.text
     assert "/auth/login" in r.text
@@ -347,7 +347,7 @@ async function loginAs(name) {
 def _run_shop_frontend(scenario: str = _NODE_SCENARIO) -> list[int]:
     """按浏览器真实的文档顺序执行 `auth.js` + `shop.html` 内联脚本，返回各步的下单调用数。"""
     root = Path(__file__).resolve().parents[1]
-    auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
+    auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
     shop_html = (root / "app/templates/shop.html").read_text(encoding="utf-8")
     inline = re.findall(r"<script>(.*?)</script>", shop_html, re.S)
     assert inline, "shop.html 应该有自己的内联脚本"
@@ -382,7 +382,7 @@ def test_login_retry_does_not_replay_buy_on_later_logins():
 def test_auth_module_exposes_an_unsubscribe():
     """`onChange` 必须返回退订函数 —— 没有退订能力，上面那个 bug 就无从修起。"""
     root = Path(__file__).resolve().parents[1]
-    auth = (root / "app/static/auth.js").read_text(encoding="utf-8")
+    auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
     assert "listeners.splice" in auth, "onChange 应当能真正把监听器移除"
     assert "listeners.slice()" in auth, "notify 必须遍历副本，否则回调里退订会跳过元素"
 

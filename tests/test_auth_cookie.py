@@ -96,7 +96,7 @@ def _script_with_login(html: str, auth_js: str) -> str:
     1. 早先的写法是「挑出含 `/auth/login` 的那一个 `<script>`」。S2-02-2 把登录逻辑
        收敛进全站浮层后，drawio 页自己的 script 里已不含 `/auth/login`，
        那个挑法会**只取到共享模块、完全没跑 drawio 的代码**，而测试仍然是绿的。
-    2. 共享模块后来从 base.html 的内联脚本改成了外部文件 `/static/auth.js`
+    2. 共享模块后来从 base.html 的内联脚本改成了外部文件 `/static/js/auth.js`
        （因为 base.html 也是 OAuth 同意页的父模板，那页必须零内联脚本，
        见 tests/test_oauth_consent.py）。所以它**不在 HTML 里**，必须单独取来拼在前面。
 
@@ -105,7 +105,7 @@ def _script_with_login(html: str, auth_js: str) -> str:
     """
     hits = re.findall(r"<script>(.*?)</script>", html, re.S)
     assert hits, "页面应该有自己的内联脚本"
-    assert "CodeMaxAuth" in auth_js, "/static/auth.js 应该定义全站登录态模块"
+    assert "CodeMaxAuth" in auth_js, "/static/js/auth.js 应该定义全站登录态模块"
     assert "/auth/login" in auth_js, "登录逻辑应该在共享模块里"
     return "\n;\n".join([auth_js, *hits])
 
@@ -239,7 +239,7 @@ async def test_drawio_frontend_runs_without_browser_storage(client, tmp_path):
     """用 node 真实执行页面里的内联脚本：localStorage 桩会抛错，读了就当场失败。"""
     html = (await client.get("/tools/drawio")).text
     # 共享登录模块是外部文件（原因见 _script_with_login 的说明），要单独取来
-    auth_js = (await client.get("/static/auth.js")).text
+    auth_js = (await client.get("/static/js/auth.js")).text
     # 用 tmp_path 而不是写死 /tmp 下的文件名：并发跑测试时不会互相踩，跑完自动清理。
     harness = tmp_path / "harness.js"
     script = tmp_path / "drawio.js"

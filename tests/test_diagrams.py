@@ -106,11 +106,11 @@ async def test_drawio_page_is_wired_to_the_api(client):
     assert "/diagrams" in r.text, "页面没有调用 /diagrams"
     assert "/diagrams" in registered, "/diagrams 不是已注册路由"
 
-    # 登录调用在 S2-02-2 之后搬进了全站共享模块 /static/auth.js ——
+    # 登录调用在 S2-02-2 之后搬进了全站共享模块 /static/js/auth.js ——
     # base.html 用它渲染统一的登录/注册浮层，drawio 页不再自带登录表单
     # （原先是页面上常驻的用户名/密码输入框）。所以要连那个外部脚本一起看，
     # 才算真的"接上了"；只查 HTML 会漏掉这条接线。
-    assert "/static/auth.js" in r.text, "页面没引用全站登录模块"
-    auth_js = (await client.get("/static/auth.js")).text
+    assert "/static/js/auth.js" in r.text, "页面没引用全站登录模块"
+    auth_js = (await client.get("/static/js/auth.js")).text
     assert "/auth/login" in auth_js, "共享登录模块没有调用 /auth/login"
     assert "/auth/login" in registered, "/auth/login 不是已注册路由"

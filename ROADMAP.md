@@ -67,7 +67,7 @@
   - [x] S2-02-2 设计“免费引流 → 商业变现”的引导转化路径及 UI 提示
     - [x] `GET /shop` 商城落地页（`app/templates/shop.html`）—— **全站第一个能真正下单的页面**：
           此前 `POST /shop/orders` 是裸接口、前端零调用者，用户只能翻 `/docs` 手敲
-    - [x] 全站统一登录/注册浮层（`app/static/auth.js` + `base.html`），顶栏与页脚全站可见
+    - [x] 全站统一登录/注册浮层（`app/frontend/auth.js` + `base.html`），顶栏与页脚全站可见
           （此前只有 drawio 页有常驻登录框，er/mermaid 页**连登录入口都没有**；
           `POST /auth/register` 也一直没有对应 UI）
     - [x] `GET /shop/orders/{order_no}` 只读状态查询，供下单页每 3 秒轮询

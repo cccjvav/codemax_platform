@@ -535,7 +535,7 @@ DOWNLOADED → （终态）
 > - **为什么是纯 ASGI 中间件而不是 `BaseHTTPMiddleware`**（L5-L14）：第一版用后者写，功能全对，但把 S5-02 刚优化好的延迟又吃回去了 —— 实测客服接口 p50 从 14 ms 涨到 **21 ms**，「一个大 DDL 拖慢客服」的比值从 1.04 恶化到 **2.14**，两条性能回归测试当场变红。原因是它会为每个请求 spawn 任务并包装请求/响应流，叠两层就是双份开销（TD-166）
 > - **为什么 CSP 里保留了 `'unsafe-inline'`**（L16-L21）：实测仍有 **5 个模板含内联 `<script>`**（`drawio.html` / `er.html` / `mermaid.html` / `mock_pay.html` / `shop.html`），要上严格 CSP 就得把它们全改成外部文件 + nonce，那是前端重构。
 >   **S2-02-2 已经往这个方向走了一步**：全站共享的登录模块做成了外部文件
->   `app/static/auth.js`（由 `script-src 'self'` 覆盖，不需要 unsafe-inline），
+>   `app/static/js/auth.js`（由 `script-src 'self'` 覆盖，不需要 unsafe-inline），
 >   `base.html` 现在**零内联脚本** —— 这正是 OAuth 同意页能保持零脚本的前提。**所以现在这版 CSP 的目标是收窄来源而不是消灭内联**：仍然挡住了从任意第三方域加载脚本、`object-src`、`base-uri` 劫持和外部嵌套（TD-163）
 
 ---

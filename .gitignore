@@ -23,10 +23,14 @@ storage/
 .coverage.*
 htmlcov/
 
-# node 只用于两处**可选**工具（scripts/check_schema_pg.mjs 的 PGlite、
-# tests/test_auth_cookie.py 的 DOM 断言），依赖不入库 —— 装法见各自文件头注释
+# node 用于**前端构建**（TD-221）与两处可选工具（scripts/check_schema_pg.mjs 的
+# PGlite、tests/test_auth_cookie.py 的 DOM 断言）。`node_modules/` 不入库，
+# 但**构建产物 `app/static/js/` 入库** —— 服务器上不需要 Node。
 node_modules/
-package-lock.json
+# ⚠️ package-lock.json **必须提交**，不要加进这里。
+# ① CI 的 frontend job 用 `npm ci`，它**要求**有 lockfile，缺了直接失败；
+# ② lockfile 钉死了每个包的精确版本与 integrity 哈希 —— 这正是 A-3「供应链」
+#    那批测试想保证的东西，比运行时去 CDN 取要可靠得多（TD-221）。
 
 # 文档站生成物（由 scripts/build_docs_site.py 生成，不入库；
 # 手写的 style.css 与 site.js 是源文件，照常入库）

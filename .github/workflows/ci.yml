@@ -156,6 +156,37 @@ jobs:
           test "$d" -ge 21 || { echo "文档页少于 21（实际 $d）—— DOC_GROUPS 或渲染出问题了"; exit 1; }
           test "$s" -ge 70 || { echo "源码页少于 70（实际 $s）—— AST 提取出问题了"; exit 1; }
 
+  frontend:
+    name: 前端产物漂移检查（npm run build）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # 为什么需要这个 job：产物 `app/static/js/*.js` 是**提交进仓库**的（服务器上
+      # 不需要装 Node，部署仍是 pip install + 起 uvicorn）。代价是「改了
+      # app/frontend 源码却忘了 npm run build」这种错**测试抓不到** —— 页面照样
+      # 200、断言照样绿，只是用户拿到的是旧代码。这个 job 就是那道闸。
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 重新构建
+        run: npm run build
+
+      - name: 核对产物与源码同步（漂移即失败）
+        run: |
+          set -euo pipefail
+          if ! git diff --exit-code -- app/static/js; then
+            echo "::error::app/static/js 下的产物与 app/frontend 源码不一致。"
+            echo "请在本地跑 npm run build，并把产物一起提交。"
+            exit 1
+          fi
+          echo "产物与源码一致"
+
   test-sqlite:
     name: 测试（SQLite 后端）
     runs-on: ubuntu-latest

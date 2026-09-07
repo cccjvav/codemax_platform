@@ -2500,7 +2500,7 @@ if not won:
 
 两个约束叠加，结果是：
 
-- 做成**外部文件** `app/static/auth.js` —— 由 CSP 的 `script-src 'self'` 覆盖，
+- 做成**外部文件** `app/frontend/auth.js`（构建产物 `app/static/js/auth.js`） —— 由 CSP 的 `script-src 'self'` 覆盖，
   连 `'unsafe-inline'` 都不需要（TD-163 的方向）
 - `base.html` 加 `{% if auth_ui %}` 开关，同意页传 `auth_ui=False`，整套 UI 与脚本都不渲染
 - 脚本必须放在 `<main>` **之前** —— 页面脚本在文档顺序上先执行，
