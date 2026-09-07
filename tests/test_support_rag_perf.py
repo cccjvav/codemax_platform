@@ -20,18 +20,34 @@ from __future__ import annotations
 import asyncio
 import time
 
-import pytest
 from sqlalchemy import select
 
 from app.models import Article
 from app.tools import support
 
-pytestmark = pytest.mark.asyncio(loop_scope="session")
+# ⚠️ 这里**不要**写 `pytestmark = pytest.mark.asyncio(loop_scope="session")`。
+# 本文件的 4 条用例都用 conftest 的 `db` fixture，而它是
+# `@pytest_asyncio.fixture` 默认（function）作用域循环。测试跑在 session 循环、
+# fixture 的 teardown 落在 function 循环 —— SQLite + aiosqlite 容忍这种错配，
+# 真 PostgreSQL + asyncpg 会在 teardown 直接抛
+# `RuntimeError: got Future attached to a different loop`（CI 的 test-postgres
+# job 就是这样红的，本地 SQLite 全量却是绿的）。
+# 同样用 session loop_scope 的 test_proxy_headers / test_shop_polling /
+# test_username_validation 都**不碰 db fixture**，所以没暴露这个问题。
+# `asyncio_mode = auto` 下不写 pytestmark 一样能跑。
 
-# 事件循环漂移的阈值。实测改前是 232 ms、改后应在个位数 ms。
-# 取 60 ms：单次 jieba 分词 200 篇就要 200 ms 量级，只要还留在事件循环里
-# 就必然远超这个数；留余量是为了不在慢 CI 上抖。
+# 事件循环漂移的**绝对**阈值下限。实测改前是 232 ms、改后应在个位数 ms。
+#
+# ⚠️ 单靠这个绝对值会**偶发误报**，这是踩过才知道的：本条断言量的是墙钟时间，
+# 而墙钟天生对机器负载敏感 —— 2 核沙箱上并发跑别的任务时，`asyncio.sleep(0.01)`
+# 本身就可能被挤到 60 ms 以上，于是「循环被检索堵住了」和「机器正忙」分不开。
+# 实测：单独跑 5/5 绿，与全量套件并发跑就红过一次。CI 是并发跑的，必然踩。
+# 所以真正的判据是下面的 `_IDLE_DRIFT_MULTIPLIER`：拿**同一时刻的空闲基线**做分母。
 _MAX_LOOP_DRIFT_MS = 60.0
+
+# 检索期间的漂移不得超过空闲基线的这么多倍。负载升高时基线与实测一起升，
+# 比值仍然稳定 —— 这才是「是不是检索堵住了循环」的可靠信号。
+_IDLE_DRIFT_MULTIPLIER = 4.0
 
 _ARTICLES = 200
 
@@ -88,9 +104,14 @@ async def test_rag_retrieval_does_not_block_the_event_loop(db):
     during = drift[baseline:]
     assert during, "检索期间探针一次都没计时 —— 说明事件循环被整段占住了"
     worst = max(during)
-    assert worst < _MAX_LOOP_DRIFT_MS, (
-        f"检索期间事件循环最大漂移 {worst:.1f} ms（阈值 {_MAX_LOOP_DRIFT_MS} ms）—— "
-        "jieba 分词与建索引仍在事件循环里同步跑。"
+    # 取「绝对阈值」与「空闲基线 × 倍数」中的较大者：机器正忙时空闲基线本身就高，
+    # 只卡绝对值会把负载误判成阻塞。
+    idle_worst = max(drift[:baseline])
+    limit = max(_MAX_LOOP_DRIFT_MS, idle_worst * _IDLE_DRIFT_MULTIPLIER)
+    assert worst < limit, (
+        f"检索期间事件循环最大漂移 {worst:.1f} ms，超过判据 {limit:.1f} ms"
+        f"（空闲基线 {idle_worst:.1f} ms × {_IDLE_DRIFT_MULTIPLIER} 与绝对下限 "
+        f"{_MAX_LOOP_DRIFT_MS} ms 取大）—— jieba 分词与建索引仍在事件循环里同步跑。"
     )
 
 
