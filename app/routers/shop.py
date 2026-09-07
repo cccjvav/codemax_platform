@@ -31,6 +31,7 @@ from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
     WeChatPayError,
+    assert_notify_fresh,
     decrypt_resource,
     native_prepay,
     new_order_no,
@@ -451,6 +452,9 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     body = (await request.body()).decode("utf-8")  # 原始报文主体，验签必须用它
     h = request.headers
     try:
+        # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
+        # 只有时间戳能暴露它 —— 放在验签之前还能省掉一次 RSA 运算。
+        assert_notify_fresh(h.get("Wechatpay-Timestamp", ""))
         verify_notify_signature(
             cfg.platform_cert,
             timestamp=h.get("Wechatpay-Timestamp", ""),

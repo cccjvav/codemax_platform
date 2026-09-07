@@ -11,6 +11,7 @@
 """
 import base64
 import json
+import time
 from datetime import datetime, timezone
 
 import pytest
@@ -23,7 +24,13 @@ from sqlalchemy import select
 
 from app.config import settings
 from app.models import Order, User
-from app.wechat_pay import WeChatPayError, decrypt_resource, verify_notify_signature
+from app.wechat_pay import (
+    NOTIFY_MAX_SKEW_SECONDS,
+    WeChatPayError,
+    assert_notify_fresh,
+    decrypt_resource,
+    verify_notify_signature,
+)
 from tests.conftest import TestSession
 
 # ---- 冻结测试向量：解密必须解出这些值 ----
@@ -83,9 +90,21 @@ def txn(out_trade_no: str, total: int = 19900, trade_state: str = "SUCCESS", txi
 
 
 def build_notify(
-    plain: dict, *, event_type: str = "TRANSACTION.SUCCESS", key: str = API_V3_KEY, sign_key=_KEY
+    plain: dict,
+    *,
+    event_type: str = "TRANSACTION.SUCCESS",
+    key: str = API_V3_KEY,
+    sign_key=_KEY,
+    timestamp: str | None = None,
 ) -> tuple[bytes, dict]:
-    """造一个「微信支付会发来的」回调：密文与签名都是真的。"""
+    """造一个「微信支付会发来的」回调：密文与签名都是真的。
+
+    ⚠️ `timestamp` 默认在**调用时**取当前时间，不能用模块级那个 `TIMESTAMP` 常量：
+    P1-3 之后端点会校验新鲜度（±300s），而模块级常量在 pytest collection 阶段就
+    求值了，全量套件要跑 5 分钟 —— 晚跑到的用例会偶发踩到窗口边界，变成难查的
+    随机失败。模块级 `TIMESTAMP` 只留给纯验签函数的单测（它不查新鲜度）。
+    """
+    ts = str(int(time.time())) if timestamp is None else timestamp
     ct = AESGCM(key.encode()).encrypt(
         AES_NONCE.encode(), json.dumps(plain, ensure_ascii=False).encode(), VEC_AAD.encode()
     )
@@ -106,12 +125,12 @@ def build_notify(
         },
         ensure_ascii=False,
     )
-    message = f"{TIMESTAMP}\n{SIG_NONCE}\n{body}\n".encode()
+    message = f"{ts}\n{SIG_NONCE}\n{body}\n".encode()
     sig = base64.b64encode(sign_key.sign(message, padding.PKCS1v15(), hashes.SHA256())).decode()
     headers = {
         "Wechatpay-Serial": "PLATFORMSERIAL0001",
         "Wechatpay-Signature": sig,
-        "Wechatpay-Timestamp": TIMESTAMP,
+        "Wechatpay-Timestamp": ts,
         "Wechatpay-Nonce": SIG_NONCE,
     }
     return body.encode("utf-8"), headers
@@ -196,6 +215,60 @@ def test_decrypt_resource_rejects_non_json_plaintext():
 
 
 # ---------------------------------------------------------------- 验签（S3-01-3-1）
+
+
+# ---------------------------------------------------------------- P1-3：回调新鲜度
+
+
+@pytest.mark.parametrize(
+    "offset",
+    [
+        -(NOTIFY_MAX_SKEW_SECONDS + 1),  # 刚好超出过去窗口
+        -3600,  # 一小时前：典型的重放
+        NOTIFY_MAX_SKEW_SECONDS + 1,  # 刚好超出未来窗口（时钟被拨快 / 伪造）
+        86400,  # 一天后
+    ],
+)
+def test_assert_notify_fresh_rejects_stale_and_future(offset):
+    """P1-3：验签串里用了 timestamp，却从不比对它和当前时间 —— 抓到一个合法回调
+    就能**永久重放**。窗口两侧都要挡：过去的是重放，未来的要么是伪造、要么是
+    对端时钟错乱，都不该照单全收。
+    """
+    now = 1_800_000_000
+    with pytest.raises(WeChatPayError):
+        assert_notify_fresh(str(now + offset), now=now)
+
+
+@pytest.mark.parametrize("bad", ["", "not-a-number", "1756700000.5", "  1756700000"])
+def test_assert_notify_fresh_rejects_malformed(bad):
+    """缺失 / 非整数字符串一律拒 —— 头是可以随便伪造的，不能假设它格式正确。"""
+    with pytest.raises(WeChatPayError):
+        assert_notify_fresh(bad, now=1_800_000_000)
+
+
+def test_assert_notify_fresh_accepts_within_window():
+    """反方向：窗口内必须放行，否则真实回调会被自己人挡掉。"""
+    now = 1_800_000_000
+    for offset in (0, -1, 1, -(NOTIFY_MAX_SKEW_SECONDS - 1), NOTIFY_MAX_SKEW_SECONDS - 1):
+        assert_notify_fresh(str(now + offset), now=now)
+
+
+async def test_notify_rejects_replayed_stale_timestamp(client, notify_ready):
+    """端到端：签名**完全合法**、只是时间戳旧了的回调必须被拒。
+
+    这条是 P1-3 的核心 —— 攻击者不需要伪造签名，只要抓到一个真的回调原样重发。
+    没有新鲜度校验时，重放能让一个已关闭的订单重新变成已支付。
+    """
+    order_no = await make_order()
+    stale = str(int(time.time()) - 3600)  # 一小时前，签名照样是真的
+    raw, headers = build_notify(txn(order_no), timestamp=stale)
+    r = await post_notify(client, raw, headers)
+    assert r.status_code == 401
+    assert r.json()["code"] == "FAIL"
+
+    async with TestSession() as s:
+        o = await s.scalar(select(Order).where(Order.order_no == order_no))
+        assert o.status == "pending", "重放的回调不该把订单改成已支付"
 
 
 def test_verify_notify_signature_accepts_valid_and_rejects_tampered():

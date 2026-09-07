@@ -175,6 +175,38 @@ def _public_key(pem: str):
     return serialization.load_pem_public_key(pem.encode())
 
 
+# P1-3：回调时间戳的最大允许偏移。微信官方建议 5 分钟。
+NOTIFY_MAX_SKEW_SECONDS = 300
+
+
+def assert_notify_fresh(timestamp: str, *, now: int | None = None) -> None:
+    """P1-3：拒绝时间戳过期或超前的回调，不通过抛 WeChatPayError。
+
+    `verify_notify_signature` 把 timestamp 拼进验签串，却**从不比对它和当前时间** ——
+    于是攻击者只要抓到一个真实回调（HTTPS 抓包、日志泄漏、或转发链路里任何一环），
+    就能**永久重放**：签名一直是合法的。让一个已关闭的订单重新变成已支付、
+    或反复触发发货，都不需要伪造任何东西。
+
+    两侧都要挡：
+    - **过去**超出窗口 = 重放；
+    - **未来**超出窗口 = 伪造，或对端时钟错乱（那它的其它时间字段也不可信）。
+
+    刻意放在**路由层**而不是 `verify_notify_signature` 里：后者是纯签名验证，
+    现有 5 处单测都用固定时间戳复算签名，把时间策略塞进去会让「验签对不对」和
+    「时间新不新」两件事纠缠在一起，也没法各自单测。
+    """
+    ref = int(time.time()) if now is None else now
+    if not timestamp.lstrip("-").isdigit():
+        # 头是可以随便伪造的，不能假设它格式正确（空串 / 带小数 / 带空格都要挡）
+        raise WeChatPayError(f"Wechatpay-Timestamp 不是合法整数：{timestamp!r}")
+    skew = int(timestamp) - ref
+    if abs(skew) > NOTIFY_MAX_SKEW_SECONDS:
+        raise WeChatPayError(
+            f"回调时间戳偏离当前时间 {skew} 秒，超出 ±{NOTIFY_MAX_SKEW_SECONDS} 秒窗口"
+            "（可能是重放攻击）"
+        )
+
+
 def verify_notify_signature(
     platform_cert_pem: str, *, timestamp: str, nonce: str, body: str, signature: str
 ) -> None:
