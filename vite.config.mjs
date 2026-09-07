@@ -1,5 +1,10 @@
 // Vite 构建配置。
 //
+// ## 为什么没有 Vue/React（TD-224 / TD-226）
+// 曾经预装过 @vitejs/plugin-vue，但 2026-09-08 用户确认放弃框架方案：
+// 前端体量（约 800 行）低于框架回本线，且 CI 测试 job 不装 node_modules，
+// 框架组件挂不上真 DOM、没法在 CI 里测。若将来真要加，先读 TD-226。
+//
 // ## 这个工具链的定位（TD-221）
 //
 // Node 只在**打包这一刻**用。产物 `app/static/js/*.js` 是普通静态文件、提交进
@@ -16,10 +21,8 @@
 // .github/workflows/ci.yml）。带 hash 的文件名每次构建都变，diff 全是噪音，
 // 模板里的 <script src> 也得跟着改。改用固定文件名 + 中间件的 Cache-Control。
 import { defineConfig } from "vite";
-import vue from "@vitejs/plugin-vue";
 
 export default defineConfig({
-  plugins: [vue()],
   build: {
     outDir: "app/static/js",
     emptyOutDir: true,

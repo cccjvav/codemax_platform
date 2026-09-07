@@ -443,13 +443,10 @@ git show 62ff019:CODE_REVIEW_99662ca.md
      `app/frontend/shop-page.js` ⇒ **8 个模板的内联 JS 现已全部归零**（438 → 168 → 0）。
      逻辑一行没改，两个用 node 真跑该脚本的测试文件（`test_shop_page.py` /
      `test_shop_polling.py`）改成读外部源码，并做了变异验证。
-   - **C3 的 Vue 部分：未做，且有实测阻塞，见 TD-224。** 一句话：Vue 组件要挂载就需要
-     真 DOM，而 **CI 的两个测试 job 只 `pip install`、不装 `node_modules`**，
-     node 侧没有 DOM 实现可用（这正是 `er-layout.js` 不许 import d3 的同一个约束）。
-     要推进必须先决定：给测试 job 加 `npm ci`（CI 变慢），还是让 Vue 用例在 CI 里 skip
-     （等于降低标准，不可接受），还是用 Playwright 端到端测（本沙箱下不动浏览器）。
-     ⚠️ 更正：`vite.config.mjs` **已经**启用了 `plugins: [vue()]`，`.vue` 文件可以构建 ——
-     早先这里写的「还没启用」是错的。
+   - ~~C3 的 Vue 部分~~ **已放弃（2026-09-08，TD-226）**：用户确认框架收益有限，
+     预装的 `vue` / `@vitejs/plugin-vue` 已从依赖和 `vite.config.mjs` 移除。
+     放弃的硬原因：CI 测试 job 不装 `node_modules`，框架组件挂不上真 DOM、在 CI 里测不了。
+     前端保持「原生 JS 外置文件 + Vite 纯打包」。TD-224 保留作当时的分析记录。
    - **C5（未做）**：文档收尾同步。
 2. 等用户授权后合并 PR #3（4 个一次性传输文件早已删除，见 §1）
 2. ~~TD-138：管理员角色 + 抓取入库 HTTP 端点~~ **已完成**（`app/routers/admin.py`

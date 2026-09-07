@@ -2,16 +2,14 @@
   "name": "codemax-frontend",
   "private": true,
   "version": "0.1.0",
-  "description": "前端源码与构建脚本。产物 app/static/bundle.js 提交进仓库，服务器上不需要 Node。",
+  "description": "前端源码与构建脚本。产物 app/static/js/*.js 提交进仓库，服务器上不需要 Node。",
   "scripts": {
     "build": "vite build",
     "watch": "vite build --watch"
   },
   "dependencies": {
-    "@vitejs/plugin-vue": "^6.0.8",
     "d3": "^7.9.0",
-    "vite": "^8.2.2",
-    "vue": "^3.5.42"
+    "vite": "^8.2.2"
   },
   "//": "⚠️ 刻意**不**写 \"type\": \"module\"：那会让 Node 把全仓每个 .js 都当 ES 模块，于是 app/static/er.js 里的 `module.exports = {layoutEr}` 失效，tests/test_er_page.py 的 node 契约测试会报 `layoutEr is not a function`（实测踩过）。Vite 的配置文件改用 .mjs 后缀单独声明 ESM 即可。"
 }
