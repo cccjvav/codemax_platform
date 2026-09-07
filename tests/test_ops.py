@@ -13,6 +13,7 @@ from app.startup_checks import (
     DEFAULT_SECRET,
     ProductionConfigError,
     check_production_settings,
+    check_production_warnings,
     enforce_production_settings,
 )
 
@@ -181,40 +182,129 @@ def test_development_env_passes_without_complaint(monkeypatch):
     assert check_production_settings() == []
 
 
+def _clean_prod(monkeypatch, **over):
+    """造一套**完全合规**的生产配置，再按需覆盖某一项。
+
+    每条用例只测一个字段，其余都保持合规 —— 否则「新增一条检查」会被别的字段
+    顺带报出来，看不出到底是谁在响。
+    """
+    base = {
+        "ENV": "production",
+        "SHOP_PAY_MODE": "wechat",
+        "SECRET_KEY": "a-real-long-random-secret-with-32-chars-min",
+        "RATE_LIMIT_ENABLED": True,
+        "TRUST_PROXY_HEADERS": True,
+        "DB_PASSWORD": "not-empty",
+        "DATABASE_URL": "",
+        "SITE_BASE_URL": "https://codemax.top",
+        "STORAGE_BACKEND": "oss",
+    }
+    for k, v in {**base, **over}.items():
+        monkeypatch.setattr(settings, k, v)
+
+
+def test_clean_production_config_passes_every_check(monkeypatch):
+    """反方向护栏：合规配置**一条都不该报**。
+
+    这条最容易被忽略，但它才是防止自检变成「狼来了」的关键 —— 检查项越加越多，
+    只要有一条在正常部署下也报，运维就会习惯性忽略整个列表，那比没有检查更糟。
+    """
+    _clean_prod(monkeypatch)
+    assert check_production_settings() == []
+
+
+def test_empty_db_password_in_production_is_rejected(monkeypatch):
+    """A-12：DB_PASSWORD 为空。
+
+    默认值就是 `""`，而 `.env` 漏一行就是空。真库若开了 trust 认证会**静默连上**
+    一个没设密码的库；若没开，则是等用户下单时才连接失败。给了 DATABASE_URL
+    就不报 —— 那串 URL 里已经带了自己的凭证。
+    """
+    _clean_prod(monkeypatch, DB_PASSWORD="")
+    problems = check_production_settings()
+    assert len(problems) == 1 and "DB_PASSWORD" in problems[0]
+
+    # 逃生舱：显式给了 DATABASE_URL 就不该再报
+    _clean_prod(monkeypatch, DB_PASSWORD="", DATABASE_URL="postgresql+asyncpg://u:p@h/db")
+    assert check_production_settings() == []
+
+
+def test_short_secret_key_in_production_is_rejected(monkeypatch):
+    """A-12：SECRET_KEY 太短。
+
+    旧检查只拦「等于默认值」，把默认值改成一个 8 位短串就绕过去了 —— 而 HMAC 的
+    强度取决于密钥熵，短密钥可被离线暴力破解，照样能伪造 JWT。
+    """
+    _clean_prod(monkeypatch, SECRET_KEY="short123")
+    problems = check_production_settings()
+    assert len(problems) == 1 and "SECRET_KEY" in problems[0]
+
+
+def test_insecure_site_base_url_in_production_is_rejected(monkeypatch):
+    """A-12：SITE_BASE_URL 为空或不是 https。
+
+    ⚠️ 刻意**不**检查「是否等于默认值」：默认值 `https://codemax.top` 就是真实
+    生产域名，照 review 那样写会把真正的生产部署也判成不合规。只查客观不安全
+    的两种：空串（预签名下载链接与 HSTS 都会指向错误主机）、http（明文）。
+    """
+    _clean_prod(monkeypatch, SITE_BASE_URL="")
+    assert any("SITE_BASE_URL" in x for x in check_production_settings())
+
+    _clean_prod(monkeypatch, SITE_BASE_URL="http://codemax.top")
+    assert any("SITE_BASE_URL" in x for x in check_production_settings())
+
+
+def test_local_storage_backend_warns_but_does_not_block(monkeypatch, caplog):
+    """A-12：STORAGE_BACKEND=local 在生产只**告警**，不拦启动。
+
+    这是我对 review 建议的**刻意偏离**：local 后端配上挂载卷、单实例部署是合法的
+    生产形态，而这个配置项本身**看不出**卷挂没挂。硬拦会把合法部署也挡在门外，
+    于是运维只能去关自检 —— 那比不检查更糟。所以走 logger 告警。
+    """
+    _clean_prod(monkeypatch, STORAGE_BACKEND="local")
+    assert check_production_settings() == [], "不该拦启动"
+    assert any("STORAGE_BACKEND" in w for w in check_production_warnings()), "但必须告警"
+
+    # 换成 oss 就不该再告警
+    _clean_prod(monkeypatch, STORAGE_BACKEND="oss")
+    assert check_production_warnings() == []
+
+
 def test_production_with_all_defaults_is_rejected(monkeypatch):
-    monkeypatch.setattr(settings, "ENV", "production")
+    _clean_prod(monkeypatch)  # 先全部合规，再逐项打回不合规，才能数清是谁在响
     monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
     monkeypatch.setattr(settings, "SECRET_KEY", DEFAULT_SECRET)
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", False)
     monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", False)
+    monkeypatch.setattr(settings, "DB_PASSWORD", "")
     problems = check_production_settings()
-    assert len(problems) == 4
+    # A-12 之后是 5 条：多出来的 DB_PASSWORD 是本轮新增
+    assert len(problems) == 5
     joined = "\n".join(problems)
-    for keyword in ("SHOP_PAY_MODE", "SECRET_KEY", "RATE_LIMIT_ENABLED", "TRUST_PROXY_HEADERS"):
+    for keyword in (
+        "SHOP_PAY_MODE", "SECRET_KEY", "RATE_LIMIT_ENABLED", "TRUST_PROXY_HEADERS", "DB_PASSWORD"
+    ):
         assert keyword in joined
 
 
 def test_mock_pay_in_production_is_the_first_thing_reported(monkeypatch):
-    """TD-124：模拟支付开着＝免费发货，这是后果最严重的一条，必须报出来。"""
-    monkeypatch.setattr(settings, "ENV", "production")
-    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
-    monkeypatch.setattr(settings, "SECRET_KEY", "a-real-long-random-secret")
-    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
-    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    """TD-124：模拟支付开着＝免费发货，这是后果最严重的一条，必须报出来。
+
+    注意：本条**不能**再像以前那样只覆盖 4 个字段 —— A-12 之后 DB_PASSWORD、
+    SITE_BASE_URL 也参与判定，不显式设成合规就会被顺带报出来，`len == 1` 就失去
+    了「只有支付这一条在响」的含义。所以改用 `_clean_prod` 把全部字段钉死。
+    """
+    _clean_prod(monkeypatch, SHOP_PAY_MODE="mock")
     problems = check_production_settings()
     assert len(problems) == 1 and "免费发货" in problems[0]
 
 
 def test_enforce_raises_only_in_production(monkeypatch):
-    monkeypatch.setattr(settings, "ENV", "production")
-    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "mock")
-    monkeypatch.setattr(settings, "SECRET_KEY", "a-real-long-random-secret")
-    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
-    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    _clean_prod(monkeypatch, SHOP_PAY_MODE="mock")
     with pytest.raises(ProductionConfigError):
         enforce_production_settings()
 
-    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "wechat")
+    _clean_prod(monkeypatch)
     enforce_production_settings()  # 不该抛
 
 
