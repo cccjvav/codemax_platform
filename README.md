@@ -202,7 +202,7 @@ start docs\site\index.html
 | 查某个**目录/文件/函数**的行级说明 | 见下方「模块说明书」表 |
 | 看**接口清单** | 本文下方「当前 API」一节，或起服务后开 `/docs` |
 | 了解**开发硬约束**（AI 助手与新成员都该先读） | [AGENTS.md](./AGENTS.md) |
-| 了解**实现取舍与上线阻塞项**（160 条 TD 台账） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
+| 了解**实现取舍与上线阻塞项**（172 个 TD 台账，编号至 TD-224） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
 | 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
 | **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
 | 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) |

@@ -60,6 +60,11 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
   grep -rn --exclude-dir=.venv --exclude-dir=.git --exclude-dir=__pycache__ \
        -E "41[0-9] (passed|条)|1[0-9][0-9] 条 TD" .
   ```
+- **每做完一个子项就更新 `HANDOVER.md`，不要攒着。** 本会话所在平台会因「响应超时」
+  反复中断（沙箱已回收 27 次以上），**下一次可能换一名助手接手**，而 HANDOVER.md 是唯一
+  可靠的交接载体。至少要动三处：§1 当前状态（测试基线、CI job 数）、§6 已踩过的坑
+  （本轮新增一节，写清「什么现象 → 为什么 → 怎么避免」）、§8 建议的下一步（进度勾选 +
+  下一步动手前必须知道的约束）。**「等做完一起补」等于永远不补。**
 - **写进文档的每一条命令与每一个文件路径，必须先实跑/`ls` 确认存在，再落笔。**
   已踩三次同一个坑（`app/tools/README.md` 引了 3 个不存在的测试文件，`app/README.md` 引了 9 个），
   光靠"下次记得"不管用，所以这里钉成硬约束：
@@ -95,7 +100,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（160 条，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（**172 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：

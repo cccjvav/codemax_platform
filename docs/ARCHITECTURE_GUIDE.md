@@ -2024,8 +2024,8 @@ except ExtractError as e:
 
 - **变异测试** —— 本项目用它验证过「测试是不是真的在守东西」（故意把代码改坏，看测试红不红）。第 6 课那个「死分支」正是变异测试能抓、而普通测试抓不到的典型。
 - **为什么「测试全绿」不等于「代码没问题」** —— 项目里真实存在过的几个例子
-- **CI 每次提交自动跑 565 条测试**，以及它怎么在共享服务器上抖动、后来怎么修的（TD-192/193/194）
-- **`TECH_DECISIONS.md`：160 条编号取舍** —— 为什么「记录为什么不这么做」比「记录怎么做」更值钱
+- **CI 每次提交自动跑 653 条测试**（649 passed + 4 skipped，2026-09-07 实测），以及它怎么在共享服务器上抖动、后来怎么修的（TD-192/193/194）
+- **`TECH_DECISIONS.md`：172 个编号取舍** —— 为什么「记录为什么不这么做」比「记录怎么做」更值钱
 
 ---
 
@@ -2164,13 +2164,21 @@ html = "x" * (MAX_BYTES + 1)      # ← MAX_BYTES 取任何值，这行都成立
 
 ### 7.6 CI：每次提交自动体检一遍
 
-`.github/workflows/ci.yml` 每次 push 和每次 PR 都跑，**三个 job 并行**：
+`.github/workflows/ci.yml` 每次 push 和每次 PR 都跑，**六个 job 并行**：
 
 | job | 干什么 |
 | --- | --- |
 | **静态检查（ruff）** | 不跑代码，只查写法：未用变量、可疑比较、时区裸用、async 里的阻塞调用等 |
-| **测试（SQLite 后端）** | 全量 565 条测试，用内存库，快 |
+| **测试（SQLite 后端）** | 全量测试（**649 passed + 4 skipped**，2026-09-07 实测），用内存库，快 |
 | **测试（真 PostgreSQL 16）** | 同一套测试跑真库，另起 service 容器；还会把建表脚本**连跑两遍**验证幂等 |
+| **前端产物漂移检查** | `npm ci` → `npm run build` → `git diff --exit-code -- app/static/js`。「改了 `app/frontend/` 源码却忘了构建」这种错测试抓不到（页面照样能开），只有这条能守（TD-221） |
+| **依赖漏洞扫描（pip-audit）** | `pip-audit --strict -r requirements.txt`，已知无修复的上游漏洞用 `--ignore-vuln` 挂账 |
+| **文档站构建** | 跑 `scripts/build_docs_site.py` 并**核对生成页数**，漏页在这里炸而不是等读者 404 |
+
+> ⚠️ 只有「前端产物漂移检查」这个 job 装了 Node（`setup-node` + `npm ci`）。
+> **两个测试 job 只 `pip install`、没有 `node_modules`** —— 这就是为什么
+> `app/frontend/er-layout.js` 不许 import d3（TD-222）、以及 Vue 组件目前无法在
+> CI 里测（TD-224）。加前端相关的测试前先确认这条约束。
 
 **为什么要跑两遍数据库？** SQLite 和真 PostgreSQL 的行为不一样（事务隔离、类型严格程度、`ALTER TABLE` 支持度）。只在 SQLite 上绿的测试，上了真库可能红 —— 项目早期就吃过这个亏（TD-80）。
 
@@ -2276,16 +2284,21 @@ GitHub Actions 里，`${{ job.name }}` 和 `${{ github.job }}` 在 `run:` 步骤
 
 ---
 
-### 7.9 `TECH_DECISIONS.md`：160 条编号取舍
+### 7.9 `TECH_DECISIONS.md`：172 个编号取舍
 
-这是本项目最值钱的一份文档，304 行。**本机实测统计：**
+这是本项目最值钱的一份文档，**341 行**。**本机实测统计（2026-09-07 重测）：**
 
 ```text
-唯一 TD 编号: 160 条   范围 TD-1 ~ TD-195   区间内缺号 35 个
-已解决（划掉）: 20 条
-未解决: 140 条
-上线阻塞项中仍未解决的: TD-113（微信支付未真机联调）、TD-124（模拟支付通道）
+唯一 TD 编号: 172 个   范围 TD-1 ~ TD-224   区间内缺号 52 个
+在用的表格行: 174 条（TD-113/TD-124 在摘要表与明细表各列一次）
+全部表格行（含划掉）: 200 条，其中已解决（划掉）26 条
+全文提及的唯一 TD-n: 189 个
+上线阻塞项: TD-113（微信支付未真机联调）、TD-124（模拟支付通道）、
+            TD-206（语义阈值未标定）、pay_qr.svg 仍是占位图
 ```
+
+> ⚠️ 这里的「条数」有四种口径，互不相等，引用时必须说清用哪一种 ——
+> `TECH_DECISIONS.md` 文件头部把口径写死了，改数字前先读那段。
 
 **它记的不是"怎么做的"，而是"为什么不那么做"。** 每条都是四列：编号 / 当时的问题 / 权衡 / 残留风险。
 
@@ -2364,8 +2377,8 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 
 | 文件 | 负责什么 |
 | --- | --- |
-| `.github/workflows/ci.yml` | 三个 job、并发取消、失败时发 PR 评论（job 名写死） |
-| `TECH_DECISIONS.md` | 160 条编号取舍，304 行；上线阻塞项在文件最前面 |
+| `.github/workflows/ci.yml` | **六个** job、并发取消、失败时发 PR 评论（job 名写死） |
+| `TECH_DECISIONS.md` | 172 个编号取舍，341 行；上线阻塞项在文件最前面 |
 | `tests/test_crawler.py` | 28 条；含本课新加的 `test_max_bytes_budget_is_pinned_at_2mb` |
 | `tests/test_dynamic_crawl.py` | 含 `test_render_ssrf_does_not_depend_on_robots_layer`（钉住巧合性防御） |
 | `tests/test_perf.py` | 9 条；确定性位置判据替代延迟断言（TD-193） |
