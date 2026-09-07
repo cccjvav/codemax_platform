@@ -186,7 +186,7 @@ codemax_platform/
 │   ├── templates/           ← 7 个网页模板
 │   └── static/              ← 1 个前端脚本（er.js）
 ├── "database init"/         ← 建库建表脚本（含一个空格，Windows 上要加引号）
-├── tests/                   ← 565 条自动化测试
+├── tests/                   ← 653 条自动化测试
 └── docs/                    ← 部署与本地运行说明
 ```
 
@@ -203,7 +203,7 @@ codemax_platform/
 | 安检→登记→楼层，一层套一层 | **中间件洋葱模型** | 加新功能不用改老代码，套一层就行 |
 | 41 项配置全放 `.env` 文件 | **12-Factor App 的第 3 条** | 同一份代码，测试环境和生产环境只换配置 |
 | `/healthz` 与 `/readyz` 分开 | **存活探针 / 就绪探针** | 「活着」和「能接客」是两件事（见 1.7） |
-| 565 条自动化测试 + 每次提交都跑 | **CI 持续集成** | 改坏了当场发现，不是上线后用户发现 |
+| 653 条自动化测试 + 每次提交都跑 | **CI 持续集成** | 改坏了当场发现，不是上线后用户发现 |
 | 每个取舍都编号记录在 `TECH_DECISIONS.md` | **ADR（架构决策记录）** | 半年后接手的人不用猜「当初为什么这么写」 |
 
 ---
@@ -2025,7 +2025,7 @@ except ExtractError as e:
 - **变异测试** —— 本项目用它验证过「测试是不是真的在守东西」（故意把代码改坏，看测试红不红）。第 6 课那个「死分支」正是变异测试能抓、而普通测试抓不到的典型。
 - **为什么「测试全绿」不等于「代码没问题」** —— 项目里真实存在过的几个例子
 - **CI 每次提交自动跑 653 条测试**（649 passed + 4 skipped，2026-09-07 实测），以及它怎么在共享服务器上抖动、后来怎么修的（TD-192/193/194）
-- **`TECH_DECISIONS.md`：172 个编号取舍** —— 为什么「记录为什么不这么做」比「记录怎么做」更值钱
+- **`TECH_DECISIONS.md`：174 个编号取舍** —— 为什么「记录为什么不这么做」比「记录怎么做」更值钱
 
 ---
 
@@ -2284,15 +2284,15 @@ GitHub Actions 里，`${{ job.name }}` 和 `${{ github.job }}` 在 `run:` 步骤
 
 ---
 
-### 7.9 `TECH_DECISIONS.md`：172 个编号取舍
+### 7.9 `TECH_DECISIONS.md`：174 个编号取舍
 
-这是本项目最值钱的一份文档，**341 行**。**本机实测统计（2026-09-07 重测）：**
+这是本项目最值钱的一份文档，**344 行**。**本机实测统计（2026-09-07 重测）：**
 
 ```text
-唯一 TD 编号: 172 个   范围 TD-1 ~ TD-224   区间内缺号 52 个
-在用的表格行: 174 条（TD-113/TD-124 在摘要表与明细表各列一次）
-全部表格行（含划掉）: 200 条，其中已解决（划掉）26 条
-全文提及的唯一 TD-n: 189 个
+唯一 TD 编号: 174 个   范围 TD-1 ~ TD-226   区间内缺号 52 个
+在用的表格行: 176 条（TD-113/TD-124 在摘要表与明细表各列一次）
+全部表格行（含划掉）: 202 条，其中已解决（划掉）26 条
+全文提及的唯一 TD-n: 191 个
 上线阻塞项: TD-113（微信支付未真机联调）、TD-124（模拟支付通道）、
             TD-206（语义阈值未标定）、pay_qr.svg 仍是占位图
 ```
@@ -2378,7 +2378,7 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 | 文件 | 负责什么 |
 | --- | --- |
 | `.github/workflows/ci.yml` | **六个** job、并发取消、失败时发 PR 评论（job 名写死） |
-| `TECH_DECISIONS.md` | 172 个编号取舍，341 行；上线阻塞项在文件最前面 |
+| `TECH_DECISIONS.md` | 174 个编号取舍，344 行；上线阻塞项在文件最前面 |
 | `tests/test_crawler.py` | 28 条；含本课新加的 `test_max_bytes_budget_is_pinned_at_2mb` |
 | `tests/test_dynamic_crawl.py` | 含 `test_render_ssrf_does_not_depend_on_robots_layer`（钉住巧合性防御） |
 | `tests/test_perf.py` | 9 条；确定性位置判据替代延迟断言（TD-193） |
@@ -2387,7 +2387,7 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 **复算方式：**
 
 ```bash
-python -m pytest -q                       # 561 passed, 4 skipped（SQLite）
+python -m pytest -q                       # 649 passed, 4 skipped（SQLite）
 python -m pytest tests/test_crawler.py -q # 28 passed
 
 # CI 历史结论分布（本机实测输出：{"cancelled":4,"failure":7,"success":87}）
@@ -2566,6 +2566,6 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 
 （最后这条会先打印几行 jieba 加载日志，看最后一行的 `x` 值就行。）
 
-本文写作时的实测值：**42 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**41 项配置**；**561 passed + 4 skipped**。
+本文写作时的实测值：**44 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**41 项配置**；**649 passed + 4 skipped**。
 
 > 上面最后一条命令是**故意写得很丑**的单行版 —— 因为附录里的命令必须能直接粘进终端跑。想看清爽版就读 `tests/test_perf.py::test_parse_ddl_scales_linearly_not_quadratically`，它才是这条判据的真身；**文档里的复算命令只是它的投影，代码改了请以测试为准。**

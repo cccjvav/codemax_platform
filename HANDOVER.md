@@ -37,7 +37,7 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面**已选 Playwright**（TD-03/191，可选依赖）。
 
-**实现层面的取舍（在用 174 条表格行 / 唯一编号 172 个，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+**实现层面的取舍（在用 176 条表格行 / 唯一编号 174 个，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
 其中开头的「上线阻塞项」表原有 8 条，已解决 6 条（划掉留痕），**现仅剩 2 条**：TD-113（微信支付未真机联调）、TD-124（模拟支付通道误开＝免费发货，已由启动自检大幅缓解）；
 「限流」「CI」「真库集成测试」三条已解决（TD-15 / TD-84 / TD-80）。
 「真库集成测试」那条已经解决（TD-80）。

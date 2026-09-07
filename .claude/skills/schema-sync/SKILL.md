@@ -47,7 +47,7 @@ description: >
 
 ```bash
 .venv/bin/python -m pytest tests/test_schema_sync.py -q
-.venv/bin/python -m pytest -q          # 全量：561 passed, 4 skipped
+.venv/bin/python -m pytest -q          # 全量：649 passed, 4 skipped
 ```
 
 真库那一遍（起库配方见 `HANDOVER.md` §9）——**改表结构必须跑**，

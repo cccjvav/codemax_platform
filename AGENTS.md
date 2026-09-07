@@ -87,7 +87,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 ## 「做完」的定义（七条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **561 passed, 4 skipped**（4 条 skip 的实测构成见 `README.md`：2 条并发需真库 + 1 条真浏览器 + 1 条语义阈值标定需 embedding key）
+2. `.venv/bin/python -m pytest -q` → **649 passed, 4 skipped**（4 条 skip 的实测构成见 `README.md`：2 条并发需真库 + 1 条真浏览器 + 1 条语义阈值标定需 embedding key）
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
 3. 真 PostgreSQL 上 → **563 passed, 2 skipped**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
@@ -100,7 +100,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（**172 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（**174 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：

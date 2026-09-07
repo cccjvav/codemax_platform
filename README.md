@@ -98,7 +98,7 @@ cd ..
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-预期 `561 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
+预期 `649 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
 **2 条并发用例需要真数据库**（`test_e2e.py:504` 并发下单 TD-199、`test_oauth.py:184` 授权码并发 TD-85）—— SQLite 用 StaticPool 共享单连接，一个请求的 `rollback` 会把别人的插入一起回滚，排不成真正的并发；
 **1 条需要真浏览器**（`test_dynamic_crawl.py:338`，要 `playwright install chromium`，见 TD-191）；
 **1 条需要真实 embedding API**（`test_faq_semantic.py:514` 的语义阈值标定，要设 `LLM_API_KEY`，见 TD-206）。真库那一套（`563 passed, 2 skipped`）由 GitHub Actions 自动跑，
@@ -202,7 +202,7 @@ start docs\site\index.html
 | 查某个**目录/文件/函数**的行级说明 | 见下方「模块说明书」表 |
 | 看**接口清单** | 本文下方「当前 API」一节，或起服务后开 `/docs` |
 | 了解**开发硬约束**（AI 助手与新成员都该先读） | [AGENTS.md](./AGENTS.md) |
-| 了解**实现取舍与上线阻塞项**（172 个 TD 台账，编号至 TD-224） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
+| 了解**实现取舍与上线阻塞项**（174 个 TD 台账，编号至 TD-226） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
 | 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
 | **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
 | 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) |

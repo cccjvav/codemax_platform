@@ -63,7 +63,7 @@ description: >
 
 ```bash
 .venv/bin/python -m pytest tests/test_site.py -q   # 新页面应自动多出一个用例
-.venv/bin/python -m pytest -q                      # 全量：561 passed, 4 skipped
+.venv/bin/python -m pytest -q                      # 全量：649 passed, 4 skipped
 ```
 
 起服务人工看一眼（页面是不是真能渲染，测试只看字符串）：

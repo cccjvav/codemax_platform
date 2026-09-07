@@ -283,7 +283,7 @@ pytest.ini            4 行   pytest 配置
 | `README.md` | **项目快速开始**（面向第一次跑起来的人） | 它自己 |
 | `AGENTS.md` | **硬约束入口**（NEVER / ASK / ALWAYS / 「做完」的定义） | 它自己 |
 | `HANDOVER.md` | 交接文档（含起真库的配方 §9） | 它自己 |
-| `ROADMAP.md` / `TECH_DECISIONS.md` | 路线图 / 取舍台账（172 个 TD，编号至 TD-224） | 它们自己 |
+| `ROADMAP.md` / `TECH_DECISIONS.md` | 路线图 / 取舍台账（174 个 TD，编号至 TD-226） | 它们自己 |
 
 > ⚠️ **`.dockerignore` 排除了 `database init`，但 `docker-compose.yml:13` 照样能挂它** ——
 > 因为 compose 是从**宿主机**挂载，不经过镜像构建上下文。这两件事不矛盾，但容易看糊涂。
