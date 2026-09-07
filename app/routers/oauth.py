@@ -7,7 +7,7 @@ from urllib.parse import urlencode
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy import select, update
+from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
@@ -131,6 +131,21 @@ async def authorize_submit(
         if state:
             params["state"] = state
         return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=302)
+
+    # P1-9：签发新码时**顺带**清掉已过期与已使用的旧码。授权码是一次性、10 分钟就
+    # 作废的凭据，旧实现只在读（token 端点）时判过期、从不删行，于是每次授权流都
+    # 给 oauth_code 留一条永久记录，表只增不减。
+    #
+    # 为什么放这里而不是调度器/后台任务：本仓库目前没有周期任务机制，为一张小表
+    # 引入一个不值得。放在签发点，清理量天然与流量成正比 —— 忙站自己清干净，
+    # 闲站本来也不产生垃圾。
+    #
+    # 条件是 `已使用 OR 已过期`，**绝不能放宽**：未过期且未使用的码可能正处于
+    # 「用户点了同意、正要拿去换 token」的窗口里，删掉它就表现为「登录偶发失败」。
+    # 由 test_valid_unused_code_survives_purge 反方向钉住。
+    await db.execute(
+        delete(OAuthCode).where(or_(OAuthCode.used.is_(True), OAuthCode.expires_at < _utcnow()))
+    )
 
     code = secrets.token_urlsafe(24)
     db.add(OAuthCode(
