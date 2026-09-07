@@ -22,7 +22,7 @@
   └─ 39 个 test_*.py  8 967 行  511 个测试
 ```
 
-本机实测：**561 passed, 4 skipped**（SQLite 后端）；真 PostgreSQL 16 上 **563 passed, 2 skipped**。
+本机实测：**648 passed, 4 skipped**（SQLite 后端，652 collected）；真 PostgreSQL 16 上 **626 passed, 2 skipped**（依赖大升级后那次实测，早于本轮新增用例）。
 
 > **为什么本文不逐个测试函数写**：488 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
@@ -324,9 +324,10 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：561 passed, 4 skipped
+  │    期望：648 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
-       期望：563 passed, 2 skipped
+       期望：626 passed, 2 skipped
+       （依赖大升级后那次实测；本轮新增 24 条用例后**未重跑真库**，实跑应更高）
        配方见 HANDOVER.md §9
 ```
 
@@ -348,7 +349,7 @@ print('文件数:', len(fs))
 print('总行数:', sum(len(p.read_text(encoding='utf-8').splitlines()) for p in fs))
 print('测试函数:', sum(len(re.findall(r'^(async )?def test_', p.read_text(encoding='utf-8'), flags=re.M)) for p in fs))
 "
-# 预期：文件数 35，总行数 8431，测试函数 488（本机实测一致）
+# 预期：文件数 44，总行数 10190，测试函数 547（本机实测一致）
 
 # ② 按行数排序的文件清单（本文 2.1 分组表的依据）
 python -c "
@@ -363,17 +364,33 @@ grep -rl "app\.<模块名>" tests/*.py          # 例：grep -rl "app.tools.sql_
 # ④ 找某个具体用例在哪
 grep -rn "def test_<关键字>" tests/
 
-# ⑤ 三处 skipif（本文 2.3）
-grep -rn -A4 --include="*.py" "skipif" tests/
-# 预期 3 处：test_auth_cookie.py:210 / test_dynamic_crawl.py:316 / test_oauth.py:184
+# ⑤ skipif（本文 2.3）
+grep -rn --include="*.py" "skipif" tests/
+# 预期 10 处，分布在 7 个文件：test_auth_cookie / test_dynamic_crawl / test_e2e /
+# test_faq_semantic / test_oauth / test_shop_page(3) / test_shop_polling(2)
+# ⚠️ 其中 6 处是 `shutil.which("node") is None` —— 装了 node 就**不会**跳过。
+# 全量实际的 4 处 skip 是：2 处并发用例需真库、1 处需真浏览器、1 处语义阈值需 embedding key。
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：561 passed, 4 skipped
+# 本机实测：648 passed, 4 skipped（652 collected，SQLite）
+
+# ⑥b 覆盖率（N-4 修复：`.coveragerc` 以前入库却连 coverage 都没装，跑都跑不了）
+python -m coverage run --rcfile=.coveragerc -m pytest -q
+python -m coverage report --rcfile=.coveragerc
+# 本机实测：**全量 96.0%**（2194 条语句，缺 87 行）
+# ⚠️ 必须带 --rcfile：`.coveragerc` 里 `concurrency = thread,greenlet` 那行是**必需**的，
+#    少了它 coverage 会把 greenlet/线程上跑过的端点代码记成未覆盖。
+#    实测同一批用例（4 个文件 / 107 passed）：带 concurrency **59.3%** vs 不带 **57.0%**。
+#    ⚠️ 注意 `concurrency` 只影响**采集**、不影响报告：拿同一份 .coverage 数据换个
+#    rcfile 去 report 会得到完全相同的数字，那样「对比」是假的 —— 必须重跑采集。
+#    文件头写的「89% vs 97%」是更早那次全量的记录；本轮实测带 concurrency 为 96.0%，
+#    不带 concurrency 的**全量**差值未重测（要再花 6 分钟），只有上面的子集对照。
+# ⚠️ 清数据文件写全 `rm -f .coverage .coverage.*` —— `rm -f .coverage*` 会连配置文件一起删。
 
 # ⑦ 只跑某一组
 python -m pytest tests/test_e2e.py -q
-# 本机实测：18 passed
+# 本机实测：21 passed, 1 skipped
 ```
 
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动本目录任何文件后，

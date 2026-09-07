@@ -51,6 +51,9 @@ pytest-asyncio==1.4.0             # 配套 pytest 9（1.4.0 要求 pytest<10,>=8
                                   # asyncio_mode=auto 与 loop_scope="session" 用法不变。
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
+coverage==7.16.0       # 覆盖率。N-4 修复前 `.coveragerc` 入库却**连 coverage 都没装**，
+                       # 那个配置文件等于纯装饰（跑都跑不了）。跑法见 tests/README.md。
+                       # 仅测试用，不进生产镜像。
 
 # ---- 文档工具（可选，运行时不需要）----
 mistune==3.3.4           # scripts/build_docs_site.py 默认那条命令要把 .md 渲染成静态站。
