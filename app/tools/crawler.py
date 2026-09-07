@@ -122,20 +122,50 @@ async def _request(
         current = url
         r: httpx.Response | None = None
         for _ in range(MAX_REDIRECTS):
-            r = await client.get(current)
-            if r.status_code not in _REDIRECT_CODES:
-                break
-            location = r.headers.get("location")
-            if not location:
-                break  # 3xx 但没给 Location，按普通响应处理
+            # 每一跳都 stream=True：响应体先不落内存，等确认了大小再说。
+            r = await client.send(client.build_request("GET", current), stream=True)
+            location = r.headers.get("location") if r.status_code in _REDIRECT_CODES else None
+            if location is None:
+                break  # 不是重定向；或 3xx 但没给 Location，按普通响应处理
+            await r.aclose()  # 重定向的响应体不要
             current = str(r.url.join(location))  # 相对 Location 要按当前 URL 解析
             await assert_public_url(current)
         else:
             raise CrawlError(f"重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）")
-    assert r is not None
-    if len(r.content) > max_bytes:
-        raise CrawlError(f"页面过大：{len(r.content)} 字节，超过上限 {max_bytes}")
-    return r
+
+        assert r is not None
+
+        # 服务器自己就声明了超限时，一个字节都不必下。
+        declared = r.headers.get("content-length")
+        if declared is not None and declared.isdigit() and int(declared) > max_bytes:
+            await r.aclose()
+            raise CrawlError(f"页面过大：Content-Length 声明 {declared} 字节，超过上限 {max_bytes}")
+
+        # P1-4：**边下边判**。旧写法 `if len(r.content) > max_bytes` 里，`r.content`
+        # 这个属性访问本身就已经把整个响应体读进内存了 —— 判断发生在读完之后，
+        # 等于没有内存预算：喂一个 10GB 的 URL 进来，会先全下完才说「太大了」。
+        # 实测（test_oversized_response_is_aborted_before_fully_downloading）：
+        # 1MB 上限 + 4MB 响应体，旧代码拉走 20/20 块，改后只拉走 6/20 块。
+        chunks: list[bytes] = []
+        total = 0
+        try:
+            async for chunk in r.aiter_bytes():
+                total += len(chunk)
+                if total > max_bytes:
+                    raise CrawlError(f"页面过大：已收 {total} 字节仍未结束，超过上限 {max_bytes}")
+                chunks.append(chunk)
+        finally:
+            await r.aclose()
+
+        # 用公开 API 重建一个普通 Response 返回，理由有二：
+        # ① `.text` 的字符集解码（含 gbk 等非 UTF-8 页面）继续由 httpx 按
+        #    Content-Type 处理，不必自己重写一套编码探测逻辑（已实测 gbk 保留）；
+        # ② 不必往 `r._content` 这类私有属性里塞字节。
+        # 原样保留 headers 是安全的：能走到这里说明响应体已被完整读完，
+        # 原 Content-Length 与实际字节数仍然一致。
+        return httpx.Response(
+            r.status_code, headers=r.headers, content=b"".join(chunks), request=r.request
+        )
 
 
 async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_bytes: int = MAX_BYTES) -> Page:

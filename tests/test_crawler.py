@@ -143,6 +143,51 @@ async def test_fetch_enforces_size_limit():
     assert "页面过大" in str(e.value)
 
 
+async def test_oversized_response_is_aborted_before_fully_downloading():
+    """P1-4：大小闸门必须在**下载过程中**生效，而不是整包下完再拒。
+
+    旧实现 `if len(r.content) > max_bytes` 里，`r.content` 这个属性访问本身
+    就已经把整个响应体读进内存了 —— 判断发生在**读完之后**，等于没有内存预算。
+    攻击者放一个 10GB 的 URL 进来，旧代码会先把它全下完才说「太大了」。
+
+    `test_fetch_enforces_size_limit` 抓不到这点：它只看最终抛没抛 CrawlError，
+    而「先下完 4MB 再拒」和「下到 1MB 就断」对它是同一个结果。
+
+    所以这里用**异步生成器**当响应体并记录它被消费了几块 —— 真提前中断的话，
+    生成器只会跑一部分（实测：1MB 上限下 20 块只被拉走 6 块）。
+    """
+    CHUNK = b"x" * 200_000  # 200KB / 块
+    TOTAL_CHUNKS = 20  # 合计 4MB
+    LIMIT = 1_000_000  # 1MB 上限
+    pulled: list[int] = []
+
+    async def body():
+        for i in range(TOTAL_CHUNKS):
+            pulled.append(i)
+            yield CHUNK
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        # robots.txt 必须给正常小响应：否则 fetch() 抓 robots 那一跳就先炸了，
+        # 测到的就不是页面下载这条路。
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        return httpx.Response(200, content=body())
+
+    with pytest.raises(CrawlError) as e:
+        await fetch(f"{BASE}/huge", transport=httpx.MockTransport(handle), max_bytes=LIMIT)
+
+    assert "页面过大" in str(e.value)
+    assert len(pulled) < TOTAL_CHUNKS, (
+        f"响应体被完整拉走了 {len(pulled)}/{TOTAL_CHUNKS} 块 —— 大小检查发生在读完之后，"
+        "等于没有内存预算。必须在流式读取过程中就断开。"
+    )
+    # 只允许多读「触发判断的那一块」：再宽就是没在算预算
+    assert len(pulled) <= LIMIT // len(CHUNK) + 1, (
+        f"消费了 {len(pulled)} 块（{len(pulled) * len(CHUNK):,} 字节），"
+        f"超出上限 {LIMIT:,} 太多"
+    )
+
+
 async def test_max_bytes_budget_is_pinned_at_2mb():
     """`MAX_BYTES` 的**具体数值**必须被钉住 —— 现有两条测试都抓不到它被改。
 
