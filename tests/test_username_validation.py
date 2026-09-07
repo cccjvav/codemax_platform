@@ -1,6 +1,6 @@
 # tests/test_username_validation.py
 #
-# 注册用户名的格式校验（CODE_REVIEW_99662ca 的 A-5）。
+# 注册用户名的格式校验（2026-09-06 全仓体检的 A-5；报告已归档，见 HANDOVER.md「历次 code review 报告的处置与归档」）。
 #
 # 改动前 `RegisterIn.username` 只有 `min_length=3, max_length=50`，
 # 于是这些全部 201 注册成功（实测）：

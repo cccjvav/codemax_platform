@@ -1,6 +1,6 @@
 # tests/test_frontend_supply_chain.py
 #
-# 前端第三方依赖的供应链风险（CODE_REVIEW_99662ca 的 A-3 / A-4）。
+# 前端第三方依赖的供应链风险（2026-09-06 全仓体检的 A-3 / A-4；报告已归档，见 HANDOVER.md「历次 code review 报告的处置与归档」）。
 #
 # 两条问题：
 #

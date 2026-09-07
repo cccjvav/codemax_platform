@@ -12,3 +12,10 @@ storage
 docs
 *.md
 database init
+
+# 测试与覆盖率产物：Dockerfile 是 `COPY . .`，不排掉就会把测试代码打进生产镜像。
+# 运行时没有任何地方 import tests/（Dockerfile 里除 COPY . . 外不引用它）。
+tests
+htmlcov
+.coverage
+.coverage.*

@@ -1,6 +1,11 @@
 # 交接摘要（HANDOVER）
 
-> 给下一个编码会话 / 协作者的快速上手指南。更新日期：2026-09-01（本文件已重写，第 1 节旧内容作废）
+> 给下一个编码会话 / 协作者的快速上手指南。**更新日期：2026-09-07**
+>
+> ⚠️ 本会话所在平台（Arena）会因「响应超时」反复中断，**沙箱已被回收 27 次以上**，
+> `.venv` 与 `node_modules` 每次都会消失。所以本文件是唯一可靠的交接载体：
+> **每做完一个子项就更新它**，不要攒着。
+> 恢复工作区与重建环境的配方见 §5、§9 与 `ARCHITECTURE_GUIDE.md` 7.10。
 
 ## 1. 当前状态
 
@@ -12,8 +17,9 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（2026-09-06 实测）：`.venv/bin/python -m pytest -q` → SQLite：**561 passed + 4 skipped**；真 PostgreSQL 16.2：**563 passed + 2 skipped** （3 条 skip 是真库专用的并发用例，SQLite 单连接下测不了，见 TD-199）
-  另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑三个 job —— 静态检查（ruff）、SQLite、真 PostgreSQL 16；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
+- **测试基线**（**2026-09-07** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**649 passed + 4 skipped**（332.80 s）；真 PostgreSQL 16 由 CI 跑，见下。
+  ⚠️ 数字会随子项变化，复核命令见 `tests/README.md`；**引用前先自己数一遍**。
+  另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑**六个** job —— 静态检查（ruff）、测试（SQLite 后端）、测试（真 PostgreSQL 16）、**前端产物漂移检查（`npm run build` 后 `git diff --exit-code -- app/static/js`）**、依赖漏洞扫描（`pip-audit --strict`）、文档站构建；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
 - **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
 - **一次性传输文件已删除**：`PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` /
@@ -81,9 +87,14 @@ app/
 │   ├── faq.py             # BM25 + 余弦相似度融合召回
 │   ├── intent.py          # 意图三分类：高频FAQ / 通用闲聊 / 专业问题
 │   └── support.py         # 智能客服三层编排 + RAG 文章索引缓存（TD-214）
-├── static/                # er.js（D3 渲染，layoutEr 是纯函数可被 node require）/ auth.js / pay_qr.svg
+├── frontend/              # ★ 前端 JS **源码**（浏览器不直接读）：auth.js / er-layout.js /
+│                          #   er-page.js / drawio-page.js / mermaid-page.js / mock-pay-page.js
+│                          #   + 一个只含 "type":"module" 的 package.json（把 ESM 范围限定在本目录）
+│                          #   改完必须 `npm run build` 并把产物一起提交（CI 有漂移检查）
+├── static/                # **只放构建产物与静态资源**：js/ 下 5 个 Vite 产物 + pay_qr.svg
+│                          #   ⚠️ pay_qr.svg **仍是占位图**，manual 模式真上线前必须换成真收款码
 └── templates/             # base / index / er / mermaid / drawio / shop / oauth_consent / mock_pay
-tests/                     # 42 个 test_*.py（共 44 个 .py），652 collected
+tests/                     # 42 个 test_*.py（共 44 个 .py），548 个 def test_
 database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
 scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL 执行 full_init.sql
 ```
@@ -324,6 +335,85 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
   我用 `if "历史审查快照" in t: continue` 去重 —— 而 r5 正文里本来就出现这几个字，
   于是它被误判成「已标注」跳过。改成只看开头 10 行。
 
+### 依赖大升级与前端工具链这一轮（2026-09-07）
+
+这一轮做了三件事，每件一个提交：
+
+| 提交 | 做了什么 | 关键取舍 |
+| --- | --- | --- |
+| `48552e7` | **依赖大升级**：fastapi `0.104.1→0.141.1`、starlette `0.27.0→1.6.0`、pydantic `→2.13.5` 等 | CVE 从 **15 条降到 1 条**（剩 `ecdsa 0.19.2` PYSEC-2026-1325，上游无修复，CI 用 `--ignore-vuln` 挂账） |
+| `1b23ba9` + `936b156` | **C1**：引入 Vite 作为纯编译期工具链，`auth.js` 迁入 `app/frontend/`，产物入库 | TD-221。**部署仍需 Node 吗？不需要** —— 产物入库，服务器只 `pip install` + 起 uvicorn |
+| `81880f9` | **C4**：d3 从 CDN 改为 npm 打包，`er.js` 拆成 `er-layout.js`（纯布局）+ `er-page.js`（渲染） | TD-222 |
+| `62ff019` | **C2**：4 个模板的内联 JS 抽成外部文件，内联 JS **484 → 180 行** | TD-223 |
+
+**升级踩到的两个破坏性变更**（都已修，改的是实现不是测试）：
+
+1. FastAPI 0.141 的 `include_router` 会把子路由包进 `APIRouter`，`app.routes` 不再是平的
+   ⇒ `tests/conftest.py::iter_app_routes()` 改成递归展平。**全仓所有「枚举路由」的断言都靠它**，
+   别绕过它直接遍历 `app.routes`。
+2. Starlette 1.x 的 `TemplateResponse` 第一个位置参数从 `name` 变成 `request`
+   ⇒ 全部改成关键字参数调用。
+
+**前端工具链的硬约束**（改前端前必读 `app/frontend/README.md`）：
+
+- 构建从**仓库根**跑：`npm run build`。`vite.config.mjs` 与带 scripts 的 `package.json` 都在根上；
+  `app/frontend/package.json` **只有** `"type": "module"`，作用是**把 ESM 范围限定在该目录**。
+- ⚠️ **根 `package.json` 绝不能写 `"type": "module"`** —— 那会让全仓每个 `.js` 都变 ES 模块，
+  `module.exports` 全部失效（`936b156` 就是修我自己引入的这个回归）。
+- ⚠️ `er-layout.js` **不许 import d3**：`tests/test_er_page.py` 用 node 直接 import 它做前后端
+  字段契约测试，而 **CI 的测试 job 不装 `node_modules`**。本地有 `node_modules`，看不出来。
+- ⚠️ `vite.config.mjs` 的 `outDir` **不能**设成 `app/static/`（`emptyOutDir: true` 会连带删掉
+  `pay_qr.svg`），所以产物落在 `app/static/js/`。
+- 产物**必须和源码一起提交**：CI 的漂移检查会重跑构建再 `git diff --exit-code`。
+
+**这一轮新踩的坑（都实测复现过）**：
+
+- **`.gitignore` 里可能早就埋着会炸新工具链的规则**：`package-lock.json` 曾被忽略，
+  CI 的 `npm ci` 必失败。加新工具链前先 `git check-ignore -v <文件>`。
+- **「反扫外部依赖」必须匹配所有真会发起加载的写法**。只匹配 `<script src="https://…">`
+  会**完全看不见裸 ESM `import`** —— 我据此判定「没页面再用 CDN」并把 jsdelivr 从 CSP 移除，
+  而 `mermaid.html` 正是用裸 import，那会让该页被 CSP 拦死白屏。
+- **反过来，反扫也不能把注释里的示例文本当真**：扫描前先剥 `<!--…-->` 与 `{#…#}`。
+- **变异测试的变异本身可能是空操作**（本会话踩了三次）。做完变异必须自证变异生效
+  （`grep` 目标符号、或断言输出确实变了）。典型失效：目标模板没有 `</body>`，
+  `.replace` 什么都没改；或注释里写了同名文本。
+- **把源码搬进构建产物后，对字面量的断言会失效**：`data.mermaid` 压缩后变成 `e.mermaid`
+  ⇒ 断言必须去**源码**核对，不是产物。
+- **抽离内联脚本时必须原地插入 `<script src>` 替换**；只删块会让模板一个 script 都没有，
+  构建照样过、测试才红。
+- **验证脚本自己也会坏**：数内联 JS 的正则漏了 `<script type="module">`，算出 434，
+  让我一度以为文档里的 484 是错的。**结论：文档数字要用文档自己的复核命令取真值。**
+
+### 历次 code review 报告的处置与归档（2026-09-07）
+
+仓库根上曾有 4 份一次性审查文件，**已删除**（内容全部落地后继续留着只会误导接手的人）：
+
+| 文件 | 处置 |
+| --- | --- |
+| `CODE_REVIEW_99662ca.md`（23 条） | 全部处理完，逐条对应到提交或 TD |
+| `FIX_PROMPT_99662ca.txt` | 上面那份报告的执行提示词，随之作废 |
+| `review_report_arena_01a0599b_r3.md` | 第 3 轮复审快照，条目已并入后续修复 |
+| `review_report_arena_01a0599b_r5.md` | 第 4 轮复审快照，同上 |
+
+**要回看原文**：它们仍在 git 历史里，用删除前最后一个提交取：
+
+```
+git show 62ff019:CODE_REVIEW_99662ca.md
+```
+
+**删除前逐条实测过当前状态**（不是照抄报告结论，报告是 `99662ca` 的快照，多数「未改」早已修完）。
+仍然开口子的只有两条，都已另有记录：
+
+| 遗留 | 状态 | 记录在哪 |
+| --- | --- | --- |
+| 微信回调**未校验 `Wechatpay-Serial`**（平台证书序列号） | 未修。本项目只配一把 `WX_PLATFORM_CERT`，收到任何 serial 都用它验，**证书轮换期会验签失败** | **TD-219** |
+| `.dockerignore` 未排除 `tests/`，测试代码随 `COPY . .` 进生产镜像 | **本轮已修**（加 `tests`、`htmlcov`、`.coverage`）。⚠️ 沙箱无 docker，**未能实跑 `docker build` 验证**，只核对了 Dockerfile 里除 `COPY . .` 外没有任何地方引用 `tests/` | 本次提交 |
+
+> 顺带修正一处我此前记错的地方：报告里的 **N-3「人工确认收款没留操作人」其实已修** ——
+> 实现不在 `app/routers/admin.py`，而在 `app/routers/shop.py:264` 的 `confirm_paid_manually`，
+> 用 `_audit_logger.info(...)` 落盘了「谁、什么时候、把哪一单标成已支付」。
+> 我先前 grep 错了文件，差点把它当成遗留项重复上报。
+
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 
 **已完成**
@@ -342,7 +432,19 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 
 ## 8. 建议的下一步
 
-1. 等用户授权后合并 PR #3，随即删掉 4 个一次性传输文件
+1. **阶段 C（前端重构）进行中**，已完成 C1 / C2 / C4，**下一个是 C3**：
+   - ~~C1~~ Vite 工具链 + `auth.js` 迁移（`1b23ba9`，TD-221）
+   - ~~C4~~ d3 打包、`er.js` 拆两半（`81880f9`，TD-222）
+   - ~~C2~~ 4 个模板内联 JS 外置，484 → 180 行（`62ff019`，TD-223）
+   - **C3（未做）**：`shop.html` 剩下的 **180 行**内联脚本改成 Vue 组件。
+     `vue 3.5.42` 与 `@vitejs/plugin-vue 6.0.8` 已在 `package.json` 里，
+     但 `vite.config.mjs` 还**没有**启用 vue 插件（`.vue` 文件目前无法构建）。
+     这页是真状态机：订单生命周期 + 3 秒轮询 + `buySeq` 陈旧响应守卫 + 登录后补单，
+     动它之前先读 `tests/test_shop_polling.py`（轮询生命周期的既有断言）。
+     ⚠️ 它仍调 `window.CodeMaxAuth.onChange`，且 `base.html` 用经典 `<script>` 加载 `auth.js`
+     —— 换成 Vue 后加载时机变了，务必确认 `CodeMaxAuth` 在组件挂载前已就绪（见 TD-223）。
+   - **C5（未做）**：文档收尾同步。
+2. 等用户授权后合并 PR #3（4 个一次性传输文件早已删除，见 §1）
 2. ~~TD-138：管理员角色 + 抓取入库 HTTP 端点~~ **已完成**（`app/routers/admin.py`
    + `POST /admin/articles/ingest`，迁移 `migrate_0005_user_role.sql`）。
    **提权要人工执行**：`UPDATE sys_user SET role = 1 WHERE username = '...';`
@@ -352,7 +454,13 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
    - S3-02-1 与 S5-03-1 的 OSS/COS（TD-128，需密钥；无密钥写出的适配器无法验证签名）
    - S4-02-2 BERT 意图路由（TD-150，无标注数据；**不要**拿公开问句匹配语料硬凑本项目的 FAQ 标签）
    - S2-02-2 引流→变现（按选型跳过）
-4. 上线阻塞项仍有 2 条：TD-113（支付未真机联调）、TD-124（模拟支付误开，`ENV=production` 会拒绝启动）
+4. **上线阻塞项 4 条**（2026-09-07 逐条实测确认）：
+   - **TD-113** 支付未真机联调（需商户号 / API 证书 / 公网 https 回调）
+   - **TD-124** 模拟支付误开（`ENV=production` 会拒绝启动，是刻意设计）
+   - **TD-206** 语义阈值 `0.55` **未经标注数据标定**，只是拍的初值
+   - **`app/static/pay_qr.svg` 仍是占位图** —— 不是隐藏 bug，但 manual 模式若要真实演示 /
+     生产必须替换成真收款码。（这条原先只写在已删除的 `review_report_arena_01a0599b_r3.md` 里，
+     **别处没有记录**，故在此补上。）
 
 ## 9. 在沙箱里起一个真 PostgreSQL（可选，用于真库集成测试）
 

@@ -1,6 +1,6 @@
 # tests/test_support_rag_perf.py
 #
-# RAG 检索不许堵住事件循环，也不许每次请求都重建索引（CODE_REVIEW_99662ca 的 P1-2）。
+# RAG 检索不许堵住事件循环，也不许每次请求都重建索引（2026-09-06 全仓体检的 P1-2；报告已归档，见 HANDOVER.md「历次 code review 报告的处置与归档」）。
 #
 # 改动前 `_retrieve_articles()` 做了两件昂贵的事，且都在事件循环里同步做：
 #   ① `select(Article)` 全表捞出**所有**文章（含完整正文）

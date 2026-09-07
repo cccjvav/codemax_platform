@@ -1,6 +1,6 @@
 # tests/test_shop_polling.py
 #
-# 下单页的**轮询生命周期**（CODE_REVIEW_99662ca 的 N-2）。
+# 下单页的**轮询生命周期**（2026-09-06 全仓体检的 N-2；报告已归档，见 HANDOVER.md「历次 code review 报告的处置与归档」）。
 #
 # 这组测试钉住两条不变式：
 #
