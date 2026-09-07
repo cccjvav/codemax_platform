@@ -38,35 +38,57 @@ HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面**已选 Playwri
 
 ## 3. 工程结构
 
+> 本树由脚本对照真实目录生成（D-5 修复前它严重过期：缺 `middleware.py` /
+> `storage.py` / `wechat_pay.py` / `startup_checks.py` 等 15 个文件，
+> 测试数还写着 36 文件 / 565 用例）。改目录结构时**必须同步这里**。
+
 ```text
-main.py                    # FastAPI 入口（在仓库根，不是 app/ 下！）
+main.py                    # FastAPI 入口（在仓库根，不是 app/ 下！）+ lifespan
 app/
 ├── config.py              # Settings（读 .env）：DB_* / SECRET_KEY / LLM_* / SITE_BASE_URL
 ├── database.py            # async engine / SessionLocal / get_db
-├── models.py              # User / Order / SysConfig / SysDiagram / OAuthClient / OAuthCode
+├── models.py              # User / Order / SysConfig / SysDiagram / OAuthClient / OAuthCode / Article
 ├── schemas.py             # Pydantic 模型
-├── security.py            # bcrypt 哈希 + JWT 生成/解析
+├── security.py            # bcrypt 哈希 + JWT 生成/解析（含耗时拉平的 dummy verify）
 ├── deps.py                # get_current_user（双平台共用鉴权）
 ├── site.py                # ★ TOOLS/HOME/PAGES 清单：一处新增，路由+导航+sitemap 自动跟上
+├── middleware.py          # 安全响应头（CSP/HSTS 等）+ 结构化请求日志
+├── startup_checks.py      # 生产配置自检：不合规就拒绝启动（TD-218 后 7 项硬检查 + 1 项告警）
+├── storage.py             # 云存储策略 + 预签名下载 URL（HMAC 签名 + 过期）
+├── wechat_pay.py          # 微信支付 APIv3：NATIVE 扫码下单 + 支付结果回调验签
+├── order_state.py         # 订单状态机：待支付 → 已支付 → 已下载（CAS 保证一次性）
+├── ratelimit.py           # 接口限流（滑动窗口，按用户/IP）
+├── cpu_pool.py            # 重 CPU 任务的执行池（bcrypt / 分词等不堵事件循环）
+├── timeutil.py            # 跨后端时间归一化（SQLite 无时区 / PG 有）
 ├── routers/
 │   ├── auth.py            # /auth/register | /auth/login | /auth/me
 │   ├── oauth.py           # /oauth/authorize | /oauth/token（授权码 SSO）
 │   ├── tools.py           # /tools/ping(鉴权) + er-diagram / mermaid / word-export(公开)
 │   ├── diagrams.py        # /diagrams CRUD（★ 全部需鉴权，只能读写自己的）
-│   ├── shop.py            # /shop/ping（SSO 验证）
+│   ├── shop.py            # 商品下单 / 支付回调 / 一次性下载（最大的一个路由）
+│   ├── support.py         # 智能客服 /support/ask
+│   ├── admin.py           # 管理员：抓取 + 解析 + 入库
+│   ├── health.py          # 存活/就绪探针
 │   └── site.py            # 页面路由（由 PAGES 生成）+ /sitemap.xml + /robots.txt
 ├── tools/
 │   ├── sql_ddl.py         # DDL 解析（纯标准库）
 │   ├── llm.py             # OpenAI 兼容客户端（可注入）+ Mermaid 生成
-│   └── word.py            # DDL → Word 数据字典
-├── static/er.js           # ER 图 D3.js 渲染（layoutEr 是纯函数，node 可直接 require）
-└── templates/             # base / index / er / mermaid / drawio（Jinja2 SSR）
-tests/                     # 36 个测试文件（38 个 .py），565 用例
+│   ├── word.py            # DDL → Word 数据字典
+│   ├── crawler.py         # 底层爬虫：SSRF 防护 + 流式大小闸门（TD-215）
+│   ├── politeness.py      # 爬虫礼貌性：robots.txt + 按域间隔 + 全局并发上限
+│   ├── browser.py         # Playwright 兜底渲染 SPA（httpx 抓不到正文时）
+│   ├── extract.py         # LLM 指认选择器 + BeautifulSoup 提取
+│   ├── faq.py             # BM25 + 余弦相似度融合召回
+│   ├── intent.py          # 意图三分类：高频FAQ / 通用闲聊 / 专业问题
+│   └── support.py         # 智能客服三层编排 + RAG 文章索引缓存（TD-214）
+├── static/                # er.js（D3 渲染，layoutEr 是纯函数可被 node require）/ auth.js / pay_qr.svg
+└── templates/             # base / index / er / mermaid / drawio / shop / oauth_consent / mock_pay
+tests/                     # 42 个 test_*.py（共 44 个 .py），652 collected
 database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
 scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL 执行 full_init.sql
 ```
 
-页面地址：`/`（工具清单）、`/tools/er`、`/tools/mermaid`、`/tools/drawio`、`/sitemap.xml`、`/robots.txt`。
+页面地址：`/`（工具清单）、`/tools/er`、`/tools/mermaid`、`/tools/drawio`、`/shop`、`/sitemap.xml`、`/robots.txt`。
 
 ## 4. 工作流铁律（用户明确要求）
 
@@ -79,7 +101,7 @@ scripts/check_schema_pg.mjs # 可选深度体检：用 WASM 版真 PostgreSQL �
 ## 5. 常用命令
 
 ```bash
-.venv/bin/python -m pytest -q                        # 跑测试（565 个：SQLite 上 561 绿 + 4 跳过）
+.venv/bin/python -m pytest -q                        # 跑测试（652 collected：SQLite 上 648 绿 + 4 跳过）
 .venv/bin/python -m pytest tests/test_sql_ddl.py -v  # 单文件
 .venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000  # 起服务（沙箱预览需 0.0.0.0）
 cd "database init" && ../.venv/bin/python db_init.py   # 初始化 PG（需真库；**会 DROP 重建，只对空库安全**）
