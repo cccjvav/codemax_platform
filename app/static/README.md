@@ -27,7 +27,7 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 - `er.js`、`auth.js` 两个原始 JS 都已迁走 —— 源码在 `app/frontend/`，本目录只存**构建产物**。
 - 模板里的页面内联 JS 也已全部抽出（TD-223），同样落到 `app/frontend/`。
 
-**本目录现在的实测内容**：`js/` 下 5 个 Vite 产物 + `pay_qr.svg` + 本文。
+**本目录现在的实测内容**：`js/` 下 **6 个** Vite 产物 + `pay_qr.svg` + 本文。
 
 | 产物 | 源码 | 加载方式 |
 |---|---|---|
@@ -36,6 +36,7 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 | `js/drawio-page.js` 3.12 kB | `app/frontend/drawio-page.js` | `drawio.html`，经典脚本 |
 | `js/mermaid-page.js` 1.08 kB | `app/frontend/mermaid-page.js` | `mermaid.html`，**`type="module"`** —— 产物里保留了 mermaid 的 CDN 裸 ESM import，经典脚本会语法错 |
 | `js/mock-pay-page.js` 0.57 kB | `app/frontend/mock-pay-page.js` | `mock_pay.html`，经典脚本 |
+| `js/shop-page.js` 2.90 kB | `app/frontend/shop-page.js` | `shop.html`，经典脚本（依赖 `base.html` 先加载的 `window.CodeMaxAuth`，故不能加 module） |
 
 改完源码必须 `npm run build` 并一起提交；CI 有漂移检查兜底（TD-221）。
 

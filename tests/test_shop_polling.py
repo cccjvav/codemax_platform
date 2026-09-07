@@ -14,7 +14,6 @@
 from __future__ import annotations
 
 import json
-import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -29,7 +28,7 @@ from tests.test_download import auth_headers, make_order  # noqa: E402
 
 # ---------------------------------------------------------------- 前端：过期停表
 #
-# 用 node 跑 shop.html 里**真实的内联脚本**（不是复制一份逻辑来测 ——
+# 用 node 跑下单页**真实的那份脚本** app/frontend/shop-page.js（不是复制一份逻辑来测 ——
 # 复制出来的副本会和真实代码各自演化，改坏了照样绿）。
 # 关键是给 setInterval/clearInterval 装上假时钟，这样能确定性地
 # 「快进到 9 秒后」而不用真的睡 9 秒。
@@ -42,7 +41,7 @@ const mkEl = () => ({
   classList: { add() {}, remove() {} },
 });
 global.document = { getElementById: (id) => (els[id] ||= mkEl()), createElement: mkEl };
-// 点击必须真的触发 shop.html 里 `btn.onclick = buy` 绑上去的函数，
+// 点击必须真的触发 shop-page.js 里 `btn.onclick = buy` 绑上去的函数，
 // 否则「点购买」是空操作，两条用例都只会因为什么都没发生而失败。
 const click = (id) => { const el = els[id]; if (el && el.onclick) return el.onclick({ preventDefault() {} }); };
 global.addEventListener = () => {};
@@ -53,7 +52,7 @@ global.localStorage = store; global.sessionStorage = store;
 
 let expired = false;
 let pollCalls = 0;
-// ⚠️ 变量名不能叫 `timer`：shop.html 的内联脚本自己就 `let timer = null`，
+// ⚠️ 变量名不能叫 `timer`：shop-page.js 自己就 `let timer = null`，
 // 两段脚本拼在同一个作用域里执行，重名会直接 SyntaxError。
 let __pendingTimer = null;
 
@@ -96,13 +95,14 @@ global.__advance = async (ms) => {
 
 
 def _run_expiry_scenario(scenario: str) -> dict:
-    """按浏览器真实顺序执行 auth.js + shop.html 内联脚本，返回末行 JSON。"""
+    """按浏览器真实顺序执行 auth.js + 下单页脚本 shop-page.js，返回末行 JSON。"""
     root = Path(__file__).resolve().parents[1]
     auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
-    shop_html = (root / "app/templates/shop.html").read_text(encoding="utf-8")
-    inline = re.findall(r"<script>(.*?)</script>", shop_html, re.S)
-    assert inline, "shop.html 应该有自己的内联脚本"
-    script = "\n;\n".join([auth, *inline])
+    # C3 之后下单页脚本是外部文件 app/frontend/shop-page.js（原先是 shop.html 的内联块）。
+    # 仍然读**源码**而不是构建产物：产物压缩过，注释全没了，而下面这些断言靠的就是注释。
+    shop_js = (root / "app/frontend/shop-page.js").read_text(encoding="utf-8")
+    assert shop_js.strip(), "下单页脚本是空的 —— 很可能读错了文件"
+    script = "\n;\n".join([auth, shop_js])
 
     harness = Path("/tmp/_shop_expiry_harness.js")
     harness.write_text(_EXPIRY_HARNESS + "\n;\n" + script + "\n" + scenario, encoding="utf-8")

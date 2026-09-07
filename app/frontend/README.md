@@ -10,7 +10,7 @@
 
 ## 1. 为什么会有这个目录
 
-原来的状态：JS 散在两处 —— `app/static/` 下的原始文件，以及 8 个模板里合计 **484 行内联脚本**。
+原来的状态：JS 散在两处 —— `app/static/` 下的原始文件，以及 8 个模板里合计 **438 行**内联脚本（非空行口径；8 个模板中 5 个有）。
 内联脚本**没法 lint、没法 import、没法单测**，攒到几百行就成了负担。
 
 TD-221 定了方案：**引入 Vite 作为纯编译期工具链**，后端仍然是 Jinja2 SSR，不做全站 SPA。
@@ -27,9 +27,12 @@ TD-221 定了方案：**引入 Vite 作为纯编译期工具链**，后端仍然
 | `drawio-page.js` | drawio 页交互（与 `/diagrams` 对接） | `js/drawio-page.js` 3.12 kB | `drawio.html`（经典脚本） |
 | `mermaid-page.js` | mermaid 页交互 | `js/mermaid-page.js` 1.08 kB | `mermaid.html`（**`type="module"`**） |
 | `mock-pay-page.js` | mock 支付页交互 | `js/mock-pay-page.js` 0.57 kB | `mock_pay.html`（经典脚本） |
+| `shop-page.js` | 下单页状态机（下单 / 3 秒轮询 / 下载） | `js/shop-page.js` 2.90 kB | `shop.html`（经典脚本） |
 | `package.json` | **只有 `"type": "module"`**，用于把 ESM 范围限定在本目录 | — | — |
 
-> `shop.html` 还有 168 行内联脚本没搬（ROADMAP C3：改成 Vue 组件）。
+> **8 个模板的内联 JS 现已全部归零**（438 → 168 → 0，非空行口径）。
+> `shop-page.js` 是最后一个搬出来的，它按原样搬迁、**没有**改写成 Vue ——
+> 原因见 `TECH_DECISIONS.md` 的 **TD-224**。
 
 ## 3. 三个必须知道的坑
 

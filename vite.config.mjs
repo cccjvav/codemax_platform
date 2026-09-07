@@ -38,6 +38,9 @@ export default defineConfig({
         "mermaid-page": "app/frontend/mermaid-page.js",
         "drawio-page": "app/frontend/drawio-page.js",
         "mock-pay-page": "app/frontend/mock-pay-page.js",
+        // 下单页（C3）。它依赖 base.html 先加载的 window.CodeMaxAuth，
+        // 所以模板里用经典 <script src>，加载顺序与内联时代完全一致。
+        "shop-page": "app/frontend/shop-page.js",
       },
       output: {
         // 固定文件名（见上面「为什么关掉 hash」）

@@ -12,6 +12,8 @@
 另外这个文件守着 full_init.sql 里那个真实存在过的坑：种子账号漏写 `role` 列，
 导致「昵称叫管理员的账号进不了任何管理端点」。
 """
+import re
+
 import pytest
 from sqlalchemy import select
 
@@ -218,10 +220,25 @@ async def test_download_works_after_manual_confirm(client, product, manual_mode)
 
 
 async def test_shop_page_renders_the_manual_qr_branch(client, manual_mode):
-    """下单页得真有渲染 qr_image 的那条分支，否则后端返回了也没人用。"""
+    """下单页得真有渲染 qr_image 的那条分支，否则后端返回了也没人用。
+
+    C3 之后那段分支在外部脚本 `/static/js/shop-page.js` 里（原先是 shop.html 的内联块），
+    所以要去脚本里核对。⚠️ 这里刻意查**浏览器真正加载的产物**而不是源码：
+    这条断言守的是「后端返回的字段前端有没有人接」，只有产物才代表线上真会跑的那份代码。
+    顺带也钉住了模板确实加载了该脚本 —— 否则产物再对也不会被执行。
+    """
     html = (await client.get("/shop")).text
-    assert "qr_image" in html, "模板里没有 qr_image 分支"
-    assert "由客服核对到账并确认" in html, "manual 模式要告诉用户为什么不会自动到账"
+    assert "/static/js/shop-page.js" in html, "下单页没加载自己的交互脚本"
+    js = (await client.get("/static/js/shop-page.js")).text
+    # ⚠️ 别写成 `"qr_image" in js`：那个标识符在注释与别处也出现，**改坏分支它照样绿**
+    # （实测过：把 `else if (o.qr_image)` 换成永假条件，弱断言仍然通过）。
+    # 要断言的是**结构**：收款码必须走 `<img src=...>`，不是塞进 innerHTML ——
+    # 后者会给「运营可配的收款码路径」留下 XSS 面。压缩后属性名保留，故可查。
+    assert re.search(r"\.src\s*=\s*\w+\.qr_image", js), (
+        "manual 收款码没走 <img src>（应形如 img.src = o.qr_image），"
+        "若改成 innerHTML 就开了 XSS 面"
+    )
+    assert "由客服核对到账并确认" in js, "manual 模式要告诉用户为什么不会自动到账"
 
 
 # ------------------------------------------------- full_init.sql 种子账号

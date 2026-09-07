@@ -345,13 +345,14 @@ async function loginAs(name) {
 
 
 def _run_shop_frontend(scenario: str = _NODE_SCENARIO) -> list[int]:
-    """按浏览器真实的文档顺序执行 `auth.js` + `shop.html` 内联脚本，返回各步的下单调用数。"""
+    """按浏览器真实的文档顺序执行 `auth.js` + 下单页脚本 `shop-page.js`，返回各步的下单调用数。"""
     root = Path(__file__).resolve().parents[1]
     auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
-    shop_html = (root / "app/templates/shop.html").read_text(encoding="utf-8")
-    inline = re.findall(r"<script>(.*?)</script>", shop_html, re.S)
-    assert inline, "shop.html 应该有自己的内联脚本"
-    script = "\n;\n".join([auth, *inline])
+    # C3 之后下单页脚本是外部文件 app/frontend/shop-page.js（原先是 shop.html 的内联块）。
+    # 仍然读**源码**而不是构建产物：产物压缩过，注释全没了，而下面这些断言靠的就是注释。
+    shop_js = (root / "app/frontend/shop-page.js").read_text(encoding="utf-8")
+    assert shop_js.strip(), "下单页脚本是空的 —— 很可能读错了文件"
+    script = "\n;\n".join([auth, shop_js])
 
     harness = Path("/tmp/_shop_frontend_harness.js")
     harness.write_text(_NODE_EXECUTOR + "\n;\n" + script + "\n" + scenario, encoding="utf-8")
@@ -393,8 +394,8 @@ def test_shop_template_no_longer_fakes_unsubscribe():
     它看起来像在清理监听器，实际只是往列表里追加一个空函数 —— 纯泄漏。
     注意要先剥掉 `//` 注释：解释这个 bug 的注释里必须引用原句，否则会自我误伤。
     """
-    html = (Path(__file__).resolve().parents[1] / "app/templates/shop.html").read_text(encoding="utf-8")
-    code = "\n".join(re.sub(r"//.*$", "", line) for line in html.splitlines())
+    js = (Path(__file__).resolve().parents[1] / "app/frontend/shop-page.js").read_text(encoding="utf-8")
+    code = "\n".join(re.sub(r"//.*$", "", line) for line in js.splitlines())
     assert "onChange(() => {})" not in code, "这行是伪解绑，只会追加空监听器"
     assert "offBuy" in code, "应当用退订函数登记唯一的待补发购买意图"
 
