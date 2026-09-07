@@ -81,7 +81,11 @@ def test_no_template_loads_third_party_js_from_a_cdn():
 
     found = []
     for f in sorted(TEMPLATES.glob("*.html")):
-        body = f.read_text(encoding="utf-8")
+        # ⚠️ 先剥掉 HTML 注释再扫：注释里提到某个 CDN 地址不构成加载。
+        #    这不是假想 —— 我在 mermaid.html 写过一句解释性注释，里面引用了
+        #    「import ... from "https://cdn.jsdelivr.net/..."」这样的示例文本，
+        #    结果被本用例当成一条未登记的真实依赖（实测踩过）。
+        body = re.sub(r"<!--.*?-->", "", f.read_text(encoding="utf-8"), flags=re.S)
         urls = re.findall(r'<script[^>]*\bsrc="(https?://[^"]+)"', body)
         urls += re.findall(r'\bimport\s[^;]*?from\s*"(https?://[^"]+)"', body)
         for u in urls:
@@ -172,9 +176,10 @@ def test_mermaid_does_not_use_loose_security_level():
 
     `strict` 会把标签转义、禁用点击交互，正是这种场景该有的档位。
     """
-    html = _read("mermaid.html")
-    m = re.search(r"securityLevel\s*:\s*[\"'](\w+)[\"']", html)
-    assert m, "mermaid.html 里找不到 securityLevel 配置 —— 默认值同样不安全，必须显式写 strict"
+    # C2 之后 mermaid 的初始化在 app/frontend/mermaid-page.js（模板里只剩 <script src>）
+    js = (ROOT / "app/frontend/mermaid-page.js").read_text(encoding="utf-8")
+    m = re.search(r"securityLevel\s*:\s*[\"'](\w+)[\"']", js)
+    assert m, "mermaid-page.js 里找不到 securityLevel 配置 —— 默认值同样不安全，必须显式写 strict"
     assert m.group(1) == "strict", (
         f"securityLevel 是 {m.group(1)!r}，必须是 'strict' —— "
         "loose 会让 LLM 产出的图定义里内嵌的 HTML/点击回调在本站同源下执行。"
@@ -188,9 +193,9 @@ def test_mermaid_cdn_url_is_pinned_too():
     语句没有 integrity 属性可写。所以这里唯一能做的就是把版本钉死，
     让「上游发了什么」不再自动影响本站。
     """
-    html = _read("mermaid.html")
-    m = re.search(r"/npm/mermaid@([\d.]+)", html)
-    assert m, "mermaid.html 里找不到 mermaid 的 CDN 引用"
+    js = (ROOT / "app/frontend/mermaid-page.js").read_text(encoding="utf-8")
+    m = re.search(r"/npm/mermaid@([\d.]+)", js)
+    assert m, "mermaid-page.js 里找不到 mermaid 的 CDN 引用"
     assert re.fullmatch(r"\d+\.\d+\.\d+", m.group(1)), (
         f"mermaid 版本是 {m.group(1)!r}，必须钉成精确的 x.y.z"
     )

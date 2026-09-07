@@ -18,25 +18,5 @@
   <button id="pay">模拟支付成功</button>
   <pre id="out"></pre>
 </section>
-<script>
-  const orderNo = document.getElementById("no").textContent.trim();
-  const out = document.getElementById("out");
-
-  document.getElementById("pay").addEventListener("click", async () => {
-    // 登录态由 HttpOnly cookie 携带（TD-44），脚本读不到；没登录就让后端回 401，
-    // 下面分支负责把话说清楚。
-    const res = await fetch("/shop/mock-pay/confirm", {
-      method: "POST",
-      credentials: "same-origin",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({order_no: orderNo}),
-    });
-    const data = await res.json();
-    out.textContent = res.status === 200
-      ? `支付成功（模拟）\n状态：${data.status}\n模拟流水号：${data.transaction_id}`
-      : res.status === 401
-        ? "未登录：请先在工具页登录后再来。"
-        : `失败 ${res.status}：${data.detail || JSON.stringify(data)}`;
-  });
-</script>
+<script src="/static/js/mock-pay-page.js"></script>
 {% endblock %}

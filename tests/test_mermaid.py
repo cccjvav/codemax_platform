@@ -4,6 +4,7 @@ LLM 客户端全部注入（假客户端 / httpx.MockTransport），**测试不�
 """
 import json
 import re
+from pathlib import Path
 
 import httpx
 import pytest
@@ -11,6 +12,13 @@ import pytest
 from app.tools.llm import LLMClient, LLMError, default_llm, generate_mermaid, get_llm
 from main import app
 from tests.conftest import iter_app_routes
+
+# mermaid 页的交互脚本源码（C2 从模板内联搬出来的）。
+# 在**模块级**读一次而不是在 async 用例里读：ruff 的 ASYNC240 会拦「async 函数里
+# 用阻塞的 pathlib」，而且这文件在测试期间不会变，没必要每条用例都重读。
+MERMAID_PAGE_JS = (
+    Path(__file__).resolve().parents[1] / "app/frontend/mermaid-page.js"
+).read_text(encoding="utf-8")
 
 
 class FakeLLM:
@@ -155,9 +163,14 @@ async def test_mermaid_page_served_and_wired(client):
     assert r.headers["content-type"].startswith("text/html")
     assert 'id="text-input"' in r.text
 
-    # 调用的接口地址必须是真实注册过的路由，且读的是接口真正返回的字段
-    urls = re.findall(r'"(/tools/[\w-]+)"', r.text)
-    assert urls, "页面里没有调用任何 /tools 接口"
+    # 调用的接口地址必须是真实注册过的路由，且读的是接口真正返回的字段。
+    # ⚠️ C2 之后交互脚本抽成了外部文件，这两项要去**源码**里核对：
+    #    构建产物是压缩过的，`data.mermaid` 会变成 `e.mermaid`（变量名被改），
+    #    拿字面量去产物里找必然失败 —— 源码才是人写的、可读的那一份。
+    assert "/static/js/mermaid-page.js" in r.text, "页面没加载自己的交互脚本"
+    js = MERMAID_PAGE_JS
+    urls = re.findall(r'["\'](/tools/[\w-]+)["\']', js)
+    assert urls, "交互脚本里没有调用任何 /tools 接口"
     registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
     assert set(urls) <= registered, f"{sorted(set(urls) - registered)} 不是已注册路由"
 
@@ -167,4 +180,4 @@ async def test_mermaid_page_served_and_wired(client):
     finally:
         app.dependency_overrides.pop(get_llm, None)
     for key in payload:
-        assert f"data.{key}" in r.text, f"页面没读接口返回的 {key} 字段"
+        assert f"data.{key}" in js, f"交互脚本没读接口返回的 {key} 字段"

@@ -34,6 +34,10 @@ export default defineConfig({
         auth: "app/frontend/auth.js",
         // ER 图页：d3 渲染。d3 从这里打进产物，不再走 CDN（TD-222）。
         "er-page": "app/frontend/er-page.js",
+        // 其余各页的交互脚本（C2 从模板内联搬出来）
+        "mermaid-page": "app/frontend/mermaid-page.js",
+        "drawio-page": "app/frontend/drawio-page.js",
+        "mock-pay-page": "app/frontend/mock-pay-page.js",
       },
       output: {
         // 固定文件名（见上面「为什么关掉 hash」）

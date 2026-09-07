@@ -83,7 +83,82 @@ function renderEr(selector, graph) {
   return L;
 }
 
-// er.html 的内联脚本仍按全局函数调用 renderEr（经典脚本时代的写法）。
-// 打成 ES 模块后顶层函数不再是全局，所以显式挂一次。C2 会把那段内联脚本也搬进来，
-// 届时这个全局就可以去掉。
-window.renderEr = renderEr;
+// ---------------------------------------------------------------- 页面装配
+//
+// 这一段原先是 er.html 里的内联 <script>（C2 搬进来的）。搬进来有两个好处：
+// ① 不再需要 `window.renderEr` 这个全局 —— 同模块内直接调用即可，
+//    少一个挂在 window 上的可被任意脚本覆写的名字；
+// ② 内联脚本要么放宽 CSP 的 'unsafe-inline'，要么逐页配 nonce（TD-163 的方向），
+//    外部文件则由 `script-src 'self'` 直接覆盖。
+//
+// ⚠️ 模块脚本默认 defer，执行时 DOM 已解析完，所以这里可以直接取元素 ——
+//    与原内联脚本「放在 body 末尾」的时机等价，不必再包 DOMContentLoaded。
+
+const SAMPLE = [
+  "CREATE TABLE sys_user (",
+  "  id SERIAL PRIMARY KEY,",
+  "  username VARCHAR(50) NOT NULL COMMENT '登录名'",
+  ");",
+  "CREATE TABLE sys_order (",
+  "  id SERIAL PRIMARY KEY,",
+  "  user_id INT NOT NULL REFERENCES sys_user(id),",
+  "  amount NUMERIC(10,2)",
+  ");",
+].join("\n");
+
+const form = document.getElementById("er-form");
+const input = document.getElementById("ddl-input");
+const error = document.getElementById("er-error");
+const submit = document.getElementById("er-submit");
+
+function post(url, payload) {
+  return fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+}
+
+function fail(msg) {
+  error.hidden = false;
+  error.textContent = msg;
+}
+
+document.getElementById("er-sample").onclick = () => {
+  input.value = SAMPLE;
+};
+
+document.getElementById("er-word").onclick = async () => {
+  error.hidden = true;
+  try {
+    const res = await post("/tools/word-export", { ddl: input.value });
+    if (!res.ok) {
+      const data = await res.json();
+      return fail(data.detail || `导出失败（${res.status}）`);
+    }
+    const url = URL.createObjectURL(await res.blob());
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "data_dictionary.docx";
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    fail(`导出失败：${e.message}`);
+  }
+};
+
+form.onsubmit = async (ev) => {
+  ev.preventDefault();
+  error.hidden = true;
+  submit.disabled = true;
+  try {
+    const res = await post("/tools/er-diagram", { ddl: input.value });
+    const data = await res.json();
+    if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+    renderEr("#er-canvas", data);
+  } catch (e) {
+    fail(`渲染失败：${e.message}`);
+  } finally {
+    submit.disabled = false;
+  }
+};

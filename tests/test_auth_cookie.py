@@ -88,8 +88,8 @@ def _attrs(response) -> list[str]:
     return [a.strip().lower() for a in response.headers["set-cookie"].split(";")]
 
 
-def _script_with_login(html: str, auth_js: str) -> str:
-    """拼出浏览器真正会执行的那一串脚本：**外部共享模块 + 页面内联脚本**。
+def _script_with_login(page_js: str, auth_js: str) -> str:
+    """拼出浏览器真正会执行的那一串脚本：**外部共享模块 + 页面脚本**。
 
     ⚠️ 这里踩过两个坑，都记下来：
 
@@ -103,11 +103,14 @@ def _script_with_login(html: str, auth_js: str) -> str:
     顺序也有讲究：base.html 里那个 `<script src>` 在 `<main>` 之前，
     页面脚本在 content block 里 —— 文档顺序就是「共享模块先、页面后」。
     """
-    hits = re.findall(r"<script>(.*?)</script>", html, re.S)
-    assert hits, "页面应该有自己的内联脚本"
+    # 3. C2 之后 drawio 页的脚本也从内联抽成了外部文件
+    #    `/static/js/drawio-page.js`，所以这里**不再从 HTML 里抠 <script>**，
+    #    改由调用方把两份外部脚本都取来拼。上面第 1 条那个坑（只取到共享模块、
+    #    完全没跑页面代码却仍然绿）在新写法下同样要防 —— 所以断言页面脚本非空。
+    assert page_js.strip(), "页面脚本是空的 —— 很可能只取到了共享模块"
     assert "CodeMaxAuth" in auth_js, "/static/js/auth.js 应该定义全站登录态模块"
     assert "/auth/login" in auth_js, "登录逻辑应该在共享模块里"
-    return "\n;\n".join([auth_js, *hits])
+    return "\n;\n".join([auth_js, page_js])
 
 
 async def _register_and_login(client) -> str:
@@ -238,13 +241,15 @@ def test_no_template_touches_browser_storage():
 async def test_drawio_frontend_runs_without_browser_storage(client, tmp_path):
     """用 node 真实执行页面里的内联脚本：localStorage 桩会抛错，读了就当场失败。"""
     html = (await client.get("/tools/drawio")).text
-    # 共享登录模块是外部文件（原因见 _script_with_login 的说明），要单独取来
+    assert "/static/js/drawio-page.js" in html, "drawio 页没加载自己的交互脚本"
+    # 共享登录模块与页面脚本都是外部文件（原因见 _script_with_login 的说明）
     auth_js = (await client.get("/static/js/auth.js")).text
+    page_js = (await client.get("/static/js/drawio-page.js")).text
     # 用 tmp_path 而不是写死 /tmp 下的文件名：并发跑测试时不会互相踩，跑完自动清理。
     harness = tmp_path / "harness.js"
     script = tmp_path / "drawio.js"
     harness.write_text(_NODE_HARNESS, encoding="utf-8")
-    script.write_text(_script_with_login(html, auth_js), encoding="utf-8")
+    script.write_text(_script_with_login(page_js, auth_js), encoding="utf-8")
     proc = subprocess.run(["node", str(harness), str(script)], capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
     calls = json.loads(proc.stdout.strip().splitlines()[-1])

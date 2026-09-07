@@ -125,10 +125,11 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | **文档化 QA 审查报告（覆盖率 / 链接 / 格式）** | `DOCUMENTATION_SUMMARY.md` |
 | **文档站（离线静态站，可读+可视化）的用法与构建** | `docs/site/README.md` |
 | **架构讲解（七课，面向没读过代码的人；新实现要同步更新）** | `docs/ARCHITECTURE_GUIDE.md` |
-| 实现取舍与上线阻塞项（160 条 TD-xx，其中 2 条仍为上线阻塞项：TD-113、TD-124） | `TECH_DECISIONS.md` |
+| 实现取舍与上线阻塞项（**171 条**去重后的 TD-xx，编号至 TD-223；仍为上线阻塞项的有 TD-113、TD-124、TD-206） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |
+| **前端 JS 源码目录（改前端先看这里）** | `app/frontend/README.md` |
 
 ## 技能库（按需显式加载，不要每次全读）
 

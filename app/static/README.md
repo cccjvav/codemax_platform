@@ -22,7 +22,22 @@
 app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), name="static")
 ```
 
-⚠️ `er.js` 已在 TD-222 迁走：源码现在是 `app/frontend/er-layout.js`（纯布局）与 `app/frontend/er-page.js`（d3 渲染），构建产物 `app/static/js/er-page.js`；`auth.js` 同理迁到 `app/frontend/auth.js` → `app/static/js/auth.js`。本目录只剩构建产物与 `pay_qr.svg`。
+⚠️ **本节开头的「三个文件」是历史描述，现状如下**（TD-221 / TD-222 / TD-223 三步搬完）：
+
+- `er.js`、`auth.js` 两个原始 JS 都已迁走 —— 源码在 `app/frontend/`，本目录只存**构建产物**。
+- 模板里的页面内联 JS 也已全部抽出（TD-223），同样落到 `app/frontend/`。
+
+**本目录现在的实测内容**：`js/` 下 5 个 Vite 产物 + `pay_qr.svg` + 本文。
+
+| 产物 | 源码 | 加载方式 |
+|---|---|---|
+| `js/auth.js` 2.32 kB | `app/frontend/auth.js` | `base.html`，经典脚本（**不能加 module**：`shop.html` 的内联脚本依赖它当处就绪，module 默认 defer） |
+| `js/er-page.js` 50.32 kB | `app/frontend/er-layout.js` + `er-page.js`（含打包进来的 d3） | `er.html`，经典脚本 |
+| `js/drawio-page.js` 3.12 kB | `app/frontend/drawio-page.js` | `drawio.html`，经典脚本 |
+| `js/mermaid-page.js` 1.08 kB | `app/frontend/mermaid-page.js` | `mermaid.html`，**`type="module"`** —— 产物里保留了 mermaid 的 CDN 裸 ESM import，经典脚本会语法错 |
+| `js/mock-pay-page.js` 0.57 kB | `app/frontend/mock-pay-page.js` | `mock_pay.html`，经典脚本 |
+
+改完源码必须 `npm run build` 并一起提交；CI 有漂移检查兜底（TD-221）。
 
 ### 1.2 一个关键设计：纯函数与 DOM 分离
 

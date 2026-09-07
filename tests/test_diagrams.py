@@ -102,8 +102,11 @@ async def test_drawio_page_is_wired_to_the_api(client):
 
     registered = {getattr(route, "path", None) for route in iter_app_routes(app.routes)}
 
-    # /diagrams 仍由 drawio 页自己的脚本调用
-    assert "/diagrams" in r.text, "页面没有调用 /diagrams"
+    # /diagrams 由 drawio 页自己的脚本调用。C2 之后那脚本是外部文件，
+    # 所以要去它里面核对 —— 只查 HTML 会漏掉这条接线（HTML 里只剩 <script src>）。
+    assert "/static/js/drawio-page.js" in r.text, "页面没加载自己的交互脚本"
+    page_js = (await client.get("/static/js/drawio-page.js")).text
+    assert "/diagrams" in page_js, "drawio 页脚本没有调用 /diagrams"
     assert "/diagrams" in registered, "/diagrams 不是已注册路由"
 
     # 登录调用在 S2-02-2 之后搬进了全站共享模块 /static/js/auth.js ——
