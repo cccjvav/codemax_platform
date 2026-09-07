@@ -27,7 +27,7 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 - `er.js`、`auth.js` 两个原始 JS 都已迁走 —— 源码在 `app/frontend/`，本目录只存**构建产物**。
 - 模板里的页面内联 JS 也已全部抽出（TD-223），同样落到 `app/frontend/`。
 
-**本目录现在的实测内容**：`js/` 下 **6 个** Vite 产物 + `pay_qr.svg` + 本文。
+**本目录现在的实测内容**：`js/` 下 **6 个** Vite 产物 + `pay_qr.svg`（占位图）+ `pay_qr.png`（真收款码，TD-225）+ 本文。
 
 | 产物 | 源码 | 加载方式 |
 |---|---|---|
@@ -57,7 +57,8 @@ app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), na
 app/static/
 ├── er.js        149 行   7 个常量 + 3 个函数
 ├── auth.js      137 行   全站共享登录态模块（S2-02-2）
-└── pay_qr.svg    17 行   manual 支付模式的占位收款码（S5-04）
+├── pay_qr.svg    17 行   manual 支付模式的**占位**收款码（S5-04）
+└── pay_qr.png    真收款码  用户本人微信收款码，2026-09-08 上传（TD-225）
 ```
 
 ---
@@ -106,7 +107,7 @@ app/static/
 | 微信个人收款码 | 微信「我」→「服务」→「收付款」→「二维码收款」→ 保存图片 |
 | MobilePay 收款码 | App 里生成的收款二维码截图 |
 
-**直接覆盖本文件即可**，代码与配置都不用动（路径见 `SHOP_MANUAL_QR`，默认 `/static/pay_qr.svg`）。
+**直接覆盖本文件即可**，代码与配置都不用动（路径见 `SHOP_MANUAL_QR`）。注意：默认值已于 2026-09-08 改为真收款码 `/static/pay_qr.png`（TD-225），想回占位图在 `.env` 里改回。
 
 **为什么是 SVG 而不是 PNG**：纯文本、可代码评审、1.4 KB，而且不含任何脚本，
 不受 CSP `img-src` / `script-src` 约束。

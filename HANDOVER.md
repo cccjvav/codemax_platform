@@ -92,7 +92,7 @@ app/
 │                          #   + 一个只含 "type":"module" 的 package.json（把 ESM 范围限定在本目录）
 │                          #   改完必须 `npm run build` 并把产物一起提交（CI 有漂移检查）
 ├── static/                # **只放构建产物与静态资源**：js/ 下 5 个 Vite 产物 + pay_qr.svg
-│                          #   ⚠️ pay_qr.svg **仍是占位图**，manual 模式真上线前必须换成真收款码
+│                          #   pay_qr.svg 占位图；真收款码 pay_qr.png（TD-225，用户已上传确认）
 └── templates/             # base / index / er / mermaid / drawio / shop / oauth_consent / mock_pay
 tests/                     # 42 个 test_*.py（共 44 个 .py），548 个 def test_
 database init/             # db_init.py + full_init.sql（★ 必须与 models.py 同步；开头是 DROP TABLE ... CASCADE，**只对空库安全**）
@@ -465,9 +465,9 @@ git show 62ff019:CODE_REVIEW_99662ca.md
    - **TD-113** 支付未真机联调（需商户号 / API 证书 / 公网 https 回调）
    - **TD-124** 模拟支付误开（`ENV=production` 会拒绝启动，是刻意设计）
    - **TD-206** 语义阈值 `0.55` **未经标注数据标定**，只是拍的初值
-   - **`app/static/pay_qr.svg` 仍是占位图** —— 不是隐藏 bug，但 manual 模式若要真实演示 /
-     生产必须替换成真收款码。（这条原先只写在已删除的 `review_report_arena_01a0599b_r3.md` 里，
-     **别处没有记录**，故在此补上。）
+   - ~~`pay_qr.svg` 占位图~~ **已解决（2026-09-08）**：用户本人微信收款码已提交为
+     `app/static/pay_qr.png` 并设为默认（TD-225）。仍保留的提醒：个人码用于经营收款需用户
+     自行知悉合规；微信不通知到账，manual 模式仍需人工确认（固有）。
 
 ## 9. 在沙箱里起一个真 PostgreSQL（可选，用于真库集成测试）
 

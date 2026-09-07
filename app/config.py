@@ -66,7 +66,10 @@ class Settings(BaseSettings):
     # manual 模式展示的收款码图片路径。**换成自己的收款码即可**，代码不用动。
     # 刻意指向 static 下的一个文件而不是把图片塞进配置：图片是二进制，
     # 配置项只该存「在哪」，不该存「是什么」。
-    SHOP_MANUAL_QR: str = "/static/pay_qr.svg"
+    # manual 模式的静态收款码。默认指向仓库里提交的真收款码（2026-09-08 由用户
+    # 上传并确认使用，见 app/static/pay_qr.png）。不想用时在 .env 里改回
+    # /static/pay_qr.svg（占位图）即可。⚠️ 这是**个人**收款码，详见 TD-225。
+    SHOP_MANUAL_QR: str = "/static/pay_qr.png"
 
     # 云存储（S3-02）：local = 本地目录（开发/演示）；oss / cos 需密钥，尚未实现（TD-128）
     STORAGE_BACKEND: str = "local"
