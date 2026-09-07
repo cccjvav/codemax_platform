@@ -87,6 +87,15 @@ class LocalStorage:
         """仅本地后端有：云端是客户端直连下载，不经过应用。"""
         return self._path(key).read_bytes()
 
+    def local_path(self, key: str) -> Path:
+        """仅本地后端有：返回**已通过目录穿越校验**的磁盘路径。
+
+        单独开这个方法、而不是让路由自己拼 `root / key`，是为了保证任何下载出口
+        都**必须**走 `_path` 的穿越校验 —— 绕过它就能读服务器上任意文件。
+        调用方拿到路径后交给 `FileResponse` 分块流式发送，不必把整个文件读进内存。
+        """
+        return self._path(key)
+
     def presigned_url(self, key: str, *, expires_in: int) -> str:
         expires = int(time.time()) + expires_in
         signature = sign_download(self.secret, key, expires)

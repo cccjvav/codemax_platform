@@ -129,6 +129,53 @@ async def test_presigned_url_downloads_the_file(client, product):
     assert "attachment" in r.headers["content-disposition"]
 
 
+async def test_download_streams_instead_of_reading_whole_file(client, product, monkeypatch):
+    """P1-6：下载出口不得把整个文件读进内存。
+
+    旧实现 `data = storage.read(key)` 把整个压缩包 `read_bytes()` 进内存再包成
+    `Response` —— 一个 500MB 的软件包就是 500MB 常驻，几个用户同时下载就 OOM。
+    改法是用 `FileResponse`：starlette 分块读盘、边读边发，并自动带正确的
+    Content-Length。
+
+    断言方式：把 `LocalStorage.read` 换成会记账的桩，端点若还走整包读就会被记到。
+    直接盯「不许调 read」比盯内存占用可靠得多 —— ASGITransport 在测试里本来就会
+    把响应体缓冲起来，内存量根本测不出区别。
+    """
+    calls: list[str] = []
+    real_read = LocalStorage.read
+
+    def spy(self, key):
+        calls.append(key)
+        return real_read(self, key)
+
+    monkeypatch.setattr(LocalStorage, "read", spy)
+
+    expires = int(time.time()) + 300
+    sig = sign_download(settings.SECRET_KEY, PRODUCT_KEY, expires)
+    r = await client.get(f"/shop/dl?key={PRODUCT_KEY}&expires={expires}&signature={sig}")
+
+    assert r.status_code == 200
+    assert r.content == PRODUCT_BYTES  # 内容必须一字不差
+    assert r.headers["content-length"] == str(len(PRODUCT_BYTES))  # 流式也要有正确长度
+    assert calls == [], (
+        f"serve_download 调了 {len(calls)} 次 LocalStorage.read —— 整个文件被读进内存了。"
+        "下载出口必须用 FileResponse 分块读盘。"
+    )
+
+
+async def test_signed_url_for_missing_file_returns_404(client, product):
+    """签名合法但文件已被删掉时必须 404，不能 500。
+
+    这一条是改 `FileResponse` 时**必须**配套的：starlette 的 FileResponse 遇到
+    文件不存在会在**响应阶段**才炸，那已经不是 HTTPException 能兜住的位置了。
+    所以端点要先自己判存在。
+    """
+    expires = int(time.time()) + 300
+    sig = sign_download(settings.SECRET_KEY, "product/gone.zip", expires)
+    r = await client.get(f"/shop/dl?key=product/gone.zip&expires={expires}&signature={sig}")
+    assert r.status_code == 404
+
+
 async def test_tampered_signature_rejected(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")

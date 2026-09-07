@@ -3,11 +3,10 @@ import json
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from urllib.parse import quote
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
-from fastapi.responses import JSONResponse
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -378,15 +377,21 @@ async def serve_download(request: Request, key: str, expires: int, signature: st
         raise HTTPException(404, "当前存储后端由客户端直连下载，不经过本站")
     if not verify_download(settings.SECRET_KEY, key, expires, signature):
         raise HTTPException(403, "下载链接无效或已过期")
+    # P1-6：不再 `storage.read(key)` 把整个文件读进内存 —— 一个 500MB 的软件包就是
+    # 500MB 常驻，几个用户同时下载就 OOM。改成把**已校验过目录穿越**的路径交给
+    # FileResponse，由 starlette 分块读盘、边读边发，Content-Length 也自动算对。
+    # 由 test_download_streams_instead_of_reading_whole_file 盯住「不许再调 read」。
     try:
-        data = storage.read(key)
-    except (ValueError, FileNotFoundError, OSError) as exc:
+        path = storage.local_path(key)
+    except (ValueError, OSError) as exc:
         raise HTTPException(404, "文件不存在") from exc
-    filename = Path(key).name
-    return Response(
-        data,
-        media_type="application/octet-stream",
-        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{quote(filename)}"},
+    # FileResponse 遇到文件不存在是在**响应阶段**才炸的，那时已经出了 HTTPException
+    # 的管辖范围（会变成 500），所以必须在这里先判一次。
+    # 由 test_signed_url_for_missing_file_returns_404 守着。
+    if not path.is_file():
+        raise HTTPException(404, "文件不存在")
+    return FileResponse(
+        path, media_type="application/octet-stream", filename=Path(key).name
     )
 
 
