@@ -124,7 +124,7 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
   `node` 可用（测试期允许），`gh pr edit` 会被 GitHub 的 Projects-classic 弃用报错挡住且**静默失败**，
   改用 `gh api -X PATCH repos/<owner>/<repo>/pulls/<n>`；`pkill -f <模式>` 的模式若出现在自己的
   命令行里会**杀掉自己**（用 `mock_[l]lm.py` 这种写法规避）；uvicorn 访问日志里挂载子应用显示的是
-  **去掉挂载前缀后**的路径（`/static/er.js` 会记成 `/er.js`），不是 bug
+  **去掉挂载前缀后**的路径（`/static/js/er-page.js` 会记成 `/js/er-page.js`），不是 bug
 - **`sql_ddl.py` 的一切结构性判断（括号配对、逗号切分、找 CREATE TABLE / COMMENT ON）
   都必须先认得字符串字面量与注释**，否则 `COMMENT 'it\'s'`（MySQL 反斜杠转义）、
   `DEFAULT 'a--b'`、`COMMENT 'x /* y'`、`/* -- x */`、字符串里的 `CREATE TABLE`、

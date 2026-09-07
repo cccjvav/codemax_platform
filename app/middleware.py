@@ -35,6 +35,15 @@ from starlette.datastructures import MutableHeaders
 logger = logging.getLogger("codemax.access")
 
 # 模板与静态资源实际用到的外部源（由 test_ops.py 反向校验，不许漂）
+# TD-222：d3 已改为 npm 打进产物，不再走 CDN。但 **mermaid 仍然走 jsdelivr**
+# （`app/templates/mermaid.html` 里是裸 ESM `import`，不是 `<script src>`），
+# 所以这个白名单**还不能删** —— 删了 mermaid 页会被 CSP 直接拦死、整页无图。
+#
+# mermaid 压缩后接近 2 MB，打进产物会让仓库与首屏都明显变重，故本轮刻意不动，
+# 作为后续项记在 TD-222。等它也被打包进来，这里应当一并收紧。
+#
+# ⚠️ 这个域是真实攻击面：jsdelivr 被投毒时，投毒代码在本站等于同源执行权。
+#    新增任何 CDN 依赖前，先想清楚为什么不能像 d3 一样打进产物。
 _CDN = "https://cdn.jsdelivr.net"
 _DRAWIO = "https://embed.diagrams.net"
 

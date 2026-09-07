@@ -31,10 +31,9 @@ export default defineConfig({
     rollupOptions: {
       input: {
         // base.html 全站加载：登录态。
-        // ER 图页的入口（含 d3 vendoring）留到下一个提交单独做 —— 那一步会同时
-        // 改掉 3 条供应链测试（tests/test_frontend_supply_chain.py）的断言口径，
-        // 混在一起会让这一步无法独立验证。
         auth: "app/frontend/auth.js",
+        // ER 图页：d3 渲染。d3 从这里打进产物，不再走 CDN（TD-222）。
+        "er-page": "app/frontend/er-page.js",
       },
       output: {
         // 固定文件名（见上面「为什么关掉 hash」）

@@ -15,17 +15,13 @@
   <svg id="er-canvas"></svg>
 </div>
 
-<!-- 版本钉死到 7.9.0（不写浮动的 @7），并加 SRI。
-     `d3@7` 的语义是「7.x 里当前最新的那个」—— 站点拿到什么代码取决于访问那一刻
-     上游发布了什么，与本站的任何一次部署都无关。CDN 或上游被投毒时攻击面是自动打开的，
-     而一个改了行为的 patch 会让页面在无人改动的情况下坏掉。
-     integrity 的值由 d3@7.9.0 的官方 npm tarball 里的 dist/d3.min.js 算出
-     （tests/test_frontend_supply_chain.py 会去 npm registry 重新核对一遍）。
-     crossorigin="anonymous" 不是可选的：没有它，跨域脚本的 integrity 校验会被浏览器跳过。 -->
-<script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"
-        integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i"
-        crossorigin="anonymous"></script>
-<script src="/static/er.js"></script>
+<!-- d3 **不再走 CDN**（TD-222）：它由 npm 打进 /static/js/er-page.js。
+     比原来的「钉版本 + SRI」更强 —— 原来再钉死，代码仍是**运行时**从 jsdelivr 取的，
+     本站的任何一次部署都管不到那台服务器；打进产物后代码随部署走，版本由
+     package-lock.json 钉死（含 integrity 哈希），且 CI 会核对产物与源码是否同步。
+     顺带解决可达性：这是引流页，CDN 在国内不保证可达，d3 加载失败等于整页白屏。
+     由 tests/test_frontend_supply_chain.py 钉住「模板里不许再出现 npm CDN 引用」。 -->
+<script src="/static/js/er-page.js"></script>
 <script>
   const SAMPLE = [
     "CREATE TABLE sys_user (",

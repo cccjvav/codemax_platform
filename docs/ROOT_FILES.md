@@ -118,7 +118,7 @@ pytest.ini            4 行   pytest 配置
 
 **L46-L52 `[lint.per-file-ignores]`（2 个文件，都忽略 `ASYNC221`）**
 - **L47-L50 注释说明为什么**：这两个文件用 `subprocess` **真实执行 node 跑前端 JS**（**用户明确要求：测试要真的执行前端代码，不许退化成静态字符串检查**），所以阻塞式的 `subprocess.run` 是**有意的**
-  - `tests/test_er_page.py` —— ER 图页面的 `app/static/er.js`
+  - `tests/test_er_page.py` —— ER 图页面的 `app/frontend/er-layout.js`
   - `tests/test_auth_cookie.py` —— drawio 页面的内联脚本（TD-44：证明前端读不到 token）
 
 ---

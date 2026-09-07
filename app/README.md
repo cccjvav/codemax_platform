@@ -501,7 +501,7 @@ DOWNLOADED → （终态）
 
 | 常量 | 行 | 值 |
 | --- | --- | --- |
-| `_CDN` | L38 | `https://cdn.jsdelivr.net` |
+| `_CDN` | L47 | `https://cdn.jsdelivr.net`（仅 mermaid 仍需，d3 已打包，TD-222） |
 | `_DRAWIO` | L39 | `https://embed.diagrams.net` |
 | `CONTENT_SECURITY_POLICY` | L41-L54 | **10 条指令**拼接 |
 | `_STATIC_SECURITY_HEADERS` | L57-L63 | **5 个安全头**，预先编码成 `(bytes, bytes)` |

@@ -55,79 +55,108 @@ def test_cdn_urls_pin_an_exact_version():
     assert not offenders, "以下 CDN 引用没有钉死版本：\n  " + "\n  ".join(offenders)
 
 
-def test_d3_script_tag_has_subresource_integrity():
-    """经典 `<script src>` 必须带 `integrity` + `crossorigin`。
+def test_no_template_loads_third_party_js_from_a_cdn():
+    """A-3 的最终形态：模板里的第三方 JS 必须逐个登记，不许悄悄多出来。
 
-    SRI 的作用是：即使 CDN 下发的内容与预期不同，浏览器也会**拒绝执行**。
-    这是钉版本之外唯一能挡住「CDN 被投毒」的手段 —— 版本号一样、内容不一样，
-    光看 URL 是发现不了的。
+    原来这条位置上的断言是「d3 的 `<script src>` 必须带 integrity + crossorigin」。
+    那个保证在 TD-222 之后被一个**更强**的取代了：d3 由 npm 打进
+    `app/static/js/er-page.js`，运行时根本不访问 jsdelivr。
 
-    `crossorigin="anonymous"` 不是可选的：没有它，跨域脚本的 integrity 校验
-    会被浏览器直接跳过（请求不带 CORS 模式，响应也就不参与校验）。
+    为什么这比 SRI 更强：SRI 只能保证「拿到的内容没被改」，但代码仍然是
+    **运行时**从别人的服务器取的 —— CDN 挂了、被墙了、或域名易主了，页面就白屏，
+    而本站的任何一次部署都管不到那台服务器。打进产物后代码随部署走，
+    版本与完整性由 package-lock.json 的 integrity 哈希在**安装时**校验。
+
+    ⚠️ **必须同时匹配两种写法**，这是踩过才知道的：
+      ① 经典 `<script src="https://...">`；
+      ② `<script type="module">` 里的**裸 ESM import**（mermaid 就是这么写的）。
+    第一版只写了 ①，于是 mermaid 那条 CDN 引用完全没被看见 —— 而它恰恰是
+    当时唯一还在用 CDN 的依赖。只匹配一种写法的「反扫」等于没扫。
+
+    ⚠️ 剩余允许项只有 mermaid（TD-222 记为后续项：压缩后近 2 MB，本轮不打包）。
+    这个清单**必须保持只减不增**：任何新增 CDN 依赖都要在这里显式登记，
+    从而逼出一次「为什么不能像 d3 一样打进产物」的讨论。
     """
-    html = _read("er.html")
-    m = re.search(r'<script[^>]*src="https://[^"]*d3[^"]*"[^>]*>', html)
-    assert m, "er.html 里找不到 d3 的 <script src> 标签"
-    tag = m.group(0)
+    allowed = ("mermaid@",)  # TD-222 后续项：mermaid 仍走 CDN
 
-    assert "integrity=" in tag, f"d3 的 script 标签缺 integrity：{tag}"
-    assert re.search(r'integrity="sha(256|384|512)-[A-Za-z0-9+/=]{40,}"', tag), (
-        f"integrity 不是合法的 SRI 格式：{tag}"
+    found = []
+    for f in sorted(TEMPLATES.glob("*.html")):
+        body = f.read_text(encoding="utf-8")
+        urls = re.findall(r'<script[^>]*\bsrc="(https?://[^"]+)"', body)
+        urls += re.findall(r'\bimport\s[^;]*?from\s*"(https?://[^"]+)"', body)
+        for u in urls:
+            found.append((f.name, u))
+
+    unregistered = [(n, u) for n, u in found if not any(a in u for a in allowed)]
+    assert not unregistered, (
+        "以下模板在从外部 CDN 加载脚本，且不在允许清单里。"
+        "请改成 npm 依赖 + 构建产物（TD-222）；确有理由保留的话，"
+        "必须写进上面的 allowed 并说明原因：\n  "
+        + "\n  ".join(f"{n}: {u}" for n, u in unregistered)
     )
-    assert 'crossorigin="anonymous"' in tag, (
-        f"缺 crossorigin=\"anonymous\" —— 没有它浏览器会跳过 integrity 校验：{tag}"
-    )
+
+    # d3 必须**不在**任何 CDN 引用里 —— 它已经被打包了，再出现就是回退
+    d3_cdn = [(n, u) for n, u in found if "d3" in u]
+    assert not d3_cdn, f"d3 已经打进产物了，不该再从 CDN 取：{d3_cdn}"
 
 
-def test_sri_hash_matches_the_real_npm_artifact():
-    """模板里的 SRI 哈希必须与**真实 npm 包**里的文件对得上。
+def test_d3_is_actually_bundled_into_the_local_artifact():
+    """d3 必须**真的**被打进本地产物 —— 不能只是把 CDN 标签删掉了事。
 
-    这条是防止「SRI 写了但是个编出来的值」—— 那种情况下页面会因为校验失败
-    而**完全加载不出 d3**，比不写 SRI 更糟，而且现象是页面白屏、极难联想到这里。
-
-    ⚠️ 沙箱访问不到 cdn.jsdelivr.net（实测 HTTP=000），所以这里校验的是
-    npm registry 的官方 tarball（jsdelivr 的 /npm/ 路径就是原样转发 npm 包）。
-    上线前请在能联网的机器上打开一次 ER 图页面确认脚本确实加载成功。
+    删掉 d3 的 script 标签很容易，但如果忘了把 d3 加进构建入口，结果就是
+    ER 图页面静默白屏，而上面那条测试照样全绿。所以从两个方向夹住：
+      ① 源码层面：er-page.js 必须 import d3（否则打包器会把它整个 tree-shake 掉）；
+      ② 产物层面：er-page.js 的体积必须明显大于页面自身代码。
+         页面渲染代码只有约 86 行（约 2 kB），实测打进 d3 后是 49 kB —— 取 20 kB
+         作阈值，既能抓住「d3 没打进去」，又不会因 d3 升级小幅波动而误报。
     """
-    import re as _re
+    src = (ROOT / "app/frontend/er-page.js").read_text(encoding="utf-8")
+    assert 'import * as d3 from "d3";' in src, (
+        "app/frontend/er-page.js 缺少 d3 的 import 语句 —— "
+        "d3 不会被打进产物，ER 图页面会白屏"
+    )
 
-    html = _read("er.html")
-    m = _re.search(r'integrity="(sha(?:256|384|512)-[A-Za-z0-9+/=]+)"', html)
-    assert m, "er.html 里没有 integrity 属性"
-    declared = m.group(1)
-    algo, _, b64 = declared.partition("-")
+    bundle = ROOT / "app/static/js/er-page.js"
+    assert bundle.is_file(), "缺构建产物 app/static/js/er-page.js —— 忘了跑 npm run build？"
+    size = bundle.stat().st_size
+    assert size > 20_000, (
+        f"app/static/js/er-page.js 只有 {size} 字节，远小于打进 d3 后应有的量级（实测约 49 kB）。"
+        "很可能 d3 没有真的被打进来（比如 vite 入口漏配），页面会白屏。"
+    )
 
-    ver = _re.search(r"/npm/d3@(\d+\.\d+\.\d+)", html)
-    assert ver, "er.html 里的 d3 没有精确版本号，无从校验"
 
-    import base64
-    import hashlib
-    import io
+def test_d3_version_is_pinned_by_the_lockfile():
+    """lockfile 必须把 d3 钉到精确版本并带 integrity 哈希。
+
+    这是原来那条「模板里的 SRI 必须与真实 npm 包对得上」的等价物，只是校验点从
+    **运行时**挪到了**安装时**：npm 在 `npm ci` 时会用 lockfile 里的 integrity
+    逐个核对 tarball，对不上直接拒绝安装。比 SRI 更早失败，也更容易定位。
+
+    ⚠️ 顺带钉住 `package-lock.json` **必须入库**：它一度被 `.gitignore` 忽略，
+    那样 CI 的 `npm ci` 会直接失败，而且每个人装到的依赖树都可能不同。
+    """
     import json
-    import tarfile
-    import urllib.request
 
-    try:
-        meta = json.load(
-            urllib.request.urlopen(f"https://registry.npmjs.org/d3/{ver.group(1)}", timeout=25)
-        )
-        raw = urllib.request.urlopen(meta["dist"]["tarball"], timeout=60).read()
-    except Exception as exc:  # 离线环境不该让整组测试红掉
-        import pytest
-
-        pytest.skip(f"取不到 npm registry，无法核对 SRI：{exc}")
-
-    with tarfile.open(fileobj=io.BytesIO(raw)) as tf:
-        names = [n for n in tf.getnames() if n.endswith("dist/d3.min.js")]
-        assert names, f"d3@{ver.group(1)} 的 tarball 里没有 dist/d3.min.js"
-        data = tf.extractfile(names[0]).read()
-
-    expect = f"{algo}-" + base64.b64encode(hashlib.new(algo, data).digest()).decode()
-    assert declared == expect, (
-        f"模板里的 SRI 与 d3@{ver.group(1)} 的真实文件不符。\n"
-        f"  模板写的：{declared}\n  实际应为：{expect}\n"
-        "照这样上线，浏览器会拒绝执行 d3，ER 图页面直接白屏。"
+    lock_path = ROOT / "package-lock.json"
+    assert lock_path.is_file(), (
+        "package-lock.json 不在仓库里 —— CI 的 npm ci 会失败，"
+        "且失去了「精确版本 + integrity 哈希」这层供应链保证。检查 .gitignore。"
     )
+    lock = json.loads(lock_path.read_text(encoding="utf-8"))
+    entry = lock.get("packages", {}).get("node_modules/d3")
+    assert entry, "package-lock.json 里没有 node_modules/d3 条目"
+
+    ver = entry.get("version", "")
+    assert re.fullmatch(r"\d+\.\d+\.\d+", ver), f"d3 版本不是精确的 x.y.z：{ver!r}"
+    assert entry.get("integrity", "").startswith(("sha512-", "sha256-")), (
+        f"d3 条目缺 integrity 哈希：{entry}"
+    )
+
+    # 装了 node_modules 就顺手核对实装版本与 lockfile 一致（CI 上一定装）
+    installed = ROOT / "node_modules/d3/package.json"
+    if installed.is_file():
+        actual = json.loads(installed.read_text(encoding="utf-8"))["version"]
+        assert actual == ver, f"实装 d3 {actual} 与 lockfile 记录的 {ver} 不一致"
 
 
 # ---------------------------------------------------------------- A-4 mermaid

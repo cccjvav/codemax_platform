@@ -1,7 +1,7 @@
 """S2-01-1 前端（ER 图页面）测试。
 
 重点不只是"页面能返回 200"，而是**后端接口与前端代码的字段契约**：
-拿 /tools/er-diagram 的真实返回喂给 app/static/er.js 的 layoutEr（用 node 真实执行），
+拿 /tools/er-diagram 的真实返回喂给 app/frontend/er-layout.js 的 layoutEr（用 node 真实执行），
 一旦后端字段改名而前端没跟上，这里立刻报错。
 期望的表名/连线一律从接口返回推导，项目加表不会误报。
 """
@@ -15,7 +15,10 @@ from main import app
 from tests.conftest import iter_app_routes
 
 ROOT = Path(__file__).resolve().parents[1]
-ER_JS = ROOT / "app" / "static" / "er.js"
+# 契约测试喂的是**纯布局**那一半（app/frontend/er-layout.js）。
+# ⚠️ 不能指向 er-page.js：那个文件 import d3，而 CI 上没有 node_modules，
+#    node 会加载失败。布局与渲染拆开正是为了让这条契约测试在 CI 上跑得动。
+ER_JS = ROOT / "app" / "frontend" / "er-layout.js"
 FULL_INIT_SQL = ROOT / "database init" / "full_init.sql"
 
 # er.js 里 layoutEr/renderEr 真正读取的字段名（后端必须全部提供）
@@ -31,12 +34,25 @@ FRONTEND_READS = [
     "to_column",
 ]
 
-# node 侧执行器：argv[1] = 接口返回的 JSON，argv[2] = er.js
+# node 侧执行器：argv[1] = 接口返回的 JSON，argv[2] = er-layout.js
+#
+# ⚠️ 必须是 **ESM**（顶层 await + import），不能再用 require：er-layout.js 是
+# ES 模块（`export { layoutEr }`）。而 package.json 里**刻意不写** "type": "module"
+# （那会让全仓 .js 都变 ESM，见 TD-221），所以这里靠 **`.mjs` 后缀**声明 ESM。
 _NODE_HARNESS = """
-const { layoutEr } = require(process.argv[2]);
-const graph = JSON.parse(require("fs").readFileSync(process.argv[1], "utf8"));
+import { readFileSync } from "node:fs";
+import { pathToFileURL } from "node:url";
+const { layoutEr } = await import(pathToFileURL(process.argv[2]).href);
+const graph = JSON.parse(readFileSync(process.argv[1], "utf8"));
 console.log(JSON.stringify(layoutEr(graph)));
 """
+
+# ⚠️ `--input-type=module` 与 `pathToFileURL` 都不是可选的：
+# ① `-e` 默认按 CommonJS 试解析，Node 22 虽然能靠「检测到模块语法后重新解析」兜住，
+#    但那是隐式行为且每次都要解析两遍；显式声明更稳。
+# ② Windows 上 `await import("C:\\...\\er-layout.js")` 会被当成非法 URL 直接失败，
+#    而本项目的主要使用者就在 Windows 上 —— 必须转成 file:// URL。
+_NODE_ARGS = ["--input-type=module", "-e"]
 
 
 async def _graph_from_project_sql(client) -> dict:
@@ -51,7 +67,7 @@ async def test_er_page_served(client):
     assert r.status_code == 200
     assert r.headers["content-type"].startswith("text/html")
     assert 'id="ddl-input"' in r.text
-    assert "/static/er.js" in r.text
+    assert "/static/js/er-page.js" in r.text
     assert "d3" in r.text
 
 
@@ -78,7 +94,7 @@ async def test_layout_consumes_backend_payload(client, tmp_path):
     payload = tmp_path / "graph.json"
     payload.write_text(json.dumps(graph), encoding="utf-8")
     out = subprocess.run(
-        [node, "-e", _NODE_HARNESS, str(payload), str(ER_JS)],
+        [node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)],
         capture_output=True,
         text=True,
         check=True,
@@ -126,7 +142,7 @@ async def test_layout_handles_empty_graph(tmp_path):
     payload = tmp_path / "graph.json"
     payload.write_text(json.dumps({"tables": [], "edges": []}), encoding="utf-8")
     out = subprocess.run(
-        [node, "-e", _NODE_HARNESS, str(payload), str(ER_JS)],
+        [node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)],
         capture_output=True,
         text=True,
         check=True,
@@ -150,7 +166,7 @@ async def test_layout_skips_dangling_fk(tmp_path):
     payload = tmp_path / "graph.json"
     payload.write_text(json.dumps(graph), encoding="utf-8")
     out = subprocess.run(
-        [node, "-e", _NODE_HARNESS, str(payload), str(ER_JS)],
+        [node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)],
         capture_output=True,
         text=True,
         check=True,

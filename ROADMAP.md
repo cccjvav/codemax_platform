@@ -49,7 +49,7 @@
 - [x] **S2-01 在线工具矩阵开发（对应难点 5）**
   - [x] S2-01-1 工具1：引入 `SQL DDL` 解析库，结合 `D3.js` 开发 ER 图在线渲染功能
     - [x] 后端：`POST /tools/er-diagram`（`app/tools/sql_ddl.py`，纯标准库解析，兼容 MySQL/PostgreSQL）
-    - [x] 前端：D3.js 渲染 ER 图页面（当时是 `app/static/er.html`，**后改为 SSR 页面 `/tools/er`**，`er.html` 已删除，见 TD-94；`app/static/er.js` 仍在）
+    - [x] 前端：D3.js 渲染 ER 图页面（当时是 `app/static/er.html`，**后改为 SSR 页面 `/tools/er`**，`er.html` 已删除，见 TD-94；`er.js` 后迁至 `app/frontend/`，见 TD-222）
   - [x] S2-01-2 工具2：接入 LLM 接口，设计 Prompt 实现自然语言/代码到 `Mermaid` 类图的生成
     - [x] 后端：`POST /tools/mermaid`（`app/tools/llm.py`，OpenAI 兼容客户端**可注入**，测试不出网）
     - [x] 前端：Mermaid v11 渲染 + 源码可复制（当时是 `app/static/mermaid.html`，**后改为 SSR 页面 `/tools/mermaid`**，该文件已删除，见 TD-94）

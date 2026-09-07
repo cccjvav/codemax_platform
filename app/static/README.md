@@ -22,7 +22,7 @@
 app.mount("/static", StaticFiles(directory=.../ "app" / "static", html=True), name="static")
 ```
 
-引用它的只有一处：**`app/templates/er.html:19`** 的 `<script src="/static/er.js"></script>`。
+⚠️ `er.js` 已在 TD-222 迁走：源码现在是 `app/frontend/er-layout.js`（纯布局）与 `app/frontend/er-page.js`（d3 渲染），构建产物 `app/static/js/er-page.js`；`auth.js` 同理迁到 `app/frontend/auth.js` → `app/static/js/auth.js`。本目录只剩构建产物与 `pay_qr.svg`。
 
 ### 1.2 一个关键设计：纯函数与 DOM 分离
 
@@ -206,7 +206,7 @@ if (typeof module !== "undefined") module.exports = { layoutEr, nodeHeight };
    （tests/test_er_page.py:18 的 FULL_INIT_SQL）
 2. 真调 POST /tools/er-diagram，拿到接口真实返回
 3. 把返回的 JSON 写进临时文件
-4. 用 subprocess 真跑 node：require('app/static/er.js') → layoutEr(真实返回)
+4. 用 subprocess 真跑 node：ESM import('app/frontend/er-layout.js') → layoutEr(真实返回)
 5. 断言 nodes / links 的数量与坐标
 ```
 
@@ -233,7 +233,7 @@ if (typeof module !== "undefined") module.exports = { layoutEr, nodeHeight };
 # 1) 常量与函数清单（本文 1.3 与 2 的依据）
 python -c "
 import re, pathlib
-js = pathlib.Path('app/static/er.js').read_text(encoding='utf-8')
+js = pathlib.Path('app/frontend/er-layout.js').read_text(encoding='utf-8')
 print('常量:', re.findall(r'^const ([A-Z_]+) =', js, flags=re.M))
 print('函数:', re.findall(r'^function (\w+)', js, flags=re.M))
 print('导出:', re.findall(r'module.exports = \{([^}]*)\}', js))
@@ -245,7 +245,7 @@ print('导出:', re.findall(r'module.exports = \{([^}]*)\}', js))
 # 2) 谁引用了 er.js（本文 1.1 说的「只有一处」）
 grep -rn --exclude-dir=.venv --exclude-dir=.git --include="*.html" --include="*.py" "er\.js" app/ tests/
 # 实测 6 处命中，但**真正在浏览器里加载它的只有 1 处**：
-#   app/templates/er.html:19   <script src="/static/er.js">   ← 唯一的真实加载点
+#   app/templates/er.html      <script src="/static/js/er-page.js">   ← 唯一的真实加载点
 # 其余 5 处都在 tests/test_er_page.py 里（L4/L17/L20/L33/L53），是测试引用与注释。
 
 # 3) 真跑一遍前端代码（本文 3.2 的那条链，需要 node）

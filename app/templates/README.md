@@ -31,7 +31,7 @@ app/templates/                  810 行
 ├── base.html           122 行   唯一的父模板：TDK + 全站 CSS + header/nav + 页脚
 │                                + 登录/注册浮层 + {% block content %}（S2-02-2 起 42 → 118 → 122 行）
 ├── index.html           11 行   首页：遍历 tools 出卡片
-├── er.html              90 行   SQL DDL → ER 图 + Word 导出（D3.js + /static/er.js）
+├── er.html              90 行   SQL DDL → ER 图 + Word 导出（d3 打进 /static/js/er-page.js）
 ├── mermaid.html         63 行   自然语言 → UML 类图（Mermaid ESM）
 ├── drawio.html         200 行   Drawio iframe + 云端保存（乐观锁）★ 最复杂
 │                                （S2-02-2 起 221 → 200：常驻登录框换成全站浮层）
@@ -46,8 +46,8 @@ app/templates/                  810 行
 7 个模板 {% extends "base.html" %}，只有 base.html 自己不继承
 8 对 {% block content %} / {% endblock %}
 内联 <script>：5 个模板（er / mermaid / drawio / mock_pay / shop）
-外部源：cdn.jsdelivr.net（d3@7、mermaid@11）、embed.diagrams.net
-本地脚本：/static/er.js
+外部源：cdn.jsdelivr.net（**仅 mermaid@11**，d3 已打包 TD-222）、embed.diagrams.net
+本地脚本：/static/js/er-page.js（构建产物）
 ```
 
 > ⚠️ **数「内联脚本」时要先剥掉 Jinja 注释。** `oauth_consent.html:11` 的注释里写着字面量
@@ -236,8 +236,8 @@ app/templates/                  810 行
 - **L15 `<svg id="er-canvas">`** —— 注意是 **`<svg>`** 不是 `<div>`（D3 直接往里画）
 
 **L18-L19 两个外部脚本**
-- **L18 D3.js v7 from CDN**（`https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js`）
-- **L19 `/static/er.js`** —— **项目自己的渲染代码**，提供全局函数 `renderEr()`（L82 调用）
+- **d3 已不走 CDN**（TD-222）：由 npm 打进 `/static/js/er-page.js`
+- **`/static/js/er-page.js`** —— **项目自己的渲染代码**（源码 `app/frontend/er-page.js`），提供全局函数 `renderEr()`
 
 **L20-L89 内联 `<script>`**
 - **L21-L31 `SAMPLE`** —— 用数组 `join("\n")` 拼的示例 DDL（两张表 + 一个外键），**比写多行字符串更好维护**
@@ -251,7 +251,7 @@ app/templates/                  810 行
 - **L74-L88 提交处理器**：
   - **L79 `POST /tools/er-diagram`**
   - **L81 非 2xx → 显示 `data.detail`**
-  - **L82 `renderEr("#er-canvas", data)`** —— 调 `/static/er.js` 里的全局函数
+  - **`renderEr("#er-canvas", data)`** —— 调 `/static/js/er-page.js` 里的全局函数
   - **L77 / L85-L87 `submit.disabled` 与 `finally` 恢复**
 
 ---
@@ -398,15 +398,15 @@ GET /tools/er
   ├─ SecurityHeadersMiddleware 加上 CSP 等 5 个安全头
   │
   └─ 浏览器收到 HTML
-        ├─ 加载 https://cdn.jsdelivr.net/npm/d3@7      ← CSP script-src 白名单
-        ├─ 加载 /static/er.js                          ← CSP 'self'
+        ├─ d3 已打进产物，不再走 CDN（TD-222）
+        ├─ 加载 /static/js/er-page.js                  ← CSP 'self'
         └─ 执行内联 <script>                            ← CSP 'unsafe-inline'（TD-163 的妥协）
 ```
 
 ### 3.2 四条「前端 ↔ 后端」链
 
 ```text
-【ER 图】  er.html:79  POST /tools/er-diagram   → data → renderEr() (来自 /static/er.js)
+【ER 图】  er.html:79  POST /tools/er-diagram   → data → renderEr() (来自 /static/js/er-page.js)
 【Word】   er.html:58  POST /tools/word-export  → blob → createObjectURL → <a download> → revoke
 【类图】   mermaid.html:44  POST /tools/mermaid → data.mermaid → mermaid.run()
 【流程图】 drawio.html      见下表（5 个端点）

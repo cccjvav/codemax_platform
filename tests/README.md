@@ -38,7 +38,7 @@
 
 | 文件 | 做法 |
 | --- | --- |
-| `test_er_page.py:79` / `:127` / `:151` | 拿 `/tools/er-diagram` 的**真实返回**喂给 `app/static/er.js` 的 `layoutEr`，断言坐标 |
+| `test_er_page.py:79` / `:127` / `:151` | 拿 `/tools/er-diagram` 的**真实返回**喂给 `app/frontend/er-layout.js` 的 `layoutEr`，断言坐标 |
 | `test_auth_cookie.py:219` | 把 drawio 页面的**内联脚本**抽出来在 node 里跑，`localStorage` 的每个方法都换成抛错，**并真的点一次登录按钮** |
 
 > `ruff.toml:51-52` 为这两个文件开了 `ASYNC221` 白名单 —— 阻塞式的 `subprocess.run` 是**有意的**。
