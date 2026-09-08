@@ -22,7 +22,7 @@
   └─ 39 个 test_*.py  8 967 行  511 个测试
 ```
 
-本机实测：**649 passed, 4 skipped**（SQLite 后端，653 collected）；真 PostgreSQL 16 上 **626 passed, 2 skipped**（依赖大升级后那次实测，早于本轮新增用例）。
+本机实测：**650 passed, 4 skipped**（SQLite 后端，654 collected）；真 PostgreSQL 16 上 **626 passed, 2 skipped**（依赖大升级后那次实测，早于本轮新增用例）。
 
 > **为什么本文不逐个测试函数写**：488 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
@@ -324,7 +324,7 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：649 passed, 4 skipped
+  │    期望：650 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
        期望：626 passed, 2 skipped
        （依赖大升级后那次实测；本轮新增 24 条用例后**未重跑真库**，实跑应更高）
@@ -373,7 +373,7 @@ grep -rn --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：649 passed, 4 skipped（653 collected，SQLite）
+# 本机实测：650 passed, 4 skipped（654 collected，SQLite）
 
 # ⑥b 覆盖率（N-4 修复：`.coveragerc` 以前入库却连 coverage 都没装，跑都跑不了）
 python -m coverage run --rcfile=.coveragerc -m pytest -q

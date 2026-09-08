@@ -2024,7 +2024,7 @@ except ExtractError as e:
 
 - **变异测试** —— 本项目用它验证过「测试是不是真的在守东西」（故意把代码改坏，看测试红不红）。第 6 课那个「死分支」正是变异测试能抓、而普通测试抓不到的典型。
 - **为什么「测试全绿」不等于「代码没问题」** —— 项目里真实存在过的几个例子
-- **CI 每次提交自动跑 653 条测试**（649 passed + 4 skipped，2026-09-07 实测），以及它怎么在共享服务器上抖动、后来怎么修的（TD-192/193/194）
+- **CI 每次提交自动跑 653 条测试**（650 passed + 4 skipped，2026-09-07 实测），以及它怎么在共享服务器上抖动、后来怎么修的（TD-192/193/194）
 - **`TECH_DECISIONS.md`：174 个编号取舍** —— 为什么「记录为什么不这么做」比「记录怎么做」更值钱
 
 ---
@@ -2169,7 +2169,7 @@ html = "x" * (MAX_BYTES + 1)      # ← MAX_BYTES 取任何值，这行都成立
 | job | 干什么 |
 | --- | --- |
 | **静态检查（ruff）** | 不跑代码，只查写法：未用变量、可疑比较、时区裸用、async 里的阻塞调用等 |
-| **测试（SQLite 后端）** | 全量测试（**649 passed + 4 skipped**，2026-09-07 实测），用内存库，快 |
+| **测试（SQLite 后端）** | 全量测试（**650 passed + 4 skipped**，2026-09-07 实测），用内存库，快 |
 | **测试（真 PostgreSQL 16）** | 同一套测试跑真库，另起 service 容器；还会把建表脚本**连跑两遍**验证幂等 |
 | **前端产物漂移检查** | `npm ci` → `npm run build` → `git diff --exit-code -- app/static/js`。「改了 `app/frontend/` 源码却忘了构建」这种错测试抓不到（页面照样能开），只有这条能守（TD-221） |
 | **依赖漏洞扫描（pip-audit）** | `pip-audit --strict -r requirements.txt`，已知无修复的上游漏洞用 `--ignore-vuln` 挂账 |
@@ -2387,7 +2387,7 @@ grep -rn "417 passed" --include="*.md" . | grep -v "\.venv"
 **复算方式：**
 
 ```bash
-python -m pytest -q                       # 649 passed, 4 skipped（SQLite）
+python -m pytest -q                       # 650 passed, 4 skipped（SQLite）
 python -m pytest tests/test_crawler.py -q # 28 passed
 
 # CI 历史结论分布（本机实测输出：{"cancelled":4,"failure":7,"success":87}）
@@ -2566,6 +2566,6 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 
 （最后这条会先打印几行 jieba 加载日志，看最后一行的 `x` 值就行。）
 
-本文写作时的实测值：**44 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**41 项配置**；**649 passed + 4 skipped**。
+本文写作时的实测值：**44 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**41 项配置**；**650 passed + 4 skipped**。
 
 > 上面最后一条命令是**故意写得很丑**的单行版 —— 因为附录里的命令必须能直接粘进终端跑。想看清爽版就读 `tests/test_perf.py::test_parse_ddl_scales_linearly_not_quadratically`，它才是这条判据的真身；**文档里的复算命令只是它的投影，代码改了请以测试为准。**

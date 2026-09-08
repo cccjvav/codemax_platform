@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -208,3 +209,37 @@ def test_data_extraction_is_dependency_free():
         if line.startswith("import mistune") or line.startswith("from mistune")
     ]
     assert not toplevel, f"mistune 被顶层导入，会破坏 --data-only 的零依赖承诺：{toplevel}"
+
+
+# ---------------------------------------------------------------- 可视化标记 ↔ 样式表
+def test_depgraph_markup_is_styled_by_stylesheet():
+    """回归：graph.html 的 svg id / 边 class 必须真被 style.css 选中、且边不被涂黑。
+
+    2026-09-08 用户真机发现依赖图**糊成一团黑色块**。根因是跨文件契约断裂：
+    生成器画的是 `id="depgraph"`、`class="edge"`，而 style.css 写的是一套从不
+    匹配的 `#graph .link` —— 没有规则命中，`<path>` 按 SVG 默认 `fill:black` 涂黑。
+    页面照常构建、`test_docs_site` 其余用例全绿，所以 CI 抓不到。
+
+    这条测试把「生成器输出的标记」与「样式表里的选择器」钉成契约：svg 的 id 必须
+    出现在样式表里；`.edge` 的规则块必须含 `fill: none`。将来谁改了生成器的
+    id/class 而忘了同步样式（或反过来），这里会立刻红。
+    """
+    graph = {
+        "nodes": [
+            {"id": "app.a", "layer": "基础设施", "path": "app/a.py", "lines": 1},
+            {"id": "app.b", "layer": "API 层", "path": "app/b.py", "lines": 1},
+        ],
+        "edges": [{"from": "app.b", "to": "app.a"}],
+    }
+    html = bds._render_graph_page(graph, {}, {})
+    svg_id = re.search(r'<svg id="([^"]+)"', html).group(1)
+    assert 'class="edge"' in html, "生成器应当输出 class=edge 的边"
+    assert 'class="node"' in html, "生成器应当输出 class=node 的节点"
+
+    css = (ROOT / "docs" / "site" / "style.css").read_text(encoding="utf-8")
+    assert f"#{svg_id}" in css, f"样式表没有选中生成器的 svg #{svg_id}（选择器与标记脱节）"
+    m = re.search(r"\.edge\s*\{([^}]*)\}", css)
+    assert m is not None and "fill: none" in m.group(1), (
+        "边 <path> 必须 fill:none —— 否则按 SVG 默认 fill:black 涂成黑块"
+    )
+    assert ".node" in css, "样式表没有 .node 规则"
