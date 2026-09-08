@@ -417,6 +417,17 @@ git show 62ff019:CODE_REVIEW_99662ca.md
 > 用 `_audit_logger.info(...)` 落盘了「谁、什么时候、把哪一单标成已支付」。
 > 我先前 grep 错了文件，差点把它当成遗留项重复上报。
 
+### 文档站可视化这一轮（2026-09-08）
+
+用户真机打开 `docs/site/graph.html`，模块依赖图**糊成一团黑色块**。根因是**选择器不匹配**：
+`build_docs_site.py` 生成的 svg 是 `id="depgraph"`、边是 `class="edge"`，但 `docs/site/style.css`
+里写的却是 `#graph .link` —— 没有任何规则命中真实元素，于是 `<path>` 按 SVG 默认 `fill:black`
+把每条贝塞尔边涂成黑块。修法是给 `#depgraph .edge` 补 `fill:none` + 细描边 + 悬停高亮样式。
+
+教训：**CSS/样式类 bug 测试抓不到**（`test_docs_site.py` 16 条全绿，但图是黑的）。
+改可视化时选择器的 id/class 必须和生成器里写死的字符串逐字核对；这类问题只能靠
+真机/浏览器看一眼。顺手把层内排序从「按 id」换成**重心法**减少边交叉。
+
 ## 7. 已完成 / 未完成（对应 ROADMAP.md）
 
 **已完成**

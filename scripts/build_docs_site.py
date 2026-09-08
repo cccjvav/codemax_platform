@@ -729,10 +729,25 @@ def _render_graph_page(graph: dict, doc_href: dict, src_href: dict) -> str:
     X0, Y0, DX, DY, R = 90, 60, 250, 46, 7
     W = X0 * 2 + (len(layers) - 1) * DX + 200
     H = Y0 * 2 + (maxrow - 1) * DY + 40
+    # 层内排序用**重心法**（barycenter）减少边交叉 —— 早先按 id 排，
+    # 相邻节点在下一层的邻居散落各处，边大量交叉、视觉上糊成一团。
+    adj: dict = {}
+    for e in core_edges:
+        adj.setdefault(e["from"], []).append(e["to"])
+        adj.setdefault(e["to"], []).append(e["from"])
+    order = {lv: sorted(layers[lv], key=lambda x: x["id"]) for lv in layers}
+    for _ in range(4):
+        rowindex = {n["id"]: i for c in order.values() for i, n in enumerate(c)}
+        for lv in sorted(layers):
+            # 用默认参数把本轮的 rowindex 绑进闭包（ruff B023）
+            def bkey(n, ri=rowindex):
+                ns = [ri[x] for x in adj.get(n["id"], []) if x in ri]
+                return (sum(ns) / len(ns)) if ns else ri[n["id"]]
+            order[lv] = sorted(order[lv], key=bkey)
     pos = {}
     for li, lv in enumerate(sorted(layers)):
-        col = layers[lv]
-        for ri, n in enumerate(sorted(col, key=lambda x: x["id"])):
+        col = order[lv]
+        for ri, n in enumerate(col):
             pos[n["id"]] = (X0 + li * DX, Y0 + ri * DY + (maxrow - len(col)) * DY / 2)
 
     LCOLOR = {"基础设施": "#3b82f6", "API 层": "#10b981", "业务逻辑层": "#f59e0b",
