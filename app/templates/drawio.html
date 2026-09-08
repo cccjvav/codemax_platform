@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+  .toolbar input[type="text"], .toolbar input[type="password"], .toolbar select {
+    padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit;
+  }
+  #drawio-frame { width: 100%; height: 74vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
+  #drawio-status { color: #64748b; }
+  .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
+</style>
+
+<!-- 登录入口收敛到 base.html 的全站浮层（S2-02-2）。
+     这里原先是常驻的用户名/密码输入框，问题有两个：
+     ① 把登录成本前置给了所有游客，包括只想画图不想存图的人（TD-54 的初衷是引流）；
+     ② 与顶栏的登录入口重复，两处状态还各管各的，容易一个显示已登录另一个没显示。
+     现在登录/退出都在顶栏，本页只保留一个唤起浮层的按钮 + 状态提示。 -->
+<div class="auth">
+  <span>云端保存需登录：</span>
+  <button type="button" class="ghost" id="btn-login">登录 / 注册</button>
+  <span id="auth-status"></span>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="diagram-name" placeholder="流程图名称" />
+  <select id="diagram-list"><option value="">— 我的流程图 —</option></select>
+  <button type="button" id="btn-new">新建</button>
+  <button type="button" id="btn-save">保存到云端</button>
+  <button type="button" class="ghost" id="btn-download">下载 .drawio</button>
+  <button type="button" class="ghost" id="btn-import">导入本地文件</button>
+  <input type="file" id="file-input" accept=".drawio,.xml" hidden />
+  <span id="drawio-status"></span>
+</div>
+
+<iframe id="drawio-frame" title="Drawio 流程图编辑器" src="https://embed.diagrams.net/?embed=1&amp;ui=atlas&amp;spin=1&amp;proto=json&amp;saveAndExit=0&amp;noExitBtn=1"></iframe>
+
+<script src="/static/js/drawio-page.js"></script>
+{% endblock %}

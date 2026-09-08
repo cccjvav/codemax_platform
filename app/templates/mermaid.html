@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+  <section>
+    <form id="mermaid-form">
+      <textarea id="text-input" rows="12" placeholder="例：电商系统里有用户、商品、订单，一个用户可以下多个订单"></textarea>
+      <p>
+        <button type="submit" id="mermaid-submit">生成类图</button>
+        <button type="button" class="ghost" id="mermaid-sample">填入示例</button>
+      </p>
+    </form>
+    <p id="mermaid-error" class="error" role="alert" hidden></p>
+    <pre id="mermaid-source" hidden></pre>
+  </section>
+  <div id="mermaid-preview"></div>
+</div>
+
+<!-- ⚠️ 这一条必须带 type="module"，其余页面不用：
+     mermaid 仍是 CDN 上的 ESM 包（TD-222 后续项，压缩后近 2 MB 故未打包），
+     构建产物里因此残留一条真实指向 cdn.jsdelivr.net 的 ESM 导入语句。
+     没有 type="module" 的话浏览器会按经典脚本解析，那条 import 直接是语法错、整页无图。
+     其余产物（auth / er-page / drawio-page / mock-pay-page）经实测**不含任何 ESM 语法**，
+     用经典 <script src> 即可 —— 刻意不给它们加 module，因为 base.html 的 auth.js
+     要尽早把 window.CodeMaxAuth 挂上，而 shop.html 的内联脚本还依赖它。 -->
+<script type="module" src="/static/js/mermaid-page.js"></script>
+{% endblock %}

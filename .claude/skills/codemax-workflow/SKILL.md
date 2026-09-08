@@ -15,7 +15,9 @@ description: 本项目（codemax_platform，FastAPI + PostgreSQL 毕设服务平
 
 - Python 3.11 + **FastAPI** + **SQLAlchemy 2.0（async）** + **asyncpg** + **PostgreSQL**
 - 密码哈希 bcrypt（passlib）；认证 JWT（python-jose）
-- 数据库初始化：`cd "database init" && python db_init.py`（自动建库建表，幂等；测试账号 admin/123456）
+- 数据库初始化：`cd "database init" && python db_init.py`（自动建库建表；测试账号 admin/123456）
+  ⚠️ **只对空库安全** —— `full_init.sql` 开头是 `DROP TABLE ... CASCADE`，对已有数据的库跑它等于清库。
+  「CI 连跑两遍验证幂等」验的是**空库上的 schema 幂等**，不是「对已有数据安全」，两者别混。
 - 配置在 `.env`（模板 `.env.example`）；`.env` 已被 gitignore，不得提交
 - 虚拟环境 `.venv/`（已被 gitignore）
 

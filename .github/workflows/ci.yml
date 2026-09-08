@@ -1,0 +1,304 @@
+# ============================================================================
+# GitHub Actions CI（TD-84）
+#
+# 四个 job：
+#   lint          —— ruff check .（规则集见 ruff.toml，TD-145）
+#   docs          —— 构建文档站（scripts/build_docs_site.py），核对路由数与页数
+#   test-sqlite   —— 默认后端，全量 pytest
+#   test-postgres —— postgres:16 service 容器，另建库把建表脚本连跑两遍验证幂等
+#
+# 历史：2f3223a 由仓库管理员从 docs/github-actions-ci.yml 纯重命名激活；
+# aa87c52 把 actions 升到 v7（消 Node 20 弃用告警，TD-144）；
+# b47044b 加入 lint job。
+#
+# 权限：本会话的 GitHub App（arena-ai-coding-agent[bot]）**已于 2026-09-01 获得
+# Workflows 写权限**，现在可以直接改并 push 本文件。此前它被
+# `remote rejected ... without 'workflows' permission` 拒绝过多次，
+# 当时的绕行办法（git mv / git am 补丁）已不再需要，见 TD-84。
+#
+# 关于日志：CI 日志正文在本沙箱取不到 —— 下载被重定向到
+# productionresultssa18.blob.core.windows.net，实测 HTTP 000（DNS 能解析，
+# api.github.com 同时是 200，所以是出口被墙而不是权限问题）。
+# 绕行办法是下面每个 test job 末尾那一步：失败时把 pytest 输出摘要发成 PR 评论，
+# 评论走 api.github.com，沙箱读得到（TD-194）。
+# job 名写死在各自 job 里：实测 ${{ job.name }} 与 ${{ github.job }} 在 run 步骤里
+# 都渲染成空串（金丝雀 run 33811898659 / 33812612241 的评论可以证实）。
+# ============================================================================
+name: CI
+
+# 默认 token 只有 contents:read（日志里的 GITHUB_TOKEN Permissions 可以证实），
+# 发 PR 评论必须显式开 pull-requests:write。写了这个块就**取代**默认权限，
+# 所以 contents:read 要一并写上，否则 checkout 会失败。
+permissions:
+  contents: read
+  pull-requests: write
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+# 同一分支连续推送时取消上一次还在跑的构建，省 Actions 分钟
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: 静态检查（ruff）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # 只装 ruff，不装整个 requirements.txt —— 里面有 pgserver（自带 PG 二进制，很大），
+      # lint 用不上。版本仍从 requirements.txt 取，避免两处版本号漂移。
+      - name: 安装 ruff
+        run: |
+          python -m pip install --upgrade pip
+          pip install "$(grep -oE '^ruff==[0-9.]+' requirements.txt)"
+
+      - name: ruff check
+        run: ruff check .
+
+  audit:
+    name: 依赖漏洞扫描（pip-audit）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pip-audit
+
+      # 为什么必须有这个 job：requirements.txt 是**手工钉版本**的，
+      # 钉死之后没有任何机制会在上游披露新 CVE 时通知我们。
+      # 本次审查就是这么发现 python-jose 3.3.0 带着 CVE-2024-33663/33664 的
+      # （两条都在 3.4.0 修复），而它们在 requirements.txt 里躺了很久。
+      # 已升到 3.5.0，本 job 会在有人降回去时直接红。
+      #
+      # 用 --strict：拿不到某个包的漏洞数据时宁可让 job 失败，
+      # 也不要静默跳过 —— 「扫描器没报错」和「扫描器没扫到」必须能区分开。
+      #
+      # ⚠️ 只剩 1 个已知但**无法修**的 ID，原因见 TECH_DECISIONS.md TD-213：
+      #    · ecdsa PYSEC-2026-1325 —— **上游至今没有发布任何修复版本**
+      #      （它是 python-jose 的传递依赖，本项目代码不直接用它）。
+      #      只能等上游，或改用别的 JOSE 实现。
+      #    列在这里而不是删掉这个 job，是为了让 job 保持绿色、从而能抓住
+      #    **新**披露的漏洞；债本身没有被隐藏。
+      #
+      #    历史上这里曾挂过 15 个 ID（starlette 7 / python-multipart 4 /
+      #    fastapi、python-dotenv、pytest、ecdsa 各 1）。除 ecdsa 外
+      #    已全部通过一次依赖升级清掉：fastapi 0.104.1→0.141.1 带动
+      #    starlette 0.27.0→1.6.0、pydantic 2.5.2→2.13.5，另升
+      #    python-multipart→0.0.31、python-dotenv→1.2.2、pytest→9.0.3。
+      #    升级后全量测试 624 passed / 4 skipped 与升级前一致。
+      - name: pip-audit
+        run: >
+          pip-audit --strict -r requirements.txt
+          --ignore-vuln PYSEC-2026-1325
+
+  docs:
+    name: 文档站构建（scripts/build_docs_site.py）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      # 只装 mistune：这个脚本的顶层 import 全是标准库（argparse/ast/json/re/sys/pathlib），
+      # mistune 是唯一的外部依赖，且只在渲染那一步用到。
+      # 刻意**不**装 requirements.txt —— 里面有 pgserver（自带 PG 二进制，33 MB），构建文档用不上。
+      # 这也顺便验证了 docs/site/README.md 的承诺：构建文档站不需要数据库、.env 与那 24 个依赖。
+      - name: 安装 mistune
+        run: |
+          python -m pip install --upgrade pip
+          pip install "$(grep -oE '^mistune==[0-9.]+' requirements.txt)"
+
+      # 为什么要单独一个 job：这个脚本 898 行 / 35 个函数，此前**零测试且 CI 不构建**，
+      # 于是它静默烂掉也没人发现 —— build_routes() 曾漏掉 4 条路由（GET / 与 3 个 /tools/*），
+      # 生成的 routes.json 是 32 条而运行时真实是 36 条，7 处文档跟着写错并互相「印证」。
+      # 路由数与运行时的一致性由 tests/test_docs_site.py 在 test job 里钉住；
+      # 这里补的是另一半：**整站渲染不能崩**（21 份文档 → 116 页）。
+      - name: 生成数据并渲染整站
+        run: |
+          set -o pipefail
+          python scripts/build_docs_site.py 2>&1 | tee docs-build.txt
+          grep -E "路由 [0-9]+ 条" docs-build.txt
+
+      - name: 核对生成物页数（漏页会在这里炸，而不是等读者发现 404）
+        run: |
+          set -euo pipefail
+          # ⚠️ 必须用 find，不能用 `ls ... | wc -l`：
+          # `.github/workflows/README.md` 生成的页面叫 `.github_workflows_README.md.html`，
+          # **以点开头**，`ls` 会把它当隐藏文件藏起来 —— 实测 ls 数出 20 个而 find 数出 21 个，
+          # 用 ls 的话这个 job 会在第一次运行时就假失败。
+          d=$(find docs/site/d -name '*.html' | wc -l)
+          s=$(find docs/site/s -name '*.html' | wc -l)
+          echo "文档页 $d 个 · 源码页 $s 个"
+          for f in index.html graph.html routes.html symbols.html; do
+            test -f "docs/site/$f" || { echo "缺 docs/site/$f"; exit 1; }
+          done
+          test "$d" -ge 21 || { echo "文档页少于 21（实际 $d）—— DOC_GROUPS 或渲染出问题了"; exit 1; }
+          test "$s" -ge 70 || { echo "源码页少于 70（实际 $s）—— AST 提取出问题了"; exit 1; }
+
+  frontend:
+    name: 前端产物漂移检查（npm run build）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+
+      # 为什么需要这个 job：产物 `app/static/js/*.js` 是**提交进仓库**的（服务器上
+      # 不需要装 Node，部署仍是 pip install + 起 uvicorn）。代价是「改了
+      # app/frontend 源码却忘了 npm run build」这种错**测试抓不到** —— 页面照样
+      # 200、断言照样绿，只是用户拿到的是旧代码。这个 job 就是那道闸。
+      - name: 安装前端依赖
+        run: npm ci
+
+      - name: 重新构建
+        run: npm run build
+
+      - name: 核对产物与源码同步（漂移即失败）
+        run: |
+          set -euo pipefail
+          if ! git diff --exit-code -- app/static/js; then
+            echo "::error::app/static/js 下的产物与 app/frontend 源码不一致。"
+            echo "请在本地跑 npm run build，并把产物一起提交。"
+            exit 1
+          fi
+          echo "产物与源码一致"
+
+  test-sqlite:
+    name: 测试（SQLite 后端）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: pytest
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee pytest-output.txt
+
+      # CI 日志正文在本沙箱取不到（下载被重定向到 *.blob.core.windows.net，
+      # HTTP 000）。所以失败时把输出摘要发到 PR 评论上 —— 评论走 api.github.com，
+      # 沙箱读得到。TD-192 就是这么才拿到真因的（此前只能靠人工去网页复制）。
+      - name: 失败时把 pytest 输出发到 PR 评论
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### ❌ 测试（SQLite 后端） 失败"
+            echo
+            echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "job: 测试（SQLite 后端）  |  commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
+            echo '```'
+          } > /tmp/ci-body.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --body-file /tmp/ci-body.md
+
+  test-postgres:
+    name: 测试（真 PostgreSQL 16）
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: codemax_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/codemax_test
+      PGPASSWORD: postgres
+      PGHOST: 127.0.0.1
+      PGUSER: postgres
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: 安装依赖
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 建表脚本与 ORM 模型的一致性由 tests/test_schema_sync.py 保证；
+      # 这里再验一次它真的能在 PostgreSQL 上执行，而且可以重复执行（幂等）。
+      - name: 建表脚本在真 PostgreSQL 上执行（连跑两遍验证幂等）
+        run: |
+          psql -d postgres -c "CREATE DATABASE codemax_ddl"
+          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
+          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
+          echo "public schema 表数："
+          psql -d codemax_ddl -tAc "select count(*) from pg_tables where schemaname='public'"
+
+      - name: pytest
+        run: |
+          set -o pipefail
+          python -m pytest -q 2>&1 | tee pytest-output.txt
+
+      # CI 日志正文在本沙箱取不到（下载被重定向到 *.blob.core.windows.net，
+      # HTTP 000）。所以失败时把输出摘要发到 PR 评论上 —— 评论走 api.github.com，
+      # 沙箱读得到。TD-192 就是这么才拿到真因的（此前只能靠人工去网页复制）。
+      - name: 失败时把 pytest 输出发到 PR 评论
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### ❌ 测试（真 PostgreSQL 16） 失败"
+            echo
+            echo "run: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+            echo "job: 测试（真 PostgreSQL 16）  |  commit: ${{ github.sha }}"
+            echo
+            echo '```'
+            tail -n 300 pytest-output.txt 2>/dev/null || echo "(没有 pytest 输出文件)"
+            echo '```'
+          } > /tmp/ci-body.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --repo "${{ github.repository }}" --body-file /tmp/ci-body.md

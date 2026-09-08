@@ -16,8 +16,8 @@
 import os
 
 import psycopg2
-from psycopg2.extras import RealDictCursor
 from dotenv import load_dotenv
+from psycopg2.extras import RealDictCursor
 
 # 读取 ../.env 中的数据库配置
 load_dotenv(dotenv_path="../.env")
@@ -77,9 +77,11 @@ def main() -> None:
     )
     conn.autocommit = False
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            with open(SCHEMA_FILE, "r", encoding="utf-8") as sql_file:
-                cur.execute(sql_file.read())
+        with (
+            conn.cursor(cursor_factory=RealDictCursor) as cur,
+            open(SCHEMA_FILE, "r", encoding="utf-8") as sql_file,
+        ):
+            cur.execute(sql_file.read())
         conn.commit()
         print(f"[2/2] 已在 {DB_NAME} 中执行 {SCHEMA_FILE}，建表完成")
     except Exception:

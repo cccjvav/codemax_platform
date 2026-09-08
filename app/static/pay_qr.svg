@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="240" viewBox="0 0 220 240" role="img" aria-label="收款码占位图">
+  <!--
+    占位收款码。**上线前请把它换成你自己的真实收款码图片**：
+    微信个人收款码 → 微信「我」-「服务」-「收付款」-「二维码收款」- 保存图片；
+    MobilePay    → App 里生成的收款二维码截图。
+    直接覆盖本文件即可，代码与配置都不用动（路径见 SHOP_MANUAL_QR）。
+
+    刻意做成 SVG 而不是 PNG：纯文本、可评审、体积 1 KB 以内，
+    而且不含任何脚本，不受 CSP img-src / script-src 约束。
+  -->
+  <rect width="220" height="240" fill="#fff" stroke="#d0d7de" stroke-width="2" rx="8"/>
+  <rect x="46" y="26" width="128" height="128" fill="none" stroke="#9aa4af" stroke-width="2" stroke-dasharray="6 5"/>
+  <text x="110" y="86" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#6b7280">此处应放</text>
+  <text x="110" y="106" text-anchor="middle" font-family="system-ui,sans-serif" font-size="13" fill="#6b7280">真实收款码</text>
+  <text x="110" y="182" text-anchor="middle" font-family="system-ui,sans-serif" font-size="12" fill="#374151">app/static/pay_qr.svg</text>
+  <text x="110" y="202" text-anchor="middle" font-family="system-ui,sans-serif" font-size="11" fill="#9aa4af">替换成本文件即可</text>
+</svg>

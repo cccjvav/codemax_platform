@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .shop { max-width: 720px; margin: 0 auto; }
+  .price { font-size: 34px; font-weight: 700; color: #16a34a; margin: 6px 0 14px; }
+  .buy { font-size: 16px; padding: 10px 28px; }
+  .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
+  .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
+  .box h3 { margin: 0 0 8px; font-size: 15px; }
+  .box ul { margin: 0; padding-left: 20px; color: #475569; }
+  .faq { margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
+  .faq dt { font-weight: 600; margin-top: 10px; }
+  .faq dd { margin: 2px 0 0; color: #475569; }
+  .pay { text-align: center; padding: 20px 0; }
+  .pay .qr { display: inline-block; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
+  /* segno 出的 SVG 默认宽高是模块数（37×37），必须放大，否则只有指甲盖大 */
+  .pay .qr svg { width: 220px; height: 220px; display: block; }
+  .muted { color: #64748b; }
+  .warn { color: #b45309; background: #fffbeb; border: 1px solid #fde68a;
+          border-radius: 6px; padding: 8px 12px; margin: 10px 0; }
+  @media (max-width: 700px) { .cols { grid-template-columns: 1fr; } }
+</style>
+
+<div class="shop">
+  <!-- ① 落地态 -->
+  <section id="st-landing">
+    <h2>{{ product_name }}</h2>
+    <div class="price">¥{{ '%.2f'|format(product_amount / 100) }}</div>
+    <p class="muted">在线下单 · 微信扫码支付 · 支付成功后即可下载交付物</p>
+
+    <div class="cols">
+      <div class="box">
+        <h3>你将得到</h3>
+        <ul>
+          <li>完整可运行的系统源码与数据库脚本</li>
+          <li>部署说明与本地运行指南</li>
+          <li>配套文档（需求 / 设计 / 测试）</li>
+          <li>答辩要点与常见问题准备</li>
+        </ul>
+      </div>
+      <div class="box">
+        <h3>适合谁</h3>
+        <ul>
+          <li>计算机相关专业本科毕业设计</li>
+          <li>需要一套能跑通、讲得清的系统</li>
+          <li>希望有文档支撑、答辩不慌</li>
+        </ul>
+      </div>
+    </div>
+
+    <p style="text-align:center">
+      <button type="button" class="cta buy" id="btn-buy">立即购买（¥{{ '%.2f'|format(product_amount / 100) }}）</button>
+    </p>
+    <p class="error" id="buy-error"></p>
+
+    <dl class="faq">
+      <dt>付款后怎么拿到东西？</dt>
+      <dd>本页面会自动变成下载区，点「下载交付物」即可。<strong>下载链接一次性有效</strong>，点击后请立刻保存文件。</dd>
+      <dt>支付成功但页面没反应？</dt>
+      <dd>刷新本页并重新登录同一账号，订单状态会保留；若仍显示待支付，请联系我们核对订单号。</dd>
+      <dt>工具收费吗？</dt>
+      <dd>不收费。ER 图、UML 类图、流程图三个工具<strong>永久免费、无需注册</strong>。</dd>
+    </dl>
+  </section>
+
+  <!-- ② 待支付态 -->
+  <section id="st-pending" class="pay" hidden>
+    <h2>订单 <span id="p-no"></span></h2>
+    <p class="muted" id="p-tip">正在等待支付…（每 3 秒自动查一次）</p>
+    <div class="qr" id="p-qr"></div>
+    <p id="p-link"></p>
+    <div class="warn" id="p-expired" hidden>
+      这张订单已超时关闭，二维码失效。请重新下单 ——
+      <button type="button" class="ghost" id="btn-rebuy">重新下单</button>
+    </div>
+    <p><button type="button" class="ghost" id="btn-cancel">返回商品页</button></p>
+  </section>
+
+  <!-- ③ 已支付 / 已下载态 -->
+  <section id="st-paid" class="pay" hidden>
+    <h2>✅ 支付成功</h2>
+    <p class="muted">订单 <span id="d-no"></span></p>
+    <p><button type="button" class="cta buy" id="btn-download">下载交付物</button></p>
+    <div class="warn">
+      ⚠️ <strong>下载链接一次性有效</strong>（防转卖）。点击后浏览器会直接开始下载，
+      请务必确认文件已保存到本地 —— 同一订单<strong>不能重复下载</strong>。
+    </div>
+    <p class="error" id="d-error"></p>
+  </section>
+
+  <section id="st-downloaded" class="pay" hidden>
+    <h2>该订单已下载过</h2>
+    <p class="muted">
+      订单 <span id="x-no"></span> 的交付物已经发放。为防止资源被转卖，
+      同一订单只能下载一次。如未成功保存文件，请联系我们处理。
+    </p>
+  </section>
+</div>
+
+<script src="/static/js/shop-page.js"></script>
+{% endblock %}

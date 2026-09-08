@@ -1,0 +1,34 @@
+# 覆盖率配置。
+#
+# ## 为什么这个文件不能省
+#
+# **`concurrency` 这一行是必需的，不是可选优化。** 少了它，coverage 会把覆盖率
+# 明显低报（实测同一份代码同一批测试：全量 89% vs 97%）。
+#
+# 原因：本项目用 pytest-asyncio + httpx 的 ASGITransport 驱动应用，请求处理
+# 分散在 greenlet / 线程上。coverage 默认只追踪主线程的 trace 事件，于是**端点
+# 函数体里执行过的行会被记成「未覆盖」**。
+#
+# 这不是理论推测：用 sys.settrace 独立记录 app/routers/shop.py 实际执行过的行，
+# 与 coverage 的 missing 列表逐行对照过，默认配置下确实把执行过的行报成未覆盖。
+#
+# 危害很具体：照低报的数字去补测试，会重复覆盖早已覆盖的安全分支；
+# 更糟的是得出「这些安全分支没测」的错误结论。
+#
+# ## ⚠️ 清理数据文件时不要用 `rm -f .coverage*`
+#
+# 那个通配符**会连本文件一起删掉**（`.coveragerc` 也以 `.coverage` 开头）。
+# 要清就写全：`rm -f .coverage .coverage.*`
+
+[run]
+concurrency = thread,greenlet
+source = app, main
+# 文档站构建脚本与建库脚本不属于被测应用代码：
+# 前者是文档工具（不接入 pytest，见 TD-83），后者要真库才跑得动。
+omit =
+    scripts/*
+    database init/*
+
+[report]
+precision = 1
+show_missing = True

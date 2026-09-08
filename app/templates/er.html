@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="split">
+  <section>
+    <form id="er-form">
+      <textarea id="ddl-input" rows="16" placeholder="CREATE TABLE sys_user (...);"></textarea>
+      <p>
+        <button type="submit" id="er-submit">生成 ER 图</button>
+        <button type="button" class="ghost" id="er-word">导出 Word</button>
+        <button type="button" class="ghost" id="er-sample">填入示例</button>
+      </p>
+    </form>
+    <p id="er-error" class="error" role="alert" hidden></p>
+  </section>
+  <svg id="er-canvas"></svg>
+</div>
+
+<!-- d3 **不再走 CDN**（TD-222）：它由 npm 打进 /static/js/er-page.js。
+     比原来的「钉版本 + SRI」更强 —— 原来再钉死，代码仍是**运行时**从 jsdelivr 取的，
+     本站的任何一次部署都管不到那台服务器；打进产物后代码随部署走，版本由
+     package-lock.json 钉死（含 integrity 哈希），且 CI 会核对产物与源码是否同步。
+     顺带解决可达性：这是引流页，CDN 在国内不保证可达，d3 加载失败等于整页白屏。
+     由 tests/test_frontend_supply_chain.py 钉住「模板里不许再出现 npm CDN 引用」。 -->
+<script src="/static/js/er-page.js"></script>
+{% endblock %}

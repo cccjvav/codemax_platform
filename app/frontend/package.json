@@ -1,0 +1,14 @@
+{
+  "//": [
+    "⚠️ 这个文件的作用只有一个：把 `\"type\": \"module\"` 的范围**限定在 app/frontend/**。",
+    "",
+    "根 package.json 里刻意不写 type:module —— 那会让 Node 把全仓每个 .js 都当 ES 模块，",
+    "于是 app/static/er.js 时代的 `module.exports = {...}` 全部失效（TD-221 实测踩过：",
+    "tests/test_er_page.py 报 `layoutEr is not a function`，本地全量 3 failed）。",
+    "",
+    "但本目录下的源码确实是 ES 模块。不在这里声明的话，node 每次 import 都会先按",
+    "CommonJS 试解析、失败后再重新按 ESM 解析，并打出 MODULE_TYPELESS_PACKAGE_JSON",
+    "警告（实测有）。用局部 package.json 划范围，两边都干净。"
+  ],
+  "type": "module"
+}
