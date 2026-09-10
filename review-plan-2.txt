@@ -1,0 +1,256 @@
+“A. 代码/测试（改动最小化，每项配回归验证）
+
+A
+
+
+
+
+
+tests/test_shop_polling.py L114、L143：删除两处同步用例上错误的
+
+@pytest.mark.asyncio 标记（函数本身不改），确认全量不再出现 PytestWarning。
+
+A
+
+
+
+
+
+app/routers/admin.py L87：HTTP_422_UNPROCESSABLE_ENTITY →
+
+HTTP_422_UNPROCESSABLE_CONTENT（同值改名），跑 tests/test_admin_ingest.py 确认绿。
+
+A
+
+
+
+
+
+app/middleware.py：CSP 的 script-src 移除 'unsafe-inline'
+
+（事实依据：TD-223 后全部模板内联 <script> 为 0、无 on*= 处理器；style-src 保留
+
+  'unsafe-inline' 不动；jsdelivr 域保留，mermaid 仍走 CDN）。同步更新：
+
+  ① middleware.py 顶部 docstring（删除"四个页面模板全部含内联 script"的旧事实）；
+
+  ② tests/test_ops.py 中对 CSP 串的断言；
+
+  ③ TECH_DECISIONS.md 追加/更新 TD-163 条目说明"unsafe-inline 已移除及何时可回滚"；
+
+  ④ app/templates/README.md:87 附近与 oauth_consent.html:11 注释里对 unsafe-inline 的
+
+  表述按新事实改写。
+
+  改完用手工渲染任一工具页 + 全量 pytest 验证，并在提交信息里注明"回滚方法"。
+
+A
+
+
+
+
+
+.env.example SHOP_MANUAL_QR 的注释改为与 config.py/TD-225 一致：
+
+"默认 pay_qr.png 是仓库内已确认的真实个人收款码（TD-225）；想用占位图改回
+
+  /static/pay_qr.svg"。保留"个人收款码用于经营需自行评估合规"提醒。
+
+B. 文档数字全仓同步（先跑复核命令取实际值，再逐处替换；两边数字冲突的以实测为准）
+
+B
+
+
+
+
+
+统一测试计数（实测口径：SQLite 650 passed + 4 skipped / 654 collected / 42 个测试文件；
+
+真库以 tests/README.md:25 的 626 passed + 2 skipped 为唯一现行记录并注明日期，
+
+  其余文档统一引用它，不再各写各的）：总览.md:137、总览.md:453、README.md 模块表、
+
+  tests/README.md:98、requirements.txt:49、ci.yml:106、AGENTS.md:92、README.md:104、
+
+  .claude/skills/{finish-subitem,pre-commit-review,schema-sync}/SKILL.md。
+
+B
+
+
+
+
+
+README.md：API 表补 3 行（GET /shop/orders/{order_no}、
+
+POST /shop/orders/{order_no}/confirm、GET /shop）；模块说明书表改"42 个测试文件 /
+
+  654 个用例"、模板 8 个、三处行数（app/tools 2136 / app/routers 1355 / app 根 1715）、
+
+  Agent Skills 表补全 7 个、表里补 app/frontend/README.md 一行；
+
+  "21 份文档"后加半句口径说明（不含 .github 与 .claude 下的 8 份）。
+
+B
+
+
+
+
+
+ci.yml:6-10 头注释改为"六个 job"并列全（lint/audit/docs/frontend/test-sqlite/test-postgres）。
+
+B
+
+
+
+
+
+app/static/README.md 整篇重写：删掉 §2 起对 er.js/auth.js 的整节描述，
+
+以 L25-30 补丁段的事实为准（6 个 Vite 产物 + pay_qr.svg + pay_qr.png + README）。
+
+B
+
+
+
+
+
+app/templates/README.md:48 "内联 <script>：5 个模板" → 0 个（TD-223 后全部外置），
+
+并同步该节上下文。
+
+B
+
+
+
+
+
+app/routers/README.md：补 GET /shop/orders/{order_no}（订单轮询，只读/no-store）
+
+与 POST /shop/orders/{order_no}/confirm（manual 模式管理员确认）两节的行级说明；
+
+  更新文首"行号基准 commit"为新 HEAD。
+
+B
+
+
+
+
+
+app/README.md：补 SHOP_MANUAL_QR（config）、assert_notify_fresh（wechat_pay 防重放）、
+
+pay_qr.png 三处；更新"行号基准 commit"。
+
+B
+
+
+
+
+
+database init/README.md L73/L214/L230：三处"5 个迁移"→"6 个迁移"。
+
+B
+
+
+
+
+
+docs/ROOT_FILES.md：文件清单改为 10 个（补 package.json / package-lock.json /
+
+vite.config.mjs / .coveragerc，后两者可用短段落说明并链到 app/frontend/README.md）；
+
+  行数按实际重取；"25 个依赖"→26。
+
+B
+
+
+
+
+
+docs/ARCHITECTURE_GUIDE.md:1973 test_crawler 28 → 35；顺手核对同表其余行。
+
+B
+
+
+
+
+
+HANDOVER.md：§2 "FastAPI 0.104"→0.141.1；§1 的 warning 表述改为"三类警告已清零"
+
+（A1/A2 修完后）；§8 列表编号去重（两个"2."）；§8.3 "11 项未勾=5父+6叶"改为
+
+  实测"10 项=4父+6叶"；上线阻塞项三处口径统一为 3 条（TD-113、TD-124、TD-206）。
+
+B
+
+
+
+
+
+DOCUMENTATION_SUMMARY.md：文首快照声明下补一行"最后复核日期"，或重跑 §6 命令刷新数字。
+
+C. 验收（七条全中）
+
+C
+
+
+
+
+
+ruff check . → All checks passed。
+
+C
+
+
+
+
+
+python -m pytest -q → 650 passed, 4 skipped 且输出中无 PytestWarning、
+
+无 StarletteDeprecationWarning。
+
+C
+
+
+
+
+
+npm run build 后 git diff --exit-code -- app/static/js 为空。
+
+C
+
+
+
+
+
+python scripts/build_docs_site.py 正常出站（21 文档/39 路由）。
+
+C
+
+
+
+
+
+被 doc 记录的每个数字改动都用 grep --exclude-dir 全仓扫过一遍无残留旧值
+
+（旧值集合：565、628、603、624、563、"36 个测试文件"、"41 个测试文件"、"7 个 Jinja2"、
+
+  "1625 行"、"1132 行"、"1328 行"、"四个 job"、"5 个迁移"、"FastAPI 0.104"、
+
+  "25 个依赖"、"11 项未勾"）。
+
+C
+
+
+
+
+
+新增/变更的取舍按 AGENTS.md 记入 TECH_DECISIONS.md（尤其 A3 的 CSP 变更）。
+
+C
+
+
+
+
+
+一个子项一个提交，commit 后立刻 push 并 git ls-remote 确认。”
+
