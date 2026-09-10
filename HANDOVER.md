@@ -17,7 +17,7 @@
 - **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
   - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（**2026-09-08** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**650 passed + 4 skipped**（654 collected）。
+- **测试基线**（**2026-09-10** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**654 passed + 4 skipped**（658 collected）。
   ⚠️ 数字会随子项变化，复核命令见 `tests/README.md`；**引用前先自己数一遍**。
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑**六个** job —— 静态检查（ruff）、测试（SQLite 后端）、测试（真 PostgreSQL 16）、**前端产物漂移检查（`npm run build` 后 `git diff --exit-code -- app/static/js`）**、依赖漏洞扫描（`pip-audit --strict`）、文档站构建；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
