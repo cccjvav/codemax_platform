@@ -276,6 +276,7 @@ def build_symbols() -> list[dict]:
 
 
 _DOC_MAP = [
+    ("app/frontend/", "app/frontend/README.md"),
     ("app/tools/", "app/tools/README.md"),
     ("app/routers/", "app/routers/README.md"),
     ("app/templates/", "app/templates/README.md"),
@@ -301,6 +302,7 @@ def _doc_for(rel: str) -> str | None:
 # 分组顺序即侧边栏顺序
 DOC_GROUPS = [
     ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md"]),
+    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
     ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/ROOT_FILES.md"]),
     (
@@ -311,6 +313,7 @@ DOC_GROUPS = [
             "app/tools/README.md",
             "app/templates/README.md",
             "app/static/README.md",
+            "app/frontend/README.md",
             "database init/README.md",
             "tests/README.md",
             "scripts/README.md",

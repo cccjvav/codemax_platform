@@ -21,9 +21,6 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import TestSession
-
-pytestmark = pytest.mark.asyncio(loop_scope="session")
-
 from tests.test_download import auth_headers, make_order  # noqa: E402
 
 # ---------------------------------------------------------------- 前端：过期停表

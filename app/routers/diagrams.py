@@ -172,7 +172,7 @@ async def delete_diagram(
 
 @router.post("/{diagram_id}/restore", response_model=DiagramOut)
 async def restore_diagram(
-    diagram_id: int, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
+    diagram_id: int, response: Response, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
 ):
     """从回收站恢复。
 
@@ -189,4 +189,5 @@ async def restore_diagram(
     diagram.deleted_at = None
     await db.commit()
     await db.refresh(diagram)
+    response.headers["ETag"] = _etag(diagram)
     return diagram

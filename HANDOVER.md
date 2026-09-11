@@ -1,6 +1,6 @@
 # 交接摘要（HANDOVER）
 
-> 给下一个编码会话 / 协作者的快速上手指南。**更新日期：2026-09-07**
+> 给下一个编码会话 / 协作者的快速上手指南。**更新日期：2026-09-11**
 >
 > ⚠️ 本会话所在平台（Arena）会因「响应超时」反复中断，**沙箱已被回收 27 次以上**，
 > `.venv` 与 `node_modules` 每次都会消失。所以本文件是唯一可靠的交接载体：
@@ -9,15 +9,18 @@
 
 ## 1. 当前状态
 
+- **当前任务**：用户合并审查与本助手26组发现的交叉验证，台账见 `docs/REVIEW_CROSSCHECK.md`。第一批已实现并本地全量通过；其余问题仍开放。未新增依赖／表结构／CI 配置。
+- **测试作品隔离**：鹈鹕页面与相关文档改动已移出仓库工作树，备份在 `/home/user/preserved-pelican-20260911/`，不得加入此分支提交；沙箱重建可能丢失仓库外备份，请勿把它当仓库交付物。
+
 - **main**：`9622a38`（含 PR #1、PR #2 合并进来的阶段一全部内容 —— 旧的"推送 687e60e / 48622b1"说法已作废，那两个提交不在本仓库历史里）
-- **本会话分支**：`arena/01a0599b-codemax-platform`（会话固定，不要切别的分支）。
+- **本会话分支**：`arena/01a08bf5-codemax-platform`（会话固定，不要切别的分支）。
   **这里刻意不写 HEAD 的 commit** —— 每提交一次它就过期，写过期的 SHA 比不写更糟。
-  要确认当前状态就跑：`git log --oneline -1` 与 `git ls-remote origin arena/01a0599b-codemax-platform`，
+  要确认当前状态就跑：`git log --oneline -1` 与 `git ls-remote origin arena/01a08bf5-codemax-platform`，
   两者一致即「本地 = 远端」。
-- **PR #3**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
-  - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（会话固定在此分支，故子项累积在同一个 PR）
+- **历史分支 PR #3（非本修复分支，以下为旧交接记录）**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
+  - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（该旧会话子项累积在同一个 PR）
   - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（**2026-09-08** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**650 passed + 4 skipped**（654 collected）。
+- **测试基线**（**2026-09-11** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**673 passed + 4 skipped**（677 collected）；PostgreSQL：**675 passed + 2 skipped**，两后端均仅1条 Passlib 上游 warning。
   ⚠️ 数字会随子项变化，复核命令见 `tests/README.md`；**引用前先自己数一遍**。
   另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑**六个** job —— 静态检查（ruff）、测试（SQLite 后端）、测试（真 PostgreSQL 16）、**前端产物漂移检查（`npm run build` 后 `git diff --exit-code -- app/static/js`）**、依赖漏洞扫描（`pip-audit --strict`）、文档站构建；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
   （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
@@ -28,7 +31,7 @@
 
 ## 2. 技术栈
 
-Python 3.11 + FastAPI 0.104 + SQLAlchemy 2.0（async）+ asyncpg + PostgreSQL；
+Python 3.11 + FastAPI 0.141.1 + SQLAlchemy 2.0（async）+ asyncpg + PostgreSQL；
 Jinja2 SSR（页面外壳与 TDK，**不引入 Node 运行时 / Nuxt / Next**）；
 JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 `python-docx`（Word 导出）、`httpx`（LLM 调用 / 测试客户端）。
@@ -37,7 +40,7 @@ JWT（python-jose）+ bcrypt（passlib 1.7.4 + bcrypt==4.0.1 固定版本）；
 **技术选型（已定，不要重新论证）见 `AGENTS.md`**：Apache POI → `python-docx`；
 HttpClient + Jsoup → `httpx` + `BeautifulSoup4`；动态页面**已选 Playwright**（TD-03/191，可选依赖）。
 
-**实现层面的取舍（在用 176 条表格行 / 唯一编号 174 个，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
+**实现层面的取舍（在用 178 条表格行 / 唯一编号 176 个，带编号 TD-xx）集中在 `TECH_DECISIONS.md`**，
 其中开头的「上线阻塞项」表原有 8 条，已解决 6 条（划掉留痕），**现仅剩 2 条**：TD-113（微信支付未真机联调）、TD-124（模拟支付通道误开＝免费发货，已由启动自检大幅缓解）；
 「限流」「CI」「真库集成测试」三条已解决（TD-15 / TD-84 / TD-80）。
 「真库集成测试」那条已经解决（TD-80）。
@@ -120,6 +123,13 @@ node scripts/check_schema_pg.mjs <pglite 包路径>        # 无 PG 环境时体
 ```
 
 ## 6. 已踩过的坑（避免重犯）
+
+### 2026-09-11 合并审查第一批
+
+- 支付读到 pending 后被另一会话关闭，按旧状态 CAS 会失败；应原子接纳 pending/closed，流水也在同一 UPDATE 中，不允许 autoflush 先写元数据。回归与变异见 `tests/test_review_regressions.py`、TD-227。
+- httpx 的 aiter_bytes 已解压。重建 Response 时删除压缩态编码／长度，不能把解码内容再按 gzip 解压；仍限制解码后体积。
+- Drawio 订阅晚于共享认证完成会丢首次通知。页面先订阅后同步快照，不额外请求、不改变购物监听器契约，见 TD-228。
+- 用户上传报告不是全部准确：其中 Skills 名称有不存在项；移除全局 script unsafe-inline 还需考虑 FastAPI 的 /docs 内联初始化。完整待修列表不得因第一批绿灯而勾选完成。
 
 - **`main.py` 在仓库根**，不是 `app/main.py` —— 导入用 `from main import app`
 - **`app/models.py` 与 `database init/full_init.sql` 必须同步**：`tests/test_schema_sync.py`
@@ -445,6 +455,12 @@ git show 62ff019:CODE_REVIEW_99662ca.md
 - 阶段五：全链路测试 / 压测 / 部署上线
 
 ## 8. 建议的下一步
+
+- [x] R-01：第一批确定性缺陷修复、本地 SQLite/PG 全量、Ruff、构建一致性。提交／远端 CI 以分支实际检查为准。
+- [ ] 按 `docs/REVIEW_CROSSCHECK.md` 继续前端协议／状态、解析器、LLM、文档工具等批次。
+- [ ] 先确认 schema／会话升级、下载权益、部署拓扑与实际商业承诺，再实施相关设计变更。
+
+以下为前轮路线图背景，不代表当前所有缺陷已解决：
 
 1. **阶段 C（前端重构）进行中**，已完成 C1 / C2 / C4，**下一个是 C3**：
    - ~~C1~~ Vite 工具链 + `auth.js` 迁移（`1b23ba9`，TD-221）

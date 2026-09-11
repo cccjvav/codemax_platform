@@ -2569,3 +2569,38 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 本文写作时的实测值：**44 条路由条目**（其中 5 条是框架自带的 `/docs`、`/redoc`、`/openapi.json`、`/static` 等）→ **39 条业务路由条目** → **34 个唯一业务路径**（`/diagrams` 等 4 个路径各支持多种操作）；**41 项配置**；**650 passed + 4 skipped**。
 
 > 上面最后一条命令是**故意写得很丑**的单行版 —— 因为附录里的命令必须能直接粘进终端跑。想看清爽版就读 `tests/test_perf.py::test_parse_ddl_scales_linearly_not_quadratically`，它才是这条判据的真身；**文档里的复算命令只是它的投影，代码改了请以测试为准。**
+
+
+## 合并审查补充：跨请求一致性（2026-09-11）
+
+这是对已有支付、抓取与前端章节的行为订正；旧章节中带日期的测试／行数保留为历史记录，当前未完成事项见 `REVIEW_CROSSCHECK.md`。
+
+### 核心概念大白话
+
+“检查时成立”和“真正写入时成立”不是同一回事。原支付逻辑先读 pending，另一请求关单后，旧条件已过期，回调仍可能确认成功。现在数据库用同一条 UPDATE 接纳 pending 或 closed，且同时写首笔流水；重复付款通知不覆盖首次支付信息。下载的一次性领取仍用独立 paid→downloaded 条件，不因支付改动放宽。
+
+同样，httpx 返回的字节可能已解压；再次带着 Content-Encoding 构造 Response 会解压两次。Drawio 则可能错过已发出的首次登录通知，需要订阅未来变化，也读取当前快照。
+
+### 生活比喻
+
+支付像窗口收款：排队时票据仍在“待办”，到柜台时可能已被移到“超时箱”，但钱到了，两种票据都应入账。入账状态与收据必须一起盖章，不能先盖收据、再发现状态没改成功。登录快照像看当前站牌，再继续听后续报站，不能只听上车前已经播完的广播。
+
+### 落到代码与实测
+
+- `app/order_state.py` 的 mark_paid：接纳状态集合和支付元数据一起原子更新；`app/routers/shop.py` 的微信、模拟、人工三条路径共用。
+- `app/tools/crawler.py` 的 _request：已解码 bytes 不携带原压缩编码／长度，保留解码体积上限。
+- `app/config.py`：userinfo 的空格用百分号编码，而不是表单的加号；`app/startup_checks.py` 的默认／短密钥检查相邻，DB 诊断独立。
+- `app/routers/diagrams.py` 的恢复响应返回当前 ETag；`app/frontend/drawio-page.js` 先订阅后同步认证快照。
+- 新回归 `tests/test_review_regressions.py` 19例；`tests/test_drawio_auth_state.py` 4例，真实运行源码和Vite产物。全量 SQLite 673通过/4跳过，PostgreSQL 675通过/2跳过；语句覆盖率96.0%。这些结果不包含真实第三方服务联调。
+
+### 行业术语对照
+
+| 大白话 | 术语 |
+|---|---|
+| 写入那一刻检查条件 | 原子条件更新／CAS |
+| 同一收据只记一次 | 幂等性 |
+| 旧检查与实际执行之间变了 | TOCTOU／过期快照 |
+| 当前站牌 + 后续广播 | 状态快照 + 事件订阅 |
+| 已拆封的包裹不再按封装拆一遍 | Content-Encoding 解码边界 |
+
+本批没有完成账号切换隔离、Drawio当前XML导出协议、DNS固定／出站隔离及密码全链路撤销；这些不能因高覆盖率而视为已解决。

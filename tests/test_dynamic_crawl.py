@@ -342,7 +342,7 @@ async def test_non_admin_still_blocked_on_dynamic(client, net, no_browser):
 )
 @pytest.mark.asyncio
 async def test_real_browser_renders_a_page():
-    """**唯一需要真浏览器的一条**，沙箱内不跑。
+    r"""**唯一需要真浏览器的一条**，沙箱内不跑。
 
     在本机验证：
         set RUN_BROWSER_TESTS=1

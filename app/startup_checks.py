@@ -38,6 +38,13 @@ def check_production_settings() -> list[str]:
     # 默认密钥签出来的 JWT 任何人都能伪造
     if settings.SECRET_KEY == DEFAULT_SECRET:
         problems.append(f"SECRET_KEY 仍是默认值 {DEFAULT_SECRET!r}，任何人都能伪造 JWT")
+    # A-12：SECRET_KEY 太短。用 elif —— 默认值那条消息更可操作，
+    # 同一个根因报两遍只是噪音。
+    elif len(settings.SECRET_KEY) < MIN_SECRET_KEY_LEN:
+        problems.append(
+            f"SECRET_KEY 只有 {len(settings.SECRET_KEY)} 位，短于 {MIN_SECRET_KEY_LEN} 位；"
+            "HMAC 密钥太短可被离线暴力破解，JWT 仍可被伪造"
+        )
     # 限流关掉的话，不设鉴权的 /tools/* 可以被无限刷
     if not settings.RATE_LIMIT_ENABLED:
         problems.append("RATE_LIMIT_ENABLED=false：公开工具端点可被无限刷（TD-15）")
@@ -53,13 +60,6 @@ def check_production_settings() -> list[str]:
     if not settings.DB_PASSWORD and not settings.DATABASE_URL:
         problems.append(
             "DB_PASSWORD 为空：生产库必须设密码，或显式给出带凭证的 DATABASE_URL"
-        )
-    # A-12：SECRET_KEY 太短。用 elif —— 默认值那条消息更可操作，
-    # 同一个根因报两遍只是噪音。
-    elif len(settings.SECRET_KEY) < MIN_SECRET_KEY_LEN:
-        problems.append(
-            f"SECRET_KEY 只有 {len(settings.SECRET_KEY)} 位，短于 {MIN_SECRET_KEY_LEN} 位；"
-            "HMAC 密钥太短可被离线暴力破解，JWT 仍可被伪造"
         )
     # A-12：SITE_BASE_URL 空或明文 http。预签名下载链接、HSTS、OAuth 回跳都拿它当
     # 基准，配错的表现是「站点跑得起来但链接全指向错的主机」。

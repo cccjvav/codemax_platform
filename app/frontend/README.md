@@ -75,3 +75,10 @@ CI 的「前端产物漂移检查」job 会重跑构建再 `git diff --exit-code
 .venv\python -c "import pathlib;[print(p.name,len(p.read_text(encoding='utf-8').split(chr(10)))) for p in sorted(pathlib.Path('app/frontend').glob('*.js'))]"
 npm run build
 ```
+
+
+## 2026-09-11 Drawio认证初始化订正
+
+Drawio 先调用 CodeMaxAuth.onChange(syncAuthState)，再同步读取 CodeMaxAuth.user，不在两步间 await；兼容认证先完成及后完成。全站 onChange 仍不自动回放，以免改变购物补单监听器。`tests/test_drawio_auth_state.py` 对真实源码与构建产物分别验证两种顺序及退出通知。
+
+本批仅修初始化，XML同步、账号切换清理、请求乱序与协议错误统一解析仍在修复台账中开放。

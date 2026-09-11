@@ -164,7 +164,11 @@ function setAuthState(on) {
 // 登录态在 HttpOnly cookie 里脚本读不到（TD-44），所以只能问后端。
 // 这里不再自己 fetch /auth/me：原来本页与顶栏各问一次，两处状态各管各的，
 // 容易出现一个显示已登录另一个没显示。
-CodeMaxAuth.onChange(async (u) => {
+async function syncAuthState(u) {
   setAuthState(!!u);
   if (u) await refreshList();
-});
+}
+// 先订阅后读取快照，两步之间不 await：无论共享认证先完成还是稍后完成都能收到。
+// 不改变 onChange 的全站语义，避免立即回放触发购物页的补单监听器。
+CodeMaxAuth.onChange(syncAuthState);
+syncAuthState(CodeMaxAuth.user);

@@ -1,5 +1,5 @@
 from typing import Literal
-from urllib.parse import quote_plus
+from urllib.parse import quote
 
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -122,8 +122,8 @@ class Settings(BaseSettings):
         这不是理论问题：托管数据库（RDS / Cloud SQL / Supabase）自动生成的密码
         经常就带 `@ / #`，而在 `.env` 里直接写原值是最自然的用法。
 
-        用 `quote_plus` 而不是 `quote`：连接串的 userinfo 段里空格必须编成 `+`
-        而不是 `%20` 之外的形式，且 `/` 也要转义（`quote` 默认放行 `/`）。
+        userinfo 使用百分号转义：空格必须是 `%20`，不是表单编码的 `+`。
+        显式设置 safe=""，使 `/` 也转义；SQLAlchemy 才能还原原始凭证。
 
         显式给了 `DATABASE_URL` 就直接原样返回 —— 那是用户自己写好的完整 URL，
         再转义一遍会把已经编好的 `%40` 变成 `%2540`（双重编码）。
@@ -131,7 +131,7 @@ class Settings(BaseSettings):
         if self.DATABASE_URL:
             return self.DATABASE_URL
         return (
-            f"postgresql+asyncpg://{quote_plus(self.DB_USER)}:{quote_plus(self.DB_PASSWORD)}"
+            f"postgresql+asyncpg://{quote(self.DB_USER, safe='')}:{quote(self.DB_PASSWORD, safe='')}"
             f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
         )
 

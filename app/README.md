@@ -705,3 +705,11 @@ python -m pytest tests/test_auth.py tests/test_auth_cookie.py tests/test_token_r
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `app/` 根目录任何文件后，本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > 背景（为什么文档里的数字比代码更容易腐烂、以及一次真实的漏改事故）见 `docs/ARCHITECTURE_GUIDE.md` 第 7 课 7.10。
+
+
+## 2026-09-11 行为订正（合并审查第一批）
+
+- `startup_checks.py` 的默认／短密钥 if/elif 紧邻；DB密码缺失不会压掉短密钥诊断。旧逐行说明尚未整体重写，不应作为当前精确定位。
+- `config.py` 采用 userinfo 百分号转义，空格是 `%20` 而非 `+`；支持 Unicode 与原始加号往返。
+- `order_state.py` 的 `mark_paid(db, order, *, transaction_id=None, paid_at=None)` 原子接纳 pending/closed 并更新首笔元数据；不能再由调用方预先把元数据写成 ORM dirty 状态。竞争失败不覆盖流水，异常终态抛 IllegalTransition。
+- 回归见 `tests/test_review_regressions.py`；完整待修和验收见 `docs/REVIEW_CROSSCHECK.md`（仓库根相对路径）。

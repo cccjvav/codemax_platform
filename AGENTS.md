@@ -1,5 +1,7 @@
 # AGENTS.md
 
+> 当前审查修复分支固定为 `arena/01a08bf5-codemax-platform`。交叉验证与未完成事项见 `docs/REVIEW_CROSSCHECK.md`；其他文档中的旧会话分支仅作历史记录，不据此切换或推送。
+
 codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服务平台。
 
 > 本文件是**仓库级硬约定**，写给编码 agent 看，不是给人的项目介绍（那是 `README.md`）。
@@ -26,7 +28,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 - **不得合并 PR**，除非用户在本轮明确说要合并。合并后沙箱内的后续改动无法同步，等于白做。
 - **不得为了让测试通过而降标**：禁止 `skip` / 注释掉用例 / 放宽断言 / 删测试。
-- **不得引入 Java 或 Node 运行时**。node 只允许作为测试期工具去执行前端代码。
+- **不得引入 Java 或 Node 运行时**。Node 允许用于 Vite 构建和前端测试，不得成为生产后端服务运行时。
 - **不得提交 `.env`**。新增配置项必须同时写进 `.env.example`。
 - **不得把没验证过的结论写成事实**。跑不了的要明确标注「未核实」及原因。
 
@@ -87,9 +89,9 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 ## 「做完」的定义（七条全中才算完成）
 
 1. `.venv/bin/ruff check .` → **All checks passed!**
-2. `.venv/bin/python -m pytest -q` → **650 passed, 4 skipped**（4 条 skip 的实测构成见 `README.md`：2 条并发需真库 + 1 条真浏览器 + 1 条语义阈值标定需 embedding key）
+2. `.venv/bin/python -m pytest -q` → **673 passed, 4 skipped**（2026-09-11 合并审查第一批）（4 条 skip 的实测构成见 `README.md`：2 条并发需真库 + 1 条真浏览器 + 1 条语义阈值标定需 embedding key）
    （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）。
-3. 真 PostgreSQL 上 → **563 passed, 2 skipped**（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
+3. 真 PostgreSQL 上 → **675 passed, 2 skipped**（2026-09-11 实测）（此前随机红的绝对阈值性能用例已按实测换掉，见 `TECH_DECISIONS.md` TD-183/186）（起库配方见 `HANDOVER.md` §9）。
 4. 已提交并推送，`git ls-remote` 能看到新 tip。
 5. 关键逻辑改动做过**变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
    抓不到的变异要如实记为「等价变异，不可捕获」，不得当成已覆盖。
@@ -100,7 +102,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（**174 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（**176 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
@@ -108,7 +110,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
    - 爬虫 → `httpx` + `BeautifulSoup4`（不是 HttpClient + Jsoup）
    - 动态页面抓取 → **已选 Playwright**（TD-03/191）。它是**可选依赖**，不在 requirements.txt 里：
      `pip install playwright` 后还要 `playwright install chromium`；没装时端点返回 503 + 安装命令
-2. **前端用 Jinja2 SSR**，不引入 Node / Nuxt / Next。D3.js、Mermaid、Drawio 本来就是客户端渲染，SSR 只负责 HTML 外壳与 TDK。
+2. **前端用 Jinja2 SSR**，不引入 Node 后端服务 / Nuxt / Next；Vite 仅在构建期使用。D3.js、Mermaid、Drawio 本来就是客户端渲染，SSR 只负责 HTML 外壳与 TDK。
    - 工具清单集中成一个 `TOOLS` 常量，同时驱动路由、sitemap 与导航（S2-02-1）
    - S2-02-1 只做 `sitemap.xml` + `robots.txt` + 工具页 TDK；S2-02-2 转化路径本轮跳过
 
@@ -130,7 +132,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | **文档化 QA 审查报告（覆盖率 / 链接 / 格式）** | `DOCUMENTATION_SUMMARY.md` |
 | **文档站（离线静态站，可读+可视化）的用法与构建** | `docs/site/README.md` |
 | **架构讲解（七课，面向没读过代码的人；新实现要同步更新）** | `docs/ARCHITECTURE_GUIDE.md` |
-| 实现取舍与上线阻塞项（**174 条**去重后的 TD-xx，编号至 TD-226；仍为上线阻塞项的有 TD-113、TD-124、TD-206） | `TECH_DECISIONS.md` |
+| 实现取舍与上线阻塞项（**176 条**去重后的 TD-xx，编号至 TD-228；仍为上线阻塞项的有 TD-113、TD-124、TD-206） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |

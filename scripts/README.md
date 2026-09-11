@@ -345,3 +345,10 @@ python -m pytest tests/test_schema_sync.py -q
 >
 > **改 `full_init.sql` 后要跑三道**：`tests/test_schema_sync.py`（必跑）、
 > CI 的真库 job（自动）、本脚本（可选但便宜）。
+
+
+## 2026-09-11 文档清单补充
+
+构建器补登记 `app/frontend/README.md`，源码归属在 `app/` 前优先匹配 `app/frontend/`。新增“审查记录”分组，保留上传的 `CONSOLIDATED_ERROR_SUMMARY.md` 及 `docs/REVIEW_CROSSCHECK.md`。测试将 DOC_GROUPS 与 git ls-files 的 Markdown 双向比较（排除 .claude Agent Skills），登记项要提交或暂存后才属于 tracked 清单。
+
+当前文档页24份：原21 + 前端说明1 + 审查记录2，不应继续硬编码22作为所有未来提交的目标。源码 inventory 的 tracked／archive策略、依赖图别名边、搜索与锚点仍在待修范围。

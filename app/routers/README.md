@@ -500,3 +500,11 @@ python -m pytest tests/test_auth.py tests/test_auth_cookie.py tests/test_oauth.p
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `app/routers/` 下任何文件后，本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > 背景（为什么文档里的数字比代码更容易腐烂、以及一次真实的漏改事故）见 `docs/ARCHITECTURE_GUIDE.md` 第 7 课 7.10。
+
+
+## 2026-09-11 行为订正（合并审查第一批）
+
+- shop 的微信回调、模拟支付和人工确认统一将支付流水／付款时间作为 mark_paid 参数，不先修改 ORM 对象；状态与收据一次写入。
+- diagrams 的 restore 返回当前 ETag，恢复后可直接 PUT；这不是并发配额修复，配额仍待处理。
+- admin 的提取失败使用新的 HTTP_422_UNPROCESSABLE_CONTENT 常量，响应状态仍为422。
+- 新行为回归：`tests/test_review_regressions.py`。本文件此前详细章节的历史行号仍在文档整合待修范围，不以顶部日期包装为已全面同步。

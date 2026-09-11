@@ -47,7 +47,9 @@ def check_transition(current: str, target: str) -> None:
         raise IllegalTransition(f"订单状态不允许从 {current!r} 迁移到 {target!r}")
 
 
-async def mark_paid(db: AsyncSession, order: Order) -> bool:
+async def mark_paid(
+    db: AsyncSession, order: Order, *, transaction_id: str | None = None, paid_at: datetime | None = None,
+) -> bool:
     """待支付 → 已支付。返回本次是否真的发生了迁移。
 
     `CLOSED` 也要能收：订单被超时关闭不代表用户没付钱 —— 他完全可能已经扫了
@@ -55,7 +57,17 @@ async def mark_paid(db: AsyncSession, order: Order) -> bool:
     由 `test_late_payment_on_closed_order_still_delivers` 守着。
     """
     if order.status in (PENDING, CLOSED):
-        return await _cas(db, order, order.status, PAID)
+        # 钱到账时，pending/closed 都是允许的起点，不能只匹配读到的旧快照。
+        # 元数据必须和状态一起写，避免 ORM autoflush 让竞争失败者覆盖首笔流水。
+        receipt = {}
+        if transaction_id is not None:
+            receipt["transaction_id"] = transaction_id
+        if paid_at is not None:
+            receipt["paid_at"] = paid_at
+        changed = await _cas(db, order, (PENDING, CLOSED), PAID, **receipt)
+        if order.status not in (PAID, DOWNLOADED):
+            raise IllegalTransition(f"支付后订单状态异常：{order.status!r}")
+        return changed
     if order.status in (PAID, DOWNLOADED):
         return False  # 重复通知：幂等，不报错
     raise IllegalTransition(f"订单状态 {order.status!r} 无法标记为已支付")
@@ -89,9 +101,12 @@ async def mark_downloaded(db: AsyncSession, order: Order) -> bool:
     return await _cas(db, order, PAID, DOWNLOADED)
 
 
-async def _cas(db: AsyncSession, order: Order, expected: str, target: str) -> bool:
+async def _cas(
+    db: AsyncSession, order: Order, expected: str | tuple[str, ...], target: str, **values,
+) -> bool:
+    allowed = (expected,) if isinstance(expected, str) else expected
     result = await db.execute(
-        update(Order).where(Order.id == order.id, Order.status == expected).values(status=target)
+        update(Order).where(Order.id == order.id, Order.status.in_(allowed)).values(status=target, **values)
     )
     await db.commit()
     await db.refresh(order)

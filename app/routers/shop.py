@@ -239,10 +239,9 @@ async def mock_pay_confirm(
     order = await db.scalar(select(Order).where(Order.order_no == payload.order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
-    if order.status in (PENDING, CLOSED):  # 迟到支付（TD-156/TD-198）同样要留下支付流水
-        order.transaction_id = f"MOCK-{order.order_no}"
-        order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
-    await mark_paid(db, order)
+    await mark_paid(
+        db, order, transaction_id=f"MOCK-{order.order_no}", paid_at=datetime.now(timezone.utc),
+    )
     return {
         "order_no": order.order_no,
         "status": order.status,
@@ -287,10 +286,9 @@ async def confirm_paid_manually(
         # 这里**可以**返回 404 而不是像用户侧那样刻意模糊：调用方是管理员，
         # 「这个单号不存在」是他需要知道的运维信息，不是要对他保密的东西。
         raise HTTPException(404, "订单不存在")
-    if order.status in (PENDING, CLOSED):
-        order.transaction_id = f"MANUAL-{order.order_no}"
-        order.paid_at = datetime.now(timezone.utc)  # TIMESTAMPTZ，必须带时区（TD-146）
-    await mark_paid(db, order)
+    await mark_paid(
+        db, order, transaction_id=f"MANUAL-{order.order_no}", paid_at=datetime.now(timezone.utc),
+    )
     # 谁、什么时候、把哪一单标成已支付 —— 这三件事必须落盘。
     # 只在响应体里回一个 confirmed_by 等于没记录：调用方关掉页面就什么都没了，
     # 事后要查「这单是谁放的货」时无从查起（钱货争议时这是唯一证据）。
@@ -492,11 +490,10 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
         return _fail(400, f"金额不符：回调 {total} 分，订单 {order.amount} 分")
 
     # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
-    if order.status in (PENDING, CLOSED):  # 迟到支付（TD-156/TD-198）同样要留下支付流水
-        order.transaction_id = data.get("transaction_id")
-        order.paid_at = datetime.now(timezone.utc)  # 带时区，列为 TIMESTAMPTZ（TD-146 已修）
     try:
-        await mark_paid(db, order)
+        await mark_paid(
+            db, order, transaction_id=data.get("transaction_id"), paid_at=datetime.now(timezone.utc),
+        )
     except IllegalTransition as e:
         return _fail(409, str(e))
     return _ok()

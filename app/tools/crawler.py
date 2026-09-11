@@ -161,10 +161,13 @@ async def _request(
         # ① `.text` 的字符集解码（含 gbk 等非 UTF-8 页面）继续由 httpx 按
         #    Content-Type 处理，不必自己重写一套编码探测逻辑（已实测 gbk 保留）；
         # ② 不必往 `r._content` 这类私有属性里塞字节。
-        # 原样保留 headers 是安全的：能走到这里说明响应体已被完整读完，
-        # 原 Content-Length 与实际字节数仍然一致。
+        # aiter_bytes 已完成内容解压；不可把压缩态的编码与长度带给新 Response，
+        # 否则会再次解压。新长度由 httpx 根据解码后的 bytes 生成。
+        headers = r.headers.copy()
+        for name in ("content-encoding", "content-length", "transfer-encoding"):
+            headers.pop(name, None)
         return httpx.Response(
-            r.status_code, headers=r.headers, content=b"".join(chunks), request=r.request
+            r.status_code, headers=headers, content=b"".join(chunks), request=r.request
         )
 
 

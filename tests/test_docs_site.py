@@ -126,7 +126,7 @@ def test_file_anchor_matches_github(filename, expected):
     ],
 )
 def test_slug_keeps_chinese_and_spaces(rel, expected):
-    """`slug()` 把文档路径转成安全的文件名。
+    r"""`slug()` 把文档路径转成安全的文件名。
 
     它服务的是 `docs/site/d/*.html` 与 `s/*.html` 的**文件名**。实现是
     `re.sub(r"[^\w.-]", "_", rel, flags=re.UNICODE)` —— 保留字母/数字/下划线/
@@ -162,10 +162,19 @@ def test_duplicate_headings_get_numbered_ids():
 def test_doc_groups_all_exist():
     """`DOC_GROUPS` 里每个文件都必须真实存在。
 
-    这条就是「新增文档必须同步进构建清单」的机器闸门：
-    加了文件没登记 → 文档站没有那一页；登记了却没加文件 → 这里直接炸。
+    登记项必须存在，并反向检查所有 tracked Markdown（Agent Skills 除外）。
+    不再只检查单向关系，否则新增 frontend README 未登记也会通过。
     """
     assert isinstance(bds.DOC_GROUPS, list), "DOC_GROUPS 是 [(组名, [路径…]), …]"
+    import subprocess
+
+    tracked = subprocess.check_output(
+        ["git", "ls-files", "-z", "--", "*.md"], cwd=ROOT,
+    ).decode().split("\0")
+    expected = {p for p in tracked if p and not p.startswith(".claude/")}
+    registered = {p for _, files in bds.DOC_GROUPS for p in files}
+    assert registered == expected, f"未登记: {expected - registered}; 非tracked登记: {registered - expected}"
+
     for name, files in bds.DOC_GROUPS:
         assert files, f"分组「{name}」是空的"
         for rel in files:

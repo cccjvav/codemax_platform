@@ -84,7 +84,7 @@ async def ingest_article(
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY, f"大模型调用失败：{e.__cause__}"
             ) from e
-        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, f"内容提取失败：{e}") from e
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"内容提取失败：{e}") from e
 
     row = await save_article(db, parsed)
     return {

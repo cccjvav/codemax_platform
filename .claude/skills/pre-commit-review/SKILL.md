@@ -45,8 +45,8 @@ description: >
       `rowcount` 写法，TD 里有记录）
 
 ### 6. 测试
-- [ ] `.venv/bin/python -m pytest -q` → **650 passed, 4 skipped**
-- [ ] 改了表结构 → 真库那一遍也要跑（**563 passed, 2 skipped**，配方见 `HANDOVER.md` §9）
+- [ ] `.venv/bin/python -m pytest -q` → **本轮新增后全量通过**（当前基线见 HANDOVER.md）
+- [ ] 改了表结构 → 真库那一遍也要跑（**当前基线见 HANDOVER.md**，配方见 `HANDOVER.md` §9）
 - [ ] 修 bug → 补了一个能复现该 bug 的回归测试
 - [ ] **关键逻辑做过变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
       记录格式：`去掉 X → N 个用例红`。
@@ -66,10 +66,11 @@ description: >
 
 ```bash
 git status --porcelain                      # 再确认一遍
-git add -A
+git add <本批明确审核过的文件>               # 不批量纳入无关作品或用户文件
 git commit -F /tmp/msg.txt                  # 用 -F，不要用带引号的 -m
-git push origin arena/01a0599b-codemax-platform
-git ls-remote origin refs/heads/arena/01a0599b-codemax-platform   # 确认远端 tip
+branch=$(git branch --show-current)         # 同时遵守当前会话的固定分支限制
+git push origin "$branch"
+git ls-remote origin "refs/heads/$branch"   # 确认远端 tip
 ```
 
 改动若涉及 `.github/workflows/**`：本会话已有 Workflows 写权限、可直接 push，

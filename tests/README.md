@@ -22,7 +22,7 @@
   └─ 39 个 test_*.py  8 967 行  511 个测试
 ```
 
-本机实测：**650 passed, 4 skipped**（SQLite 后端，654 collected）；真 PostgreSQL 16 上 **626 passed, 2 skipped**（依赖大升级后那次实测，早于本轮新增用例）。
+2026-09-11 实测：**673 passed, 4 skipped**（SQLite，677 collected）；PostgreSQL 16：**675 passed, 2 skipped**。此前依赖升级数字是历史记录，当前以本节为准。
 
 > **为什么本文不逐个测试函数写**：488 个函数逐个写既写不完也没人看。
 > 本文按**测试策略 → 分组 → 每组守住的不变量**组织，只对**代表性用例**给行号。
@@ -324,7 +324,7 @@ pytest 收集 tests/（pytest.ini:3 testpaths）
 改代码
   ├─ .venv/bin/ruff check .                    ← CI 的 lint job
   ├─ .venv/bin/python -m pytest -q             ← CI 的 test-sqlite job
-  │    期望：650 passed, 4 skipped
+  │    本批实测：673 passed, 4 skipped
   └─ （动了 SQL / models / 时间相关）起真库再跑一遍   ← CI 的 test-postgres job
        期望：626 passed, 2 skipped
        （依赖大升级后那次实测；本轮新增 24 条用例后**未重跑真库**，实跑应更高）
@@ -373,7 +373,7 @@ grep -rn --include="*.py" "skipif" tests/
 
 # ⑥ 全量跑一遍
 python -m pytest -q
-# 本机实测：650 passed, 4 skipped（654 collected，SQLite）
+# 2026-09-11实测：673 passed, 4 skipped（677 collected，SQLite）
 
 # ⑥b 覆盖率（N-4 修复：`.coveragerc` 以前入库却连 coverage 都没装，跑都跑不了）
 python -m coverage run --rcfile=.coveragerc -m pytest -q
@@ -401,3 +401,11 @@ python -m pytest tests/test_e2e.py -q
 >    历史上已经因为「加 1 条测试」导致 24 处条数、11 个文件过期。改完必须重跑再写；
 > ② 断言里的关键策略值**写死数值**，不要用 `MAX_BYTES + 1` 这种相对写法
 >    （取任何值都能过，等于没测）。
+
+
+## 合并审查回归（2026-09-11）
+
+- `test_review_regressions.py`：19例，覆盖启动诊断组合、数据库凭证编码、gzip/deflate、解码大小预算、restore→PUT ETag、关单／重复支付竞争。全部使用隔离测试库或MockTransport。
+- `test_drawio_auth_state.py`：4例，用Node运行真实源码与产物，认证先完成／订阅先完成均检查初始、登录、退出状态，且不额外请求/auth/me。
+- `test_docs_site.py` 的原有清单测试已强化为 tracked Markdown 双向比较，排除Agent Skills；不再声称单向存在性检查能发现漏登记。
+- 全量仅剩Passlib crypt上游warning；没有全局忽略弃用警告。全量44个test_*.py模块，677个参数化测试节点。旧分组表明确是历史快照，尚待文档整合，不凭历史行号定位当前实现。

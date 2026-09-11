@@ -7,7 +7,7 @@
 
 | 层 | 选型 |
 | --- | --- |
-| 后端框架 | FastAPI 0.104 + Uvicorn |
+| 后端框架 | FastAPI 0.141.1 + Uvicorn |
 | ORM / 数据库 | SQLAlchemy 2.0 + asyncpg（异步） / PostgreSQL |
 | 认证 | python-jose (JWT) + passlib[bcrypt] |
 | 其他 | pydantic 2.x + pydantic-settings，`python-multipart`（OAuth2 表单） |
@@ -201,3 +201,10 @@
 1. **先做基础和商业闭环（阶段一、阶段三）**：先把用户能登录、能付钱、能安全下载文件的核心骨架搭起来。
 2. **再做引流工具（阶段二）**：完善各种前台小工具，这部分容易出效果，前端交互比较多。
 3. **最后攻克 AI 与自动化（阶段四）**：爬虫解析和三层客服架构是技术难点（亮点），放在最后集中精力攻克，可以不断调优 LLM 的 Prompt 和 RAG 的准确率。
+
+
+## 合并审查修复（2026-09-11）
+
+- [x] **R-01 确定性缺陷与交叉验证第一批**：支付／关单原子性、配置诊断／凭证编码、HTTP解码、restore ETag、Drawio初始认证、warning、收款码说明、文档登记双向校验。SQLite 673+4，PostgreSQL 675+2。
+- [ ] **R-02 后续功能与文档修复**：详见 `docs/REVIEW_CROSSCHECK.md`，不得把 R-01 完成等同于全部审查项关闭。
+- [ ] **R-03 需决策的安全／权益／部署方案**：schema 与会话升级、可恢复下载、可信入口与爬虫出口、API文档及客服承诺。

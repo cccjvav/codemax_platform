@@ -279,3 +279,8 @@ python -c "from app.middleware import CONTENT_SECURITY_POLICY as c; print([d for
 >
 > **改字段名要三处同步**：`app/tools/sql_ddl.py`（产出）、本文件（消费）、
 > `tests/test_er_page.py`（契约）。
+
+
+## 2026-09-11 构建产物更新
+
+`js/drawio-page.js` 已由源码重建，修复共享认证先完成时页面错过初始状态的问题；不要手改压缩产物。`tests/test_drawio_auth_state.py` 同时运行源码和产物，其他五个产物此次保持不变。文档站现也登记 `app/frontend/README.md`，不再用静态产物说明代替源码说明。

@@ -731,3 +731,10 @@ python -m pytest tests/test_sql_ddl.py tests/test_word_export.py tests/test_merm
 > **行号会腐烂。** 按 `AGENTS.md` 的 ALWAYS 段与 TD-195，改动 `app/tools/` 下任何文件后，本文对应的行号与计数**必须同步更新**，并把文首的「行号基准 commit」改成新的 SHA。
 >
 > 更深的背景（为什么文档里的数字比代码更容易腐烂、以及一次真实的漏改事故）见 `docs/ARCHITECTURE_GUIDE.md` 第 7 课 7.10。
+
+
+## 2026-09-11 抓取响应解码订正
+
+`crawler._request` 的 aiter_bytes 已返回解码内容。重建 Response 时去掉 content-encoding、content-length、transfer-encoding，httpx 根据解码内容重算长度；Content-Type 与字符集保留。gzip／deflate 回归和解码后大小预算见 `tests/test_review_regressions.py`。
+
+此修改不解决 DNS重绑定或浏览器重定向出站限制；也没有修 RAG 更新指纹与 SQL 字面量结构误判，详见审查台账。
