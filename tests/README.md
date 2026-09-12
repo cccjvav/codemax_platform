@@ -1,5 +1,7 @@
 # 测试策略与运行指南
 
+Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和覆盖率命令见 [本机测试指南](../docs/WINDOWS_CONDA.md)。浏览器和外部服务另按 [验收手册](../docs/ACCEPTANCE_GUIDE.md)；不要把 Node VM 当成真实浏览器。
+
 ## 模块职责
 
 测试回答分层问题：纯函数验证算法，HTTP 集成验证依赖/权限/异常映射，真实 PostgreSQL 验证数据库语义，Node 验证浏览器脚本生命周期，文档测试验证提取/链接/结构。
@@ -32,6 +34,8 @@
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
 | 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
 
+文档用例另外核对 Windows 指南登记和内嵌 Python 语法，并用 stub 执行 PG 密码编码/退出码、模型标定先加载配置再收集的入口；不连接数据库/模型，不把这些检查声称为 Windows 或 conda 实机运行。
+
 表内省略 `.py`；自动清单列出全部真实文件。测试不能只断言 HTTP 200：还要核验返回字段、库内状态、未发生的副作用以及重复/失败路径。
 
 <!-- doc-contract:files:start -->
@@ -50,7 +54,7 @@
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `779028d8c526` | L1–L343 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `b5811f75840a` | L1–L418 |
 | [`tests/test_download.py`](test_download.py) | `0a05c879945a` | L1–L247 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |

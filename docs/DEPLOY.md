@@ -5,6 +5,8 @@
 
 ---
 
+Windows/conda 开发运行、备份演练和自动化测试见 [本机指南](WINDOWS_CONDA.md)；浏览器与真实外部服务的签收标准见 [验收手册](ACCEPTANCE_GUIDE.md)。本机 mock 成功不等于生产商户联调通过。
+
 ## 1. 生产环境必须配好的 .env
 
 `ENV=production` 会在**启动时**做自检，不合规直接拒绝启动（`app/startup_checks.py`）。

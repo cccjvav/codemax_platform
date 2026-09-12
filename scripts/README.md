@@ -19,6 +19,8 @@
 
 ### build_docs_site.py
 
+DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验收手册，让三者进入同一离线导航与搜索；不能只在仓库添加文件而漏掉站点入口。
+
 | 阶段 / 函数 | 做什么、返回什么 | 不代表什么 |
 | --- | --- | --- |
 | `collect_python` / `module_name` / `package_of` | 从同一 Git 清单确定模块身份 | 不是只扫 app 或某几个示例函数 |
@@ -42,7 +44,7 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `fa9e53008bc7` | L1–L1041 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `4c7cbcfbdcfb` | L1–L1041 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 

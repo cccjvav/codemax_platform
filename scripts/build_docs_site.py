@@ -286,7 +286,7 @@ DOC_GROUPS = [
     ("方案原稿", ["代码级文档方案新.md", "代码级文档方案旧.md"]),
     ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md", "docs/DOCUMENTATION_QUALITY_REVIEW.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
-    ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/ROOT_FILES.md"]),
+    ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/WINDOWS_CONDA.md", "docs/ACCEPTANCE_GUIDE.md", "docs/ROOT_FILES.md"]),
     (
         "代码级说明书",
         [

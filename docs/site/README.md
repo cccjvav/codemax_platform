@@ -11,7 +11,7 @@
 - 符号卡可展开参数签名、返回注解与源码说明；缺 docstring 明确提示，默认隐藏测试符号但可切换。
 - 每次构建清理旧 d/s 页面，仅覆盖生成目录，不删除手写 CSS、JS 和 README。
 
-文档站生成物被 Git 忽略。手写 `style.css` 与 `site.js` 必须提交。文档源码中旧日期的性能/部署记录属于历史证据；当前验收见 [第二批验收](../SECOND_REPAIR_ACCEPTANCE.md)。
+文档站生成物被 Git 忽略。手写 `style.css` 与 `site.js` 必须提交。文档源码中旧日期的性能/部署记录属于历史证据；历史实现结果见 [第二批验收](../SECOND_REPAIR_ACCEPTANCE.md)；当前 Windows/conda 操作见 [本机指南](../WINDOWS_CONDA.md)，排版与搜索的实际检查见 [验收手册](../ACCEPTANCE_GUIDE.md)。
 
 ## 模块职责
 

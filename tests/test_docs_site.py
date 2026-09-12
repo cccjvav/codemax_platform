@@ -341,3 +341,78 @@ def test_manifest_counts_actual_headings_and_code_blocks(tmp_path, monkeypatch):
     item = bds.build_manifest()[0]
     assert item['headings'] == 1
     assert item['codeblocks'] == 2
+
+
+def _guide_python_commands(name):
+    """Extract single-line cmd Python payloads without executing Windows/conda."""
+    text = (ROOT / 'docs' / name).read_text(encoding='utf-8')
+    return re.findall(r'^python -c "([^"\n]+)"$', text, re.M)
+
+
+def test_windows_guides_registered_and_python_payloads_compile():
+    """Syntax/registration checks are not Windows execution evidence."""
+    paths = {item['path'] for item in bds.build_manifest()}
+    for name in ('WINDOWS_LOCAL_RUN.md', 'WINDOWS_CONDA.md', 'ACCEPTANCE_GUIDE.md'):
+        assert f'docs/{name}' in paths
+        commands = _guide_python_commands(name)
+        assert commands, f'{name}: missing command examples'
+        for command in commands:
+            compile(command, name, 'exec')
+
+
+def test_documented_pg_command_encodes_password_and_propagates_failure(monkeypatch, capsys):
+    """Exercise only URL/CLI glue; stub pytest so no database is contacted."""
+    import getpass
+    import os
+
+    from sqlalchemy.engine import make_url
+
+    commands = [c for c in _guide_python_commands('WINDOWS_CONDA.md') if 'TEST_DATABASE_URL' in c]
+    assert len(commands) == 1
+    password = 'test-only:@/#?% complex'
+    monkeypatch.setenv('TEST_DATABASE_URL', 'preexisting-value')
+    monkeypatch.setattr(getpass, 'getpass', lambda prompt: password)
+    calls = []
+
+    def fake_pytest(args):
+        calls.append((args, make_url(os.environ['TEST_DATABASE_URL'])))
+        return 1
+
+    monkeypatch.setattr(pytest, 'main', fake_pytest)
+    with pytest.raises(SystemExit) as result:
+        exec(commands[0], {})
+    assert result.value.code == 1  # A failed test must not look like command success.
+    assert len(calls) == 1
+    args, url = calls[0]
+    assert args == ['-q', '-rs']
+    assert url.drivername == 'postgresql+asyncpg'
+    assert url.username == url.database == 'codemax_test'
+    assert url.host == '127.0.0.1' and url.port == 5432
+    assert url.password == password
+    captured = capsys.readouterr()
+    assert password not in captured.out + captured.err
+
+
+def test_documented_calibration_loads_env_before_collection(monkeypatch):
+    """Check the opt-in entrypoint without reading keys or calling a model."""
+    import ast
+
+    import dotenv
+
+    commands = [c for c in _guide_python_commands('ACCEPTANCE_GUIDE.md') if 'pytest.main' in c]
+    assert len(commands) == 1
+    calls = []
+    monkeypatch.setattr(dotenv, 'load_dotenv', lambda: calls.append('env'))
+
+    def fake_pytest(args):
+        calls.append(args)
+        return 0
+
+    monkeypatch.setattr(pytest, 'main', fake_pytest)
+    with pytest.raises(SystemExit) as result:
+        exec(commands[0], {})
+    assert result.value.code == 0
+    assert calls == ['env', ['tests/test_faq_semantic.py::test_calibrate_semantic_threshold', '-q', '-s', '-rs']]
+    tree = ast.parse((ROOT / 'tests/test_faq_semantic.py').read_text(encoding='utf-8'))
+    assert any(isinstance(node, ast.AsyncFunctionDef) and node.name == 'test_calibrate_semantic_threshold'
+               for node in tree.body)

@@ -30,80 +30,27 @@ cd "database init" && python db_init.py && cd ..
 uvicorn main:app --reload   # http://localhost:8000/docs
 ```
 
-## 在 Windows（cmd.exe）上跑起来
+## Windows：以 conda 为主要路径
 
-**前置条件**
+你使用 conda 时，不创建 `.venv`，也不调用 `.venv\Scripts\python.exe`。
 
-1. **Python 3.11 或 3.12**（装完用 `python --version` 确认）。
-   ⚠️ **不要用 Python 3.13**：`pydantic-core==2.14.5`、`asyncpg==0.29.0`、
-   `psycopg2-binary==2.9.9` 都**没有 cp313 的 Windows 轮子**，pip 会退化成源码编译，
-   要求 Rust / MSVC 构建工具，大概率失败。CI 用的就是 3.11。
-2. 已安装 PostgreSQL 并且 pgAdmin4 能连上（本项目**不用** SQLite 跑业务，
-   SQLite 只出现在测试里，与 PostgreSQL 不冲突、也不会互相影响）。
-3. 知道 `postgres` 超级用户的密码。
+1. 打开 Anaconda / Miniconda Prompt（cmd），激活项目环境并核对 Python 3.11。
+2. 按 [Windows + conda 完整指南](docs/WINDOWS_CONDA.md) 安装依赖、配置独立开发库并启动。
+3. 按该指南在无业务配置的独立目录跑自动化测试；测试库会重建表，不能使用业务库。
+4. 按 [人工及外部服务验收手册](docs/ACCEPTANCE_GUIDE.md) 检查真实浏览器、Word、Drawio、站内客服和订单等。
 
-**逐行执行**（cmd 里不要把它们串成一长行）
+已经完成安装/配置后，每天从项目根目录启动：
 
 ```cmd
-cd /d C:\你的路径\codemax_platform
-
-python -m venv .venv
-.venv\Scripts\python.exe -m pip install --upgrade pip
-.venv\Scripts\python.exe -m pip install -r requirements.txt
-
-copy .env.example .env
-notepad .env
+conda activate codemax
+set PYTHONUTF8=1
+python -c "import sys; print(sys.executable)"
+python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-headers
 ```
 
-在记事本里至少改这三项，存盘关闭：
+`codemax` 换成你的环境名。首次建环境和数据库的步骤不能跳过；已有库不要重跑 full_init。Conda 不会代替 PostgreSQL 服务或 Node 安装。仍想用标准库 venv 时见 [Windows 入口与 venv 备选](docs/WINDOWS_LOCAL_RUN.md)。
 
-| 配置项 | 改成 | 说明 |
-| --- | --- | --- |
-| `DB_PASSWORD` | 你的 postgres 密码 | 不改则连不上库 |
-| `SHOP_PAY_MODE` | `mock` | 本地演示用；`wechat` 需要商户号，否则下单接口返回 503 |
-| `LLM_API_KEY` | 你的 key（可不填） | 不填时 Mermaid/LLM 文章解析不可用；确定性工具、词袋 FAQ 和站内消息仍可用 |
-
-**建库建表**（脚本用相对路径读 `../.env`，所以必须先进子目录；目录名有空格要加引号）
-
-```cmd
-cd "database init"
-..\.venv\Scripts\python.exe db_init.py
-cd ..
-```
-
-看到 `[1/2] ... 创建成功` 与 `[2/2] ... 建表完成` 即可。
-
-> ⚠️ **「可重复执行」不等于「对已有数据安全」**：`full_init.sql` 开头是 `DROP TABLE ... CASCADE`，
-> 所以它对**空库**可以反复跑（CI 就是连跑两遍验这个），但对**已有数据的库跑它等于清库**。
-> 它也不是升级手段 —— 已有库要升级请按编号顺序跑 `database init/migrate_000N_*.sql`，
-> 清单见 [`docs/DEPLOY.md`](docs/DEPLOY.md)。
-
-**启动服务**
-
-```cmd
-.venv\Scripts\python.exe -m uvicorn main:app --reload
-```
-
-⚠️ 必须**在项目根目录**执行 —— `.env` 是按「当前工作目录」查找的，换个目录启动会读不到配置。
-
-浏览器打开：
-
-| 地址 | 内容 |
-| --- | --- |
-| `http://127.0.0.1:8000/` | 首页（工具导航） |
-| `http://127.0.0.1:8000/tools/er` | SQL DDL 转 ER 图 |
-| `http://127.0.0.1:8000/tools/mermaid` | 自然语言生成 UML 类图（需 `LLM_API_KEY`） |
-| `http://127.0.0.1:8000/tools/drawio` | Drawio 在线流程图 |
-| `http://127.0.0.1:8000/docs` | 接口文档（Swagger UI） |
-| `http://127.0.0.1:8000/health` | 健康检查 |
-
-**在 Windows 上跑测试**
-
-```cmd
-.venv\Scripts\python.exe -m pytest -q
-```
-
-各批实际结果见 [验收记录](docs/SECOND_REPAIR_ACCEPTANCE.md) 和 [文档质量复核](docs/DOCUMENTATION_QUALITY_REVIEW.md)。SQLite 的 PostgreSQL 专用用例会跳过；真实模型标定需密钥。动态 Chromium 已停用，安装浏览器不会自动恢复。测试方法和破坏性测试库警告见 [tests/README](tests/README.md)。
+**剩余验收不全是 Windows 专属**：页面/编辑器可在其他系统的浏览器检查，数据库测试可在 CI，模型需要密钥，微信支付需要商户与可达 HTTPS 回调。你的 Windows 本机验收主要确认实际 conda 环境和客户端体验；CI 成功不自动代表这些项目通过。
 
 ## 运行测试
 

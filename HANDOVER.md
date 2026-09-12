@@ -1,5 +1,7 @@
 # 交接与恢复工作
 
+Windows 本机以 [conda 指南](docs/WINDOWS_CONDA.md) 为主要路径；剩余项目依 [验收手册](docs/ACCEPTANCE_GUIDE.md) 分层执行，并非全部只能在 Windows。未执行项不转写成通过记录。
+
 ## 当前入口
 
 - 第二批实现与迁移：[验收记录](docs/SECOND_REPAIR_ACCEPTANCE.md)

@@ -9,6 +9,9 @@
 ## 现行指南与历史材料
 
 当前阅读：根 README → ARCHITECTURE_GUIDE → 对应目录 README → DEPLOY。
+
+- Windows 本地：[conda 运行/维护/测试](WINDOWS_CONDA.md)，[venv 备选与常见问题](WINDOWS_LOCAL_RUN.md)。
+- 签收步骤：[浏览器、文件、客服、支付、模型与上线验收](ACCEPTANCE_GUIDE.md)，明确执行环境和通过标准；未执行步骤不是通过记录。
 DOCUMENTATION_QUALITY_REVIEW 记录本轮内容审核；SECOND_REPAIR_ACCEPTANCE 是第二批实现验收快照。
 TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧状态覆盖现行模块契约。
 `documentation_policy.json` 定义有理由的生成例外，不存放函数业务解释。
