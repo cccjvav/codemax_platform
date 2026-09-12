@@ -46,7 +46,7 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `7fc80e09d7e5` | L1–L156 |
+| [`app/frontend/auth.js`](auth.js) | `056b278cd0ad` | L1–L156 |
 | [`app/frontend/drawio-page.js`](drawio-page.js) | `36e5912c3c54` | L1–L179 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
 | [`app/frontend/er-page.js`](er-page.js) | `401d4bc2f910` | L1–L164 |

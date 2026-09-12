@@ -7,6 +7,10 @@
 
 毕设服务平台 (codemax.top)：免费工具平台 + 商业平台（双平台），统一认证（SSO）、支付闭环、云存储安全下载、AI 内容解析与智能客服。
 
+## 从零理解代码
+
+先读 [代码复盘入口](docs/CODE_READING_GUIDE.md)：术语、启动/登录/鉴权和客户—管理员消息链路。文档站新增“精读覆盖与缺口”，源码页提供部分核心文件的解释与代码并排阅读；未补项明确保留。源码可定位、函数有签名、门禁通过都不等于全项目逐行讲解完成。历史报告不冒充现行教程。
+
 ## 技术栈
 
 - 后端：FastAPI + SQLAlchemy 2.0（异步）+ asyncpg
@@ -204,7 +208,7 @@ start docs\site\index.html
 | [`.dockerignore`](.dockerignore) | `9fe29d4eff0a` | L1–L25 |
 | [`.env.example`](.env.example) | `02acf9619c08` | L1–L113 |
 | [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
-| [`.gitignore`](.gitignore) | `4d369746b9b2` | L1–L47 |
+| [`.gitignore`](.gitignore) | `6d716a3d4678` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
 | [`main.py`](main.py) | `976473de883b` | L1–L71 |

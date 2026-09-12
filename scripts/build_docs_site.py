@@ -286,7 +286,7 @@ DOC_GROUPS = [
     ("方案原稿", ["代码级文档方案新.md", "代码级文档方案旧.md"]),
     ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md", "docs/DOCUMENTATION_QUALITY_REVIEW.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
-    ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/WINDOWS_CONDA.md", "docs/ACCEPTANCE_GUIDE.md", "docs/ROOT_FILES.md"]),
+    ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/CODE_READING_GUIDE.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/WINDOWS_CONDA.md", "docs/ACCEPTANCE_GUIDE.md", "docs/ROOT_FILES.md"]),
     (
         "代码级说明书",
         [
@@ -365,6 +365,8 @@ def render_site(payload: dict) -> dict:
     """生成完整的静态站点到 docs/site/。返回统计信息。"""
     import shutil
 
+    from code_reading import render_inventory, render_notes
+
     for directory in ("d", "s"):
         shutil.rmtree(SITE / directory, ignore_errors=True)
     md = _md()
@@ -377,6 +379,8 @@ def render_site(payload: dict) -> dict:
     src_pages = _source_page_list()
     src_href = {p: f"s/{slug(p)}.html" for p in src_pages}
 
+    reading = payload["reading"]
+    reading_by_path = {row["path"]: row for row in reading["files"]}
     nav = _render_nav(manifest, doc_href)
     stats = {"docs": 0, "sources": 0, "pages": 0}
 
@@ -421,6 +425,9 @@ def render_site(payload: dict) -> dict:
   <span style="flex:1"></span>
   {f'<a class="mini" href="../{doc_href[doc]}">该模块的说明书</a>' if doc in doc_href else ''}
 </div>
+<p><a href="../reading.html">查看全量精读覆盖与待补项</a></p>
+{render_notes(reading_by_path[rel], text)}
+<h2>完整源码</h2>
 <div class="symbar">{' '.join(f'<a href="#L{s["line"]}"><code>{esc(s["name"])}</code></a>' for s in sym[:60])}</div>
 <pre class="source"><code>{rows}</code></pre>""",
             toc="",
@@ -440,11 +447,12 @@ def render_site(payload: dict) -> dict:
     _write(SITE / "index.html", home)
     stats["pages"] += 1
 
-    # ---- 三个可视化页
+    # ---- 可视化页与精读覆盖页
     for name, title, body in [
         ("graph.html", "模块依赖图", _render_graph_page(graph, doc_href, src_href)),
         ("routes.html", "路由地图", _render_routes_page(routes)),
         ("symbols.html", "符号索引", _render_symbols_page(symbols, doc_href, src_href)),
+        ("reading.html", "代码精读覆盖", render_inventory(reading, doc_href, src_href)),
     ]:
         _write(SITE / name, _shell(title=title, active=None, nav=nav, main=body, toc=""))
         stats["pages"] += 1
@@ -641,7 +649,8 @@ def _render_nav(manifest: list[dict], doc_href: dict) -> str:
         '<div class="nav-group nav-extra"><h2>可视化</h2>'
         '<a href="graph.html">🕸 模块依赖图</a>'
         '<a href="routes.html">🧭 路由地图</a>'
-        '<a href="symbols.html">🔤 符号索引</a></div>'
+        '<a href="symbols.html">🔤 符号索引</a>'
+        '<a href="reading.html">📖 精读覆盖与缺口</a></div>'
     )
     return "\n".join(out)
 
@@ -691,12 +700,12 @@ def _render_home(payload: dict, doc_href: dict) -> str:
         cards.append(f"<h3>{esc(g)}</h3><div class='cards'>")
         for d in items:
             cards.append(
-                f"<a class='card' href='{doc_href[d['path']]['' if False else ''] if False else doc_href[d['path']]}'>"
+                f"<a class='card' href='{doc_href[d['path']]}'>"
                 f"<b>{esc(d['title'])}</b><span><code>{esc(d['path'])}</code> · {d['lines']} 行 · {d['headings']} 小节</span></a>"
             )
         cards.append("</div>")
     return f"""<h1>codemax_platform 文档站</h1>
-<p class="lead">架构导读与代码级逐行说明书的可读 + 可视化版本。
+<p class="lead">架构导读、函数契约与源码定位；已补部分核心链路的分段精读，尚非全项目逐行讲解。
 本站<b>完全离线</b>：由 <code>scripts/build_docs_site.py</code> 从 Markdown 与源码预渲染，
 不依赖任何 CDN 或运行时。</p>
 <div class="stats">
@@ -713,6 +722,7 @@ def _render_home(payload: dict, doc_href: dict) -> str:
   <a class="card viz" href="routes.html"><b>🧭 路由地图</b><span>{m['routes']} 条路由，含鉴权与限流标记，可过滤</span></a>
   <a class="card viz" href="symbols.html"><b>🔤 符号索引</b><span>{m['symbols']} 个函数与类，点击直达源码行</span></a>
 </div>
+<p><a href="reading.html">📖 逐文件查看精读覆盖与待补项</a>：文件/函数能定位不代表已经讲解完成。</p>
 <h2>文档</h2>
 {''.join(cards)}
 """
@@ -982,6 +992,13 @@ def main() -> int:
     if errors:
         print("\n".join(errors), file=sys.stderr)
         return 1
+    from code_reading import build_reading
+
+    try:
+        reading = build_reading(ROOT, code_manifest)
+    except ValueError as error:
+        print(str(error), file=sys.stderr)
+        return 1
     DATA.mkdir(parents=True, exist_ok=True)
     (DATA / "code-manifest.json").write_text(
         json.dumps(code_manifest, ensure_ascii=False, indent=2), encoding="utf-8"
@@ -993,6 +1010,7 @@ def main() -> int:
     manifest = build_manifest()
 
     payload = {
+        "reading": reading,
         "graph": graph,
         "routes": routes,
         "symbols": symbols,
@@ -1006,7 +1024,7 @@ def main() -> int:
             "doc_lines": sum(d["lines"] for d in manifest),
         },
     }
-    for key in ("graph", "routes", "symbols", "manifest"):
+    for key in ("graph", "routes", "symbols", "manifest", "reading"):
         (DATA / f"{key}.json").write_text(
             json.dumps(payload[key], ensure_ascii=False, indent=1), encoding="utf-8"
         )
@@ -1016,6 +1034,9 @@ def main() -> int:
     print(f"✅ 数据已生成到 {DATA.relative_to(ROOT)}/")
     print(f"   模块 {m['modules']} 个 · 依赖边 {m['edges']} 条 · 路由 {m['routes']} 条 · "
           f"符号 {m['symbols']} 个 · 文档 {m['docs']} 份（{m['doc_lines']} 行）")
+
+    print(f"   精读 {reading['counts'].get('annotated', 0)} 文件 / {reading['note_blocks']} 段；"
+          f"待补分段精读 {reading['counts'].get('contract_only', 0)} 文件（不是语义认证）")
 
     if args.data_only:
         return 0
@@ -1032,7 +1053,7 @@ def main() -> int:
         print("\n".join(errors), file=sys.stderr)
         return 1
     print(f"✅ 静态站已生成：文档 {stats['docs']} 页 + 源码 {stats['sources']} 页 + "
-          f"首页与 3 个可视化页 → {SITE.relative_to(ROOT)}/")
+          f"首页、3 个可视化页与精读覆盖页 → {SITE.relative_to(ROOT)}/")
     print(f"   打开方式：直接在浏览器打开 {SITE.relative_to(ROOT)}/index.html（无需服务器、无需联网）")
     return 0
 

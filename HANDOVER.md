@@ -1,5 +1,7 @@
 # 交接与恢复工作
 
+学习入口：[从零复盘](docs/CODE_READING_GUIDE.md)；文档站 reading.html 列明人工精读与待补项。已有核心链路精读，不代表全部文件/函数已逐段讲完；历史报告不作为当前实现认证。
+
 Windows 本机以 [conda 指南](docs/WINDOWS_CONDA.md) 为主要路径；剩余项目依 [验收手册](docs/ACCEPTANCE_GUIDE.md) 分层执行，并非全部只能在 Windows。未执行项不转写成通过记录。
 
 ## 当前入口

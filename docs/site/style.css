@@ -275,3 +275,14 @@ a:focus-visible, summary:focus-visible, button:focus-visible, input:focus-visibl
   .viz-toolbar { flex-wrap: wrap; }
 }
 @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+
+/* Human reading notes: source and explanation remain usable without JavaScript. */
+.reading-block { margin: 16px 0; padding: 12px; border: 1px solid #cbd5e1; border-radius: 8px; }
+.reading-block > summary { cursor: pointer; font-weight: 650; overflow-wrap: anywhere; }
+.reading-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; }
+.reading-grid > * { min-width: 0; }
+.reading-explanation { white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.9; }
+.reading-grid pre { overflow: auto; white-space: pre; padding: 12px; background: #f8fafc; }
+.reading-block summary:focus-visible, .reading-grid pre:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+@media (max-width: 1000px) { .reading-grid { grid-template-columns: minmax(0, 1fr); } }

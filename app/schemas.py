@@ -24,7 +24,7 @@ _BCRYPT_MAX_BYTES = 72
 def _check_password_bytes(v: str) -> str:
     """拒绝 UTF-8 编码后超过 72 字节的密码。
 
-    为什么这比「让 bcrypt 截断」危险得多：截断之后**两个不同的密码能互相登录**。
+    为什么要拒绝而不能让 bcrypt 截断：截断之后**两个不同的密码可能通过同一校验**。
     受害者注册了 64 个汉字的密码，攻击者只要知道前 24 个汉字就能进他的账号 ——
     而「密码前缀」恰恰是最容易被猜到的部分。
 
@@ -116,8 +116,8 @@ class ArticleIngestIn(BaseModel):
     """
 
     url: str = Field(min_length=1, max_length=500)
-    # TD-191：True 时用无头浏览器渲染后再解析，给 httpx 抓不到正文的 SPA 站点兜底。
-    # 默认 False —— 渲染比一次 HTTP GET 贵一个数量级，不该是默认行为。
+    # dynamic 字段保留兼容；当前动态浏览器链路因缺少网络隔离而停用，True 不代表可用。
+    # 默认 False 走受控静态抓取；安装浏览器包不会解除 _goto 的 fail-closed 边界。
     dynamic: bool = False
 
 

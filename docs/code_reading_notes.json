@@ -1,0 +1,636 @@
+{
+  "version": 1,
+  "files": [
+    {
+      "path": "main.py",
+      "sha256": "976473de883b900ec5e5f1f1b772570e587ca010acf109a6d7a9e0d1306dfb46",
+      "blocks": [
+        {
+          "end": 14,
+          "title": "先装配依赖，不是先接请求",
+          "explanation": "标准库负责日志、生命周期和路径；FastAPI/StaticFiles 来自框架；app 导入本仓库模块。导入 settings、engine 时会创建配置对象与引擎对象，但不等于已经连上数据库。导入路由模块会执行装饰器注册；函数体通常要等请求才运行。"
+        },
+        {
+          "end": 24,
+          "title": "导入时的日志与生产自检",
+          "explanation": "basicConfig 设置默认日志级别和格式；已有日志配置时不一定覆盖它。enforce_production_settings 在 app 创建前执行：生产配置硬错误直接阻止启动。它检查配置规则，不证明外部数据库/商户可连接。"
+        },
+        {
+          "end": 40,
+          "title": "lifespan：开店前与正常关店后",
+          "explanation": "asynccontextmanager 把含 yield 的异步生成器包装成上下文管理器。yield 前 await FAQ 索引预热；yield 交出控制权让框架服务请求；正常退出时回收 CPU 池并 dispose 数据库连接池。这里没有 try/finally，不能把它说成强杀进程或任意异常都保证执行的清理器。_ 参数表示接到 app 但函数不用它。"
+        },
+        {
+          "end": 48,
+          "title": "创建 ASGI 应用",
+          "explanation": "FastAPI 接收生命周期函数和接口文档地址；production 把三个文档地址设成 None。关闭 Swagger 不是关闭业务路由，也不是权限校验。Uvicorn 的 main:app 指向这个变量。"
+        },
+        {
+          "end": 54,
+          "title": "中间件套在路由外面",
+          "explanation": "后添加的请求日志中间件在外，安全头中间件在内；请求进入顺序与响应返回顺序相反。它们执行日志、头部与缓存策略，不能替代路由的所有权和角色检查。"
+        },
+        {
+          "end": 65,
+          "title": "把子路由接到应用",
+          "explanation": "每个 include_router 装入对应 APIRouter。messages 是持久站内会话，support 是智能问答，两者不能当作同一个实现。site 负责公开页面外壳，auth/oauth 负责身份与授权。路由里仍有查询和事务逻辑，不是全部委托给所谓 service 层。"
+        },
+        {
+          "end": 71,
+          "title": "静态资源与模板页面分开",
+          "explanation": "/static 映射到仓库 app/static 目录，Path(__file__) 让静态路径不依赖启动目录。HTML 页面主要由 Jinja 路由返回；CSS/构建后的 JS 再由浏览器请求。静态目录不是私有商品目录，商品下载另有鉴权和签名流程。"
+        }
+      ]
+    },
+    {
+      "path": "app/database.py",
+      "sha256": "31f23a8fcc1ea0dc76aa7331e45eaadb3e9dfb20b1c217d677a4a75afa10af6e",
+      "blocks": [
+        {
+          "end": 5,
+          "title": "数据库工具从哪里来",
+          "explanation": "SQLAlchemy 提供异步引擎、会话工厂和声明式基类；连接配置取自 settings。这里没有从 HTTP 请求中读取任意连接字符串。"
+        },
+        {
+          "end": 10,
+          "title": "Base 为什么只有 pass",
+          "explanation": "继承 DeclarativeBase 即获得 ORM 元数据机制；pass 表示此处不新增方法，不是遗漏业务。模型继承 Base 后登记表结构；登记不会自动替生产库执行迁移。"
+        },
+        {
+          "end": 14,
+          "title": "引擎与会话不是同一物",
+          "explanation": "engine 管连接池；SessionLocal 是创建会话的工厂。expire_on_commit=False 允许提交后继续访问已加载属性，不保证属性自动与其他事务的新值同步。"
+        },
+        {
+          "end": 20,
+          "title": "get_db 的 yield 边界",
+          "explanation": "async with 打开并最终关闭 session，yield 把它交给 FastAPI 依赖使用。一次请求里相同依赖默认会缓存复用。这里没有 commit：写操作要自己提交；只 add 后就返回不代表已持久保存，关闭时未提交事务会回滚。"
+        },
+        {
+          "end": 28,
+          "title": "lock_user：用数据库锁，而非 Python 锁",
+          "explanation": "先 UPDATE 用户行，把 update_time 赋为它自己，目的是获得写锁而不是改时间。再 SELECT 并要求 populate_existing 刷新 ORM 身份映射里的旧对象。调用者负责提交/回滚释放锁；查不到返回 None。PostgreSQL 是行锁，SQLite 写锁范围更粗。"
+        }
+      ]
+    },
+    {
+      "path": "app/security.py",
+      "sha256": "8e4614d7561f3139509b8d61f27b0b296a895195bdde4d96d5db0fa956534708",
+      "blocks": [
+        {
+          "end": 18,
+          "title": "密码上下文和 Cookie 名",
+          "explanation": "CryptContext 选择 bcrypt；AUTH_COOKIE 只是同源浏览器会话 Cookie 的名字。哈希不可当作可解密密码，Cookie 中的 JWT 也不是数据库用户对象。HttpOnly 阻止脚本直接读取 Cookie，不阻止脚本借当前会话发请求。"
+        },
+        {
+          "end": 30,
+          "title": "hash_password / verify_password",
+          "explanation": "同步 hash 交给密码库计算，调用方须先验证输入。verify 先拒绝空字符和超过 72 UTF-8 字节的输入，再校验哈希；ValueError/TypeError 转 False，其他意外异常并未在此全部吞掉。bytes 与字符数不同，中文更容易超过字节限额。"
+        },
+        {
+          "end": 52,
+          "title": "异步包装并不把 bcrypt 变成异步算法",
+          "explanation": "ahash_password 与 averify_password await run_in_threadpool，把慢的同步计算交给线程，避免直接占住事件循环。前者直接调上下文 hash，后者使用带输入边界的 verify_password。注释中的耗时是历史测量，不是每台机器的固定性能。"
+        },
+        {
+          "end": 62,
+          "title": "adummy_verify 的目的",
+          "explanation": "缓存一个假密码哈希；用户不存在时仍做一次校验，减小用户存在与不存在的明显耗时差。第一次可能还要生成哈希；结果丢弃，不授予任何身份，也不是严格恒定时间证明。"
+        },
+        {
+          "end": 75,
+          "title": "TokenClaims 是解析后的数据容器",
+          "explanation": "frozen dataclass 保存 sub 用户名、pwd 可空的改密秒数、version 凭据版本；frozen 限制正常属性赋值。它不是 ORM 模型，不查库，也没有自动验证用户是否被禁用。"
+        },
+        {
+          "end": 84,
+          "title": "_pwd_stamp：统一时间表示",
+          "explanation": "没有改密时间返回 None，否则经 as_utc 转 UTC 并取整数 UNIX 秒。秒级精度不足以独自区分同秒多次改密，因此另有整数凭据版本。"
+        },
+        {
+          "end": 93,
+          "title": "create_access_token：签名，不是加密",
+          "explanation": "根据配置有效分钟数计算 exp，加入 sub/pwd/ver，再用固定算法与密钥签 JWT。载荷通常可读，不能放密码。此函数不查库，调用者必须传当前 credential_version；默认 0 不是适用于所有旧账号的捷径。"
+        },
+        {
+          "end": 109,
+          "title": "decode_token：先验签，再检查声明",
+          "explanation": "jwt.decode 限定配置算法并检查签名/有效期；JWTError 返回 None。sub 必须非空，ver 必须是非负的真正 int，pwd 若有也必须是真正 int；type 检查会排除 Python 中属于 int 子类的 bool。返回 TokenClaims 后，还要由 deps 对照数据库状态与版本才能授权。"
+        }
+      ]
+    },
+    {
+      "path": "app/deps.py",
+      "sha256": "358144652b38037541a952db6fc63add5fe1f02f852e1095a2227811329d7816",
+      "blocks": [
+        {
+          "end": 15,
+          "title": "Depends 与可选 Bearer",
+          "explanation": "OAuth2PasswordBearer 提取 Authorization 里的 Bearer。auto_error=False 使缺少头部时不立即拒绝，后面才有 Cookie 回退机会；tokenUrl 是文档里的登录入口信息，不会自动登录。"
+        },
+        {
+          "end": 30,
+          "title": "get_current_user 第一关：拿到有效凭据",
+          "explanation": "FastAPI 注入 request、解析的 token 和 get_db 会话。非空 Bearer 优先于 Cookie；都没有返回 401 并附 WWW-Authenticate。decode_token 失败也返回 401，错误 token 不会退回 Cookie 再试一次。"
+        },
+        {
+          "end": 43,
+          "title": "第二关：把令牌与当前数据库比较",
+          "explanation": "按 claims.sub 查 User；不存在/禁用拒绝。ver 必须等于当前 credential_version；若库有改密时间，令牌 pwd 也要存在且不早于当前秒。最后返回的是数据库 User，不是客户端自报角色。这些 SELECT 不修改账号。"
+        },
+        {
+          "end": 55,
+          "title": "require_admin 第三关：授权",
+          "explanation": "先复用 get_current_user 验证身份，再要求 role==1。已登录但无权限是 403，而非把所有失败都叫未登录；通过时返回同一 User。隐藏管理员按钮不是这个判断的替代品。"
+        }
+      ]
+    },
+    {
+      "path": "app/routers/auth.py",
+      "sha256": "4edd21d2c8b450eba765d89b78f50985e1ae46482f142c087753c8ee7de52913",
+      "blocks": [
+        {
+          "end": 24,
+          "title": "认证路由依赖地图",
+          "explanation": "APIRouter 给端点统一 /auth 前缀。schemas 管输入/输出形状，security 管哈希与签名，deps 查当前身份，database 管会话/锁，rate_limit 提供频率限制；它们不是按文件顺序依次执行的流水线，Depends 和函数调用才决定实际顺序。"
+        },
+        {
+          "end": 41,
+          "title": "_set_auth_cookie 的每个选项",
+          "explanation": "max_age 把配置分钟转换成秒；path=/ 让站内路径都可携带；httponly 禁止 JS 直接读取；samesite=lax 限制部分跨站携带；production 才 secure，要求 HTTPS。设置 Cookie 不会给数据库新建会话记录，也不保证完全防住 XSS/CSRF。"
+        },
+        {
+          "end": 57,
+          "title": "register：校验、哈希、提交、刷新",
+          "explanation": "装饰器指定 POST、201、UserOut 和注册限流。RegisterIn 已由框架校验。先查重只为友好提示，并发最终由数据库唯一约束兜底；IntegrityError 后先 rollback 再返回 400。refresh 取回生成的 id/默认值，UserOut 过滤密码。注册本身不设置 Cookie。"
+        },
+        {
+          "end": 83,
+          "title": "login：为什么使用表单而不是 JSON",
+          "explanation": "OAuth2PasswordRequestForm 读取表单编码。不存在用户做假哈希后返回 401，密码错误同样 401，密码正确但禁用为 403。成功使用库中当前版本签名，同时返回 TokenOut 和 Cookie，兼容 API 与浏览器。它不改订单，也不更新用户角色。"
+        },
+        {
+          "end": 98,
+          "title": "change_password 的注入与意图",
+          "explanation": "PasswordChangeIn 验新密码结构；get_current_user 先要求有效会话。返回新 token 的目的是让这次改密请求的浏览器继续使用，而其他旧凭据之后被查库拒绝；不是远程主动关闭其他设备的网络连接。"
+        },
+        {
+          "end": 117,
+          "title": "改密的写入顺序决定安全边界",
+          "explanation": "先 lock_user 刷新并串行化该用户的修改，再验原密码、拒绝新旧相同、计算新哈希、更新时间并递增版本。commit/refresh 完成后才签新 token 并换 Cookie。若中途抛错，get_db 退出负责关闭未提交事务；锁不是独立事务自动提交器。"
+        },
+        {
+          "end": 128,
+          "title": "logout：只清本浏览器凭据",
+          "explanation": "不要求当前凭据有效，过期 Cookie 也能删除；204 没有响应正文。delete_cookie 的 path 必须与设置时一致。已经复制出去的 Bearer 不会因此失效，改密撤销才依赖持久版本比较。"
+        },
+        {
+          "end": 131,
+          "title": "me：没有显式 SELECT 为什么仍查库",
+          "explanation": "Depends(get_current_user) 已完成查询和验证，端点只返回 User；response_model=UserOut 让序列化只输出允许字段。前端用它确认当前用户，不直接读 HttpOnly Cookie。"
+        }
+      ]
+    },
+    {
+      "path": "app/models.py",
+      "sha256": "5bb6102d1c98a6354ab2128082cf4e83500201d176c3beeca0debb758e8ab1ec",
+      "blocks": [
+        {
+          "end": 20,
+          "title": "ORM 声明的基础语法",
+          "explanation": "Mapped[T] 标注 ORM 属性类型，mapped_column 描述列；str|None 通常推导允许 NULL。ForeignKey/Index/UniqueConstraint 描述数据库约束。func.now 是数据库表达式；default 是 SQLAlchemy 插入默认，server_default 是数据库默认。模型不是数据库迁移工具。"
+        },
+        {
+          "end": 45,
+          "title": "User：身份、权限与撤销各司其职",
+          "explanation": "id 主键；username 唯一且长 50；password 存哈希而非明文；nickname/avatar 可空。status 控制可否使用账号，role 控制管理员权限，两者默认值不表示可由注册请求指定。credential_version 在应用与数据库默认 0，改密递增；password_changed_at 留时间证据；create/update_time 为带时区时间，onupdate 是 ORM 更新策略，不是任意外部 SQL 都会触发的数据库触发器。"
+        },
+        {
+          "end": 62,
+          "title": "Order：订单快照，不是商品库存表",
+          "explanation": "order_no 唯一；user_id 指买家；product_name/amount 记录下单时名称与分金额；status 是业务状态字符串，合法迁移由 order_state 管。code_url 是支付入口，transaction_id 与 paid_at 是收款元数据。这里没有逐单商品对象 key，也不能因 downloaded 字样断言文件已传输完成。"
+        },
+        {
+          "end": 80,
+          "title": "只对 pending 生效的唯一索引",
+          "explanation": "__table_args__ 中的 Index 按 user_id 唯一，但只覆盖 status=pending 的行；已支付/关闭历史单可多条。PostgreSQL 和 SQLite 分别提供条件参数。并发两个请求都查不到旧单时，仍只有一个 INSERT 能满足此约束；应用必须处理另一方的 IntegrityError。"
+        },
+        {
+          "end": 99,
+          "title": "Article：原始日期与正文",
+          "explanation": "URL 唯一实现文章身份；title/author/published_at/source_site 有宽度，content 为 Text。published_at 是来源字符串，不是 DateTime。SQLite 不严格执行 VARCHAR 宽度，不能只靠 SQLite 通过证明真库能写入，save_article 另做应用校验。"
+        },
+        {
+          "end": 110,
+          "title": "SysConfig：有表不等于热配置",
+          "explanation": "config_key 唯一，value 为 Text，remark 可空。模型描述可存键值，并没有在这里实现监听/刷新 settings 的机制；当前环境配置仍读 config.py。"
+        },
+        {
+          "end": 132,
+          "title": "SysDiagram：所有者、软删除与版本",
+          "explanation": "user_id 限定归属；content 是 XML；deleted_at 非空表示回收站。活跃读取过滤它，回收站和恢复反而要找它。version 用于 If-Match/CAS 更新，不能只比较后无条件写。create/update_time 记录时间；总条数/字节预算还要统计回收站，不能只看活跃列表。"
+        },
+        {
+          "end": 145,
+          "title": "OAuthClient：应用身份，不是网站用户",
+          "explanation": "client_id 是外部展示的唯一标识，id 是数据库主键；client_secret_hash 存哈希，redirect_uri 约束允许回调地址，status 控制接入状态。网页登录的 User 和申请授权的 OAuthClient 是两种不同主体。"
+        },
+        {
+          "end": 161,
+          "title": "OAuthCode：短期一次性兑换材料",
+          "explanation": "code 唯一，user_id/client_id 分别关联用户和客户端主键；redirect_uri、expires_at、credential_version 绑定授权时上下文。used 标记是否兑过，不能单靠它先读后写保证并发一次性，实际兑换路由还要做原子状态更新。"
+        },
+        {
+          "end": 178,
+          "title": "SupportMessage：客户会话与发送者分开",
+          "explanation": "customer_id 指这段对话属于谁；sender_id 指本条是谁发的，所以管理员回复两者不同。sender_role 是当时的发送身份，body 为正文，client_nonce 保存客户端 UUID。唯一约束按发送者+nonce 去重，不按客户+正文去重；复合索引按 customer_id/id 支持历史游标查询。"
+        }
+      ]
+    },
+    {
+      "path": "app/schemas.py",
+      "sha256": "a9d494d3283aa0f6aa2ac21d0adcac4cbae20788e065fe190b4ffdbf4c7b4902",
+      "blocks": [
+        {
+          "end": 23,
+          "title": "输入校验不是数据库列定义",
+          "explanation": "Pydantic BaseModel 管 HTTP 数据形状；用户名正则和保留名是输入规则。\\w 的 Unicode 模式不只是英文字母；完整匹配另在 validator 执行。72 是 bcrypt 字节上限，而 Field 的字符串长度是字符数，必须分开看。"
+        },
+        {
+          "end": 43,
+          "title": "_check_password_bytes：返回原值或报错",
+          "explanation": "先拒绝 NUL，再算 UTF-8 长度，超过 72 抛 ValueError；校验成功返回原字符串，不截断、不改密码。旧注释的场景是截断碰撞原因说明，不能把拒绝规则说成更危险；HTTP 入口由 Pydantic/FastAPI 把校验错误转成 422。"
+        },
+        {
+          "end": 74,
+          "title": "RegisterIn 与 _check_username",
+          "explanation": "username 长 3–50，password 长 6–64；额外复用字节校验。field_validator 将函数注册给字段；classmethod 的 cls 是类，但此处没用。fullmatch 要整串合法，lower 仅用于保留名比较，不把最终用户名统一转小写。"
+        },
+        {
+          "end": 84,
+          "title": "UserOut：为什么响应没有密码",
+          "explanation": "from_attributes=True 允许从 ORM 对象属性构造响应；仅声明 id/username/nickname/avatar/role。路由返回 User 时由 response_model 过滤，不是把 User.__dict__ 原样发给浏览器。输出 role 用于界面展示，后端仍查库授权。"
+        },
+        {
+          "end": 100,
+          "title": "PasswordChangeIn 与 TokenOut",
+          "explanation": "旧密码允许 1–64 字符，实际安全校验还会走 verify_password；新密码要求 6–64 并复用字节规则。TokenOut 默认 token_type=bearer，只是响应结构；它不负责签名，签名由 security 完成。"
+        },
+        {
+          "end": 108,
+          "title": "确定性 DDL 与模型文本各有上限",
+          "explanation": "ErDiagramIn.ddl 允许 1–20000 字符，MermaidIn.text 为 1–10000。这只限制输入体量；不保证 DDL 方言均受支持，也不保证模型输出可渲染。"
+        },
+        {
+          "end": 123,
+          "title": "ArticleIngestIn：保留参数不等于能力开放",
+          "explanation": "url 在此只验长度 1–500，网络目标验证在 crawler。dynamic 字段保留，但当前浏览器渲染链路停用；设 True 或安装浏览器不会自动得到安全的动态抓取。管理员限制来自路由依赖，不来自 BaseModel。"
+        },
+        {
+          "end": 132,
+          "title": "智能问答与云图输入",
+          "explanation": "SupportIn.text 长 1–2000，属于智能问答而不是 MessageIn 的持久留言。DiagramIn.name 长 1–100，content 长 1–500000；字段长度不是整用户存储配额，后端还要查总预算。"
+        },
+        {
+          "end": 145,
+          "title": "DiagramSummary / DiagramOut 的继承",
+          "explanation": "Summary 可从 ORM 取 id/name/update_time/version，但不含 XML；Out 继承这些字段再加 content。列表只用摘要，详情取全文。version 会同时用于 ETag，但响应中带 version 并不自动实施并发控制。"
+        }
+      ]
+    },
+    {
+      "path": "app/config.py",
+      "sha256": "793b6335c51dc507dcee62ea83553acdcf3bebf3ab96c5f626a4d37847472104",
+      "blocks": [
+        {
+          "end": 21,
+          "title": "Settings、类型和数据库/凭据配置",
+          "explanation": "BaseSettings 从环境/.env 读取并转换字段；Field 的 ge/le/gt 在实例化时校验，不是 SQL 约束。DB_* 用来组 URL，DATABASE_URL 非空可覆盖它们；SECRET_KEY/算法/有效分钟数控制签名。仓库默认密钥只能用于开发，不满足生产安全要求。"
+        },
+        {
+          "end": 42,
+          "title": "模型与站点地址",
+          "explanation": "chat 模型与 embedding 模型独立配置；阈值限制在 0 到 1，但默认 0.55 仍要用实际模型标定。配置合法不等于模型适配成功。SITE_BASE_URL 用于规范链接，不等于 Uvicorn 监听地址，也不会自动配置 DNS。"
+        },
+        {
+          "end": 51,
+          "title": "微信下单与回调材料",
+          "explanation": "AppID/商户号/序列号/私钥支持下单签名，APIv3 key 解密回调，平台证书或公钥验签，notify URL 是回调入口。这些字段分工不同，不可互换；字段存在也不能证明商户联调通过。"
+        },
+        {
+          "end": 73,
+          "title": "商品与支付模式",
+          "explanation": "商品金额以分存储且必须正数；订单有效分钟数同样为正。wechat/manual/mock 决定后端支付路径；manual 收款码只是一张图片，管理员仍要核账；mock 不收真钱且生产禁止。这里只有一个可配置固定商品，不是完整多 SKU 目录。"
+        },
+        {
+          "end": 85,
+          "title": "存储与图配额",
+          "explanation": "storage backend 名称不是已实现云适配器；当前只用 local。商品 key 相对本地根目录，下载 TTL 是链接时间。图预算区分活跃数、含回收站总数和 UTF-8 字节；活跃额度可以为 0，其他总预算必须为正。"
+        },
+        {
+          "end": 98,
+          "title": "限流与可信代理",
+          "explanation": "各类请求分别设频率，窗口为正。TRUST_PROXY_HEADERS 默认 false；开启后仍要核对直接对端是否在 CIDR 中。字段集中在此不意味着限流状态跨进程共享，真正的 Limiter 当前放在进程内存。"
+        },
+        {
+          "end": 112,
+          "title": "环境枚举、日志与加载方式",
+          "explanation": "ENV 使用 Literal 限定 development/production，避免拼错后绕过生产判断。HSTS 秒数可以 0；实际是否发头由中间件决定。env_file 相对于进程工作目录，extra=ignore 忽略额外配置项；环境变量优先于 .env，改文件不自动刷新已创建的 settings。"
+        },
+        {
+          "end": 139,
+          "title": "sqlalchemy_url：两条不同来源",
+          "explanation": "property 在读取属性时返回字符串。有 DATABASE_URL 就原样返回，不二次编码；否则对用户名/密码 quote(safe=空串)，再拼 host/port/DB_NAME。DB_NAME 当前原样进入路径，没有代码对它编码，所以 README 不能说所有连接字段都被转义。不要输出真实完整 URL 到日志。"
+        },
+        {
+          "end": 142,
+          "title": "模块级 settings 的生命周期",
+          "explanation": "settings=Settings() 在模块导入时创建。多数调用拿到这个对象，测试可暂时 monkeypatch 字段；运行时编辑 .env 并不会重新执行这行。应用一般需要重启加载新配置，db_init.py 又是独立读取 DB_* 的例外。"
+        }
+      ]
+    },
+    {
+      "path": "app/frontend/auth.js",
+      "sha256": "056b278cd0ad2e7edd60bd7cc90a13592e1d1f33c110177a46997efc81f3f82b",
+      "blocks": [
+        {
+          "end": 27,
+          "title": "IIFE 与闭包：模块状态放哪里",
+          "explanation": "立即调用的函数把返回对象挂到 window.CodeMaxAuth，内部变量不直接暴露。DOM ID 来自 base.html，文件要在相关 DOM 已存在时加载。user 是最近一次服务端确认的快照；authSeq 是本页面异步操作的序号，不是后端凭据版本。"
+        },
+        {
+          "end": 34,
+          "title": "errorText 兼容两类错误",
+          "explanation": "后端 detail 可能是字符串，也可能是字段校验数组；分别取文本或拼接 msg，其余退回 HTTP 状态。listeners 保存订阅函数，尚未执行它们；错误展示不是改变服务端结果。"
+        },
+        {
+          "end": 46,
+          "title": "paint 和 notify 分工",
+          "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。"
+        },
+        {
+          "end": 69,
+          "title": "登录浮层与事件绑定",
+          "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。"
+        },
+        {
+          "end": 79,
+          "title": "退出为什么先等服务器",
+          "explanation": "POST /auth/logout 成功后才清 user 并通知；seq 过期则丢弃响应。网络失败不能假装退出完成，显示错误让用户重试。credentials=same-origin 允许带同源 Cookie，但 JS 不读取 Cookie 内容。"
+        },
+        {
+          "end": 102,
+          "title": "表单提交的注册阶段",
+          "explanation": "preventDefault 阻止浏览器整页表单导航；disabled 挡住重复点击，finally 会恢复按钮。注册用 application/json 和 JSON.stringify；失败兼容非 JSON 响应。成功注册只创建用户，所以接下来还要走登录，不是已经有会话。"
+        },
+        {
+          "end": 119,
+          "title": "登录阶段与异常恢复",
+          "explanation": "登录用 application/x-www-form-urlencoded 和 URLSearchParams，与注册格式不同。成功后 refresh 查 /auth/me，再关浮层；不把返回 token 存 localStorage。网络错误显示提示，finally 恢复提交按钮。此处不是所有 await 都有独立的操作序号检查，不能泛称彻底消除了所有前端竞态。"
+        },
+        {
+          "end": 133,
+          "title": "refresh 的序号防旧结果覆盖",
+          "explanation": "每次调用增加 authSeq；非成功响应当未登录，成功 JSON 至少要有对象和 username。若更晚的认证动作已开始，则不写回旧 user。异常时只有当前序号可清本地状态，并重新抛给调用方处理。"
+        },
+        {
+          "end": 156,
+          "title": "启动检查、订阅与 getter",
+          "explanation": "初次 refresh 的 rejection 有兜底提示。onChange 返回退订函数，调用方不必保留回调引用；getter 每次读取当前闭包里的 user。它返回可用状态接口，不是把页面永远绑定到第一次加载时的旧对象。"
+        }
+      ]
+    },
+    {
+      "path": "app/routers/messages.py",
+      "sha256": "2a4df4fafa874798aa59f967e538f4b937f4a4af701c8c39685bf463b5915aa0",
+      "blocks": [
+        {
+          "end": 18,
+          "title": "持久消息路由与依赖",
+          "explanation": "APIRouter 统一 /support；这里导入真实 User/SupportMessage、数据库会话、鉴权和模板工具。智能问答的 /support/ask 在另一个模块，不能把普通回答当成已保存人工工单。"
+        },
+        {
+          "end": 30,
+          "title": "MessageIn：正文与幂等标识",
+          "explanation": "正文先经过 1–4000 字符限制，再去两端空白并拒绝全空白/NUL。client_nonce 由 Pydantic 解析为 UUID；这是一次发送操作的标识，不是用户身份凭证。角色和 customer_id 没有暴露为普通用户可控制的输入字段。"
+        },
+        {
+          "end": 35,
+          "title": "payload：明确响应字段",
+          "explanation": "把 ORM 行转换成 dict，只发 id/customer_id/sender_role/body/create_time。不包含 sender_id/client_nonce 不等于数据库没保存它们。时间序列化由框架完成；这个函数不写库，也不查询权限。"
+        },
+        {
+          "end": 51,
+          "title": "history：三个读取方向",
+          "explanation": "同时给 after 和 before 返回 422。所有分支先按 customer_id 隔离；after 取更大 ID 升序，默认和 before 先降序取最多 50 条，再 reverse 让页面按早到晚显示。不能先升序 LIMIT 再称拿到了最新一页。此 helper 信任调用方已验证会话身份。"
+        },
+        {
+          "end": 75,
+          "title": "send_message：先查、写入、冲突后重查",
+          "explanation": "以 sender_id+nonce 查旧记录；没有时锁客户行，添加记录并 commit/refresh。并发唯一冲突后 rollback 再查；若找不到对应旧记录，说明不是预期重复，重新抛异常。若同 nonce 被用于其他会话/正文返回 409；完全同一次发送返回原记录，不多插一行。role 参数必须由受控路由传入。"
+        },
+        {
+          "end": 91,
+          "title": "公开页面与客户自己的 API",
+          "explanation": "center 返回没有私人消息的模板，故无需登录；my_messages/write_message 从 get_current_user 取 user.id，不能由请求随意指定其他客户。write 固定 sender_role=0 并有限流。公开外壳不等于消息 API 公开。"
+        },
+        {
+          "end": 105,
+          "title": "inbox：每位客户最后一条消息",
+          "explanation": "管理员依赖先把普通用户挡住。子查询按 customer_id 求最大消息 id，再 JOIN 回 User 和消息行，降序分页。awaiting_admin 只是最后一条是否由客户发送，不是严谨的已读回执或工单状态机；当前查不到没有消息的客户会话。"
+        },
+        {
+          "end": 113,
+          "title": "管理员读取某个客户会话",
+          "explanation": "require_admin 验证角色；先确认 customer_id 对应用户存在，否则 404，再复用 history 的游标逻辑。复用查询函数不代表省略了入口鉴权。"
+        },
+        {
+          "end": 121,
+          "title": "管理员回复",
+          "explanation": "同样要求管理员与客户存在，并沿用发送限流。send_message 接到的是管理员 User、客户 ID 和固定 role=1；因此记录属于客户会话，而发送者是管理员。前端自报 role 无法代替这些后端参数。"
+        }
+      ]
+    },
+    {
+      "path": "app/frontend/support-page.js",
+      "sha256": "23385e160502a8726c459f28b01def4811e925c2360eb8b4be2218f7935fdf8c",
+      "blocks": [
+        {
+          "end": 9,
+          "title": "一组状态各解决哪类问题",
+          "explanation": "epoch 标记账号/会话代次；AbortController 尝试取消旧请求；target 是管理员选择的客户；newest/oldest 是消息游标，inboxCursor 是会话列表游标；pending 保留未确认发送的 UUID，seen 按消息 ID 去重。它们不是同一个版本号。"
+        },
+        {
+          "end": 24,
+          "title": "request 与 endpoint",
+          "explanation": "request 封装同源 Cookie、取消信号、JSON 解析和 HTTP 错误；调用者可覆盖 options。endpoint 根据当前管理员角色和所选 target 选择路径，其余取自己的消息。路径选择只改善 UI，真正权限必须由服务端再次校验。"
+        },
+        {
+          "end": 32,
+          "title": "reset：切换时清理旧上下文",
+          "explanation": "递增 epoch、清计时器并 abort，再换新的 controller；清消息游标、去重集合、待发送和表单。已经到达服务端的写操作不会因为 abort 自动撤销，所以还需要 epoch 防旧响应贴回新会话和 nonce 防重试重复。"
+        },
+        {
+          "end": 45,
+          "title": "render：仅把消息当文本",
+          "explanation": "seen 已有的 id 跳过；新 id 更新两端游标。用 textContent 写角色/时间/正文，正文里的 HTML 标签不会执行；prepend 用于老消息，append 用于新消息。CSS 负责保留换行；这不是富文本编辑器。"
+        },
+        {
+          "end": 59,
+          "title": "poll：完成后才排下一次",
+          "explanation": "currentUser 和 polling 防匿名/重叠读取；用 newest 请求 after 增量，首次取最近页。每次 await 后比较 epoch。失败可显示可重试提示；finally 只有当前代次能排 4 秒后的轮询，不是每四秒无条件叠加请求。"
+        },
+        {
+          "end": 86,
+          "title": "管理员列表与更早消息",
+          "explanation": "inbox 用独立 before 游标，点客户按钮先 reset 再切 target；不是定时推送全部客户工单。older 请求当前会话的 before=oldest，成功前置到列表。两类历史游标不能混用，epoch 不符的结果被丢弃。"
+        },
+        {
+          "end": 103,
+          "title": "发送重试：为什么不能把 POST id 当读取进度",
+          "explanation": "同正文重试保留 pending 的 UUID，改正文则生成新的 UUID。POST 成功清输入并促发 poll，但不直接提高 newest，否则夹在读取与发送之间的管理员回复会被跳过。catch 保留 pending 以便再次点击；finally 只恢复当前代次的发送控件。"
+        },
+        {
+          "end": 113,
+          "title": "onUser 与离开页面",
+          "explanation": "身份变化先 reset，再重设客户选择/列表和可见区域；登录后开始自己的轮询，管理员还加载会话入口。pagehide 增加 epoch、清计时器并取消请求。页面是轮询而非 WebSocket；浏览器后台节流/网络断开都会影响更新时机。"
+        }
+      ]
+    },
+    {
+      "path": "app/templates/support-center.html",
+      "sha256": "19912173fdfbcd4eadc6d74342fb7249549b9fd36d92fc871b38c1765e31f9f2",
+      "blocks": [
+        {
+          "end": 8,
+          "title": "模板继承与公开文案",
+          "explanation": "extends 复用 base.html；content 块填入主区域；link 引入客服 CSS。文案声明需要本人管理员回复、非实时在线，并提醒不发送密钥。support-error 的 role=alert 用于辅助技术获知错误，不是服务器错误处理逻辑。"
+        },
+        {
+          "end": 15,
+          "title": "管理员会话区先隐藏",
+          "explanation": "workspace 和 inbox-panel 默认 hidden，JS 得知登录/角色后再显示。各个 support-* ID 是 support-page.js 的定位契约，改名要同步脚本；隐藏本身不能保护 API 数据。"
+        },
+        {
+          "end": 28,
+          "title": "消息列表与表单",
+          "explanation": "ol 的 aria-live=polite 用于适度提示新增内容；textarea 的 required/maxlength 是浏览器校验，后端 MessageIn 仍要再验。form submit 由 JS 拦截为 fetch；页面里没有把客户历史直接渲染成公开 HTML。"
+        },
+        {
+          "end": 30,
+          "title": "加载的是构建产物",
+          "explanation": "script 请求 /static/js/support-page.js，不直接访问 app/frontend 源码。它依赖 base.html 先提供的 window.CodeMaxAuth；修改源文件后需 npm run build，否则浏览器仍可能拿旧产物。"
+        }
+      ]
+    },
+    {
+      "path": "app/static/support.css",
+      "sha256": "15df7d6e48e3336059631c515c0c44ad179d80acc0ac698b2f6de1f51162de97",
+      "blocks": [
+        {
+          "end": 4,
+          "title": "布局与 hidden 的优先级",
+          "explanation": "父容器限宽居中；默认单列网格。:has 发现可见 aside 才增加管理员侧栏列，minmax(0,1fr) 允许正文收缩；[hidden] 显式 display:none，避免其他 display 规则把未登录区域显示出来。CSS 控制布局，不授予权限。"
+        },
+        {
+          "end": 9,
+          "title": "列表可读性",
+          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。"
+        },
+        {
+          "end": 10,
+          "title": "窄屏覆盖",
+          "explanation": "700px 以下把含侧栏的双列布局改回一列。媒体规则在基础规则后且匹配同类选择器，才能正确覆盖；仅静态检查 CSS 不能代替实际小屏/缩放验收。"
+        }
+      ]
+    },
+    {
+      "path": "database init/migrate_0007_support_messages.sql",
+      "sha256": "312f7545808426609bdecd167c3c8d939b1a625c10a420574804e3111af6271c",
+      "blocks": [
+        {
+          "end": 12,
+          "title": "在事务里补建消息表",
+          "explanation": "BEGIN/COMMIT 包住迁移。SERIAL 提供整数序列，customer_id/sender_id 外键都指 sys_user；TIMESTAMPTZ 和数据库默认时间负责创建时刻；(sender_id,client_nonce) 唯一对应重试规则。IF NOT EXISTS 只跳过已存在的表，不验证已有同名表结构完全正确；执行前仍要备份和核对前置迁移。"
+        },
+        {
+          "end": 14,
+          "title": "复合索引与提交",
+          "explanation": "按 customer_id,id 建索引支持某客户历史查询；IF NOT EXISTS 避免重复创建同名索引。COMMIT 使本次结构修改落地；它不对客户端发通知，也不替前端实现分页。"
+        }
+      ]
+    },
+    {
+      "path": "database init/migrate_0008_credential_revision.sql",
+      "sha256": "ad4f7d2d79039891a80d179c032e8f2de728c9a47177d5bfb89b8125d2e1e368",
+      "blocks": [
+        {
+          "end": 4,
+          "title": "给用户和授权码加持久版本",
+          "explanation": "事务内 ALTER TABLE ADD COLUMN IF NOT EXISTS；非空整数默认 0，让历史行可获得初始值。缺少 ver 的旧 JWT 由新应用代码拒绝，不是 SQL 逐个修改了浏览器 Cookie。需与应用升级协调并通知用户重新登录。"
+        },
+        {
+          "end": 6,
+          "title": "删授权码的副作用不能省略",
+          "explanation": "DELETE FROM oauth_code 没有 WHERE，会清整张授权码表；不是删除用户或订单。重复执行仍会清掉当时存在的授权码，所以可重复执行不等于没有业务影响。COMMIT 后尚未兑换的旧码不能再兑换。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_support_messages.py",
+      "sha256": "de7599c20fee7528ef3cc26fd216e36e8e342214d91b224ad749cf1d210bd976",
+      "blocks": [
+        {
+          "end": 10,
+          "title": "测试使用专门会话",
+          "explanation": "导入 TestSession 而非应用 SessionLocal，默认 SQLite 或显式 TEST_DATABASE_URL；conftest 会重建表，只能用可丢弃库。UUID 用于造独立发送标识，pytest/SQLAlchemy 分别负责断言运行和核查数据库。"
+        },
+        {
+          "end": 26,
+          "title": "identity/message 是测试造数 helper",
+          "explanation": "identity 先走真实注册 HTTP，再按测试需要在测试库改管理员角色，最后登录返回用户 ID 和 Bearer 头；不是业务提权 API。message 每次默认生成新 UUID，同一次重试须复用同一对象。secret123 仅是隔离测试密码。"
+        },
+        {
+          "end": 42,
+          "title": "roundtrip 不是只断言 HTTP 200",
+          "explanation": "客户发消息、管理员查列表并回复、客户按 after 读取，逐步断言会话归属/角色/正文/待回复标识。变量 customer_id 在这里实际接收消息 id，后面用作游标；用户 ID 是 uid，读代码时不能仅靠变量名猜含义。"
+        },
+        {
+          "end": 53,
+          "title": "不同用户隔离",
+          "explanation": "先为用户一写入，再确认用户二自己的列表为空，访问管理员会话 API 得到 403；既测试读取也测试写入路径。这个用例不需要访问任何第三方服务。"
+        },
+        {
+          "end": 62,
+          "title": "匿名外壳与私人 API 区别",
+          "explanation": "未登录访问消息接口要 401，但公开 center 页面要 200 且包含需要的脚本/登录控件。返回 HTML 文本存在不证明 CSS 布局已在真实浏览器验证。"
+        },
+        {
+          "end": 74,
+          "title": "同 nonce 重试与冲突",
+          "explanation": "重复提交同对象应返回相同 id；改正文但保持 nonce 应 409；最后历史仅有一条，证明没有悄悄重复入库。用新的 UUID 再发相同正文属于另一次发送，不在这个幂等断言内。"
+        },
+        {
+          "end": 89,
+          "title": "游标方向与数量边界",
+          "explanation": "直接批量写 70 条用于加快造数；默认页应是后 50 条，before 页应是前 20 条。还检查 before/after 互斥和非法负游标。它验证读取语义，不是在压测大量生产消息。"
+        },
+        {
+          "end": 98,
+          "title": "输入验证与禁止客户端自报角色",
+          "explanation": "全空白/NUL/4001 字符要 422。额外传 sender_role=1 不能把客户消息变管理员消息；返回仍为 0。带 HTML 标签的正文在此只检验 API 接受纯文本，浏览器不执行 HTML 的证据另看前端测试和人工验收。"
+        },
+        {
+          "end": 107,
+          "title": "降权后旧 token 不保留管理员权限",
+          "explanation": "在测试库把 role 改成 0 后继续用旧 Bearer 请求，应 403；这证明管理员角色实时查库，而不是永久信任 token 自带角色。"
+        },
+        {
+          "end": 113,
+          "title": "人工入口不假称已经转接",
+          "explanation": "智能问答返回站内入口，但答复不能声称已为你转接。该测试没有据此断言管理员已经收到持久消息；真正写入是在站内留言 POST。"
+        }
+      ]
+    }
+  ]
+}

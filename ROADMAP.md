@@ -1,3 +1,5 @@
+> 2026-09-12 新手复盘：[学习入口](docs/CODE_READING_GUIDE.md) 与源码旁分段讲解已补核心实例；全量精读缺口在生成站 reading.html，尚未声称全部函数/语句讲解完成。
+
 > 2026-09-12 本机补充：[conda 运行/维护/测试](docs/WINDOWS_CONDA.md) 与 [分层验收步骤](docs/ACCEPTANCE_GUIDE.md) 已补齐；Windows、浏览器和外部服务项目仍需实际执行留证，不因文档新增而变成通过。
 
 > 2026-09-12 文档质量复核：当前模块/架构/交接说明已重写，函数契约、符号展示、CI 日志清单隔离及入库 422 映射已处理。具体结果见 `docs/DOCUMENTATION_QUALITY_REVIEW.md`；以下旧阶段表仅为历史计划。

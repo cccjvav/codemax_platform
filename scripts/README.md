@@ -35,6 +35,16 @@ DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验�
 | `validate_site` | 扫生成 HTML → 错误列表 | 检查本地目标、fragment、源码范围、script/img 等引用；不证明视觉正常，也不做第三方链接联网探测 |
 | `main` | 契约检查 → 提取数据 → 写站点 → 验证 | 任一门禁失败应退出非零；生成物不提交 Git |
 
+### code_reading.py
+
+| 函数 | 输入 → 输出 | 限制 |
+| --- | --- | --- |
+| `build_reading(root, sources)` | 当前源码清单 + 人工 notes → 全量文件状态、段落和计数 | 检查版本、来源/重复项、完整 SHA、递增段界、文件尾与非占位说明；非法抛 ValueError；不执行源码、不推断语义 |
+| `render_notes(entry, text)` | 验证后的单文件条目和原文 → HTML | 转义人工说明及源码；显示行号和完整源码跳转；窄屏折行/代码区滚动；无讲解时明确待补 |
+| `render_inventory(report, doc_href, src_href)` | 全量状态和站内路径 → 覆盖表 HTML | 保留未讲解、空文件和生成物；状态不是语义认证，不把 README 里的函数名算作精读 |
+
+build_docs_site.main 在数据提取/渲染前调用 build_reading，连 `--data-only` 也拒绝过期讲解；reading.json 和 reading.html 都是生成物。源码与讲解并排嵌入既有源码页，完整源码仍保留。没有修改既有 CI 工作流；现有文档 job 会执行新增校验。
+
 ### check_schema_pg.mjs
 
 `loadPGlite(spec)` 接受已安装的包名或目录并解析模块入口。主流程建立临时 WASM PostgreSQL、执行 full_init 两遍，检查表/外键/索引并做写读冒烟。
@@ -44,9 +54,10 @@ DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `4c7cbcfbdcfb` | L1–L1041 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `d6379ac47f5e` | L1–L1062 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
+| [`scripts/code_reading.py`](code_reading.py) | `9790b7fb388a` | L1–L118 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

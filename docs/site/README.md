@@ -4,6 +4,8 @@
 
 - `d/`：登记的 Markdown 页面；`s/`：Git 清单识别的源码与配置页面。
 - `data/code-manifest.json`：源码 SHA-256、归属、行数、Python 符号与源码 docstring。不是语义正确性证书。
+- `reading.html` / `data/reading.json`：全量精读覆盖与缺口；逐文件区分人工分段、契约摘要、空文件和生成物，不隐藏待补项。
+- 部分源码页有人工解释与带行号源码并排的可折叠段落，数据来自 docs/code_reading_notes.json；源码指纹/段界过期使构建失败，语义仍需复核。
 - `data/meta.json`：本次可复算统计；不再把历史固定页数当作当前真相。
 - `data/search-index.js`：静态搜索数据。先于 `site.js` 加载，支持 file:// 打开及站点子目录部署，不依赖 fetch 的本地文件权限。
 - TOC、搜索和标题 ID 来自同一渲染结果；跳过围栏示例，重复标题有唯一 ID。
@@ -26,7 +28,7 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`docs/site/site.js`](site.js) | `5be91521deb1` | L1–L159 |
-| [`docs/site/style.css`](style.css) | `228042a660d7` | L1–L277 |
+| [`docs/site/style.css`](style.css) | `c0261e644299` | L1–L288 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -48,3 +50,6 @@ scripts/build_docs_site.py 静态生成源码、符号、路由、文档页；�
 修改站点时跑文档测试和完整构建；文档站不应依赖在线 CDN 或生产服务。
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
+
+
+人工精读验收：在 file:// 与 HTTP 下从“精读覆盖与缺口”打开 main.py、support-page.js 与客服模板，核对段落、完整源码跳转、Tab 可操作折叠与代码横向滚动；宽屏并排、窄屏堆叠，不遮正文。未精读文件应明确显示待补，不出现假的解释。此次静态/链接测试不代替这些真实浏览器检查。

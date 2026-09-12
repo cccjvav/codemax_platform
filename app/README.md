@@ -13,7 +13,7 @@
 
 | 入口 | 输入与结果 | 副作用、失败与调用要求 |
 | --- | --- | --- |
-| `Settings.sqlalchemy_url` | 有 `DATABASE_URL` 时直接使用，否则按 DB 字段构造 asyncpg URL；用户名、密码和库名编码 | `settings` 与 engine 在导入时创建，不是每次请求重新载入 `.env`。变更部署配置要重启；不要记录完整连接串 |
+| `Settings.sqlalchemy_url` | 有 `DATABASE_URL` 时直接使用，否则按 DB 字段构造 asyncpg URL；用户名、密码编码；DB_NAME 当前原样拼入路径 | `settings` 与 engine 在导入时创建，不是每次请求重新载入 `.env`。变更部署配置要重启；不要记录完整连接串 |
 | `Base` / `SessionLocal` | ORM 元数据基类／异步会话工厂 | `expire_on_commit=False` 不等于自动刷新，写入后需要显式 refresh 或 populate_existing |
 | `get_db()` | 向 FastAPI 依赖注入一个 AsyncSession，退出上下文时关闭 | 不会代业务代码 commit；未提交事务随关闭回滚 |
 | `lock_user(db, user_id)` | 对用户执行无值变化 UPDATE，再返回刷新后的用户对象，找不到则 None | 调用者拥有 commit/rollback。PostgreSQL 是行级写锁，SQLite 写锁更粗；不是一个仅在 Python 内生效的锁 |
@@ -104,10 +104,10 @@ pending → closed → paid
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |
 | [`app/middleware.py`](middleware.py) | `340636eff781` | L1–L173 |
-| [`app/models.py`](models.py) | `e3e2f0021b24` | L1–L178 |
+| [`app/models.py`](models.py) | `5bb6102d1c98` | L1–L178 |
 | [`app/order_state.py`](order_state.py) | `604b20f29766` | L1–L113 |
 | [`app/ratelimit.py`](ratelimit.py) | `2c63fe6203fb` | L1–L110 |
-| [`app/schemas.py`](schemas.py) | `a9776d8ed633` | L1–L145 |
+| [`app/schemas.py`](schemas.py) | `a9d494d3283a` | L1–L145 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
 | [`app/startup_checks.py`](startup_checks.py) | `ea62e48e0819` | L1–L102 |

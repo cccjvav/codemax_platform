@@ -44,7 +44,7 @@ class User(Base):
 
 
 class Order(Base):
-    """订单表，状态机：pending -> paid -> downloaded（阶段三实现支付流程）。"""
+    """订单表；主路径 pending -> paid -> downloaded，也允许 pending -> closed -> paid。"""
 
     __tablename__ = "sys_order"
 
@@ -118,8 +118,8 @@ class SysDiagram(Base):
     name: Mapped[str] = mapped_column(String(100))
     content: Mapped[str] = mapped_column(Text)
     # 软删除（TD-64）：NULL = 存活，非 NULL = 删除时刻。删除只打时间戳，用户可以自己恢复。
-    # **每一处读取都必须带 `deleted_at IS NULL` 过滤** —— 漏一处就等于「删了还能看见」，
-    # 所以 `_owned()` 与列表查询都走同一个 `_alive()` 条件，不散写。
+    # 默认活跃列表和普通详情需过滤 deleted_at；回收站、恢复和永久删除必须查询已删除行，
+    # 由路由按操作选择 _alive/_owned 参数，不能给所有读取无条件添加同一过滤。
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     # 乐观锁版本号（TD-65）：每次保存 +1。客户端把它当 ETag 拿着，保存时用
     # If-Match 带回来；服务端用**原子 CAS**（UPDATE ... WHERE version=?）判定，
