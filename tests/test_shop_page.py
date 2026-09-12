@@ -52,9 +52,11 @@ async def test_shop_page_renders_product(client):
     assert "btn-buy" in r.text, "落地页必须有下单按钮"
 
 
-async def test_shop_page_warns_about_one_time_download(client):
+async def test_shop_page_explains_recoverable_download(client):
     """一次性下载是会让用户丢货的约束，必须在页面上说清楚。"""
-    assert "一次性有效" in (await client.get("/shop")).text
+    text = (await client.get("/shop")).text
+    assert "过期或中断可重新领取" in text
+    assert "一次性有效" not in text
 
 
 async def test_shop_page_is_in_sitemap(client):
@@ -339,6 +341,7 @@ async function loginAs(name) {
   await els["btn-buy"].onclick(); await tick();
   await loginAs("carol");                                snap();  // ⑤ 守卫已释放，能重新登记
 
+  stop(); // release the live polling timer before terminating this Node scenario
   console.log(JSON.stringify(at));
 })();
 """
@@ -424,6 +427,7 @@ async function loginAs(name) {
   await els["btn-logout"].onclick(); await tick();
   await loginAs("bob");                                            snap();  // ⑤ 2（不许变）
 
+  stop(); // release the live polling timer before terminating this Node scenario
   console.log(JSON.stringify(at));
 })();
 """

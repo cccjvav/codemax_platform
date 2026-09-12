@@ -62,7 +62,8 @@
       <h1><a href="/">{{ site_name }}</a></h1>
       <nav>{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
       <div class="actions">
-        <a class="cta-link" href="{{ shop_path }}"><button type="button" class="cta">{{ product_name }}</button></a>
+        <a href="/support/center">站内客服</a>
+        <a class="cta-link" href="{{ shop_path }}">{{ product_name }}</a>
         {# auth_ui 为假的页面（OAuth 同意页）不渲染登录控件也不加载脚本 ——
            那页必须零脚本，见 tests/test_oauth_consent.py #}
         {% if auth_ui %}
@@ -115,7 +116,7 @@
         {% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}
         <a href="{{ shop_path }}">{{ product_name }}</a>
       </div>
-      <div>© {{ site_name }} · 工具免费使用，无需注册</div>
+      <div>© {{ site_name }} · 公开工具目前免费试用；云端保存及客服留言需登录</div>
     </footer>
 
   </body>

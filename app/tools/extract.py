@@ -84,7 +84,9 @@ def _parse_selectors(reply: str) -> dict[str, str]:
     unknown = set(data) - set(FIELDS)
     if unknown:
         raise ExtractError(f"大模型返回了未知字段：{sorted(unknown)}")
-    return {k: str(data.get(k) or "").strip() for k in FIELDS}
+    if any(v is not None and not isinstance(v, str) for v in data.values()):
+        raise ExtractError("选择器必须是字符串")
+    return {k: (data.get(k) or "").strip() for k in FIELDS}
 
 
 def extract_fields(html: str, selectors: dict[str, str]) -> dict[str, str]:
@@ -151,15 +153,18 @@ async def parse_article(
 
 async def save_article(db: AsyncSession, article: ParsedArticle) -> Article:
     """入库；同一 URL 已存在就更新（重复抓取不产生重复行）。"""
-    existing = await db.scalar(select(Article).where(Article.url == article.url))
-    row = existing or Article(url=article.url)
-    row.title = article.title
-    row.author = article.author
-    row.published_at = article.published_at
-    row.content = article.content
-    row.source_site = article.source_site
-    if existing is None:
-        db.add(row)
+    values = {field: getattr(article, field) for field in ('url', 'title', 'author', 'published_at', 'content', 'source_site')}
+    for field, value in values.items():
+        if value is not None and '\x00' in value:
+            raise ExtractError(f'{field} 含数据库不支持的空字符')
+    for field, limit in {'url': 500, 'title': 300, 'author': 100, 'published_at': 50, 'source_site': 200}.items():
+        if values[field] is not None and len(values[field]) > limit:
+            raise ExtractError(f'{field} 超过数据库字段长度 {limit}')
+    if db.bind.dialect.name == 'postgresql':
+        from sqlalchemy.dialects.postgresql import insert
+    else:
+        from sqlalchemy.dialects.sqlite import insert
+    stmt = insert(Article).values(**values)
+    await db.execute(stmt.on_conflict_do_update(index_elements=[Article.url], set_={k: v for k, v in values.items() if k != 'url'}))
     await db.commit()
-    await db.refresh(row)
-    return row
+    return await db.scalar(select(Article).where(Article.url == article.url).execution_options(populate_existing=True))

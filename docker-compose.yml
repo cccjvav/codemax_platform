@@ -28,7 +28,7 @@ services:
       DB_PORT: "5432"
       TRUST_PROXY_HEADERS: "true"
     ports:
-      - "8000:8000"
+      - "${APP_BIND_HOST:-127.0.0.1}:8000:8000"
     volumes:
       - uploads:/srv/app/storage
 

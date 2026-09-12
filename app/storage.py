@@ -46,7 +46,7 @@ def verify_download(secret: str, key: str, expires: int, signature: str) -> bool
     """校验签名与过期时间。`compare_digest` 防时序侧信道。"""
     if expires < int(time.time()):
         return False
-    return hmac.compare_digest(sign_download(secret, key, expires), signature)
+    return signature.isascii() and hmac.compare_digest(sign_download(secret, key, expires), signature)
 
 
 class LocalStorage:

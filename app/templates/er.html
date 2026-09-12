@@ -21,5 +21,5 @@
      package-lock.json 钉死（含 integrity 哈希），且 CI 会核对产物与源码是否同步。
      顺带解决可达性：这是引流页，CDN 在国内不保证可达，d3 加载失败等于整页白屏。
      由 tests/test_frontend_supply_chain.py 钉住「模板里不许再出现 npm CDN 引用」。 -->
-<script src="/static/js/er-page.js"></script>
+<script type="module" src="/static/js/er-page.js"></script>
 {% endblock %}

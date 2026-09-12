@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Response
 from starlette.concurrency import run_in_threadpool
 
-from ..cpu_pool import run_cpu_bound
+from ..cpu_pool import CPUQueueFull, run_cpu_bound
 from ..deps import get_current_user
 from ..models import User
 from ..ratelimit import rate_limit
@@ -60,6 +60,12 @@ async def word_export(data: ErDiagramIn) -> Response:
     graph = await run_in_threadpool(parse_ddl, data.ddl)
     if not graph["tables"]:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")
+    if len(graph["tables"]) > 100 or sum(len(t["columns"]) for t in graph["tables"]) > 400:
+        raise HTTPException(413, "导出最多支持 100 张表、400 个字段，请拆分 DDL")
+    try:
+        document = await run_cpu_bound(build_data_dictionary, graph)
+    except CPUQueueFull as e:
+        raise HTTPException(503, str(e), headers={"Retry-After": "5"}) from e
     return Response(
         # 生成 docx 走**进程**池而不是线程池：它要几百毫秒纯 Python 计算，
         # 线程池让得出事件循环却让不出 GIL。**注意「并发 p95 更快」不是选进程池的
@@ -67,7 +73,7 @@ async def word_export(data: ErDiagramIn) -> Response:
         # 延迟量不出差别（TD-183/186）。真正的依据是
         # `test_build_data_dictionary_runs_in_a_separate_process`：直接查它跑在哪个
         # **进程**里 —— 线程池/同步都会落在本进程，判据确定，不受机器快慢影响（TD-193）。
-        await run_cpu_bound(build_data_dictionary, graph),
+        document,
         media_type=MIME_DOCX,
         headers={"Content-Disposition": f'attachment; filename="{FILENAME}"'},
     )

@@ -18,40 +18,31 @@
    * 索引是构建时生成的 data/search.json（只含标题与小节，体积小）。
    * 正文搜索交给浏览器自带的 Ctrl+F —— 自己做全文索引会让站点体积翻倍，收益不值。
    */
-  let IDX = null;
-
-  async function loadIndex() {
-    if (IDX) return IDX;
-    try {
-      const r = await fetch("data/search.json", { cache: "no-store" });
-      IDX = r.ok ? await r.json() : [];
-    } catch (e) {
-      IDX = []; // file:// 下 fetch 可能被拦，静默降级
-      const h = $("#hits");
-      if (h) h.innerHTML = '<span style="color:#94a3b8">file:// 下搜索不可用，请用 Ctrl+F</span>';
-    }
-    return IDX;
-  }
+  const SITE_ROOT = new URL(".", document.currentScript.src);
+  let searchSequence = 0;
+  async function loadIndex() { return window.CODEMAX_DOC_SEARCH || []; }
 
   async function doSearch(q) {
+    const stamp = ++searchSequence;
     const box = $("#hits");
     if (!box) return;
     if (!q || q.length < 2) { box.innerHTML = ""; return; }
     const idx = await loadIndex();
+    if (stamp !== searchSequence) return;
     const ql = q.toLowerCase();
     const out = [];
     for (const d of idx) {
       if (d.t.toLowerCase().includes(ql)) out.push({ h: d.h, a: "", label: d.t, sub: d.p, score: 0 });
       for (const s of d.s) {
         if (s.t.toLowerCase().includes(ql)) {
-          out.push({ h: d.h, a: s.i, label: s.t, sub: "L" + s.l + " · " + d.p, score: 1 });
+          out.push({ h: d.h, a: s.i, label: s.t, sub: d.p, score: 1 });
         }
       }
     }
     out.sort((x, y) => x.score - y.score);
     box.innerHTML = out.length
       ? out.slice(0, 14).map(o =>
-          `<a class="hit" href="${o.h}${o.a ? "#" + o.a : ""}"><b>${esc(o.label)}</b><br><span>${esc(o.sub)}</span></a>`
+          `<a class="hit" href="${esc(new URL(o.h, SITE_ROOT).href)}${o.a ? "#" + o.a : ""}"><b>${esc(o.label)}</b><br><span>${esc(o.sub)}</span></a>`
         ).join("")
       : "无命中";
   }
@@ -62,6 +53,9 @@
     const el = document.getElementById(location.hash.slice(1));
     if (!el) return;
     el.classList.add("hl");
+    const end = Number(new URL(location.href).searchParams.get("end"));
+    const start = Number(location.hash.slice(2));
+    for (let line = start + 1; line <= Math.min(end, start + 10000); line++) document.getElementById(`L${line}`)?.classList.add("hl");
     el.scrollIntoView({ block: "center" });
   }
 

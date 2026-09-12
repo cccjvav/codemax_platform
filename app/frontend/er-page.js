@@ -134,7 +134,7 @@ document.getElementById("er-word").onclick = async () => {
     const res = await post("/tools/word-export", { ddl: input.value });
     if (!res.ok) {
       const data = await res.json();
-      return fail(data.detail || `导出失败（${res.status}）`);
+      return fail(window.CodeMaxAuth.errorText(data, res.status));
     }
     const url = URL.createObjectURL(await res.blob());
     const a = document.createElement("a");
@@ -154,7 +154,7 @@ form.onsubmit = async (ev) => {
   try {
     const res = await post("/tools/er-diagram", { ddl: input.value });
     const data = await res.json();
-    if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+    if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
     renderEr("#er-canvas", data);
   } catch (e) {
     fail(`渲染失败：${e.message}`);

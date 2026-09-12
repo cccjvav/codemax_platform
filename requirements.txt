@@ -45,7 +45,7 @@ httpx==0.25.2          # **运行时依赖，不只是测试用**。此前这行
 
 # ---- 测试依赖 ----
 pytest==9.0.3                     # 7.4.4 有 PYSEC-2026-1845；9.x 跨两个大版本，
-                                  # 但**仅测试依赖、不进生产镜像**（.dockerignore 不管它，
+                                  # 用途是测试，但当前 Dockerfile 安装整份 requirements，因此也进入镜像（
                                   # 但生产 CMD 不跑 pytest）。升级后全量 624 passed 不变。
 pytest-asyncio==1.4.0             # 配套 pytest 9（1.4.0 要求 pytest<10,>=8.4）。
                                   # asyncio_mode=auto 与 loop_scope="session" 用法不变。
@@ -53,7 +53,7 @@ aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 Postg
 pgserver==0.1.4        # 可选：PyPI 打包的真 PostgreSQL 16.2，用来跑真库集成测试（TD-121/123）
 coverage==7.16.0       # 覆盖率。N-4 修复前 `.coveragerc` 入库却**连 coverage 都没装**，
                        # 那个配置文件等于纯装饰（跑都跑不了）。跑法见 tests/README.md。
-                       # 仅测试用，不进生产镜像。
+                       # 仅测试用途；当前 Dockerfile 仍会安装，未拆分生产依赖。
 
 # ---- 文档工具（可选，运行时不需要）----
 mistune==3.3.4           # scripts/build_docs_site.py 默认那条命令要把 .md 渲染成静态站。

@@ -76,7 +76,8 @@ async def test_restore_etag_can_be_used_for_next_update(client):
     await client.delete(f"/diagrams/{did}", headers=headers)
     restored = await client.post(f"/diagrams/{did}/restore", headers=headers)
     assert restored.status_code == 200
-    assert restored.headers.get("etag") == created.headers["etag"]
+    assert restored.headers.get("etag") == '"2"'
+    assert restored.headers["etag"] != created.headers["etag"]
     changed = await client.put(f"/diagrams/{did}", headers={
         **headers, "If-Match": restored.headers["etag"],
     }, json={"name": "恢复后继续修改", "content": "<mxfile/>"})

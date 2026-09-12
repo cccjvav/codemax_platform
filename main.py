@@ -9,7 +9,7 @@ from app import cpu_pool
 from app.config import settings
 from app.database import engine
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
-from app.routers import admin, auth, diagrams, health, oauth, shop, site, support, tools
+from app.routers import admin, auth, diagrams, health, messages, oauth, shop, site, support, tools
 from app.startup_checks import enforce_production_settings
 from app.tools.faq import warm_semantic_index
 
@@ -40,7 +40,12 @@ async def lifespan(_: FastAPI):
     await engine.dispose()
 
 
-app = FastAPI(title="codemax_platform", version="0.1.0", lifespan=lifespan)
+app = FastAPI(
+    title="codemax_platform", version="0.1.0", lifespan=lifespan,
+    docs_url=None if settings.ENV == "production" else "/docs",
+    redoc_url=None if settings.ENV == "production" else "/redoc",
+    openapi_url=None if settings.ENV == "production" else "/openapi.json",
+)
 
 # 中间件是**后加先执行**（洋葱模型），所以日志放最后加，让它包在最外层，
 # 这样连安全头中间件自己的耗时也算进去，且异常也能被记录到。
@@ -54,6 +59,7 @@ app.include_router(tools.router)
 app.include_router(diagrams.router)  # S2-01-3：Drawio 流程图存取（需鉴权）
 app.include_router(shop.router)
 app.include_router(site.router)  # S2-02-1：页面 SSR + sitemap + robots
+app.include_router(messages.router)
 app.include_router(support.router)  # S4-02：智能客服三层
 app.include_router(admin.router)  # TD-138：管理员抓取入库（S4-01-4 的 HTTP 入口）
 

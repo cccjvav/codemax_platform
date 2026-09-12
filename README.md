@@ -1,5 +1,8 @@
 # codemax_platform
 
+> 2026-09-12：第二批修复、站内人工客服和文档门禁已实现。先读 [当前验收与迁移](docs/SECOND_REPAIR_ACCEPTANCE.md)、[文档方案比较](docs/DOCUMENTATION_POLICY.md)。存量库需要 0007/0008；旧会话重新登录。管理员和客户均从 `/support/center` 进入站内会话。历史测试数字不是本批结果。
+
+
 > **审查修复进行中（2026-09-11）**：进度、交叉验证、未解决风险及需要决策的事项见 [修复台账](docs/REVIEW_CROSSCHECK.md)。本批不代表全项目已修完或可直接上线。
 
 毕设服务平台 (codemax.top)：免费工具平台 + 商业平台（双平台），统一认证（SSO）、支付闭环、云存储安全下载、AI 内容解析与智能客服。
@@ -58,7 +61,7 @@ notepad .env
 | --- | --- | --- |
 | `DB_PASSWORD` | 你的 postgres 密码 | 不改则连不上库 |
 | `SHOP_PAY_MODE` | `mock` | 本地演示用；`wechat` 需要商户号，否则下单接口返回 503 |
-| `LLM_API_KEY` | 你的 key（可不填） | 不填时只有 `/tools/mermaid` 返回 502，其余功能不受影响 |
+| `LLM_API_KEY` | 你的 key（可不填） | 不填时 Mermaid/LLM 文章解析不可用；确定性工具、词袋 FAQ 和站内消息仍可用 |
 
 **建库建表**（脚本用相对路径读 `../.env`，所以必须先进子目录；目录名有空格要加引号）
 
@@ -231,3 +234,56 @@ start docs\site\index.html
 
 > 上面这些说明书在**文档站**里都有网页版（带目录、可跳转）：
 > `python scripts\build_docs_site.py` 之后打开 `docs\site\index.html`。
+
+## 新增 API 与操作入口
+
+| 方法 | 路径 | 规则 |
+| --- | --- | --- |
+| GET | `/support/center` | 公开页面外壳，消息需登录 |
+| GET / POST | `/support/messages` | 客户自己的对话；POST 带 UUID nonce，可安全重试 |
+| GET | `/support/conversations` | 仅管理员会话列表 |
+| GET / POST | `/support/conversations/{user_id}/messages` | 仅管理员读取/回复指定客户 |
+| GET | `/shop/orders` | 当前用户最近 50 个订单，不发起支付 |
+| DELETE | `/diagrams/{diagram_id}/purge` | 仅所有者的回收站对象，必须 If-Match，成功 204 |
+
+## 模块职责
+
+项目入口：安装、配置、构建、运行与部署；代码导航见 docs/README.md。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`.coveragerc`](.coveragerc) | `548efa69f2f7` | L1–L34 |
+| [`.dockerignore`](.dockerignore) | `9570c1dad405` | L1–L21 |
+| [`.env.example`](.env.example) | `02acf9619c08` | L1–L113 |
+| [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
+| [`.gitignore`](.gitignore) | `42becfd1ed53` | L1–L43 |
+| [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
+| [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
+| [`main.py`](main.py) | `8b3e11b571fe` | L1–L71 |
+| [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
+| [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
+| [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
+| [`requirements.txt`](requirements.txt) | `6ba30eb3b268` | L1–L65 |
+| [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
+| [`vite.config.mjs`](vite.config.mjs) | `50a1c4ab1007` | L1–L57 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发演示必须区分。
+
+## 变更与验证
+
+运行 pytest、ruff、npm run build 与文档构建；新增环境项同步 .env.example。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

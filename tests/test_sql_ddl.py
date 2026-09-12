@@ -211,7 +211,7 @@ def test_backtick_table_with_schema_prefix():
     graph = parse_ddl(sql)
     assert graph["tables"][0]["name"] == "order"
     assert graph["edges"] == [
-        {"from_table": "order", "from_column": "uid", "to_table": "user", "to_column": "id"}
+        {"from_table": "order", "from_column": "uid", "to_table": "db.user", "to_column": "id"}
     ]
 
 

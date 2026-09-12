@@ -9,25 +9,15 @@
 
 ## 1. 当前状态
 
-- **当前任务**：用户合并审查与本助手26组发现的交叉验证，台账见 `docs/REVIEW_CROSSCHECK.md`。第一批已实现并本地全量通过；其余问题仍开放。未新增依赖／表结构／CI 配置。
-- **测试作品隔离**：鹈鹕页面与相关文档改动已移出仓库工作树，备份在 `/home/user/preserved-pelican-20260911/`，不得加入此分支提交；沙箱重建可能丢失仓库外备份，请勿把它当仓库交付物。
+2026-09-12 第二批：前端状态/编辑器协议、认证版本、订单恢复、站内客服、解析器/缓存、资源边界和文档执行门禁已实施。
+当前准确验收与升级入口是 `docs/SECOND_REPAIR_ACCEPTANCE.md`；交叉审查逐项归并见 `docs/REVIEW_CROSSCHECK.md` 第 7 节。
+首批提交 207aa03 的六项 CI 已通过；第二批只以绑定最终提交的 Actions 结果验收。
 
-- **main**：`9622a38`（含 PR #1、PR #2 合并进来的阶段一全部内容 —— 旧的"推送 687e60e / 48622b1"说法已作废，那两个提交不在本仓库历史里）
-- **本会话分支**：`arena/01a08bf5-codemax-platform`（会话固定，不要切别的分支）。
-  **这里刻意不写 HEAD 的 commit** —— 每提交一次它就过期，写过期的 SHA 比不写更糟。
-  要确认当前状态就跑：`git log --oneline -1` 与 `git ls-remote origin arena/01a08bf5-codemax-platform`，
-  两者一致即「本地 = 远端」。
-- **历史分支 PR #3（非本修复分支，以下为旧交接记录）**：`feat: 阶段二 工具矩阵+SEO、阶段三 支付+下载防护、阶段四 内容冷启动、限流、CI、真库集成测试；fix: 解析器 13 个 bug`，**state=OPEN，未合并**
-  - 28 个提交，按 ROADMAP 子项分开，可逐个回滚（该旧会话子项累积在同一个 PR）
-  - 用户要求：**未经他明确授权不得合并**（合并后沙箱内后续改动无法同步，等于无效工作）
-- **测试基线**（**2026-09-11** 实测）：`.venv/bin/python -m pytest -q` → SQLite：**673 passed + 4 skipped**（677 collected）；PostgreSQL：**675 passed + 2 skipped**，两后端均仅1条 Passlib 上游 warning。
-  ⚠️ 数字会随子项变化，复核命令见 `tests/README.md`；**引用前先自己数一遍**。
-  另有 **GitHub Actions CI**（`.github/workflows/ci.yml`）：每次 push / PR 自动跑**六个** job —— 静态检查（ruff）、测试（SQLite 后端）、测试（真 PostgreSQL 16）、**前端产物漂移检查（`npm run build` 后 `git diff --exit-code -- app/static/js`）**、依赖漏洞扫描（`pip-audit --strict`）、文档站构建；PG job 还把建表脚本连跑两遍验证幂等（已实跑通过）；actions 已升到 `checkout@v7` / `setup-python@v7`（Node 20 弃用告警已消，见 TD-144）。本会话的 GitHub App 已于 2026-09-01 拿到 Workflows 写权限，workflow 改动可直接 push
-  （跳过的那条是真并发测试，SQLite 的 StaticPool 复现不了竞态，见 TD-85）（唯一 warning 是 passlib 的 `crypt` 弃用，无害）
-- **用户环境是 Windows + cmd.exe**：需要他执行命令时，必须给 cmd 语法——分行写、不用 shell 通配符展开（`git am dir\000*.patch` 在 cmd 里不可靠，要逐个列文件名）、不用 `ls`/`cat`/`grep`（对应 `dir`/`type`/`findstr`）、路径用反斜杠、venv 里的解释器是 `.venv\Scripts\python.exe` 而不是 `.venv/bin/python`。（本文档与提交信息里的 `.venv/bin/python` 都是**沙箱内**的路径，不是给他用的。）
-- **一次性传输文件已删除**：`PHASE1_TRANSFER.txt` / `APPLY_INSTRUCTIONS.md` /
-  `PHASE2_TRANSFER.txt` / `APPLY_PHASE2.md` 已在本分支删掉（它们描述的任务全部完成，
-  继续留着只会误导接手的人）。PR #3 合并后 `main` 上也会一并消失，无需再单独处理。
+新增迁移 0007/0008，存量库先备份、停写、顺序迁移，再部署；无 ver 的旧 JWT 强制重新登录。不能用会删表的 full_init 升级。
+人工作为管理员通过 `/support/center` 回复；不需要外部客服商。动态 Chromium 暂停，不能安装 Playwright 后直接声称安全恢复。
+单应用实例是当前部署基线；数据库锁不等于已经实现共享限流。鹈鹕测试及相关文档不上传。
+
+以下带旧日期的沙箱、性能、一次性下载和阶段记录是历史背景，不覆盖本节及当前验收说明。
 
 ## 2. 技术栈
 
@@ -457,8 +447,8 @@ git show 62ff019:CODE_REVIEW_99662ca.md
 ## 8. 建议的下一步
 
 - [x] R-01：第一批确定性缺陷修复、本地 SQLite/PG 全量、Ruff、构建一致性。提交／远端 CI 以分支实际检查为准。
-- [ ] 按 `docs/REVIEW_CROSSCHECK.md` 继续前端协议／状态、解析器、LLM、文档工具等批次。
-- [ ] 先确认 schema／会话升级、下载权益、部署拓扑与实际商业承诺，再实施相关设计变更。
+- [x] 完成第二批前端、解析器、模型、资源与文档门禁；具体边界见当前验收。
+- [x] 用户已授权迁移、重登录、恢复链接与站内人工客服；当前默认单实例。
 
 以下为前轮路线图背景，不代表当前所有缺陷已解决：
 

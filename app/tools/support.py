@@ -17,11 +17,12 @@
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 from dataclasses import dataclass, field
 
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
@@ -48,11 +49,9 @@ ESCALATE_KEYWORDS: tuple[str, ...] = ("人工", "转人工", "投诉", "举报",
 # 分词 → 现建 BM25/余弦索引」。实测 200 篇时墙钟 242.6 ms，而语料没变时
 # 算出来的索引**一模一样** —— 纯粹的重复劳动。
 #
-# 指纹用 (count, max(id))：一次极轻的聚合查询，就能判断语料有没有变。
-# ⚠️ 这只覆盖**插入与删除**。`sys_article` 在本项目里是抓取入库、只插入的
-#    （`url` 唯一、没有编辑端点），所以够用；将来若加了「编辑文章正文」的
-#    功能，必须给表加 `update_time` 并把它并进指纹，否则改完搜不到新内容。
-_ARTICLE_CACHE: tuple[tuple[int, int | None], object, list] | None = None
+# 按读取快照的 id/title/content 哈希，不遗漏 UPDATE，也不依赖本进程清缓存。
+# 代价：每次读取语料正文；大语料应迁移至数据库修订号/检索服务，而非退回 count/max。
+_ARTICLE_CACHE: tuple[str, object, list] | None = None
 
 
 def _build_index(rows: list) -> RetrievalIndex:
@@ -146,7 +145,7 @@ async def _second_opinion(
 
 def _escalate(question: str, reason: str, intent: Intent, confidence: float) -> SupportReply:
     return SupportReply(
-        answer="这个问题我暂时答不好，已为你转接人工客服，请稍等。",
+        answer="这个问题需要管理员协助。请登录站内客服页发送留言；提交成功后管理员可查看并回复。",
         intent=intent,
         confidence=confidence,
         source="human",
@@ -169,35 +168,25 @@ async def _retrieve_articles(
     注意两个测试套件都发现不了这个问题：fixture 里 `create_all` 总会把表建出来，
     只有真起服务连真库才会暴露。
 
-    索引按 `(count, max(id))` 指纹缓存复用，且分词/建索引整体在线程池里跑
+    索引按实际语料 SHA-256 指纹缓存复用，且分词/建索引整体在线程池里跑
     —— 见 `_ARTICLE_CACHE` 与 `_build_index` 的注释（TD-214）。
     ⚠️ 旧版这里写的是「每次都现建索引……记在 TD-151」，两处都不对：
     行为已改，而 TD-151 讲的是 FAQ 阈值标定，与索引重建无关。
     """
     global _ARTICLE_CACHE
 
-    # 先用一次极轻的聚合查询算指纹，判断缓存还能不能用 ——
-    # 这样「语料没变」的常见情况下完全不必把全表正文捞进内存。
     try:
-        fingerprint = (
-            await db.execute(
-                select(func.count(Article.id), func.max(Article.id))
-            )
-        ).one()
-        fp = (int(fingerprint[0]), fingerprint[1])
+        rows = list((await db.scalars(select(Article).order_by(Article.id))).all())
     except SQLAlchemyError:
-        return None  # 表不存在 / 连不上：知识库不可用
-
-    if fp[0] == 0:
-        return []  # 库是空的，与「不可用」区分开
-
+        return None
+    if not rows:
+        return []
+    fp = hashlib.sha256(json.dumps(
+        [(a.id, a.title, a.content) for a in rows], ensure_ascii=False
+    ).encode()).hexdigest()
     if _ARTICLE_CACHE is not None and _ARTICLE_CACHE[0] == fp:
         index, rows = _ARTICLE_CACHE[1], _ARTICLE_CACHE[2]
     else:
-        try:
-            rows = (await db.execute(select(Article))).scalars().all()
-        except SQLAlchemyError:
-            return None
         # ⚠️ 分词与建索引必须**整体**丢到线程池：jieba 是同步 CPU 活，
         # 200 篇实测要吃 200 ms 量级。留在事件循环里的话，那 0.2 秒内
         # **全站所有请求**都排不上队 —— 而 /support/ask 是不鉴权的，

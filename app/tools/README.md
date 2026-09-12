@@ -738,3 +738,42 @@ python -m pytest tests/test_sql_ddl.py tests/test_word_export.py tests/test_merm
 `crawler._request` 的 aiter_bytes 已返回解码内容。重建 Response 时去掉 content-encoding、content-length、transfer-encoding，httpx 根据解码内容重算长度；Content-Type 与字符集保留。gzip／deflate 回归和解码后大小预算见 `tests/test_review_regressions.py`。
 
 此修改不解决 DNS重绑定或浏览器重定向出站限制；也没有修 RAG 更新指纹与 SQL 字面量结构误判，详见审查台账。
+
+## 模块职责
+
+SQL/图表/Word 工具、抓取与文章解析、LLM 和客服检索。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | L1–L0 |
+| [`app/tools/browser.py`](browser.py) | `cfd5106f49a9` | L1–L123 |
+| [`app/tools/crawler.py`](crawler.py) | `d90c8f402324` | L1–L285 |
+| [`app/tools/extract.py`](extract.py) | `5c2102f7b9d9` | L1–L170 |
+| [`app/tools/faq.py`](faq.py) | `92d4a215ceb2` | L1–L392 |
+| [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
+| [`app/tools/llm.py`](llm.py) | `2a16c579a63e` | L1–L160 |
+| [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
+| [`app/tools/sql_ddl.py`](sql_ddl.py) | `0919561c4417` | L1–L336 |
+| [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
+| [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+不可信文本经校验后进入解析器或外部接口；网络、CPU、模型调用各自有资源与失败边界。
+
+## 变更与验证
+
+更新对应工具回归测试，包含失败分支；离线替身不能被描述成真实浏览器或真实模型验证。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

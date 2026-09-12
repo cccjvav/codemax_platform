@@ -409,3 +409,81 @@ python -m pytest tests/test_e2e.py -q
 - `test_drawio_auth_state.py`：4例，用Node运行真实源码与产物，认证先完成／订阅先完成均检查初始、登录、退出状态，且不额外请求/auth/me。
 - `test_docs_site.py` 的原有清单测试已强化为 tracked Markdown 双向比较，排除Agent Skills；不再声称单向存在性检查能发现漏登记。
 - 全量仅剩Passlib crypt上游warning；没有全局忽略弃用警告。全量44个test_*.py模块，677个参数化测试节点。旧分组表明确是历史快照，尚待文档整合，不凭历史行号定位当前实现。
+
+## 模块职责
+
+后端、前端脚本、数据库一致性和文档契约回归。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | L1–L0 |
+| [`tests/conftest.py`](conftest.py) | `c70cb44c495d` | L1–L212 |
+| [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `6143c66dec4b` | L1–L333 |
+| [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `173f70aa70a9` | L1–L327 |
+| [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
+| [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
+| [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
+| [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
+| [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
+| [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
+| [`tests/test_docs_contract.py`](test_docs_contract.py) | `060668ea5aa2` | L1–L71 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `a115b97003c4` | L1–L291 |
+| [`tests/test_download.py`](test_download.py) | `0a05c879945a` | L1–L247 |
+| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
+| [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
+| [`tests/test_e2e.py`](test_e2e.py) | `c31229ccb07d` | L1–L532 |
+| [`tests/test_er_page.py`](test_er_page.py) | `85003015e498` | L1–L176 |
+| [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
+| [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
+| [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `9c4111f977a0` | L1–L605 |
+| [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `5238ce5719c4` | L1–L207 |
+| [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `56e85b17742f` | L1–L213 |
+| [`tests/test_manual_pay.py`](test_manual_pay.py) | `de4540b98674` | L1–L323 |
+| [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
+| [`tests/test_mock_pay.py`](test_mock_pay.py) | `96bc978f5dc2` | L1–L157 |
+| [`tests/test_oauth.py`](test_oauth.py) | `b17f166c15be` | L1–L248 |
+| [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
+| [`tests/test_ops.py`](test_ops.py) | `489ffbede4ec` | L1–L539 |
+| [`tests/test_order_state.py`](test_order_state.py) | `7deb8e28ef91` | L1–L134 |
+| [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
+| [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
+| [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
+| [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
+| [`tests/test_review_regressions.py`](test_review_regressions.py) | `344be2cad4cf` | L1–L124 |
+| [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
+| [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
+| [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `2b2173f2571c` | L1–L340 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `0a36d6860d03` | L1–L455 |
+| [`tests/test_shop_polling.py`](test_shop_polling.py) | `76a98525c2db` | L1–L179 |
+| [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
+| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `d22443181e2b` | L1–L254 |
+| [`tests/test_support.py`](test_support.py) | `9cd0e6ef02c4` | L1–L240 |
+| [`tests/test_support_messages.py`](test_support_messages.py) | `de7599c20fee` | L1–L113 |
+| [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
+| [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
+| [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
+| [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `4bc1bbdf4524` | L1–L452 |
+| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `51a720468300` | L1–L279 |
+| [`tests/test_word_export.py`](test_word_export.py) | `d7c7c66103db` | L1–L92 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+默认 SQLite；真正数据库竞态由 PostgreSQL 测试覆盖，外部服务主要使用本地替身。
+
+## 变更与验证
+
+修复补回归，不为绿灯删断言；业务语义经用户批准变更时要明确更新对应契约测试。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

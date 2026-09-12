@@ -71,27 +71,55 @@ class Page:
     html: str
 
 
-async def assert_public_url(url: str) -> None:
+async def assert_public_url(url: str) -> list[str]:
     """挡住 SSRF：只允许 http/https，且解析出来的**每一个**地址都必须是公网地址。
 
     用 `is_global` 一次覆盖私网 / 环回 / 链路本地 / 组播 / 保留段（含云厂商元数据
     地址 169.254.169.254）。域名可能解析出多个地址，所以逐个检查，不能只看第一个。
     """
-    parsed = urlparse(url)
+    try:
+        parsed = urlparse(url)
+        port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    except ValueError as e:
+        raise CrawlError("URL 主机或端口无效") from e
     if parsed.scheme not in ("http", "https"):
         raise CrawlError(f"只支持 http/https，收到 {parsed.scheme or '(无协议)'!r}")
     host = parsed.hostname
     if not host:
         raise CrawlError("URL 里没有主机名")
-    port = parsed.port or (443 if parsed.scheme == "https" else 80)
+    if parsed.username is not None or parsed.password is not None:
+        raise CrawlError("URL 不能包含认证信息")
     try:
         infos = await asyncio.to_thread(socket.getaddrinfo, host, port)
     except socket.gaierror as e:
         raise CrawlError(f"域名解析失败：{host}（{e}）") from e
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if not ip.is_global:
+        if not ip.is_global or ip.is_multicast:
             raise CrawlError(f"目标不是公网地址：{host} -> {ip}")
+    addresses = list(dict.fromkeys(info[4][0] for info in infos))
+    if not addresses:
+        raise CrawlError("域名没有可用的公网地址")
+    return addresses
+
+
+class PublicTransport(httpx.AsyncHTTPTransport):
+    """Pin each TCP connection to an approved address; retain the original Host and TLS SNI.
+
+    Disable keepalive: pooling by numeric IP must not reuse one hostname's TLS connection
+    for another hostname sharing that IP. Environment proxies cannot bypass this transport.
+    """
+    def __init__(self):
+        super().__init__(trust_env=False, limits=httpx.Limits(max_keepalive_connections=0))
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        addresses = await assert_public_url(str(request.url))
+        pinned = httpx.Request(
+            request.method, request.url.copy_with(host=addresses[0]),
+            headers=request.headers, stream=request.stream,
+            extensions={**request.extensions, "sni_hostname": request.url.host},
+        )
+        return await super().handle_async_request(pinned)
 
 
 async def _request(
@@ -114,7 +142,8 @@ async def _request(
     """
     await assert_public_url(url)
     async with httpx.AsyncClient(
-        transport=transport,
+        transport=transport if transport is not None else PublicTransport(),
+        trust_env=False,
         timeout=TIMEOUT,
         follow_redirects=False,
         headers={"User-Agent": USER_AGENT},
@@ -224,26 +253,33 @@ def to_skeleton(html: str, *, max_nodes: int = MAX_NODES, max_text: int = MAX_TE
         tag.decompose()
 
     lines: list[str] = []
-
-    def walk(node, depth: int) -> None:
-        for child in node.children:
-            if len(lines) >= max_nodes:
-                return
-            if isinstance(child, Comment):
+    size = 0
+    stack = [(iter((soup.body or soup).children), 0)]
+    while stack and len(lines) < min(max_nodes, 1000):
+        children, depth = stack[-1]
+        child = next(children, None)
+        if child is None:
+            stack.pop()
+            continue
+        if isinstance(child, Comment):
+            continue
+        if isinstance(child, NavigableString):
+            text = " ".join(str(child).split())
+            if not text:
                 continue
-            if isinstance(child, NavigableString):
-                text = " ".join(str(child).split())  # 折叠空白，去掉排版缩进
-                if text:
-                    lines.append("  " * depth + f'"{text[:max_text]}"')
-                continue
-            ident = child.name
-            if child.get("id"):
+            line = "  " * depth + f'"{text[:min(max_text, 200)]}"'
+        else:
+            ident = child.name[:64]
+            if child.get("id") and len(child["id"]) <= 80:
                 ident += f"#{child['id']}"
-            classes = child.get("class") or []
+            classes = [c for c in child.get("class", []) if len(c) <= 80][:3]
             if classes:
-                ident += "." + ".".join(classes[:3])
-            lines.append("  " * depth + ident)
-            walk(child, depth + 1)
-
-    walk(soup.body or soup, 0)
+                ident += "." + ".".join(classes)
+            line = "  " * depth + ident
+            if depth < 32:
+                stack.append((iter(child.children), depth + 1))
+        if size + len(line) + 1 > 32000:
+            break
+        size += len(line) + 1
+        lines.append(line)
     return "\n".join(lines)

@@ -8,6 +8,7 @@
 -- ============================================================
 
 -- 1. 删除已存在的表（如果存在，便于重复执行）
+DROP TABLE IF EXISTS support_message CASCADE;
 DROP TABLE IF EXISTS sys_article CASCADE;
 DROP TABLE IF EXISTS sys_diagram CASCADE;
 DROP TABLE IF EXISTS oauth_code CASCADE;
@@ -25,6 +26,7 @@ CREATE TABLE sys_user (
     avatar      VARCHAR(255),
     status      SMALLINT DEFAULT 1, -- 状态：1正常，0禁用
     role        SMALLINT DEFAULT 0, -- 角色：0普通，1管理员（TD-138 抓取入库端点）
+    credential_version INTEGER NOT NULL DEFAULT 0,
     password_changed_at TIMESTAMPTZ, -- 最近改密码时刻，JWT 校验用（TD-70）
     create_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -85,6 +87,7 @@ CREATE TABLE oauth_code (
     client_id    INTEGER NOT NULL REFERENCES oauth_client(id),
     redirect_uri VARCHAR(255) NOT NULL,
     expires_at   TIMESTAMPTZ NOT NULL,
+    credential_version INTEGER NOT NULL DEFAULT 0,
     used         BOOLEAN DEFAULT FALSE,
     create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
@@ -123,3 +126,16 @@ CREATE TABLE sys_article (
 );
 
 CREATE INDEX idx_article_site ON sys_article(source_site);
+
+-- 站内客户/管理员留言
+CREATE TABLE IF NOT EXISTS support_message (
+    id SERIAL PRIMARY KEY,
+    customer_id INTEGER NOT NULL REFERENCES sys_user(id),
+    sender_id INTEGER NOT NULL REFERENCES sys_user(id),
+    sender_role SMALLINT NOT NULL,
+    body TEXT NOT NULL,
+    client_nonce VARCHAR(36) NOT NULL,
+    create_time TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_support_sender_nonce UNIQUE (sender_id, client_nonce)
+);
+CREATE INDEX IF NOT EXISTS idx_support_customer_id ON support_message(customer_id, id);

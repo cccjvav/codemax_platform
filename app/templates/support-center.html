@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<link rel="stylesheet" href="/static/support.css" />
+<section class="support-center">
+  <h2>站内客服</h2>
+  <p>咨询数字产品、定制开发或售后问题。留言成功后，平台管理员可在这里回复；不保证即时在线。请勿发送密码、支付密钥等敏感信息。</p>
+  <p id="support-login">请先登录，再查看或发送私人留言。</p>
+  <p id="support-error" class="error" role="alert"></p>
+  <div class="support-layout" id="support-workspace" hidden>
+    <aside id="support-inbox-panel" hidden>
+      <h3>客户会话</h3>
+      <button type="button" id="support-inbox-refresh">刷新会话</button>
+      <div id="support-inbox"></div>
+      <button type="button" id="support-inbox-more" hidden>更多会话</button>
+    </aside>
+    <section>
+      <h3 id="support-title">我的留言</h3>
+      <button type="button" id="support-older" hidden>查看更早消息</button>
+      <ol id="support-messages" aria-live="polite" aria-label="会话消息"></ol>
+      <form id="support-form">
+        <label for="support-body">留言（最多 4000 字）</label>
+        <textarea id="support-body" required maxlength="4000" rows="4"></textarea>
+        <button id="support-send" type="submit">发送留言</button>
+      </form>
+      <p>消息保存在平台；重新登录可继续查看。页面打开时会自动检查新回复。</p>
+    </section>
+  </div>
+</section>
+<script src="/static/js/support-page.js"></script>
+{% endblock %}

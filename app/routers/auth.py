@@ -3,10 +3,11 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Response
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..database import get_db
+from ..database import get_db, lock_user
 from ..deps import get_current_user
 from ..models import User
 from ..ratelimit import rate_limit
@@ -53,7 +54,11 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
         raise HTTPException(400, "用户名已存在")
     user = User(username=data.username, password=await ahash_password(data.password))
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError as e:
+        await db.rollback()
+        raise HTTPException(400, "用户名已存在") from e
     await db.refresh(user)
     return user
 
@@ -79,7 +84,7 @@ async def login(
         raise HTTPException(401, "用户名或密码错误")
     if user.status != 1:
         raise HTTPException(403, "账号已禁用")
-    token = create_access_token(user.username, user.password_changed_at)
+    token = create_access_token(user.username, user.password_changed_at, user.credential_version)
     _set_auth_cookie(response, token)
     return TokenOut(access_token=token)
 
@@ -99,6 +104,7 @@ async def change_password(
 
     返回一个**新** token：当前这次会话不该被自己踢下线，要踢的是**其他**会话。
     """
+    user = await lock_user(db, user.id)
     if not await averify_password(data.old_password, user.password):
         # 与登录端点一样不透露具体原因，避免变成密码枚举接口
         raise HTTPException(400, "原密码不正确")
@@ -107,9 +113,10 @@ async def change_password(
     user.password = await ahash_password(data.new_password)
     # 用带时区的 UTC，列是 TIMESTAMPTZ（TD-146 的约定）
     user.password_changed_at = datetime.now(timezone.utc)
+    user.credential_version += 1
     await db.commit()
     await db.refresh(user)
-    token = create_access_token(user.username, user.password_changed_at)
+    token = create_access_token(user.username, user.password_changed_at, user.credential_version)
     # cookie 也要换成新的：旧 cookie 里的 token 刚被自己吊销了，
     # 不换的话当前浏览器会话下一秒就 401。
     _set_auth_cookie(response, token)

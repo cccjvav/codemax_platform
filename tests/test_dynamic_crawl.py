@@ -13,7 +13,6 @@
 它必须在装了浏览器的机器上跑（Windows 上 `playwright install chromium` 通常直接可用）。
 """
 import json
-import os
 
 import httpx
 import pytest
@@ -218,7 +217,7 @@ async def test_launch_failure_is_translated_not_leaked(net, monkeypatch):
 
     with pytest.raises(BrowserUnavailable) as e:
         await _goto(URL)
-    assert "playwright install chromium" in str(e.value)
+    assert "动态渲染已安全停用" in str(e.value)
 
 
 @pytest.mark.asyncio
@@ -335,27 +334,17 @@ async def test_non_admin_still_blocked_on_dynamic(client, net, no_browser):
 # ============================================== 真浏览器（默认跳过）
 
 
-@pytest.mark.skipif(
-    os.getenv("RUN_BROWSER_TESTS") != "1" or not browser.browser_available(),
-    reason="需要真浏览器：pip install playwright && playwright install chromium，"
-    "再以 RUN_BROWSER_TESTS=1 运行。本沙箱下不到浏览器二进制（CDN 不可达）。",
-)
 @pytest.mark.asyncio
-async def test_real_browser_renders_a_page():
-    r"""**唯一需要真浏览器的一条**，沙箱内不跑。
+async def test_direct_browser_egress_is_disabled_even_when_dependency_is_present(monkeypatch):
+    """Security decision: installing Chromium must not silently enable unisolated egress."""
+    import sys
+    import types
 
-    在本机验证：
-        set RUN_BROWSER_TESTS=1
-        .venv\bin\python -m pytest tests/test_dynamic_crawl.py -q
-
-    ⚠️ 这条不只是「跑一下看看」：`_goto` 的内部（`pg.url` 取重定向后的最终地址、
-    `pg.content()` 取渲染后 DOM）**在沙箱里没有任何覆盖** —— 端点那几条测试把整个
-    `_goto` 换成了假的，所以实测把 `final_url = pg.url` 改成 `final_url = url`
-    是**存活的变异体**。这条就是补这个洞的，请在合并前于本机跑一次。
-    """
-    # http:// 会被 example.com 301 到 https:// —— 正好用它验「取的是重定向后的最终地址」
-    page = await _goto("http://example.com/")
-    assert "<html" in page.html.lower()
-    assert page.url.startswith("https://example.com"), (
-        f"应记录重定向后的最终地址，实际 {page.url!r}"
-    )
+    fake = types.ModuleType("playwright.async_api")
+    def unexpected_launch():
+        raise AssertionError("direct browser networking must not start")
+    fake.async_playwright = unexpected_launch
+    monkeypatch.setitem(sys.modules, "playwright", types.ModuleType("playwright"))
+    monkeypatch.setitem(sys.modules, "playwright.async_api", fake)
+    with pytest.raises(BrowserUnavailable, match="动态渲染已安全停用"):
+        await _goto(URL)

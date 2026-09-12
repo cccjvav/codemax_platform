@@ -1,3 +1,5 @@
+> 当前修复与测试状态见 `docs/SECOND_REPAIR_ACCEPTANCE.md`；下文带旧数字的记录仅作历史背景。未知后缀可读文本也受 README 门禁约束。
+
 # AGENTS.md
 
 > 当前审查修复分支固定为 `arena/01a08bf5-codemax-platform`。交叉验证与未完成事项见 `docs/REVIEW_CROSSCHECK.md`；其他文档中的旧会话分支仅作历史记录，不据此切换或推送。
@@ -102,7 +104,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 
 ## 技术选型（已定，不要重新论证）
 
-> 具体到实现层面的取舍（**176 条**，带编号 TD-xx、代价与"何时回头改"）全部集中在
+> 具体到实现层面的取舍（条目以当前表为准，带编号 TD-xx、代价与"何时回头改"）全部集中在
 > **`TECH_DECISIONS.md`**。做新功能时若产生新取舍，去那里追加一行，别只写在 docstring 里。
 
 1. **原路线图里的 Java 库一律换成 Python 对应物**（本项目是 Python，不许为了对齐文档措辞引入 Java/Node 运行时 —— 违反上面第 1 条铁律）：
@@ -132,7 +134,7 @@ codemax_platform — FastAPI + SQLAlchemy 2.0(async) + PostgreSQL 的毕设服�
 | **文档化 QA 审查报告（覆盖率 / 链接 / 格式）** | `DOCUMENTATION_SUMMARY.md` |
 | **文档站（离线静态站，可读+可视化）的用法与构建** | `docs/site/README.md` |
 | **架构讲解（七课，面向没读过代码的人；新实现要同步更新）** | `docs/ARCHITECTURE_GUIDE.md` |
-| 实现取舍与上线阻塞项（**176 条**去重后的 TD-xx，编号至 TD-228；仍为上线阻塞项的有 TD-113、TD-124、TD-206） | `TECH_DECISIONS.md` |
+| 实现取舍与上线阻塞项（条目以当前表为准去重后的 TD-xx，编号至 TD-228；仍为上线阻塞项的有 TD-113、TD-124、TD-206） | `TECH_DECISIONS.md` |
 | 沙箱状态恢复、真库配方、已踩过的坑 | `HANDOVER.md` |
 | 路线图与子项进度 | `ROADMAP.md` |
 | 人在本机怎么跑起来（含 Windows cmd 步骤） | `README.md` |

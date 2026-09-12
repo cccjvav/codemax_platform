@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "d3": "^7.9.0",
+    "mermaid": "11.17.2",
     "vite": "^8.2.2"
   },
   "//": "⚠️ 刻意**不**写 \"type\": \"module\"：那会让 Node 把全仓每个 .js 都当 ES 模块，于是 app/static/er.js 里的 `module.exports = {layoutEr}` 失效，tests/test_er_page.py 的 node 契约测试会报 `layoutEr is not a function`（实测踩过）。Vite 的配置文件改用 .mjs 后缀单独声明 ESM 即可。"

@@ -27,7 +27,9 @@ from __future__ import annotations
 import re
 
 _QUOTES = "'\"`"
-_IDENT = r"[`\"]?[\w$]+[`\"]?(?:\.[`\"]?[\w$]+[`\"]?)?"
+_IDENT_PART = r'(?:"(?:[^"\n]|"")*"|`(?:[^`\n]|``)*`|[\w$]+)'
+_IDENT = rf"{_IDENT_PART}(?:\s*\.\s*{_IDENT_PART})*"
+
 _CREATE_TABLE = re.compile(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", re.IGNORECASE)
 _TYPE = re.compile(r"^([A-Za-z_]\w*(?:\s*\([^)]*\))?)")
 # 单引号字面量：允许 MySQL 反斜杠转义（\' \\）与 SQL 标准的 '' 双写
@@ -41,11 +43,27 @@ def parse_ddl(sql: str) -> dict:
     sql = _strip_comments(sql)
     tables: list[dict] = []
     edges: list[dict] = []
-    for raw_name, body in _iter_tables(sql):
-        table, table_edges = _parse_table(_unquote(_short(raw_name)), body)
+    definitions = list(_iter_tables(sql))
+    short_names = [_unquote(_short(raw)) for raw, _ in definitions]
+    mapping = {tuple(_identifier_parts(raw)): (_qualified(raw) if short_names.count(_unquote(_short(raw))) > 1 else _unquote(_short(raw)))
+               for raw, _ in definitions}
+    labels = list(mapping.values())
+    for parts, label in list(mapping.items()):
+        if labels.count(label) > 1:
+            mapping[parts] = ".".join('"' + part.replace('"', '""') + '"' if '.' in part else part for part in parts)
+    origins = {}
+    for raw_name, body in definitions:
+        full = tuple(_identifier_parts(raw_name))
+        name = mapping[full]
+        origins[name] = _identifier_parts(raw_name)[:-1]
+        table, table_edges = _parse_table(name, body)
         tables.append(table)
         edges.extend(table_edges)
-    _apply_comments(sql, tables)
+    for edge in edges:
+        target = edge["to_table"]
+        local = (*origins[edge["from_table"]], *target) if len(target) == 1 else target
+        edge["to_table"] = mapping.get(local, mapping.get(target, ".".join(target)))
+    _apply_comments(sql, tables, mapping)
     return {"tables": tables, "edges": edges}
 
 
@@ -187,12 +205,16 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
     type_m = _TYPE.match(rest)
     if not type_m:
         return None, None
-    upper = rest.upper()
+    hidden = {i for i, _, quoted in _scan(rest) if quoted}
+    upper = "".join(" " if i in hidden else c for i, c in enumerate(rest)).upper()
 
-    default_m = re.search(
-        rf"\bDEFAULT\s+({_QUOTED}|[+-]?[\w.]+(?:\s*\(\s*\))?)", rest, re.IGNORECASE
+    def outside(pattern):
+        return next((m for m in re.finditer(pattern, rest, re.IGNORECASE) if m.start() not in hidden), None)
+
+    default_m = outside(
+        rf"\bDEFAULT\s+({_QUOTED}|[+-]?[\w.]+(?:\s*\(\s*\))?)"
     )
-    comment_m = re.search(rf"\bCOMMENT\s+({_QUOTED})", rest, re.IGNORECASE)
+    comment_m = outside(rf"\bCOMMENT\s+({_QUOTED})")
     primary_key = bool(re.search(r"\bPRIMARY\s+KEY\b", upper))
 
     col = {
@@ -204,13 +226,13 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
         "comment": _unquote(comment_m.group(1)) if comment_m else None,
     }
 
-    fk = re.search(rf"\bREFERENCES\s+({_IDENT})\s*\(\s*({_IDENT})\s*\)", rest, re.IGNORECASE)
+    fk = outside(rf"\bREFERENCES\s+({_IDENT})\s*\(\s*({_IDENT})\s*\)")
     edge = None
     if fk:
         edge = {
             "from_table": table,
             "from_column": name,
-            "to_table": _unquote(_short(fk.group(1))),
+            "to_table": tuple(_identifier_parts(fk.group(1))),
             "to_column": _unquote(fk.group(2)),
         }
     return col, edge
@@ -226,7 +248,7 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
     )
     if not fk:
         return
-    to_table = _unquote(_short(fk.group(2)))
+    to_table = tuple(_identifier_parts(fk.group(2)))
     sources = [c.strip() for c in fk.group(1).split(",") if c.strip()]
     targets = [c.strip() for c in fk.group(3).split(",") if c.strip()]
     # strict=False：用户 DDL 写错列数时按短的一边配对，尽力出图而不是抛错
@@ -239,9 +261,10 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
         })
 
 
-def _apply_comments(sql: str, tables: list[dict]) -> None:
+def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None) -> None:
     """应用 PostgreSQL 风格的 COMMENT ON TABLE / COMMENT ON COLUMN。"""
     by_name = {t["name"]: t for t in tables}
+    mapping = mapping or {}
     in_string = _in_string_positions(sql)
     pattern = re.compile(
         rf"COMMENT\s+ON\s+(TABLE|COLUMN)\s+({_IDENT})\s+IS\s+({_QUOTED})", re.IGNORECASE
@@ -251,14 +274,15 @@ def _apply_comments(sql: str, tables: list[dict]) -> None:
             continue
         kind, target, text = m.group(1).upper(), m.group(2), _unquote(m.group(3))
         if kind == "TABLE":
-            table = by_name.get(_unquote(_short(target)))
+            table = by_name.get(mapping.get(tuple(_identifier_parts(target)), _qualified(target)))
             if table:
                 table["comment"] = text
         else:
-            parts = [_unquote(p) for p in target.split(".")]
+            parts = _identifier_parts(target)
             if len(parts) < 2:
                 continue
-            table = by_name.get(parts[-2])
+            key = tuple(parts[:-1])
+            table = by_name.get(mapping.get(key, ".".join(key)))
             if table:
                 for col in table["columns"]:
                     if col["name"] == parts[-1]:
@@ -274,7 +298,8 @@ def _paren_list(m: re.Match | None) -> list[str]:
 def _unquote(s: str) -> str:
     s = s.strip()
     if len(s) >= 2 and s[0] == s[-1] and s[0] in _QUOTES:
-        return _unescape(s[1:-1])
+        value = _unescape(s[1:-1])
+        return value.replace(s[0] * 2, s[0]) if s[0] != "'" else value
     return s
 
 
@@ -297,6 +322,15 @@ def _unescape(s: str) -> str:
     return "".join(out)
 
 
+def _identifier_parts(name: str) -> list[str]:
+    return [_unquote(m.group()) for m in re.finditer(_IDENT_PART, name)]
+
+
+def _qualified(name: str) -> str:
+    return ".".join(_identifier_parts(name))
+
+
 def _short(name: str) -> str:
-    """去掉 schema 前缀：public.sys_user -> sys_user。"""
-    return name.split(".")[-1]
+    """Return the last identifier token, not the last dot inside quoted identifiers."""
+    matches = list(re.finditer(_IDENT_PART, name))
+    return matches[-1].group() if matches else name

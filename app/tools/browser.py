@@ -99,35 +99,14 @@ async def _goto(url: str) -> Page:
             "  playwright install chromium"
         ) from e
 
-    try:
-        async with async_playwright() as p:
-            browser = await p.chromium.launch()
-            try:
-                pg = await browser.new_page(user_agent=USER_AGENT)
-                # 逐请求拦截：浏览器会自己跟随重定向、也会加载一堆子资源，
-                # 只在入口校验一次是不够的（与 crawler._request 同一个理由）。
-                # 这里对**每一个**要发出的请求重做 SSRF 校验，不过就直接 abort，
-                # 连 TCP 都不建立 —— 否则等于给内网留了盲打/端口扫描的口子。
-                await pg.route("**/*", _abort_non_public)
-                await pg.goto(url, timeout=RENDER_TIMEOUT_MS, wait_until="networkidle")
-                html = await pg.content()
-                final_url = pg.url
-            finally:
-                await browser.close()
-    except BrowserUnavailable:
-        raise
-    except Exception as e:
-        # 这里刻意宽接：SSRF 与 robots 已经在上面跑完了，`_abort_non_public` 只会 abort
-        # 不会往外抛，**所以没有任何安全检查的异常会落进这个 except** —— 不存在
-        # 「把安全错误洗成业务错误」的问题（这正是把校验放在前后的原因）。
-        # 最常见的原因是浏览器二进制没下载，报错里要直接给出命令，而不是让人猜。
-        raise BrowserUnavailable(
-            f"浏览器渲染失败：{e}\n"
-            "若是「Executable doesn't exist」，说明还没下载浏览器，请运行：\n"
-            "  playwright install chromium"
-        ) from e
-
-    return Page(url=final_url, status=200, html=html)
+    # Direct Chromium egress is intentionally disabled until an isolated network renderer
+    # is deployed. DNS prechecks and route.continue_ do not pin Chromium connections.
+    # Keep the import above so an absent optional dependency still gives its precise diagnosis.
+    del async_playwright
+    raise BrowserUnavailable(
+        "playwright 动态渲染已安全停用：请先部署具备网络级私网隔离的渲染服务；"
+        "当前可使用静态抓取。仅安装浏览器不能解除此限制。"
+    )
 
 
 async def _abort_non_public(route) -> None:

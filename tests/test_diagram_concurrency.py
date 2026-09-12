@@ -134,8 +134,9 @@ async def test_restore_keeps_version_history(client):
     await client.delete(f"/diagrams/{did}", headers=h)
     r = await client.post(f"/diagrams/{did}/restore", headers=h)
     assert r.status_code == 200
-    assert r.json()["version"] == 2, "恢复不是一次保存，版本不该变"
-    assert (await put(client, h, did, '"2"')).status_code == 200
+    assert r.json()["version"] == 3, "恢复递增版本，不能复活删除前的 ETag"
+    assert (await put(client, h, did, '"2"')).status_code == 412
+    assert (await put(client, h, did, '"3"')).status_code == 200
 
 
 async def test_list_exposes_version(client):

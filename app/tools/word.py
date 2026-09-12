@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+import re
 from io import BytesIO
 
 from docx import Document
@@ -17,6 +18,16 @@ _HEADERS = ("字段", "类型", "主键", "可空", "默认值", "注释")
 
 def build_data_dictionary(graph: dict) -> bytes:
     """把 {tables, edges} 写成 Word 数据字典：每张表一节 + 一张字段表格，末尾列外键。"""
+    def safe(value):
+        if isinstance(value, str):
+            return re.sub(r"[^\x09\x0a\x0d\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]", "", value)
+        if isinstance(value, dict):
+            return {k: safe(v) for k, v in value.items()}
+        if isinstance(value, list):
+            return [safe(v) for v in value]
+        return value
+
+    graph = safe(graph)
     doc = Document()
     doc.add_heading("数据库数据字典", level=0)
     doc.add_paragraph(f"共 {len(graph['tables'])} 张表，{len(graph['edges'])} 条外键关系。")

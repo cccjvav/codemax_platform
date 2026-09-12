@@ -7,7 +7,7 @@
 //
 // ⚠️ 模块脚本默认 defer，执行时 DOM 已解析完，可直接取元素。
 
-import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11.17.2/dist/mermaid.esm.min.mjs";
+import mermaid from "mermaid";
 // securityLevel 必须是 "strict"（原先写的是 "loose"）。
 // loose 允许图定义里带 HTML 标签与点击回调（click nodeId href ...）。
 // 而这里的 mermaid 文本是 **LLM 生成的** —— 等于把一段不可信输入交给一个
@@ -43,7 +43,7 @@ form.onsubmit = async (ev) => {
       body: JSON.stringify({ text: input.value }),
     });
     const data = await res.json();
-    if (!res.ok) return fail(data.detail || `请求失败（${res.status}）`);
+    if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
     source.hidden = false;
     source.textContent = data.mermaid;
     preview.removeAttribute("data-processed");

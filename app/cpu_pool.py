@@ -20,8 +20,10 @@
 """
 from __future__ import annotations
 
+import asyncio
 import logging
 from concurrent.futures import ProcessPoolExecutor
+from concurrent.futures.process import BrokenProcessPool
 
 from starlette.concurrency import run_in_threadpool
 
@@ -47,7 +49,7 @@ def _get_executor() -> ProcessPoolExecutor | None:
     return _executor
 
 
-async def run_cpu_bound(fn, *args):
+async def _execute_cpu(fn, *args):
     """在进程池里跑重 CPU 任务；进程池不可用时退化到线程池。
 
     注意 `fn` 与其参数、返回值都必须能被 pickle —— 也就是函数要定义在模块顶层，
@@ -61,7 +63,7 @@ async def run_cpu_bound(fn, *args):
     loop = asyncio.get_running_loop()
     try:
         return await loop.run_in_executor(ex, fn, *args)
-    except Exception as e:  # noqa: BLE001 - 运行期失败同样要兜底
+    except (BrokenProcessPool, OSError) as e:  # infrastructure failure only; task errors propagate
         global _broken
         logger.warning("进程池任务失败，退化到线程池：%s", e)
         _broken = True
@@ -74,3 +76,30 @@ def shutdown() -> None:
     if _executor is not None:
         _executor.shutdown(wait=False)
         _executor = None
+
+
+class CPUQueueFull(RuntimeError):
+    """No admission slot available, or admitted work exceeded its response deadline."""
+
+
+_inflight = 0
+
+
+async def run_cpu_bound(fn, *args):
+    global _inflight
+    if _inflight >= 2:
+        raise CPUQueueFull("导出任务繁忙，请稍后重试")
+    _inflight += 1
+    task = asyncio.create_task(_execute_cpu(fn, *args))
+
+    def finished(done):
+        global _inflight
+        _inflight -= 1
+        if not done.cancelled():
+            done.exception()  # retrieve a late error after the client has gone away
+
+    task.add_done_callback(finished)
+    try:
+        return await asyncio.wait_for(asyncio.shield(task), timeout=30)
+    except TimeoutError as e:
+        raise CPUQueueFull("导出超时，请稍后重试") from e

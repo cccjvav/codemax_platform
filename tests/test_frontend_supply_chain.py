@@ -77,7 +77,7 @@ def test_no_template_loads_third_party_js_from_a_cdn():
     这个清单**必须保持只减不增**：任何新增 CDN 依赖都要在这里显式登记，
     从而逼出一次「为什么不能像 d3 一样打进产物」的讨论。
     """
-    allowed = ("mermaid@",)  # TD-222 后续项：mermaid 仍走 CDN
+    allowed = ()  # TD-222 后续项：mermaid 仍走 CDN
 
     found = []
     for f in sorted(TEMPLATES.glob("*.html")):
@@ -122,7 +122,16 @@ def test_d3_is_actually_bundled_into_the_local_artifact():
 
     bundle = ROOT / "app/static/js/er-page.js"
     assert bundle.is_file(), "缺构建产物 app/static/js/er-page.js —— 忘了跑 npm run build？"
-    size = bundle.stat().st_size
+    closure = set()
+    def visit(path):
+        assert path.is_file(), f"missing local chunk: {path}"
+        if path in closure:
+            return
+        closure.add(path)
+        for rel in re.findall(r'(?:from\s*|import\s*)["\'](\.[^"\']+\.js)["\']', path.read_text()):
+            visit(path.parent / rel)
+    visit(bundle)
+    size = sum(path.stat().st_size for path in closure)
     assert size > 20_000, (
         f"app/static/js/er-page.js 只有 {size} 字节，远小于打进 d3 后应有的量级（实测约 49 kB）。"
         "很可能 d3 没有真的被打进来（比如 vite 入口漏配），页面会白屏。"
@@ -186,16 +195,13 @@ def test_mermaid_does_not_use_loose_security_level():
     )
 
 
-def test_mermaid_cdn_url_is_pinned_too():
-    """mermaid 走的是裸 ESM `import`，挂不上 `integrity` —— 那就更得钉死版本。
+def test_mermaid_is_local_and_locked():
+    import json
 
-    SRI 只对 `<script src>` / `<link>` 这类标签生效，ES module 的 `import`
-    语句没有 integrity 属性可写。所以这里唯一能做的就是把版本钉死，
-    让「上游发了什么」不再自动影响本站。
-    """
     js = (ROOT / "app/frontend/mermaid-page.js").read_text(encoding="utf-8")
-    m = re.search(r"/npm/mermaid@([\d.]+)", js)
-    assert m, "mermaid-page.js 里找不到 mermaid 的 CDN 引用"
-    assert re.fullmatch(r"\d+\.\d+\.\d+", m.group(1)), (
-        f"mermaid 版本是 {m.group(1)!r}，必须钉成精确的 x.y.z"
-    )
+    assert 'import mermaid from "mermaid"' in js
+    lock = json.loads((ROOT / "package-lock.json").read_text())
+    entry = lock["packages"]["node_modules/mermaid"]
+    assert entry["version"] == "11.17.2" and entry["integrity"].startswith("sha512-")
+    for path in (ROOT / "app/frontend").glob("*.js"):
+        assert not re.search(r'from\s*["\']https?://', path.read_text())

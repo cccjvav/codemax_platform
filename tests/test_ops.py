@@ -85,16 +85,13 @@ def test_every_external_origin_used_by_frontend_is_allowed_by_csp():
     assert not missing, f"这些外部源被前端用到但不在 CSP 白名单里：{sorted(missing)}"
 
 
-def test_csp_allows_inline_scripts_because_templates_still_need_them():
-    """四个模板都还有内联 <script>，所以现在必须保留 'unsafe-inline'（TD-163）。
-
-    这条测试的作用是把「临时妥协」钉在明处：等哪天把内联脚本都外置了，
-    这条会红，提醒把 'unsafe-inline' 去掉。
-    """
-    inline = [f.name for f in (ROOT / "app" / "templates").glob("*.html")
-              if re.search(r"<script(?![^>]*\bsrc=)[^>]*>", f.read_text(encoding="utf-8"))]
-    assert inline, "已经没有内联脚本了？那就可以收紧 CSP，请删掉这条测试"
-    assert "'unsafe-inline'" in CONTENT_SECURITY_POLICY
+def test_business_csp_blocks_inline_scripts_and_cdn():
+    scripts = next(d for d in CONTENT_SECURITY_POLICY.split("; ") if d.startswith("script-src"))
+    assert scripts == "script-src 'self'"
+    for f in (ROOT / "app/templates").glob("*.html"):
+        html = re.sub(r"<!--.*?-->", "", f.read_text(encoding="utf-8"), flags=re.S)
+        html = re.sub(r"\{#.*?#\}", "", html, flags=re.S)
+        assert not re.search(r"<script(?![^>]*\bsrc=)[^>]*>", html)
 
 
 # ============================================================ 请求日志与 request id

@@ -26,16 +26,15 @@
   <section id="st-landing">
     <h2>{{ product_name }}</h2>
     <div class="price">¥{{ '%.2f'|format(product_amount / 100) }}</div>
-    <p class="muted">在线下单 · 微信扫码支付 · 支付成功后即可下载交付物</p>
+    <p class="muted">固定数字商品 · 付款确认后领取文件 · 定制开发请先通过站内客服协商</p>
 
     <div class="cols">
       <div class="box">
         <h3>你将得到</h3>
         <ul>
-          <li>完整可运行的系统源码与数据库脚本</li>
-          <li>部署说明与本地运行指南</li>
-          <li>配套文档（需求 / 设计 / 测试）</li>
-          <li>答辩要点与常见问题准备</li>
+          <li>本页所售固定数字商品，内容以实际商品说明和文件清单为准</li>
+          <li>不默认包含定制开发、论文或答辩材料</li>
+          <li>需要定制服务？<a href="/support/center">先联系管理员确认需求、报价和交付范围</a></li>
         </ul>
       </div>
       <div class="box">
@@ -55,14 +54,22 @@
 
     <dl class="faq">
       <dt>付款后怎么拿到东西？</dt>
-      <dd>本页面会自动变成下载区，点「下载交付物」即可。<strong>下载链接一次性有效</strong>，点击后请立刻保存文件。</dd>
+      <dd>付款确认后可在本页或「我的订单」领取下载链接。<strong>链接短时有效，过期或中断可重新领取</strong>。</dd>
       <dt>支付成功但页面没反应？</dt>
       <dd>刷新本页并重新登录同一账号，订单状态会保留；若仍显示待支付，请联系我们核对订单号。</dd>
       <dt>工具收费吗？</dt>
-      <dd>不收费。ER 图、UML 类图、流程图三个工具<strong>永久免费、无需注册</strong>。</dd>
+      <dd>公开工具目前免费试用；流程图云端保存和客服留言需要登录。</dd>
     </dl>
   </section>
 
+  <section>
+    <h3>我的订单</h3>
+    <button type="button" id="btn-history">查看 / 刷新我的订单</button>
+    <div id="order-history"></div>
+    <button type="button" id="btn-history-more" hidden>更早订单</button>
+    <p id="history-error" class="error"></p>
+  </section>
+  <section id="st-closed" hidden><h2>订单已关闭</h2><p>该订单尚未确认付款，不能下载。如已付款，请通过站内客服核对。</p></section>
   <!-- ② 待支付态 -->
   <section id="st-pending" class="pay" hidden>
     <h2>订单 <span id="p-no"></span></h2>
@@ -82,17 +89,15 @@
     <p class="muted">订单 <span id="d-no"></span></p>
     <p><button type="button" class="cta buy" id="btn-download">下载交付物</button></p>
     <div class="warn">
-      ⚠️ <strong>下载链接一次性有效</strong>（防转卖）。点击后浏览器会直接开始下载，
-      请务必确认文件已保存到本地 —— 同一订单<strong>不能重复下载</strong>。
+      下载链接短时有效。中断或过期后可重新领取，已购权益不会因领取一次而消失。
     </div>
     <p class="error" id="d-error"></p>
   </section>
 
   <section id="st-downloaded" class="pay" hidden>
-    <h2>该订单已下载过</h2>
+    <h2>该订单已领取过链接</h2>
     <p class="muted">
-      订单 <span id="x-no"></span> 的交付物已经发放。为防止资源被转卖，
-      同一订单只能下载一次。如未成功保存文件，请联系我们处理。
+      订单 <span id="x-no"></span> 的下载权益仍可恢复，请从我的订单重新领取链接。
     </p>
   </section>
 </div>

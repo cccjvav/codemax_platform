@@ -11,10 +11,13 @@ const ST = {
   landing: document.getElementById("st-landing"),
   pending: document.getElementById("st-pending"),
   paid: document.getElementById("st-paid"),
+  closed: document.getElementById("st-closed"),
   downloaded: document.getElementById("st-downloaded"),
 };
 let timer = null;
 let currentNo = null;
+let pollBusy = false;
+let historyCursor = null;
 
 function show(name) {
   Object.entries(ST).forEach(([k, el]) => { el.hidden = k !== name; });
@@ -61,11 +64,8 @@ function render(o) {
       link.innerHTML = "";
       const a = document.createElement("a");
       a.href = o.code_url;
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "cta";
-      b.textContent = "前往收银台支付";
-      a.appendChild(b);
+      a.className = "cta";
+      a.textContent = "前往收银台支付";
       link.appendChild(a);
     } else {
       link.textContent = "";
@@ -83,23 +83,31 @@ function render(o) {
     if (!timer) timer = setInterval(poll, 3000);
     return;
   }
-  if (o.status === "paid") {
+  if (o.status === "paid" || o.status === "downloaded") {
     show("paid");
     document.getElementById("d-no").textContent = o.order_no;
     return;
   }
-  show("downloaded"); // downloaded 或 closed 都落到这里
+  show(o.status === "closed" ? "closed" : "landing");
   document.getElementById("x-no").textContent = o.order_no;
 }
 
 async function poll() {
-  if (!currentNo) return;
-  const res = await fetch(`/shop/orders/${currentNo}`, { credentials: "same-origin" });
-  if (res.status === 401) { stop(); show("landing"); return; }
-  if (!res.ok) return;
-  const o = await res.json();
-  render(o);
-  if (o.status !== "pending") stop();
+  if (!currentNo || pollBusy) return;
+  const no = currentNo, stamp = buySeq; pollBusy = true;
+  try {
+    const res = await fetch(`/shop/orders/${no}`, { credentials: "same-origin" });
+    if (stamp !== buySeq || no !== currentNo) return;
+    if (res.status === 401) { stop(); show("landing"); return; }
+    if (!res.ok) return;
+    const o = await res.json();
+    if (stamp !== buySeq || no !== currentNo) return;
+    if (!o || o.order_no !== no) throw new Error("订单响应格式无效");
+    render(o);
+    if (o.status !== "pending") stop();
+  } catch (e) {
+    if (stamp === buySeq) document.getElementById("buy-error").textContent = `状态暂时不可用，将重试：${e.message}`;
+  } finally { pollBusy = false; }
 }
 
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
@@ -114,6 +122,13 @@ let offBuy = null;
 let buySeq = 0;
 
 async function buy() {
+  const attempt = buySeq + 1;
+  try { await doBuy(); } catch (e) {
+    if (attempt === buySeq) document.getElementById("buy-error").textContent = `下单失败：${e.message}`;
+  }
+}
+
+async function doBuy() {
   const mySeq = ++buySeq;
   const errEl = document.getElementById("buy-error");
   errEl.textContent = "";
@@ -149,10 +164,13 @@ async function buy() {
     return;
   }
   if (!res.ok) {
-    errEl.textContent = (await res.json().catch(() => null))?.detail || `下单失败（${res.status}）`;
+    errEl.textContent = window.CodeMaxAuth?.errorText(await res.json().catch(() => null), res.status) || `下单失败（${res.status}）`;
     return;
   }
-  render(await res.json());
+  const order = await res.json();
+  if (mySeq !== buySeq) return;
+  if (!order || !order.order_no || !order.status) throw new Error("订单响应格式无效");
+  render(order);
 }
 
 document.getElementById("btn-buy").onclick = buy;
@@ -161,25 +179,52 @@ document.getElementById("btn-cancel").onclick = () => { stop(); show("landing");
 
 // 下载：**只有用户主动点击才调**。成功后立刻打开链接。
 document.getElementById("btn-download").onclick = async () => {
-  const errEl = document.getElementById("d-error");
-  errEl.textContent = "";
-  const res = await fetch(`/shop/download/${currentNo}`, {
-    method: "POST",
-    credentials: "same-origin",
-  });
-  if (!res.ok) {
-    const detail = (await res.json().catch(() => null))?.detail;
-    errEl.textContent = detail || `下载失败（${res.status}）`;
-    // 403 且提示"已下载过"说明这单已经烧掉了，直接切到对应状态，
-    // 免得用户反复点一个永远不会成功的按钮。
-    if (res.status === 403) { show("downloaded"); document.getElementById("x-no").textContent = currentNo; }
-    return;
-  }
-  const data = await res.json();
-  window.location.href = data.download_url;
-  show("downloaded");
-  document.getElementById("x-no").textContent = currentNo;
+  const stamp = buySeq, no = currentNo;
+  const errEl = document.getElementById("d-error"); errEl.textContent = "";
+  try {
+    const res = await fetch(`/shop/download/${no}`, { method: "POST", credentials: "same-origin" });
+    const data = await res.json();
+    if (stamp !== buySeq || no !== currentNo) return;
+    if (!res.ok) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || `下载失败（${res.status}）`);
+    if (typeof data?.download_url !== "string" || !/^https?:\/\//.test(data.download_url)) throw new Error("下载响应格式无效");
+    window.location.href = data.download_url;
+    show("paid");
+  } catch (e) { if (stamp === buySeq) errEl.textContent = `未完成下载，可重试：${e.message}`; }
 };
+
+async function loadHistory(more = false) {
+  const stamp = buySeq, box = document.getElementById("order-history");
+  try {
+    const res = await fetch("/shop/orders" + (more && historyCursor ? `?before=${historyCursor}` : ""), { credentials: "same-origin" });
+    const data = await res.json();
+    if (stamp !== buySeq) return;
+    if (!res.ok || !Array.isArray(data?.orders)) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || "请登录后查看订单");
+    if (!more) box.innerHTML = "";
+    const labels = { pending: "待付款", paid: "可下载", downloaded: "可重新下载", closed: "已关闭" };
+    for (const order of data.orders) {
+      const button = document.createElement("button"); button.type = "button";
+      button.textContent = `${order.order_no} · ${labels[order.status] || order.status}`;
+      button.onclick = () => { ++buySeq; stop(); render(order); };
+      box.appendChild(button);
+    }
+    historyCursor = data.next_cursor; document.getElementById("btn-history-more").hidden = !historyCursor;
+    document.getElementById("history-error").textContent = data.orders.length ? "" : "暂无订单";
+  } catch (e) { if (stamp === buySeq) document.getElementById("history-error").textContent = e.message; }
+}
+document.getElementById("btn-history").onclick = () => loadHistory();
+document.getElementById("btn-history-more").onclick = () => loadHistory(true);
+if (window.CodeMaxAuth) {
+  let identity = window.CodeMaxAuth.user?.username || null;
+  window.CodeMaxAuth.onChange((user) => {
+    const next = user?.username || null;
+    if (next === identity) return;
+    identity = next; ++buySeq; stop(); currentNo = null; show("landing");
+    document.getElementById("order-history").innerHTML = "";
+    document.getElementById("history-error").textContent = "";
+    historyCursor = null; document.getElementById("btn-history-more").hidden = true;
+    if (!user && offBuy) { offBuy(); offBuy = null; }
+  });
+}
 
 // 进页面时**不自动下单**：自动下单会在用户还没决定时就产生订单。
 // 只有点了「立即购买」才与后端交互（复用已有 pending 单的逻辑在后端 create_order 里）。

@@ -14,6 +14,7 @@ socket 对端地址；只有明确部署在可信反向代理之后才打开 `TR
 """
 from __future__ import annotations
 
+import ipaddress
 import time
 from collections import deque
 from collections.abc import Callable
@@ -22,6 +23,7 @@ from dataclasses import dataclass, field
 from fastapi import HTTPException, Request
 
 from .config import settings
+from .middleware import trusted_proxy
 
 _PRUNE_THRESHOLD = 1024  # key 多到这个数就顺手清一次，避免字典随 IP 无限增长
 
@@ -71,11 +73,18 @@ limiter = Limiter()
 
 def client_key(request: Request) -> str:
     """限流用的客户端标识。默认取 socket 对端地址，见模块 docstring 关于 XFF 的说明。"""
-    if settings.TRUST_PROXY_HEADERS:
-        forwarded = request.headers.get("x-forwarded-for", "")
-        if forwarded:
-            return forwarded.split(",")[0].strip()
-    return request.client.host if request.client else "unknown"
+    peer = request.client.host if request.client else "unknown"
+    if trusted_proxy(request.scope):
+        chain = request.headers.get("x-forwarded-for", "").split(",")
+        try:
+            networks = [ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(",")]
+            for item in reversed(chain):
+                address = ipaddress.ip_address(item.strip())
+                if not any(address in net for net in networks):
+                    return str(address)
+        except ValueError:
+            return peer
+    return peer
 
 
 def rate_limit(scope: str, limit_attr: str):

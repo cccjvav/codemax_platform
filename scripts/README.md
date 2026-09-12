@@ -352,3 +352,34 @@ python -m pytest tests/test_schema_sync.py -q
 构建器补登记 `app/frontend/README.md`，源码归属在 `app/` 前优先匹配 `app/frontend/`。新增“审查记录”分组，保留上传的 `CONSOLIDATED_ERROR_SUMMARY.md` 及 `docs/REVIEW_CROSSCHECK.md`。测试将 DOC_GROUPS 与 git ls-files 的 Markdown 双向比较（排除 .claude Agent Skills），登记项要提交或暂存后才属于 tracked 清单。
 
 当前文档页24份：原21 + 前端说明1 + 审查记录2，不应继续硬编码22作为所有未来提交的目标。源码 inventory 的 tracked／archive策略、依赖图别名边、搜索与锚点仍在待修范围。
+
+## 模块职责
+
+开发期构建、文档检查和数据库结构核对脚本。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `b797ee4660e6` | L1–L1031 |
+| [`scripts/check_docs_contract.py`](check_docs_contract.py) | `83f435863def` | L1–L148 |
+| [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+文档门禁从 Git 文件清单发现代码，收集 AST 与 SHA-256；不会导入应用或读取密钥。
+
+## 变更与验证
+
+脚本本身要有反例测试；新增目录不能通过遗漏清单逃过检查。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

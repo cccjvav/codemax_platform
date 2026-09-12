@@ -508,3 +508,42 @@ python -m pytest tests/test_auth.py tests/test_auth_cookie.py tests/test_oauth.p
 - diagrams 的 restore 返回当前 ETag，恢复后可直接 PUT；这不是并发配额修复，配额仍待处理。
 - admin 的提取失败使用新的 HTTP_422_UNPROCESSABLE_CONTENT 常量，响应状态仍为422。
 - 新行为回归：`tests/test_review_regressions.py`。本文件此前详细章节的历史行号仍在文档整合待修范围，不以顶部日期包装为已全面同步。
+
+## 模块职责
+
+HTTP 边界：身份与权限、请求校验、事务提交、响应码和业务调用。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | L1–L0 |
+| [`app/routers/admin.py`](admin.py) | `5a13ee99d0ba` | L1–L100 |
+| [`app/routers/auth.py`](auth.py) | `03f2bba0d09d` | L1–L139 |
+| [`app/routers/diagrams.py`](diagrams.py) | `ef4346e4bd57` | L1–L227 |
+| [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
+| [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
+| [`app/routers/oauth.py`](oauth.py) | `3c6513870ae7` | L1–L254 |
+| [`app/routers/shop.py`](shop.py) | `4bd5ff185415` | L1–L483 |
+| [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
+| [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
+| [`app/routers/tools.py`](tools.py) | `fd31e653f5e8` | L1–L79 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+路由依赖 get_current_user/require_admin；私有对象查询必须同时校验用户归属。
+
+## 变更与验证
+
+新增端点同时更新运行时路由一致性测试、权限测试和页面调用；业务算法留在工具或服务层。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

@@ -6,11 +6,11 @@
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
-from sqlalchemy import func, select, update
+from sqlalchemy import LargeBinary, cast, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..database import get_db
+from ..database import get_db, lock_user
 from ..deps import get_current_user
 from ..models import SysDiagram, User
 from ..schemas import DiagramIn, DiagramOut, DiagramSummary
@@ -62,6 +62,17 @@ async def _live_count(db: AsyncSession, user: User) -> int:
     )
 
 
+async def _storage_budget(db: AsyncSession, user_id: int, content: str, replacing: int | None = None):
+    size = (func.octet_length(SysDiagram.content) if db.bind.dialect.name == "postgresql"
+            else func.length(cast(SysDiagram.content, LargeBinary)))
+    stmt = select(func.count(), func.coalesce(func.sum(size), 0)).where(SysDiagram.user_id == user_id)
+    if replacing is not None:
+        stmt = stmt.where(SysDiagram.id != replacing)
+    count, used = (await db.execute(stmt)).one()
+    if count >= settings.DIAGRAM_TOTAL_QUOTA or used + len(content.encode("utf-8")) > settings.DIAGRAM_BYTE_QUOTA:
+        raise HTTPException(409, "流程图总存储已达上限（含回收站），请永久删除不需要的回收站记录")
+
+
 @router.get("", response_model=list[DiagramSummary])
 async def list_diagrams(
     deleted: bool = False, user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)
@@ -83,6 +94,7 @@ async def create_diagram(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    await lock_user(db, user.id)
     # 每用户配额（TD-64）：不设的话任何人都能无限建图把库刷满。
     # 只数存活行，所以删掉一张就腾出一个名额。
     if await _live_count(db, user) >= settings.DIAGRAM_QUOTA:
@@ -90,6 +102,7 @@ async def create_diagram(
             status.HTTP_409_CONFLICT,
             f"流程图数量已达上限（{settings.DIAGRAM_QUOTA} 张），请先删除一些再新建",
         )
+    await _storage_budget(db, user.id, data.content)
     diagram = SysDiagram(user_id=user.id, name=data.name, content=data.content)
     db.add(diagram)
     await db.commit()
@@ -132,6 +145,8 @@ async def update_diagram(
     必须看 `mark_downloaded()` 的返回值）是同一个道理。
     """
     expected = _parse_if_match(if_match)
+    await lock_user(db, user.id)
+    await _storage_budget(db, user.id, data.content, diagram_id)
     diagram = await _owned(db, user, diagram_id)  # 不存在 / 不是自己的 / 已删除 → 404
     result = await db.execute(
         update(SysDiagram)
@@ -178,6 +193,7 @@ async def restore_diagram(
 
     恢复要占配额 —— 否则「建满 → 删 → 恢复」就能绕过上限。
     """
+    await lock_user(db, user.id)
     diagram = await _owned(db, user, diagram_id, include_deleted=True)
     if diagram.deleted_at is None:
         raise HTTPException(status.HTTP_409_CONFLICT, "该流程图没有被删除")
@@ -187,7 +203,25 @@ async def restore_diagram(
             f"恢复失败：存活流程图已达上限（{settings.DIAGRAM_QUOTA} 张）",
         )
     diagram.deleted_at = None
+    diagram.version += 1
     await db.commit()
     await db.refresh(diagram)
     response.headers["ETag"] = _etag(diagram)
     return diagram
+
+
+@router.delete("/{diagram_id}/purge", status_code=204)
+async def purge_diagram(diagram_id: int, if_match: str | None = Header(None, alias="If-Match"),
+                        user: User = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    """Explicit irreversible deletion, only for this user's trash and current version."""
+    expected = _parse_if_match(if_match)
+    await lock_user(db, user.id)
+    row = await _owned(db, user, diagram_id, include_deleted=True)
+    if row.deleted_at is None:
+        raise HTTPException(409, "只能永久删除回收站中的流程图")
+    result = await db.execute(delete(SysDiagram).where(
+        SysDiagram.id == diagram_id, SysDiagram.user_id == user.id,
+        SysDiagram.deleted_at.is_not(None), SysDiagram.version == expected))
+    if result.rowcount != 1:
+        raise HTTPException(412, "流程图版本已变化，请刷新回收站")
+    await db.commit()

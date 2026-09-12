@@ -15,12 +15,6 @@
   <div id="mermaid-preview"></div>
 </div>
 
-<!-- ⚠️ 这一条必须带 type="module"，其余页面不用：
-     mermaid 仍是 CDN 上的 ESM 包（TD-222 后续项，压缩后近 2 MB 故未打包），
-     构建产物里因此残留一条真实指向 cdn.jsdelivr.net 的 ESM 导入语句。
-     没有 type="module" 的话浏览器会按经典脚本解析，那条 import 直接是语法错、整页无图。
-     其余产物（auth / er-page / drawio-page / mock-pay-page）经实测**不含任何 ESM 语法**，
-     用经典 <script src> 即可 —— 刻意不给它们加 module，因为 base.html 的 auth.js
-     要尽早把 window.CodeMaxAuth 挂上，而 shop.html 的内联脚本还依赖它。 -->
+<!-- 本地构建的 Mermaid 及分块以 ES module 加载，无运行时 CDN。 -->
 <script type="module" src="/static/js/mermaid-page.js"></script>
 {% endblock %}

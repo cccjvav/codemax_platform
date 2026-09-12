@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import datetime, timedelta, timezone
-from urllib.parse import urlencode
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse
@@ -11,8 +11,9 @@ from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
-from ..database import get_db
+from ..database import get_db, lock_user
 from ..deps import get_current_user
+from ..middleware import CONTENT_SECURITY_POLICY
 from ..models import OAuthClient, OAuthCode, User
 from ..ratelimit import rate_limit
 from ..security import adummy_verify, averify_password, create_access_token
@@ -41,12 +42,18 @@ async def _active_client(db: AsyncSession, client_id: str, redirect_uri: str) ->
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if not client or client.status != 1:
         raise _oauth_error("invalid_client")
-    if client.redirect_uri != redirect_uri:
+    try:
+        parts = urlsplit(redirect_uri)
+        _ = parts.port
+        valid = parts.scheme in ("http", "https") and parts.hostname and not parts.fragment and not parts.username
+    except ValueError:
+        valid = False
+    if not valid or client.redirect_uri != redirect_uri:
         raise _oauth_error("invalid_redirect_uri")
     return client
 
 
-def _sign(client_id: str, redirect_uri: str, state: str | None) -> str:
+def _sign(client_id: str, redirect_uri: str, state: str | None, user: User) -> str:
     """给授权请求的三个参数签名，塞进同意页的隐藏表单里。
 
     作用是**把 POST 绑定到「本站渲染过的那张同意页」**：攻击者没有 SECRET_KEY，
@@ -56,9 +63,25 @@ def _sign(client_id: str, redirect_uri: str, state: str | None) -> str:
     这不是本项目 CSRF 的**主要**防线 —— 主要防线是登录 cookie 的 SameSite=Lax
     （跨站 POST 根本不带 cookie）。这条是第二层，好处是零会话状态。
     """
-    payload = f"{client_id}\n{redirect_uri}\n{state or ''}".encode()
+    payload = f"{user.id}\n{user.credential_version}\n{client_id}\n{redirect_uri}\n{state or ''}".encode()
     digest = hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).digest()
     return base64.urlsafe_b64encode(digest).decode().rstrip("=")
+
+
+def _callback(redirect_uri: str, params: dict) -> str:
+    parts = urlsplit(redirect_uri)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k not in params]
+    return urlunsplit(parts._replace(query=urlencode([*query, *params.items()])))
+
+
+def _consent_headers(redirect_uri: str) -> dict:
+    parts = urlsplit(redirect_uri)
+    origin = f"{parts.scheme}://{parts.netloc}"
+    return {"Content-Security-Policy": CONTENT_SECURITY_POLICY.replace("form-action 'self'", f"form-action 'self' {origin}")}
+
+
+def _redirect_callback(redirect_uri: str, params: dict):
+    return RedirectResponse(_callback(redirect_uri, params), status_code=302, headers=_consent_headers(redirect_uri))
 
 
 @router.get("/authorize")
@@ -101,9 +124,10 @@ async def authorize(
             client_id=client_id,
             redirect_uri=redirect_uri,
             state=state or "",
-            sig=_sign(client_id, redirect_uri, state),
+            sig=_sign(client_id, redirect_uri, state, user),
             username=user.username,
         ),
+        headers=_consent_headers(redirect_uri),
     )
 
 
@@ -122,7 +146,7 @@ async def authorize_submit(
     `approve` 默认 `"0"`（拒绝）—— 表单里少传字段时必须落到**更安全**的那一侧。
     """
     # compare_digest：签名比对不能短路返回，否则响应时间会泄露信息
-    if not hmac.compare_digest(sig, _sign(client_id, redirect_uri, state)):
+    if not sig.isascii() or not hmac.compare_digest(sig, _sign(client_id, redirect_uri, state, user)):
         raise _oauth_error("invalid_request", "同意页签名无效，请重新发起授权")
     client = await _active_client(db, client_id, redirect_uri)
 
@@ -130,7 +154,12 @@ async def authorize_submit(
         params = {"error": "access_denied", "error_description": "用户拒绝授权"}
         if state:
             params["state"] = state
-        return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=302)
+        return _redirect_callback(redirect_uri, params)
+
+    expected_revision = user.credential_version
+    user = await lock_user(db, user.id)
+    if user.credential_version != expected_revision or user.status != 1:
+        raise _oauth_error("invalid_grant", "登录状态已变化，请重新授权")
 
     # P1-9：签发新码时**顺带**清掉已过期与已使用的旧码。授权码是一次性、10 分钟就
     # 作废的凭据，旧实现只在读（token 端点）时判过期、从不删行，于是每次授权流都
@@ -151,6 +180,7 @@ async def authorize_submit(
     db.add(OAuthCode(
         code=code,
         user_id=user.id,
+        credential_version=user.credential_version,
         client_id=client.id,
         redirect_uri=redirect_uri,
         expires_at=_utcnow() + timedelta(minutes=AUTH_CODE_EXPIRE_MINUTES),
@@ -160,7 +190,7 @@ async def authorize_submit(
     params = {"code": code}
     if state:
         params["state"] = state
-    return RedirectResponse(f"{redirect_uri}?{urlencode(params)}", status_code=302)
+    return _redirect_callback(redirect_uri, params)
 
 
 @router.post("/token",
@@ -196,6 +226,10 @@ async def token(
     if as_utc(oauth_code.expires_at) < _utcnow():
         raise _oauth_error("invalid_grant", "授权码已过期")
 
+    user = await lock_user(db, oauth_code.user_id)
+    if user is None or user.status != 1 or oauth_code.credential_version != user.credential_version:
+        raise _oauth_error("invalid_grant", "授权状态已失效，请重新授权")
+
     # 原子消费授权码：把"检查未使用 + 标记已使用"合成一条 UPDATE，
     # 并发重放同一个 code 时只有一个请求能拿到 rowcount=1（原先先查后改存在重放窗口）
     consumed = await db.execute(
@@ -210,10 +244,11 @@ async def token(
     # 必须在 commit 前取值：`password_changed_at` 要原样进 token，
     # 漏传的话 `get_current_user` 会把这枚**刚签发的** token 判成「密码已修改」（TD-197）。
     subject, pwd_changed_at = user.username, user.password_changed_at
+    revision = user.credential_version
     await db.commit()
 
     return {
-        "access_token": create_access_token(subject, pwd_changed_at),
+        "access_token": create_access_token(subject, pwd_changed_at, revision),
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
     }

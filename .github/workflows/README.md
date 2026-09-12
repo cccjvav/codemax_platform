@@ -239,3 +239,32 @@ print('concurrency:', d['concurrency'])
 > ① 改 job 显示名 → **必须同步改两处 PR 评论里硬编码的 job 名**（L97/L100 与 L171/L174）；
 > ② 加 `if: failure()` 的步骤 → **必须金丝雀实测**，确认评论真的发出来；
 > ③ 加新依赖 → 确认 `lint` job 不会因为多装东西而变慢（它刻意只装 ruff）。
+
+## 模块职责
+
+GitHub Actions：静态检查、SQLite/PostgreSQL、供应链、文档和前端漂移检查。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`.github/workflows/ci.yml`](ci.yml) | `92cfa70893bb` | L1–L304 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+工作流调用仓库中的脚本与测试；最终以远端实际作业结果为准。
+
+## 变更与验证
+
+修改工作流须说明影响，推送后观察本分支 CI；不能把本地成功当成远端成功。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import logging
 import math
 from collections.abc import Sequence
@@ -40,35 +41,18 @@ class Faq:
 # FAQ 语料。放在代码里而不是数据库：条目少、随代码评审、不需要运营后台。
 # 要改成数据库表时，把 FAQS 换成从表里读即可，检索逻辑不用动。
 FAQS: tuple[Faq, ...] = (
-    Faq("毕业设计服务怎么收费", "按题目难度与工作量报价，本科毕设 199 元起，"
-        "下单前可先免费咨询评估。价格在下单页明确标注，不会中途加价。",
-        ("价格", "多少钱", "报价", "费用", "贵吗")),
-    Faq("可以开发票吗", "可以。支持电子普通发票，付款完成后在订单页提交开票信息，"
-        "3 个工作日内开出。", ("发票", "开票", "报销", "增值税")),
-    Faq("支持哪些数据库", "MySQL、PostgreSQL、SQL Server、Oracle、SQLite 都支持。"
-        "在线工具目前可直接解析 MySQL 与 PostgreSQL 的建表语句生成 ER 图。",
-        ("数据库", "mysql", "postgresql", "sqlserver", "oracle")),
-    Faq("交付周期是多久", "常规题目 7-15 天，加急可缩短到 3 天（需加价）。"
-        "具体周期在需求评估后给出，并写进订单备注。", ("工期", "多久", "加急", "时间", "几天")),
-    Faq("会给源码吗", "会。交付内容包含完整源码、数据库脚本、部署说明，"
-        "以及可用于答辩的论文初稿与答辩 PPT 提纲。", ("源代码", "代码", "源码", "论文")),
-    Faq("怎么保证不是抄袭", "所有项目从零开发，交付时提供代码查重报告。"
-        "同一题目不会重复卖给两个人。", ("查重", "抄袭", "重复", "原创")),
-    Faq("可以先看演示再付款吗", "可以。免费工具（SQL 转 ER 图、Word 数据字典导出、"
-        "流程图）无需注册即可直接使用；定制类服务可先看同类作品演示。",
-        ("演示", "试用", "免费", "体验", "例子")),
-    Faq("付款后多久开始做", "付款成功后 1 个工作日内安排开发者对接，"
-        "并给出排期与里程碑。", ("开始", "排期", "对接", "什么时候开始")),
-    Faq("中途可以修改需求吗", "可以。小范围调整不额外收费；"
-        "若需求变化导致工作量明显增加，会先给出补充报价再动手。",
-        ("改需求", "变更", "返工", "修改")),
-    Faq("验收不通过怎么办", "按订单里约定的验收标准逐条核对，"
-        "未达标的部分免费修改到通过为止。", ("验收", "不合格", "退款", "不满意")),
-    Faq("怎么下载已购买的文件", "付款后在「我的订单」里点下载，"
-        "链接带签名且**只能用一次**，过期需重新生成。",
-        ("下载", "下载不了", "链接", "打不开")),
-    Faq("账号忘记密码怎么办", "目前暂不支持自助找回，请联系人工客服核验身份后重置。",
-        ("密码", "忘记", "登不上", "找回密码")),
+    Faq("毕业设计服务怎么收费", "固定数字商品以下单页展示的价格与说明为准；定制开发按需求和工作量单独报价。请通过站内客服先确认范围，不把数字商品订单当作定制服务报价。", ("价格", "多少钱", "报价", "费用", "贵吗")),
+    Faq("可以开发票吗", "目前没有接入开票服务，不能在线申请或承诺开具电子发票。若需要发票，请购买前通过站内客服确认，不能以付款成功代表可开票。", ("发票", "开票", "报销", "增值税")),
+    Faq("支持哪些数据库", "在线工具支持 MySQL 与 PostgreSQL 常见建表语句；复杂方言有边界。定制项目采用的数据库需先与管理员确认。", ("数据库", "mysql", "postgresql", "sqlserver", "oracle")),
+    Faq("交付周期是多久", "固定数字商品在付款确认后可下载；定制开发的周期、范围和验收方式须先通过站内客服协商，不承诺统一工期或加急时限。", ("工期", "多久", "加急", "时间", "几天")),
+    Faq("会给源码吗", "数字商品以页面说明及实际文件清单为准；定制服务的源码、部署资料等交付范围须事先确认。不要默认包含论文、答辩材料或未列明的资料。", ("源代码", "代码", "源码", "论文")),
+    Faq("怎么保证不是抄袭", "固定数字商品可能由多位客户购买，不承诺独家或从零定制，也不自动提供查重报告。请按许可与学校要求使用；需要定制或独家范围请先协商。", ("查重", "抄袭", "重复", "原创")),
+    Faq("可以先看演示再付款吗", "公开工具可先试用；流程图云端保存需要登录。数字商品和定制服务是否有演示，请通过站内客服确认。", ("演示", "试用", "免费", "体验", "例子")),
+    Faq("付款后多久开始做", "数字商品不涉及开发排期，付款确认后领取文件；定制服务的启动时间和里程碑需单独约定。", ("开始", "排期", "对接", "什么时候开始")),
+    Faq("中途可以修改需求吗", "定制需求变更请在站内会话中说明，由管理员确认对报价和工期的影响后再实施，不承诺所有变更免费。", ("改需求", "变更", "返工", "修改")),
+    Faq("验收不通过怎么办", "请在站内客服说明问题及订单号，管理员会按事先约定的范围核实处理。平台未接入自动退款，不承诺无限次免费修改。", ("验收", "不合格", "退款", "不满意")),
+    Faq("怎么下载已购买的文件", "登录购买时的账号，在商城的我的订单中领取下载链接。链接短时有效；过期或下载中断可重新领取，不会因第一次领取失败失去已购权益。", ("下载", "下载不了", "链接", "打不开")),
+    Faq("账号忘记密码怎么办", "目前没有自助找回密码功能。站内客服需要先登录，不要把该页面误认为未登录账号恢复入口；请勿向任何人发送密码。", ("密码", "忘记", "找回", "登录不了")),
 )
 
 
@@ -310,6 +294,14 @@ def _with_warm_up_timeout(client: LLMClient) -> LLMClient:
     return replace(client, timeout=WARM_UP_TIMEOUT)
 
 
+_SEMANTIC_KEY = None
+
+
+def _semantic_key(client):
+    return (type(client), hashlib.sha256(str(getattr(client, "api_key", "")).encode()).digest(), getattr(client, "base_url", None), getattr(client, "embed_model", None),
+            id(getattr(client, "transport", client)), tuple((f.q, f.a) for f in FAQS))
+
+
 async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     """把 FAQS 向量化并缓存。返回是否成功。
 
@@ -317,12 +309,15 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     没配 `LLM_API_KEY`、网络不通、模型不支持中文，任何一条都只意味着
     「退回词袋」，而不是「客服功能挂掉」。启动流程不能因为一个可选增强而拒绝起服务。
     """
-    global _SEMANTIC, _SEMANTIC_NORM
+    global _SEMANTIC, _SEMANTIC_NORM, _SEMANTIC_KEY
     # 只给预热这一步换短超时，不动全局 client：对话调用该等就得等。
     # 用 replace 造副本而不是改属性 —— 改全局实例会让测试之间互相污染。
     client = _with_warm_up_timeout(client)
-    if _SEMANTIC is not None:
+    key = _semantic_key(client)
+    if _SEMANTIC is not None and key == _SEMANTIC_KEY:
         return True
+    _SEMANTIC = None
+    _SEMANTIC_KEY = None
     try:
         vectors = await client.embeddings([f.q for f in FAQS])
     except LLMError as exc:
@@ -331,8 +326,12 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     if len(vectors) != len(FAQS):
         _semantic_logger.warning("向量条数 %d ≠ FAQ 条数 %d，丢弃", len(vectors), len(FAQS))
         return False
-    _SEMANTIC = vectors
-    _SEMANTIC_NORM = [math.sqrt(sum(x * x for x in v)) or 1.0 for v in vectors]
+    if not vectors or not vectors[0] or any(len(v) != len(vectors[0]) or any(not math.isfinite(x) for x in v) for v in vectors):
+        return False
+    norms = [math.hypot(*v) or 1.0 for v in vectors]
+    if any(not math.isfinite(n) for n in norms):
+        return False
+    _SEMANTIC_KEY, _SEMANTIC, _SEMANTIC_NORM = key, vectors, norms
     _semantic_logger.info("语义 FAQ 索引已预热：%d 条，维度 %d", len(vectors), len(vectors[0]))
     return True
 
@@ -344,9 +343,10 @@ def semantic_ready() -> bool:
 
 def reset_semantic_index() -> None:
     """清空缓存。测试专用：不同用例注入不同的假客户端，必须能隔离。"""
-    global _SEMANTIC, _SEMANTIC_NORM
+    global _SEMANTIC, _SEMANTIC_NORM, _SEMANTIC_KEY
     _SEMANTIC = None
     _SEMANTIC_NORM = []
+    _SEMANTIC_KEY = None
 
 
 async def semantic_search(
@@ -358,24 +358,29 @@ async def semantic_search(
     「语义检索不可用」（该回落）和「语义检索跑了但没相关内容」（该转人工）。
     用空列表会把这两件事混成一件，上层就没法做正确的兜底。
     """
-    if _SEMANTIC is None or not query.strip():
+    if _SEMANTIC is None or _semantic_key(client) != _SEMANTIC_KEY or not query.strip():
         return None
+    key, vectors, norms, corpus = _SEMANTIC_KEY, _SEMANTIC, _SEMANTIC_NORM, FAQS
     try:
         qv = await client.embeddings([query])
     except LLMError as exc:
         _semantic_logger.info("查询向量化失败，本次退回词袋：%s", exc)
         return None
-    if not qv or not qv[0]:
+    if key != _SEMANTIC_KEY or not qv or not qv[0]:
         return None
     q = qv[0]
-    qn = math.sqrt(sum(x * x for x in q)) or 1.0
+    if len(q) != len(vectors[0]) or any(not math.isfinite(x) for x in q):
+        return None
+    qn = math.hypot(*q) or 1.0
+    if not math.isfinite(qn):
+        return None
     hits: list[FaqHit] = []
-    for i, vec in enumerate(_SEMANTIC):
-        dot = sum(a * b for a, b in zip(q, vec, strict=True))
-        cos = max(0.0, dot / (qn * _SEMANTIC_NORM[i]))  # 截断负值：方向相反不是「负相关」
+    for i, vec in enumerate(vectors):
+        dot = sum((a / qn) * (b / norms[i]) for a, b in zip(q, vec, strict=True))
+        cos = max(0.0, min(1.0, dot))  # 截断负值：方向相反不是「负相关」
         hits.append(
             FaqHit(
-                faq=FAQS[i],
+                faq=corpus[i],
                 score=cos,  # 语义分数天然同量纲，不需要归一化
                 bm25=0.0,
                 cosine=cos,

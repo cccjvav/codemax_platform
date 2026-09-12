@@ -9,6 +9,7 @@ from sqlalchemy import (
     SmallInteger,
     String,
     Text,
+    UniqueConstraint,
     func,
     text,
 )
@@ -36,6 +37,7 @@ class User(Base):
     # 最近一次改密码的时刻（TD-70）。JWT 里带这个时间戳的副本，校验时对不上就拒 ——
     # 这样改密码能一次吊销该用户**所有**旧 token，不必维护 jti 黑名单表。
     # 为 None 表示从未改过密码（注册时建的号）。
+    credential_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
@@ -152,5 +154,25 @@ class OAuthCode(Base):
     client_id: Mapped[int] = mapped_column(ForeignKey("oauth_client.id"))
     redirect_uri: Mapped[str] = mapped_column(String(255))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    credential_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     used: Mapped[bool] = mapped_column(Boolean, default=False)
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class SupportMessage(Base):
+    """One persistent customer/admin conversation per customer; nonce deduplicates retries."""
+
+    __tablename__ = "support_message"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    customer_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
+    sender_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
+    sender_role: Mapped[int] = mapped_column(SmallInteger)
+    body: Mapped[str] = mapped_column(Text)
+    client_nonce: Mapped[str] = mapped_column(String(36))
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("sender_id", "client_nonce", name="uq_support_sender_nonce"),
+        Index("idx_support_customer_id", "customer_id", "id"),
+    )

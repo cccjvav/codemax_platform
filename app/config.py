@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     # 每个用户最多存多少张流程图（TD-64）。删掉一张就腾出一个名额 ——
     # 配额只数**存活**的行，软删除的（回收站里的）不占。
     # 注意这只约束存活行数，回收站本身不会自动清空，见 TD-179。
+    DIAGRAM_TOTAL_QUOTA: int = Field(200, gt=0)
+    DIAGRAM_BYTE_QUOTA: int = Field(20000000, gt=0)
     DIAGRAM_QUOTA: int = Field(50, ge=0)  # 0 表示关闭云端保存，是合法配置
 
     # 限流（TD-15）：/tools/* 刻意不设鉴权，任何人都能无限调用，所以必须限
@@ -90,7 +92,9 @@ class Settings(BaseSettings):
     RATE_LIMIT_WINDOW: int = Field(60, gt=0)  # 窗口秒数
     RATE_LIMIT_TOOLS: int = Field(30, gt=0)  # DDL 解析 / Word 导出：每个 IP 每窗口次数
     RATE_LIMIT_LLM: int = Field(10, gt=0)  # LLM 端点更严：每次调用都花钱
+    RATE_LIMIT_SUPPORT_MESSAGES: int = Field(30, gt=0)
     RATE_LIMIT_AUTH: int = Field(10, gt=0)  # 注册 / 登录：防在线爆破
+    TRUSTED_PROXY_CIDRS: str = "127.0.0.1/32,::1/128"
     TRUST_PROXY_HEADERS: bool = False  # 只在可信反向代理之后才打开（TD-142）
 
     # ---- 部署与运维（S5-03）----

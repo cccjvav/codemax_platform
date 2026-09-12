@@ -713,3 +713,47 @@ python -m pytest tests/test_auth.py tests/test_auth_cookie.py tests/test_token_r
 - `config.py` 采用 userinfo 百分号转义，空格是 `%20` 而非 `+`；支持 Unicode 与原始加号往返。
 - `order_state.py` 的 `mark_paid(db, order, *, transaction_id=None, paid_at=None)` 原子接纳 pending/closed 并更新首笔元数据；不能再由调用方预先把元数据写成 ORM dirty 状态。竞争失败不覆盖流水，异常终态抛 IllegalTransition。
 - 回归见 `tests/test_review_regressions.py`；完整待修和验收见 `docs/REVIEW_CROSSCHECK.md`（仓库根相对路径）。
+
+## 模块职责
+
+应用公共层：数据库、模型、配置、鉴权、支付、存储、CPU 任务与站点清单。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | L1–L0 |
+| [`app/config.py`](config.py) | `52b02b4048ce` | L1–L143 |
+| [`app/cpu_pool.py`](cpu_pool.py) | `9817d188d978` | L1–L105 |
+| [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
+| [`app/deps.py`](deps.py) | `768fde46e270` | L1–L55 |
+| [`app/middleware.py`](middleware.py) | `4c4aed80f104` | L1–L221 |
+| [`app/models.py`](models.py) | `e3e2f0021b24` | L1–L178 |
+| [`app/order_state.py`](order_state.py) | `604b20f29766` | L1–L113 |
+| [`app/ratelimit.py`](ratelimit.py) | `2c63fe6203fb` | L1–L110 |
+| [`app/schemas.py`](schemas.py) | `a9776d8ed633` | L1–L145 |
+| [`app/security.py`](security.py) | `d7739d46e42c` | L1–L116 |
+| [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
+| [`app/startup_checks.py`](startup_checks.py) | `ea62e48e0819` | L1–L102 |
+| [`app/storage.py`](storage.py) | `118b3e72ed68` | L1–L119 |
+| [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `f821d3a7dfce` | L1–L242 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+HTTP 路由调用公共层和 tools；数据库是用户、订单与授权状态的事实来源。
+
+## 变更与验证
+
+改变公共接口要检查 routers、schemas、迁移 SQL 与调用方测试；不得只更新一个模型文件。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

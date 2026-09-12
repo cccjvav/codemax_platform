@@ -1,3 +1,5 @@
+> 当前存量升级：先备份/停写，再顺序运行 0007、0008；旧 JWT 重新登录。full_init 会删表，绝不能用于保留数据的升级。参见 `docs/SECOND_REPAIR_ACCEPTANCE.md`。
+
 # `database init/` 模块说明书
 
 > **行号基准 commit：`f63ce49`**（2026-09-04）。本文所有 `L12-L35` 形式的引用都对应这个提交。
@@ -416,7 +418,7 @@ UPDATE sys_user SET role = 1 WHERE username = '你的管理员账号';
 **两遍验的是两件不同的事**：
 
 - **第一遍**证明脚本**语法正确、能在真 PostgreSQL 上跑通**（`test_schema_sync.py` 只用项目自己的解析器读它，**不执行**，所以抓不到「PostgreSQL 其实不接受这句」）
-- **第二遍**证明它**幂等** —— 靠的是开头那 7 条 `DROP TABLE IF EXISTS ... CASCADE`
+- **第二遍**证明它**幂等** —— 靠的是开头那组 `DROP TABLE IF EXISTS ... CASCADE`
 
 **`-v ON_ERROR_STOP=1` 是关键**：没有它，`psql` 遇到错误会继续往下跑并以 0 退出，CI 会绿着放行一个建不出表的脚本。
 
@@ -489,3 +491,41 @@ for p in sorted(pathlib.Path('database init').glob('migrate_*.sql')):
 >
 > 背景（为什么文档里的数字比代码更容易腐烂、以及一次真实的漏改事故）见
 > `docs/ARCHITECTURE_GUIDE.md` 第 7 课 7.10。
+
+## 模块职责
+
+PostgreSQL 空库初始化、已有数据迁移与结构核对。
+
+## 文件与入口
+
+下表为可复算清单；生成区以外的职责解释由维护者负责。
+
+<!-- doc-contract:files:start -->
+
+| 文件（源码） | SHA-256 前 12 位 | 定位范围 |
+| --- | --- | --- |
+| [`database init/db_init.py`](db_init.py) | `deb20fa1d930` | L1–L95 |
+| [`database init/full_init.sql`](full_init.sql) | `3e52a5321c6f` | L1–L141 |
+| [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
+| [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
+| [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
+| [`database init/migrate_0004_diagram_version.sql`](migrate_0004_diagram_version.sql) | `a82a7b2a4357` | L1–L41 |
+| [`database init/migrate_0005_user_role.sql`](migrate_0005_user_role.sql) | `ae5fd29e1f90` | L1–L53 |
+| [`database init/migrate_0006_order_single_pending.sql`](migrate_0006_order_single_pending.sql) | `eba74f798bbd` | L1–L22 |
+| [`database init/migrate_0007_support_messages.sql`](migrate_0007_support_messages.sql) | `312f75458084` | L1–L14 |
+| [`database init/migrate_0008_credential_revision.sql`](migrate_0008_credential_revision.sql) | `ad4f7d2d7903` | L1–L6 |
+
+完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
+其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
+
+<!-- doc-contract:files:end -->
+
+## 数据流与约束
+
+full_init.sql 会删表，仅用于空库；存量库使用编号迁移并先备份。
+
+## 变更与验证
+
+模型和 SQL 必须一起修改；迁移应在真实 PostgreSQL 验证，create_all 测试不替代迁移测试。
+源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
+只刷新指纹不是语义审查；评审时必须核对人工说明。

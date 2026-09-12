@@ -62,7 +62,7 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
     )
     # 36 → 38：S2-02-2 加了 GET /shop（落地页）与 GET /shop/orders/{order_no}（状态轮询）
     # 38 → 39：S5-04 加了 POST /shop/orders/{order_no}/confirm（人工确认收款，TD-205）
-    assert len(extracted) == 39, f"业务路由应为 39 条，实际 {len(extracted)}"
+    assert len(extracted) == 47, f"业务路由应为 47 条，实际 {len(extracted)}"
 
 
 def test_page_routes_are_extracted(client):  # noqa: ARG001
@@ -88,10 +88,10 @@ def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
     """鉴权/限流计数（docs/site/README.md 把它当断言写进了文档，必须对得上）。"""
     routes = bds.build_routes()
     # 17 → 18：人工确认收款端点走 require_admin（S5-04）
-    assert sum(1 for r in routes if r["auth"]) == 18
+    assert sum(1 for r in routes if r["auth"]) == 25
     # 8 → 9：/oauth/token 补挂 rate_limit("token", "RATE_LIMIT_AUTH")。
     # 它是密码交换端点，此前是全站唯一没有速率约束的敏感端点。
-    assert sum(1 for r in routes if r["rate_limit"]) == 9
+    assert sum(1 for r in routes if r["rate_limit"]) == 12
 
 
 # ---------------------------------------------------------------- 纯函数
@@ -252,3 +252,40 @@ def test_depgraph_markup_is_styled_by_stylesheet():
         "边 <path> 必须 fill:none —— 否则按 SVG 默认 fill:black 涂成黑块"
     )
     assert ".node" in css, "样式表没有 .node 规则"
+
+
+def test_toc_and_search_headings_ignore_fences_and_share_duplicate_ids():
+    raw = '## same\n\n```markdown\n## fake\n```\n\n## same\n'
+    assert [(h['title'], h['id']) for h in bds._headings(raw)] == [('same', 'same'), ('same', 'same-1')]
+    assert 'href="#same-1"' in bds._toc_of(raw) and 'fake' not in bds._toc_of(raw)
+
+
+def test_subpages_load_offline_search_index_before_script():
+    html = bds._shell(title='test', active=None, nav='', main='', toc='', depth=1)
+    assert 'src="../data/search-index.js"' in html
+    assert html.index('data/search-index.js') < html.index('src="../site.js"')
+
+
+def test_real_source_links_resolve_to_local_source_and_range(tmp_path):
+    html = bds._postprocess('<a href="../app/models.py#L1-L3">source</a>', 'docs/test.md', {}, {'app/models.py': 's/models.html'})
+    assert 'href="../s/models.html?end=3#L1"' in html
+    (tmp_path / 'index.html').write_text('<a href="source.html?end=3#L1">ok</a>')
+    (tmp_path / 'source.html').write_text('<span id="L1"></span><span id="L3"></span>')
+    assert bds.validate_site(tmp_path) == []
+    (tmp_path / 'source.html').write_text('<span id="L1"></span>')
+    assert bds.validate_site(tmp_path), 'out-of-bounds source range must fail'
+    (tmp_path / 'source.html').unlink()
+    assert bds.validate_site(tmp_path), 'missing generated source page must fail'
+
+
+
+def test_graph_keeps_all_import_aliases(tmp_path, monkeypatch):
+    import subprocess
+    subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
+    (tmp_path / 'app').mkdir()
+    for filename in ['__init__.py', 'a.py', 'b.py', 'c.py']:
+        (tmp_path / 'app' / filename).write_text('')
+    (tmp_path / 'main.py').write_text('from app import a, b\nimport app.c, app.b\n')
+    monkeypatch.setattr(bds, 'ROOT', tmp_path)
+    edges = {(e['from'], e['to']) for e in bds.build_import_graph()['edges']}
+    assert edges == {('main', 'app.a'), ('main', 'app.b'), ('main', 'app.c')}

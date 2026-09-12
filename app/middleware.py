@@ -26,6 +26,7 @@
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 import time
 import uuid
@@ -50,7 +51,7 @@ _DRAWIO = "https://embed.diagrams.net"
 CONTENT_SECURITY_POLICY = "; ".join(
     [
         "default-src 'self'",
-        f"script-src 'self' 'unsafe-inline' {_CDN}",
+        "script-src 'self'",
         "style-src 'self' 'unsafe-inline'",
         "img-src 'self' data: blob:",
         f"frame-src {_DRAWIO}",
@@ -79,6 +80,18 @@ def _header(scope: dict, name: bytes) -> str:
     return ""
 
 
+def trusted_proxy(scope: dict) -> bool:
+    from .config import settings
+
+    if not settings.TRUST_PROXY_HEADERS or not scope.get("client"):
+        return False
+    try:
+        peer = ipaddress.ip_address(scope["client"][0])
+        return any(peer in ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(","))
+    except ValueError:
+        return False  # malformed configuration never becomes trust-all
+
+
 def public_base_url(request) -> str:
     """这个请求在**用户浏览器眼里**的站点根，如 `https://shop.example.com`。
 
@@ -102,10 +115,8 @@ def public_base_url(request) -> str:
     `X-Forwarded-Host` 同理一并采信/一并忽略：只改 scheme 不改 host，
     链接照样指回内网地址，用户点不开。
     """
-    from .config import settings
-
     base = str(request.base_url).rstrip("/")
-    if not settings.TRUST_PROXY_HEADERS:
+    if not trusted_proxy(request.scope):
         return base
 
     scope = request.scope
@@ -138,10 +149,8 @@ class SecurityHeadersMiddleware:
         # 否则伪造一个头就能让站点被浏览器锁死一年。
         hsts = None
         if self.hsts_max_age > 0:
-            from .config import settings
-
             proto = scope.get("scheme", "")
-            if proto != "https" and settings.TRUST_PROXY_HEADERS:
+            if proto != "https" and trusted_proxy(scope):
                 proto = _header(scope, b"x-forwarded-proto").split(",")[0].strip().lower()
             if proto == "https":
                 hsts = (
@@ -154,6 +163,13 @@ class SecurityHeadersMiddleware:
                 headers = MutableHeaders(scope=message)
                 for k, v in _STATIC_SECURITY_HEADERS:
                     headers.setdefault(k.decode(), v.decode())
+                if scope.get("path") in ("/docs", "/redoc"):
+                    headers["content-security-policy"] = CONTENT_SECURITY_POLICY.replace(
+                        "script-src 'self'", f"script-src 'self' 'unsafe-inline' {_CDN}"
+                    ).replace("style-src 'self' 'unsafe-inline'",
+                              f"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com") + "; font-src 'self' https://fonts.gstatic.com data:"
+                if not scope.get("path", "").startswith("/static/"):
+                    headers.setdefault("cache-control", "no-store")
                 if hsts is not None:
                     headers.setdefault(hsts[0].decode(), hsts[1].decode())
             await send(message)

@@ -196,7 +196,7 @@ def assert_notify_fresh(timestamp: str, *, now: int | None = None) -> None:
     「时间新不新」两件事纠缠在一起，也没法各自单测。
     """
     ref = int(time.time()) if now is None else now
-    if not timestamp.lstrip("-").isdigit():
+    if not timestamp.isascii() or not timestamp.isdigit() or len(timestamp) > 12:
         # 头是可以随便伪造的，不能假设它格式正确（空串 / 带小数 / 带空格都要挡）
         raise WeChatPayError(f"Wechatpay-Timestamp 不是合法整数：{timestamp!r}")
     skew = int(timestamp) - ref

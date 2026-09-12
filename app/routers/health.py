@@ -13,6 +13,8 @@
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import APIRouter, Depends, Response
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -33,7 +35,7 @@ async def healthz():
 async def readyz(db: AsyncSession = Depends(get_db)):
     """就绪探针：真的执行一次 `SELECT 1`。库连不上就返回 503。"""
     try:
-        await db.execute(text("SELECT 1"))
+        await asyncio.wait_for(db.execute(text("SELECT 1")), timeout=3.0)
     except Exception as e:  # 探针必须吞掉异常，否则探针自己会变成 500
         return Response(
             content=f'{{"status":"unavailable","reason":"database: {type(e).__name__}"}}',

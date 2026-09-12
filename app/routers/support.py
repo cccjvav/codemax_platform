@@ -30,4 +30,5 @@ async def ask(data: SupportIn, db: AsyncSession = Depends(get_db)):
         "escalated": reply.escalated,
         "reason": reply.reason,
         "references": list(reply.references),
+        "human_support_url": "/support/center" if reply.escalated else None,
     }

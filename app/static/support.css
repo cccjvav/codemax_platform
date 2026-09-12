@@ -1,0 +1,10 @@
+.support-center { max-width: 1040px; margin: auto; }
+.support-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
+.support-layout:has(aside:not([hidden])) { grid-template-columns: 260px minmax(0, 1fr); }
+.support-center [hidden] { display: none; }
+#support-inbox button { display: block; width: 100%; text-align: left; margin-top: 8px; }
+#support-messages { list-style: none; padding: 0; max-height: 55vh; overflow: auto; }
+#support-messages li { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f5f9; padding: 12px; margin: 8px 0; border-radius: 8px; }
+#support-messages li.admin { background: #eff6ff; border-left: 3px solid #3b82f6; }
+#support-messages small { display: block; color: #64748b; }
+@media (max-width: 700px) { .support-layout:has(aside:not([hidden])) { grid-template-columns: 1fr; } }

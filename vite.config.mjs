@@ -33,6 +33,7 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       input: {
+        "support-page": "app/frontend/support-page.js",
         // base.html 全站加载：登录态。
         auth: "app/frontend/auth.js",
         // ER 图页：d3 渲染。d3 从这里打进产物，不再走 CDN（TD-222）。

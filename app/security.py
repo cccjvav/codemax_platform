@@ -21,7 +21,12 @@ def hash_password(password: str) -> str:
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    if "\x00" in plain or len(plain.encode("utf-8")) > 72:
+        return False
+    try:
+        return pwd_context.verify(plain, hashed)
+    except (ValueError, TypeError):
+        return False
 
 
 # ⚠️ **HTTP 处理路径上必须用下面这两个 async 版本。**
@@ -40,7 +45,7 @@ async def ahash_password(password: str) -> str:
 
 
 async def averify_password(plain: str, hashed: str) -> bool:
-    return await run_in_threadpool(pwd_context.verify, plain, hashed)
+    return await run_in_threadpool(verify_password, plain, hashed)
 
 
 _DUMMY_HASH: str | None = None
@@ -69,6 +74,7 @@ class TokenClaims:
 
     sub: str
     pwd: int | None
+    version: int
 
 
 def _pwd_stamp(moment: datetime | None) -> int | None:
@@ -79,14 +85,14 @@ def _pwd_stamp(moment: datetime | None) -> int | None:
     return int(as_utc(moment).timestamp())
 
 
-def create_access_token(subject: str, password_changed_at: datetime | None = None) -> str:
+def create_access_token(subject: str, password_changed_at: datetime | None = None, credential_version: int = 0) -> str:
     """签发 access token。
 
     `password_changed_at` 必须传**当前库里的值**，否则改过密码的用户拿到的
     token 会立刻被判为失效。
     """
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
-    claims: dict = {"sub": subject, "exp": expire, "pwd": _pwd_stamp(password_changed_at)}
+    claims: dict = {"sub": subject, "exp": expire, "pwd": _pwd_stamp(password_changed_at), "ver": credential_version}
     return jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
@@ -104,4 +110,7 @@ def decode_token(token: str) -> TokenClaims | None:
     if not sub:
         return None
     pwd = raw.get("pwd")
-    return TokenClaims(sub=sub, pwd=int(pwd) if pwd is not None else None)
+    version = raw.get("ver")
+    if type(version) is not int or version < 0 or (pwd is not None and type(pwd) is not int):
+        return None
+    return TokenClaims(sub=sub, pwd=pwd, version=version)

@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "generated": [
+    {"path": "app/static/js/", "owner": "app/static/README.md", "reason": "Vite bundles; edit app/frontend then npm run build. Do not hand-document bundled vendor symbols."},
+    {"path": "package-lock.json", "owner": "README.md", "reason": "npm dependency lockfile; verify npm ci and npm audit, not individual generated keys."}
+  ]
+}

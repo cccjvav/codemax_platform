@@ -33,6 +33,8 @@ def _check_password_bytes(v: str) -> str:
     而拒绝的代价很小 —— 只影响「24 个汉字以上」的密码，正常使用碰不到，
     而且 `max_length=64` 本来就已经设了字符上限。
     """
+    if "\x00" in v:
+        raise ValueError("密码不能包含空字符")
     n = len(v.encode("utf-8"))
     if n > _BCRYPT_MAX_BYTES:
         raise ValueError(f"密码编码后为 {n} 字节，超过 bcrypt 的 72 字节上限，请缩短")
@@ -63,7 +65,7 @@ class RegisterIn(BaseModel):
              日志与导出文件。Jinja 的 autoescape 只保得住 HTML 那一处。
           ③ **日志完整性**：`\n` 能让攻击者在日志里伪造整行记录。
         """
-        if not _USERNAME_RE.match(v):
+        if not _USERNAME_RE.fullmatch(v):
             raise ValueError("用户名只能包含字母、数字、下划线、连字符或中文，不能有空格与特殊符号")
         if v.lower() in _RESERVED_USERNAMES:
             raise ValueError("该用户名为系统保留名，请换一个")
@@ -77,6 +79,7 @@ class UserOut(BaseModel):
     username: str
     nickname: str | None
     avatar: str | None
+    role: int
 
 
 class PasswordChangeIn(BaseModel):

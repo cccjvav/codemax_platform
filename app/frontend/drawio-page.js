@@ -1,174 +1,179 @@
-// drawio-page 页面的交互脚本。
-//
-// 原先是 drawio.html 里的内联 <script>，C2 搬到这里。搬出来的理由：
-// ① 内联脚本要么放宽 CSP 的 'unsafe-inline'，要么逐页配 nonce（TD-163 的方向），
-//    外部文件由 `script-src 'self'` 直接覆盖；
-// ② 内联在模板里的 JS 无法被构建工具处理（不能压缩、不能拆分、报错没有源文件行号）。
-//
-// ⚠️ 模块脚本默认 defer，执行时 DOM 已解析完，可直接取元素。
+// Drawio is an external editor. Fresh XML is requested via correlated export messages,
+// never assumed to be the last autosave. Private document changes invalidate pending work.
+(() => {
+  const ORIGIN = "https://embed.diagrams.net";
+  const BLANK = '<mxfile><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
+  let frame = document.getElementById("drawio-frame");
+  const status = document.getElementById("drawio-status");
+  const authStatus = document.getElementById("auth-status");
+  const name = document.getElementById("diagram-name");
+  const list = document.getElementById("diagram-list");
+  let currentId = null, xml = BLANK, etag = null, epoch = 0, sequence = 0, listSeq = 0;
+  let identity, loggedIn = false, ready = false, saving = false, pending = null, loading = false;
 
-const ORIGIN = "https://embed.diagrams.net";
-const BLANK = '<mxfile><diagram name="Page-1"><mxGraphModel><root><mxCell id="0"/><mxCell id="1" parent="0"/></root></mxGraphModel></diagram></mxfile>';
-
-const frame = document.getElementById("drawio-frame");
-const status = document.getElementById("drawio-status");
-const authStatus = document.getElementById("auth-status");
-const nameInput = document.getElementById("diagram-name");
-const list = document.getElementById("diagram-list");
-
-let currentId = null; // null = 尚未保存到云端的新图
-let currentXml = BLANK;
-let etag = null; // 手上这一版的版本号（ETag），保存时带回去做乐观锁（TD-65）
-
-// 登录态由 HttpOnly cookie 携带，脚本**读不到也不需要读** token（TD-44）。
-// 因此「是否已登录」只能问后端，见下面的 checkAuth()。
-let loggedIn = false;
-
-function send(msg) {
-  frame.contentWindow.postMessage(JSON.stringify(msg), ORIGIN);
-}
-
-function api(url, method, body, extraHeaders) {
-  return fetch(url, {
-    method,
-    credentials: "same-origin", // 让浏览器带上登录 cookie
-    headers: { "Content-Type": "application/json", ...extraHeaders },
-    body: body ? JSON.stringify(body) : undefined,
+  function send(message) { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
+  function load() { if (loading) return; send({ action: "load", xml, autosave: 1 }); }
+  function validXml(value) {
+    if (typeof value !== "string" || value.length > 500000 || !value.trim()) throw new Error("XML 内容为空或超过上限");
+    if (/<!DOCTYPE/i.test(value)) throw new Error("不支持带 DOCTYPE 的 XML");
+    const document = new DOMParser().parseFromString(value, "application/xml");
+    if (document.querySelector("parsererror") || !["mxfile", "mxGraphModel"].includes(document.documentElement.nodeName)) throw new Error("不是有效的 Drawio XML");
+    return value;
+  }
+  function resetEditor() {
+    ++epoch; ready = false; saving = false;
+    if (pending) { clearTimeout(pending.timer); pending.reject(new Error("文档已切换")); pending = null; }
+    // A new browsing context makes messages from the previous account/document rejectable by source.
+    if (frame.cloneNode && frame.parentNode) {
+      const next = frame.cloneNode(false); frame.parentNode.replaceChild(next, frame); frame = next;
+    }
+  }
+  function exportXml() {
+    if (!ready) return Promise.reject(new Error("编辑器尚未就绪，请稍后重试"));
+    if (pending) return Promise.reject(new Error("正在读取编辑器，请稍候"));
+    return new Promise((resolve, reject) => {
+      const id = ++sequence;
+      pending = { id, epoch, resolve, reject, timer: setTimeout(() => {
+        if (pending?.id === id) { pending = null; reject(new Error("编辑器未响应，未保存，请重试")); }
+      }, 10000) };
+      send({ action: "export", format: "xml", requestId: id });
+    });
+  }
+  async function api(url, method = "GET", body, headers = {}) {
+    const response = await fetch(url, { method, credentials: "same-origin",
+      headers: { "Content-Type": "application/json", ...headers }, body: body ? JSON.stringify(body) : undefined });
+    const data = response.status === 204 ? null : await response.json();
+    if (!response.ok) {
+      if (response.status === 412) throw new Error("云端已有新版本，本次未覆盖。请重新打开或先下载本地副本");
+      throw new Error(CodeMaxAuth.errorText?.(data, response.status) || `请求失败（${response.status}）`);
+    }
+    return { data, etag: response.headers?.get("ETag") };
+  }
+  window.addEventListener("message", (event) => {
+    if (event.origin !== ORIGIN || event.source !== frame.contentWindow) return;
+    let message;
+    try { message = JSON.parse(event.data); } catch { return; }
+    if (!message || typeof message !== "object") return;
+    if (message.event === "init") { load(); return; }
+    if (message.event === "load") { ready = !loading; return; }
+    if (message.event === "export" && pending && message.message?.requestId === pending.id && pending.epoch === epoch) {
+      const job = pending; pending = null; clearTimeout(job.timer);
+      try { xml = validXml(message.xml); job.resolve(xml); } catch (e) { job.reject(e); }
+    }
+    if (message.event === "autosave" && ready && typeof message.xml === "string") xml = message.xml;
+    if (message.event === "save" && ready) save();
   });
-}
-
-// ---- 与 drawio iframe 的 postMessage 协议 ----
-window.addEventListener("message", (evt) => {
-  if (evt.origin !== ORIGIN || evt.source !== frame.contentWindow) return; // 只认 drawio 的消息
-  let msg;
-  try {
-    msg = JSON.parse(evt.data);
-  } catch {
-    return;
+  async function refreshList() {
+    if (!loggedIn) return;
+    const stamp = epoch, serial = ++listSeq;
+    try {
+      const { data } = await api("/diagrams");
+      if (stamp !== epoch || serial !== listSeq) return;
+      if (!Array.isArray(data)) throw new Error("流程图列表格式无效");
+      list.innerHTML = '<option value="">— 我的流程图 —</option>';
+      for (const row of data) {
+        const option = document.createElement("option"); option.value = row.id; option.textContent = row.name; list.appendChild(option);
+      }
+      if (currentId) list.value = String(currentId);
+    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
   }
-  if (msg.event === "init") send({ action: "load", xml: currentXml });
-  if (msg.event === "save") {
-    currentXml = msg.xml;
-    saveToCloud();
+  async function save() {
+    if (!loggedIn) { status.textContent = "未登录，未保存"; return; }
+    if (saving) return;
+    const stamp = epoch; saving = true;
+    try {
+      const content = await exportXml();
+      if (stamp !== epoch) return;
+      const result = await api(currentId ? `/diagrams/${currentId}` : "/diagrams", currentId ? "PUT" : "POST",
+        { name: name.value.trim() || "未命名流程图", content }, currentId ? { "If-Match": etag } : {});
+      if (stamp !== epoch) return;
+      if (!result.data?.id || !result.etag) throw new Error("保存响应缺少标识或版本，请刷新列表确认");
+      currentId = result.data.id; etag = result.etag;
+      status.textContent = `已保存到云端（#${currentId}）${xml !== content ? "，编辑器还有新改动" : ""}`;
+      await refreshList();
+    } catch (e) { if (stamp === epoch) status.textContent = `未保存：${e.message}`; }
+    finally { if (stamp === epoch) saving = false; }
   }
-  if (msg.event === "autosave") currentXml = msg.xml;
-});
-
-// ---- 云端保存 ----
-async function saveToCloud() {
-  if (!loggedIn) {
-    status.textContent = "未登录，未保存";
-    return;
+  document.getElementById("btn-save").onclick = save;
+  list.onchange = async () => {
+    if (!list.value) return;
+    const id = list.value; loading = true; resetEditor(); const stamp = epoch;
+    try {
+      const { data, etag: tag } = await api(`/diagrams/${id}`);
+      if (stamp !== epoch) return;
+      xml = validXml(data.content); currentId = data.id; etag = tag; name.value = data.name;
+      // The iframe may have initialized during the fetch. Restart with the fetched document only.
+      loading = false; resetEditor(); status.textContent = `已打开 #${data.id}`;
+    } catch (e) { if (stamp === epoch) { loading = false; resetEditor(); status.textContent = e.message; } }
+  };
+  document.getElementById("btn-new").onclick = () => {
+    loading = false; xml = BLANK; currentId = null; etag = null; name.value = ""; list.value = ""; resetEditor(); status.textContent = "已新建空白流程图";
+  };
+  document.getElementById("btn-download").onclick = async () => {
+    const stamp = epoch;
+    try {
+      const content = await exportXml(); if (stamp !== epoch) return;
+      const url = URL.createObjectURL(new Blob([content], { type: "application/xml" }));
+      const a = document.createElement("a"); a.href = url; a.download = `${name.value.trim() || "diagram"}.drawio`; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+  };
+  document.getElementById("btn-import").onclick = () => document.getElementById("file-input").click();
+  document.getElementById("file-input").onchange = async (event) => {
+    const file = event.target.files[0]; if (!file) return;
+    const stamp = epoch;
+    try {
+      if (file.size > 500000) throw new Error("文件超过 500000 字节，请缩小后导入");
+      const content = validXml(await file.text()); if (stamp !== epoch) return;
+      xml = content; currentId = null; etag = null; name.value = file.name.replace(/\.(drawio|xml)$/i, "");
+      resetEditor(); status.textContent = `已导入：${file.name}`;
+    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+    finally { event.target.value = ""; }
+  };
+  document.getElementById("btn-login").onclick = () => CodeMaxAuth.open("login");
+  async function syncAuth(user) {
+    const next = user?.username || null;
+    loggedIn = !!user; authStatus.textContent = user ? "已登录，可保存到云端" : "未登录，图只能在本地画";
+    if (next === identity) return;
+    if (identity) xml = BLANK; // guest work may be kept on first login, account-owned work never is
+    document.getElementById("diagram-manage").innerHTML = "";
+    loading = false; identity = next; currentId = null; etag = null; name.value = ""; list.innerHTML = ""; resetEditor();
+    if (user) await refreshList();
   }
-  const res = await api(
-    currentId ? `/diagrams/${currentId}` : "/diagrams",
-    currentId ? "PUT" : "POST",
-    { name: nameInput.value.trim() || "未命名流程图", content: currentXml },
-    currentId ? { "If-Match": etag } : undefined, // 只有改已有的图才需要带版本
-  );
-  if (res.status === 401) {
-    status.textContent = "登录已失效，请重新登录";
-    return;
+  async function manage() {
+    if (!loggedIn) { CodeMaxAuth.open("login"); return; }
+    const stamp = epoch;
+    try {
+      const [live, trash] = await Promise.all([api("/diagrams"), api("/diagrams?deleted=true")]);
+      if (stamp !== epoch) return;
+      const box = document.getElementById("diagram-manage"); box.innerHTML = "";
+      for (const [rows, deleted] of [[live.data, false], [trash.data, true]]) {
+        for (const row of rows) {
+          const li = document.createElement("li"); li.textContent = `${row.name} · ${deleted ? "回收站" : "云端"} `;
+          function action(label, path, method, permanent = false) {
+            const button = document.createElement("button"); button.type = "button"; button.textContent = label;
+            button.onclick = async () => {
+              if (permanent && !window.confirm("永久删除后无法恢复，确定吗？")) return;
+              const actionEpoch = epoch;
+              try {
+                await api(path, method, undefined, permanent ? { "If-Match": `"${row.version}"` } : {});
+                if (actionEpoch !== epoch) return;
+                if (!deleted && currentId === row.id) {
+                  xml = BLANK; currentId = null; etag = null; name.value = ""; resetEditor();
+                }
+                status.textContent = `${label}成功`;
+                await refreshList(); await manage();
+              } catch (e) { if (actionEpoch === epoch) status.textContent = e.message; }
+            };
+            li.appendChild(button);
+          }
+          action(deleted ? "恢复" : "移至回收站", `/diagrams/${row.id}${deleted ? "/restore" : ""}`, deleted ? "POST" : "DELETE");
+          if (deleted) action("永久删除", `/diagrams/${row.id}/purge`, "DELETE", true);
+          box.appendChild(li);
+        }
+      }
+    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
   }
-  if (res.status === 412) {
-    // 另一个标签页/设备已经改过了。**绝不能自动重试** —— 那正好会把对方的改动盖掉，
-    // 乐观锁就白加了。让用户自己决定。
-    status.textContent = "云端已有更新的版本，本次未保存 —— 请从列表重新打开后再改";
-    return;
-  }
-  if (!res.ok) {
-    // 409（配额用满）后端给了人话，直接显示比一个光秃秃的状态码有用
-    const detail = (await res.json().catch(() => null))?.detail;
-    status.textContent = detail ? `保存失败：${detail}` : `保存失败（${res.status}）`;
-    return;
-  }
-  const saved = await res.json();
-  currentId = saved.id;
-  etag = res.headers.get("ETag"); // 服务端已经把版本 +1，换掉手上的旧版本
-  status.textContent = `已保存到云端（#${saved.id}）`;
-  await refreshList();
-}
-
-async function refreshList() {
-  if (!loggedIn) return;
-  const res = await api("/diagrams", "GET");
-  if (!res.ok) return;
-  const items = await res.json();
-  list.innerHTML = '<option value="">— 我的流程图 —</option>';
-  for (const d of items) {
-    const opt = document.createElement("option");
-    opt.value = d.id;
-    opt.textContent = d.name;
-    list.appendChild(opt);
-  }
-  if (currentId) list.value = String(currentId);
-}
-
-async function openFromCloud(id) {
-  const res = await api(`/diagrams/${id}`, "GET");
-  if (!res.ok) {
-    status.textContent = `读取失败（${res.status}）`;
-    return;
-  }
-  const d = await res.json();
-  currentId = d.id;
-  currentXml = d.content;
-  etag = res.headers.get("ETag");
-  nameInput.value = d.name;
-  send({ action: "load", xml: currentXml });
-  status.textContent = `已打开 #${d.id}`;
-}
-
-// ---- 本地保存 / 导入 ----
-document.getElementById("btn-download").onclick = () => {
-  const url = URL.createObjectURL(new Blob([currentXml], { type: "application/xml" }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `${nameInput.value.trim() || "diagram"}.drawio`;
-  a.click();
-  URL.revokeObjectURL(url);
-};
-
-document.getElementById("btn-import").onclick = () => document.getElementById("file-input").click();
-document.getElementById("file-input").onchange = async (ev) => {
-  const file = ev.target.files[0];
-  if (!file) return;
-  currentXml = await file.text();
-  currentId = null;
-  nameInput.value = file.name.replace(/\.(drawio|xml)$/i, "");
-  send({ action: "load", xml: currentXml });
-  status.textContent = `已导入本地文件：${file.name}`;
-  ev.target.value = ""; // 不清空的话，连续导入同一个文件不会再触发 change
-};
-
-document.getElementById("btn-save").onclick = saveToCloud;
-document.getElementById("btn-new").onclick = () => {
-  currentId = null;
-  currentXml = BLANK;
-  nameInput.value = "";
-  list.value = "";
-  send({ action: "load", xml: currentXml });
-  status.textContent = "已新建空白流程图";
-};
-list.onchange = () => list.value && openFromCloud(list.value);
-
-// 登录/退出都在顶栏的全站浮层里（S2-02-2），本页只负责唤起与响应状态变化。
-document.getElementById("btn-login").onclick = () => CodeMaxAuth.open("login");
-
-function setAuthState(on) {
-  loggedIn = on;
-  authStatus.textContent = on ? "已登录，可保存到云端" : "未登录，图只能在本地画";
-}
-
-// 「是否已登录」由 CodeMaxAuth 统一问后端（GET /auth/me）——
-// 登录态在 HttpOnly cookie 里脚本读不到（TD-44），所以只能问后端。
-// 这里不再自己 fetch /auth/me：原来本页与顶栏各问一次，两处状态各管各的，
-// 容易出现一个显示已登录另一个没显示。
-async function syncAuthState(u) {
-  setAuthState(!!u);
-  if (u) await refreshList();
-}
-// 先订阅后读取快照，两步之间不 await：无论共享认证先完成还是稍后完成都能收到。
-// 不改变 onChange 的全站语义，避免立即回放触发购物页的补单监听器。
-CodeMaxAuth.onChange(syncAuthState);
-syncAuthState(CodeMaxAuth.user);
+  document.getElementById("btn-manage").onclick = manage;
+  CodeMaxAuth.onChange(syncAuth); syncAuth(CodeMaxAuth.user);
+})();

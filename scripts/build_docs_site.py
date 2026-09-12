@@ -45,12 +45,9 @@ def package_of(mod: str) -> str:
 
 
 def collect_python() -> list[Path]:
-    out = []
-    for p in sorted(ROOT.rglob("*.py")):
-        if set(p.parts) & EXCLUDE_DIRS:
-            continue
-        out.append(p)
-    return out
+    from check_docs_contract import repository_files
+
+    return [ROOT / rel for rel in repository_files(ROOT) if rel.endswith(".py")]
 
 
 def build_import_graph() -> dict:
@@ -80,24 +77,23 @@ def build_import_graph() -> dict:
         except SyntaxError:
             continue
         for n in ast.walk(tree):
-            target = None
+            targets = []
             if isinstance(n, ast.ImportFrom):
-                if n.level:  # 相对导入
-                    base = src_mod
-                    # level=1 表示当前包；模块本身不是包时要先退一层
-                    if p.name != "__init__.py":
-                        base = package_of(base)
+                base = src_mod if p.name == "__init__.py" else package_of(src_mod)
+                if n.level:
                     for _ in range(n.level - 1):
                         base = package_of(base)
-                    target = f"{base}.{n.module}" if n.module else base
-                elif n.module and n.module.split(".")[0] in ("app", "main"):
-                    target = n.module
+                    base = f"{base}.{n.module}" if n.module else base
+                else:
+                    base = n.module or ""
+                for alias in n.names:
+                    candidate = f"{base}.{alias.name}"
+                    targets.append(candidate if candidate in known else base)
             elif isinstance(n, ast.Import):
-                for a in n.names:
-                    if a.name.split(".")[0] in ("app", "main"):
-                        target = a.name
-            if target and target in known and target != src_mod:
-                edges.append({"from": src_mod, "to": target, "line": getattr(n, "lineno", 0)})
+                targets.extend(alias.name for alias in n.names)
+            for target in targets:
+                if target in known and target != src_mod:
+                    edges.append({"from": src_mod, "to": target, "line": n.lineno})
 
     # 去重（同一对模块可能 import 多次）
     seen, uniq = set(), []
@@ -184,7 +180,7 @@ def build_routes() -> list[dict]:
                         "auth": auth or user,
                         "admin": auth,
                         "rate_limit": rl,
-                        "doc": f"app/routers/README.md#{_file_anchor(p.name)}",
+                        "doc": "app/routers/README.md",
                         "snippet": lines[line - 1].strip() if line - 1 < len(lines) else "",
                     }
                 )
@@ -246,36 +242,21 @@ def _file_anchor(filename: str) -> str:
 
 def build_symbols() -> list[dict]:
     """每个函数/类 → 源码位置 + 所属模块 + 对应文档锚点。"""
+    from check_docs_contract import symbols
+
     out = []
-    for p in collect_python():
-        if str(p.relative_to(ROOT)).startswith("tests/"):
-            continue
-        try:
-            tree = ast.parse(p.read_text(encoding="utf-8"))
-        except SyntaxError:
-            continue
-        rel = str(p.relative_to(ROOT)).replace("\\", "/")
-        doc = _doc_for(rel)
-        for n in ast.walk(tree):
-            if not isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                continue
-            out.append(
-                {
-                    "name": n.name,
-                    "kind": "class" if isinstance(n, ast.ClassDef) else "def",
-                    "module": module_name(p),
-                    "file": rel,
-                    "line": n.lineno,
-                    "end": getattr(n, "end_lineno", n.lineno),
-                    "doc": doc,
-                    "private": n.name.startswith("_"),
-                }
-            )
-    out.sort(key=lambda s: (s["file"], s["line"]))
-    return out
+    for path in collect_python():
+        rel = path.relative_to(ROOT).as_posix()
+        for symbol in symbols(path):
+            out.append({**symbol, "module": module_name(path), "file": rel,
+                        "doc": _doc_for(rel), "private": symbol["name"].split(".")[-1].startswith("_")})
+    return sorted(out, key=lambda row: (row["file"], row["line"]))
 
 
 _DOC_MAP = [
+    ("tests/", "tests/README.md"),
+    ("docs/site/", "docs/site/README.md"),
+    ("docs/", "docs/README.md"),
     ("app/frontend/", "app/frontend/README.md"),
     ("app/tools/", "app/tools/README.md"),
     ("app/routers/", "app/routers/README.md"),
@@ -301,8 +282,9 @@ def _doc_for(rel: str) -> str | None:
 
 # 分组顺序即侧边栏顺序
 DOC_GROUPS = [
-    ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md"]),
-    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md"]),
+    ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md", "docs/README.md", "docs/DOCUMENTATION_POLICY.md"]),
+    ("方案原稿", ["代码级文档方案新.md", "代码级文档方案旧.md"]),
+    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
     ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/ROOT_FILES.md"]),
     (
@@ -381,6 +363,10 @@ def _md():
 
 def render_site(payload: dict) -> dict:
     """生成完整的静态站点到 docs/site/。返回统计信息。"""
+    import shutil
+
+    for directory in ("d", "s"):
+        shutil.rmtree(SITE / directory, ignore_errors=True)
     md = _md()
     manifest, graph, routes, symbols = (
         payload["manifest"], payload["graph"], payload["routes"], payload["symbols"]
@@ -468,28 +454,23 @@ def render_site(payload: dict) -> dict:
     for item in manifest:
         raw = (ROOT / item["path"]).read_text(encoding="utf-8")
         # 只存标题与行首，控制体积；正文搜索靠浏览器 Ctrl+F
-        heads = [
-            {"t": m.group(2).strip(), "l": raw[: m.start()].count("\n") + 1, "i": _anchor(m.group(2))}
-            for m in re.finditer(r"^(#{2,4})\s+(.+)$", raw, flags=re.M)
-        ]
+        heads = [{"t": h["title"], "l": None, "i": h["id"]} for h in _headings(raw) if h["level"] > 1]
         idx.append({"p": item["path"], "h": doc_href[item["path"]], "t": item["title"], "s": heads})
     (SITE / "data" / "search.json").write_text(json.dumps(idx, ensure_ascii=False), encoding="utf-8")
+    (SITE / "data" / "search-index.js").write_text(
+        "window.CODEMAX_DOC_SEARCH=" + json.dumps(idx, ensure_ascii=False).replace("<", "\\u003c") + ";", encoding="utf-8"
+    )
 
     return stats
 
 
 def _source_page_list() -> list[str]:
-    out = []
-    for p in sorted(ROOT.rglob("*")):
-        if not p.is_file() or set(p.parts) & EXCLUDE_DIRS:
-            continue
-        if p.suffix.lower() not in (".py", ".js", ".mjs", ".sql", ".html", ".yml", ".toml", ".ini"):
-            continue
-        rel = str(p.relative_to(ROOT)).replace("\\", "/")
-        if rel.startswith("docs/site/"):
-            continue
-        out.append(rel)
-    return out
+    from check_docs_contract import inventory
+
+    rows, errors = inventory(ROOT)
+    if errors:
+        raise ValueError("\n".join(errors))
+    return [row["path"] for row in rows]
 
 
 def _anchor(text: str) -> str:
@@ -501,12 +482,39 @@ def _anchor(text: str) -> str:
     return "".join(keep).replace(" ", "-")
 
 
+def _headings(raw: str) -> list[dict]:
+    """Derive navigation from rendered headings: fenced examples and duplicate titles stay correct."""
+    from html.parser import HTMLParser
+
+    class Headings(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.items, self.current, self.parts = [], None, []
+
+        def handle_starttag(self, tag, attrs):
+            if tag in ("h1", "h2", "h3", "h4"):
+                self.current = {"level": int(tag[1]), "id": dict(attrs).get("id", "")}
+                self.parts = []
+
+        def handle_data(self, data):
+            if self.current is not None:
+                self.parts.append(data)
+
+        def handle_endtag(self, tag):
+            if self.current is not None and tag == f"h{self.current['level']}":
+                self.items.append({**self.current, "title": "".join(self.parts)})
+                self.current = None
+
+    parser = Headings()
+    parser.feed(_inject_heading_ids(_md()(raw)))
+    return parser.items
+
+
 def _toc_of(raw: str) -> str:
-    out = []
-    for m in re.finditer(r"^(#{2,4})\s+(.+)$", raw, flags=re.M):
-        lvl = len(m.group(1))
-        out.append(f'<a class="lvl{lvl}" href="#{_anchor(m.group(2))}">{esc(m.group(2).strip())}</a>')
-    return "\n".join(out) or '<span class="muted">本文无小节</span>'
+    return "\n".join(
+        f'<a class="lvl{h["level"]}" href="#{h["id"]}">{esc(h["title"])}</a>'
+        for h in _headings(raw) if h["level"] > 1
+    ) or '<span class="muted">本文无小节</span>'
 
 
 def _mark_mermaid(html: str) -> str:
@@ -560,9 +568,23 @@ def _postprocess(html: str, here: str, doc_href: dict, src_href: dict) -> str:
         norm = _normalize(here, unquote(target))
         if norm in doc_href:
             return f'href="{base}{doc_href[norm]}{anchor}"'
-        return f'href="{m.group(0)[6:]}"""'[:-1]
+        return m.group(0)
 
     html = re.sub(r'href="([^"#]+?\.md)(#[^"]*)?"', md_link, html)
+
+    def source_link(match):
+        from urllib.parse import unquote
+
+        target, fragment = match.group(1), match.group(2) or ""
+        rel = _normalize(here, unquote(target))
+        if rel not in src_href:
+            return match.group(0)
+        lines = re.fullmatch(r"#L(\d+)(?:-L?(\d+))?", fragment)
+        if lines:
+            fragment = (f"?end={lines.group(2)}" if lines.group(2) else "") + f"#L{lines.group(1)}"
+        return f'href="{base}{src_href[rel]}{fragment}"'
+
+    html = re.sub(r'href="([^"#]+)(#[^"]*)?"', source_link, html)
 
     # ② 代码位置引用 file.py:12 → 源码页对应行
     known = set(src_href)
@@ -655,6 +677,7 @@ def _shell(*, title: str, active: str | None, nav: str, main: str, toc: str, dep
   <main class="main">{main}</main>
   <aside class="toc"><h2>本页目录</h2><div id="toc-list">{toc}</div></aside>
 </div>
+<script src="{up}data/search-index.js"></script>
 <script src="{js_href}"></script>
 </body>
 </html>
@@ -896,12 +919,63 @@ def esc(s) -> str:
 # ---------------------------------------------------------------- main
 
 
+def validate_site(site: Path) -> list[str]:
+    """Verify local links and fragment/range targets in the generated artifact, not imagined Markdown."""
+    from html.parser import HTMLParser
+    from urllib.parse import parse_qs, unquote, urlsplit
+
+    class Links(HTMLParser):
+        def __init__(self):
+            super().__init__()
+            self.ids, self.links = set(), []
+
+        def handle_starttag(self, tag, attrs):
+            attrs = dict(attrs)
+            if "id" in attrs:
+                self.ids.add(attrs["id"])
+            key = "src" if tag in ("script", "img") else "href"
+            if key in attrs:
+                self.links.append(attrs[key])
+
+    pages = {}
+    for path in site.rglob("*.html"):
+        parser = Links()
+        parser.feed(path.read_text(encoding="utf-8"))
+        pages[path.resolve()] = parser
+    errors = []
+    for path, parser in pages.items():
+        for href in parser.links:
+            url = urlsplit(href)
+            if url.scheme or url.netloc or not href:
+                continue
+            target = (path.parent / unquote(url.path)).resolve() if url.path else path
+            fragment = unquote(url.fragment)
+            valid = target.exists()
+            if valid and target in pages and fragment:
+                valid = fragment in pages[target].ids
+                end = parse_qs(url.query).get("end", [])
+                if end and fragment.startswith("L"):
+                    valid = valid and ("L" + end[0]) in pages[target].ids and int(end[0]) >= int(fragment[1:])
+            if not valid:
+                errors.append(f"{path.name}: invalid local link {href}")
+    return sorted(set(errors))
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--data-only", action="store_true", help="只生成 data/*.json，不渲染 HTML")
     args = ap.parse_args()
 
+    from check_docs_contract import check
+
+    code_manifest, errors = check(ROOT)
+    if errors:
+        print("\n".join(errors), file=sys.stderr)
+        return 1
     DATA.mkdir(parents=True, exist_ok=True)
+    (DATA / "code-manifest.json").write_text(
+        json.dumps(code_manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+    )
 
     graph = build_import_graph()
     routes = build_routes()
@@ -943,6 +1017,10 @@ def main() -> int:
         return 1
 
     stats = render_site(payload)
+    errors = validate_site(SITE)
+    if errors:
+        print("\n".join(errors), file=sys.stderr)
+        return 1
     print(f"✅ 静态站已生成：文档 {stats['docs']} 页 + 源码 {stats['sources']} 页 + "
           f"首页与 3 个可视化页 → {SITE.relative_to(ROOT)}/")
     print(f"   打开方式：直接在浏览器打开 {SITE.relative_to(ROOT)}/index.html（无需服务器、无需联网）")

@@ -23,6 +23,13 @@ window.CodeMaxAuth = (function () {
   const submit = document.getElementById("auth-submit");
   let mode = "login";
   let user = null;
+  let authSeq = 0;
+
+  function errorText(data, status) {
+    if (typeof data?.detail === "string") return data.detail;
+    if (Array.isArray(data?.detail)) return data.detail.map((x) => x.msg || "输入无效").join("；");
+    return `请求失败（${status}）`;
+  }
   const listeners = [];
 
   function paint() {
@@ -61,14 +68,19 @@ window.CodeMaxAuth = (function () {
   mask.onclick = (e) => { if (e.target === mask) close(); };
 
   btnLogout.onclick = async () => {
-    await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
-    user = null;
-    paint();
-    notify();
+    const stamp = ++authSeq;
+    try {
+      const res = await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
+      if (!res.ok) throw new Error(`退出失败（${res.status}）`);
+      if (stamp !== authSeq) return;
+      user = null; paint(); notify();
+    } catch (e) { if (stamp === authSeq) { open("login"); err.textContent = e.message; } }
   };
 
   document.getElementById("auth-form").onsubmit = async (e) => {
     e.preventDefault();
+    if (submit.disabled) return;
+    ++authSeq; submit.disabled = true;
     err.textContent = "";
     const u = document.getElementById("auth-user").value;
     const p = document.getElementById("auth-pass").value;
@@ -83,7 +95,7 @@ window.CodeMaxAuth = (function () {
           body: JSON.stringify({ username: u, password: p }),
         });
         if (!r.ok) {
-          err.textContent = (await r.json().catch(() => null))?.detail || `注册失败（${r.status}）`;
+          err.textContent = errorText(await r.json().catch(() => null), r.status);
           return;
         }
         // ⚠️ /auth/register **不写 cookie**（它只返回 UserOut），所以注册完必须再登录一次。
@@ -95,26 +107,33 @@ window.CodeMaxAuth = (function () {
         body: new URLSearchParams({ username: u, password: p }),
       });
       if (!res.ok) {
-        err.textContent = (await res.json().catch(() => null))?.detail || `登录失败（${res.status}）`;
+        err.textContent = errorText(await res.json().catch(() => null), res.status);
         return;
       }
       await refresh();
       close();
     } catch (ex) {
       err.textContent = `网络错误：${ex}`;
-    }
+    } finally { submit.disabled = false; }
   };
 
   async function refresh() {
-    const res = await fetch("/auth/me", { credentials: "same-origin" });
-    user = res.ok ? await res.json() : null;
-    paint();
-    notify();
-    return user;
+    const stamp = ++authSeq;
+    try {
+      const res = await fetch("/auth/me", { credentials: "same-origin" });
+      const next = res.ok ? await res.json() : null;
+      if (next !== null && (typeof next !== "object" || !next.username)) throw new Error("登录响应格式无效");
+      if (stamp !== authSeq) return user;
+      user = next; paint(); notify(); return user;
+    } catch (e) {
+      if (stamp === authSeq) { user = null; paint(); notify(); }
+      throw e;
+    }
   }
 
-  refresh(); // 进页面就问一次
+  refresh().catch(() => { err.textContent = "暂时无法确认登录状态，请检查网络后重试"; });
   return {
+    errorText,
     open,
     close,
     refresh,

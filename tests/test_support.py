@@ -175,7 +175,7 @@ async def test_ask_endpoint_returns_full_payload(client):
     assert body["intent"] == "faq"
     assert body["source"] == "faq"
     assert body["escalated"] is False
-    assert set(body) == {"answer", "intent", "confidence", "source", "escalated", "reason", "references"}
+    assert set(body) == {"answer", "intent", "confidence", "source", "escalated", "reason", "references", "human_support_url"}
 
 
 @pytest.mark.asyncio

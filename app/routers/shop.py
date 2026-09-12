@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 from sqlalchemy import select
@@ -20,6 +20,7 @@ from ..models import Order, User
 from ..order_state import (
     CLOSED,
     DOWNLOADED,
+    PAID,
     PENDING,
     IllegalTransition,
     is_expired,
@@ -27,6 +28,7 @@ from ..order_state import (
     mark_downloaded,
     mark_paid,
 )
+from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
@@ -310,59 +312,41 @@ async def confirm_paid_manually(
     }
 
 
-# ---------------------------------------------------------------- 一次性下载（S3-02-4）
+# Paid entitlements survive issuance failures; short-lived bearer links are reissuable.
+@router.get("/orders")
+async def order_history(before: int | None = Query(None, gt=0), user: User = Depends(get_current_user),
+                        db: AsyncSession = Depends(get_db)):
+    stmt = select(Order).where(Order.user_id == user.id)
+    if before is not None:
+        stmt = stmt.where(Order.id < before)
+    rows = list((await db.scalars(stmt.order_by(Order.id.desc()).limit(50))).all())
+    return {"orders": [_payload(r, reused=True, pay_mode=settings.SHOP_PAY_MODE) for r in rows],
+            "next_cursor": rows[-1].id if len(rows) == 50 else None}
 
 
-# 必须是 POST 而不是 GET：这个端点**会改状态**（把 paid 烧成 downloaded，
-# 一次性下载就没了）。GET 带副作用本来就是错的，而在 TD-44 之后它还是个
-# CSRF 靶子 —— 登录态改成 cookie 后，SameSite=Lax 只挡跨站的写方法，
-# 跨站顶层导航的 GET 照样带上 cookie，攻击者一个跳转就能替用户把下载额度烧掉。
-@router.post("/download/{order_no}")
+@router.post("/download/{order_no}", dependencies=[Depends(rate_limit("download", "RATE_LIMIT_TOOLS"))])
 async def download_url(
     request: Request, order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    """发一个一次性下载链接。**第一重校验：数据库下载状态**。
-
-    状态机保证 `paid → downloaded` 只能走一次，所以同一订单第二次来要链接会被拒 ——
-    这是"防止资源被无限倒卖"的主力；预签名 URL 的过期时间只是第二重（缩小转发窗口）。
-
-    注意语义：标记为已下载发生在**发出链接时**，不是文件真的被下载时。
-    云存储是客户端直连对象存储，应用根本看不到那次下载，只能在发链接时记账（TD-129）。
-    """
+    """Issue/reissue an expiring link to its paid owner; downloaded records issuance, not consumption."""
     storage = _storage(request)
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None or order.user_id != user.id:
-        raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
+    order = await db.scalar(select(Order).where(Order.order_no == order_no, Order.user_id == user.id))
+    if order is None:
+        raise HTTPException(404, "订单不存在")
     if order.status in (PENDING, CLOSED):
-        # CLOSED 是超时关闭：没付过钱，与未支付同等对待。
-        # 不显式写这一行的话，它会一路落到状态机、由 CLOSED→DOWNLOADED 不在
-        # ALLOWED 里而抛 409。虽然也拦住了，但语义是错的（409 是状态冲突，
-        # 这里是没权限），而且整个安全性都押在 ALLOWED 表不新增那条边上，太脆。
         raise HTTPException(403, "订单未支付")
-    if order.status == DOWNLOADED:
-        raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
-
+    if order.status not in (PAID, DOWNLOADED):
+        raise HTTPException(409, "订单状态不支持下载，请联系站内客服")
     key = settings.STORAGE_PRODUCT_KEY
     if not storage.exists(key):
         raise HTTPException(404, f"商品文件不存在（对象 key：{key}）")
-
     url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL)
     try:
-        won = await mark_downloaded(db, order)
+        await mark_downloaded(db, order)  # idempotent; not winning CAS no longer destroys paid rights
     except IllegalTransition as e:
         raise HTTPException(409, str(e)) from e
-    # **必须看返回值**：上面的 `order.status == DOWNLOADED` 检查读的是请求开始时
-    # 的快照，并发下多个请求会同时读到 paid。真正决定谁能拿到链接的是这次 CAS ——
-    # 忽略返回值的话，并发 4 个请求会全部拿到有效链接，"一次性下载"直接失效。
-    # 由 test_concurrent_download_only_one_wins 守着。
-    if not won:
-        raise HTTPException(403, "该订单已下载过：一次性下载，防止资源被转卖")
-    return {
-        "order_no": order.order_no,
-        "download_url": url,
-        "expires_in": settings.DOWNLOAD_URL_TTL,
-        "status": order.status,
-    }
+    return {"order_no": order.order_no, "download_url": url,
+            "expires_in": settings.DOWNLOAD_URL_TTL, "status": order.status}
 
 
 @router.get("/dl", include_in_schema=False)

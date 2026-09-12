@@ -8,6 +8,7 @@ LLM 客户端**必须可注入**，否则测试会真打网络：
 """
 from __future__ import annotations
 
+import math
 import re
 from dataclasses import dataclass, field
 
@@ -77,8 +78,11 @@ class LLMClient:
         if resp.status_code != 200:
             raise LLMError(f"大模型返回 {resp.status_code}：{resp.text[:200]}")
         try:
-            return resp.json()["choices"][0]["message"]["content"]
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            content = resp.json()["choices"][0]["message"]["content"]
+            if not isinstance(content, str) or not content.strip() or len(content) > 100000:
+                raise ValueError("content 必须是有界非空字符串")
+            return content
+        except (KeyError, IndexError, TypeError, ValueError, OverflowError) as exc:
             raise LLMError(f"大模型返回体不符合预期：{exc}") from exc
 
     async def embeddings(self, texts: list[str]) -> list[list[float]]:
@@ -107,9 +111,19 @@ class LLMClient:
             raise LLMError(f"向量化接口返回 {resp.status_code}：{resp.text[:200]}")
         try:
             rows = resp.json()["data"]
+            if len(rows) != len(texts):
+                raise ValueError(f"向量化接口返回 {len(rows)} 条，输入是 {len(texts)} 条")
             ordered = sorted(rows, key=lambda r: r["index"])
+            if [r["index"] for r in ordered] != list(range(len(texts))):
+                raise ValueError("embedding index 必须完整且唯一")
             vectors = [r["embedding"] for r in ordered]
-        except (KeyError, IndexError, TypeError, ValueError) as exc:
+            if any(v == [] for v in vectors):
+                raise ValueError("向量化接口返回了空向量")
+            if any(not isinstance(v, list) or len(v) != len(vectors[0]) or not v or any(
+                type(x) not in (int, float) or not math.isfinite(x) for x in v
+            ) for v in vectors):
+                raise ValueError("embedding 必须是同维、有限数值向量")
+        except (KeyError, IndexError, TypeError, ValueError, OverflowError) as exc:
             raise LLMError(f"向量化接口返回体不符合预期：{exc}") from exc
         if len(vectors) != len(texts):
             raise LLMError(f"向量化接口返回 {len(vectors)} 条，输入是 {len(texts)} 条")

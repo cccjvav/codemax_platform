@@ -2604,3 +2604,22 @@ python -c "import timeit,sys; sys.path.insert(0,'tests'); from test_perf import 
 | 已拆封的包裹不再按封装拆一遍 | Content-Encoding 解码边界 |
 
 本批没有完成账号切换隔离、Drawio当前XML导出协议、DNS固定／出站隔离及密码全链路撤销；这些不能因高覆盖率而视为已解决。
+
+
+## 第二批补课：权限与生命周期（2026-09-12）
+
+### 核心概念大白话
+
+付过款是长期权益，下载链接只是短时通行凭证；改密码应撤销旧凭据，而不是赌两次操作不会同秒。客服消息保存在自己的数据库，管理员需要打开页面回复。
+
+### 生活比喻
+
+门票证明你有资格入场，临时门禁码过期可以凭门票换；更换门锁的版本号不会因为钟表倒退而恢复旧钥匙。换账号像换房间，旧房间迟到的消息不能贴到新房间。
+
+### 落到代码与实测
+
+`credential_version`、数据库用户行锁和消息 nonce 管后端一致性；Drawio export 请求 ID、iframe 与页面 epoch 管浏览器异步一致性。HTTPX 固定已检查 IP，Chromium 无隔离则停用。迁移、实际 SQLite/PG 与 Node 验收见 `SECOND_REPAIR_ACCEPTANCE.md`，不把 VM 测试说成真实外部编辑器联调。
+
+### 行业术语对照
+
+Credential revision 是凭据版本；idempotency key 是幂等键；ETag 是资源版本；epoch 是一代页面上下文；pinned connection 是把连接固定到检查过的目标。单进程内存限流不等于多实例共享限流。

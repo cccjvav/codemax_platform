@@ -89,14 +89,14 @@ async def test_download_issues_url_and_marks_downloaded(client, product):
     assert await status_of(order_no) == "downloaded"
 
 
-async def test_second_download_rejected(client, product):
-    """一次性下载：同一订单第二次领链接必须被拒（防倒卖的主力）。"""
+async def test_second_download_recovers_paid_entitlement(client, product):
+    """批准的新规则：同一已付订单可以重新领取短时链接。"""
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
     assert (await client.post(f"/shop/download/{order_no}", headers=h)).status_code == 200
     r = await client.post(f"/shop/download/{order_no}", headers=h)
-    assert r.status_code == 403
-    assert "已下载过" in r.json()["detail"]
+    assert r.status_code == 200
+    assert r.json()["download_url"] and r.json()["status"] == "downloaded"
 
 
 async def test_other_users_order_not_found(client, product):
