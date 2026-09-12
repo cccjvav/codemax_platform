@@ -69,3 +69,30 @@ def test_duplicate_block_rejected(repo):
     with (repo / 'docs/README.md').open('a') as f:
         f.write(gate.START + gate.END)
     assert 'exactly one' in '\n'.join(gate.check(repo, write=True)[1])
+
+
+@pytest.mark.parametrize('bad', ['', 'TODO', '待完善', '\ufffd'])
+def test_generated_inventory_does_not_replace_human_explanation(repo, bad):
+    text = '\n'.join(f'## {section}\n\n' + (bad + '\n' + gate.START + '\n' + gate.END if section == '文件与入口' else 'Reviewed explanation.') for section in gate.SECTIONS)
+    (repo / 'docs/README.md').write_text(text)
+    assert gate.check(repo, write=True)[1]
+
+
+def test_ci_logs_are_ignored_but_unknown_source_is_still_owned(repo):
+    from pathlib import Path
+    (repo / '.gitignore').write_text((Path(gate.ROOT) / '.gitignore').read_text())
+    (repo / 'README.md').write_text(readme())
+    for name in ['docs-build.txt', 'pytest-output.txt']:
+        (repo / name).write_text('temporary CI output')
+    rows, errors = gate.check(repo, write=True)
+    assert not errors
+    assert not {'docs-build.txt', 'pytest-output.txt'} & {r['path'] for r in rows}
+    (repo / 'future').mkdir()
+    (repo / 'future/source.txt').write_text('not an output log')
+    assert any('future/README.md' in e for e in gate.check(repo)[1])
+
+
+def test_empty_file_has_no_inverted_line_range():
+    text = gate.file_table('README.md', [{'path': '__init__.py', 'lines': 0, 'sha256': 'a' * 64, 'generated': False}])
+    assert 'L1–L0' not in text
+    assert '空文件' in text

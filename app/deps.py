@@ -44,7 +44,7 @@ async def get_current_user(
 async def require_admin(user: User = Depends(get_current_user)) -> User:
     """TD-138：只有管理员（`role == 1`）能通过。
 
-    返回 **403 而不是 404**：端点存在与否不是本站的秘密（`/docs` 里本来就列着），
+    返回 **403 而不是 404**：端点存在与否不是本站的秘密（开发 API 文档可列出它；生产文档关闭），
     假装不存在只会让管理员自己调试时对着 404 猜半天。真正的防线是下面那条 ——
     端点只接受管理员，而不是「别人找不到」。
 

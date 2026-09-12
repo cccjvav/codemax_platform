@@ -1,11 +1,7 @@
-"""LLM 客户端与 Mermaid 类图生成（S2-01-2）。
+"""可注入的 OpenAI 兼容模型客户端与 Mermaid 文本生成。
 
-LLM 客户端**必须可注入**，否则测试会真打网络：
-    async def generate_mermaid(text: str, llm: LLMClient = default_llm) -> str
-
-走 OpenAI 兼容的 /chat/completions，因此 OpenAI / 通义千问兼容模式 / DeepSeek /
-智谱 / 本地 Ollama 都能直接用，只换 .env 里的 base_url 与 model。
-"""
+配置 base_url、对话与向量模型后仍需验证供应商协议。测试使用替身，不默认调用真实服务。
+结构校验不证明模型输出事实正确；Mermaid 前缀检查也不是完整语法解析。"""
 from __future__ import annotations
 
 import math

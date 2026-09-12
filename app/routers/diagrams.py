@@ -24,7 +24,7 @@ def _alive():
 
 
 async def _owned(db: AsyncSession, user: User, diagram_id: int, *, include_deleted: bool = False) -> SysDiagram:
-    """取自己的流程图。`include_deleted` 只有恢复端点会打开。"""
+    """查当前用户的文件；include_deleted 用于恢复及永久删除。不存在、非本人或默认排除的已删文件均 404。"""
     stmt = select(SysDiagram).where(SysDiagram.id == diagram_id, SysDiagram.user_id == user.id)
     if not include_deleted:
         stmt = stmt.where(_alive())

@@ -129,9 +129,9 @@ async def parse_page(url: str, html: str, *, llm: LLMClient = default_llm) -> Pa
     return ParsedArticle(
         url=url,
         source_site=urlparse(url).netloc,
-        title=fields["title"][:300],
-        author=fields["author"][:100] or None,
-        published_at=fields["published_at"][:50] or None,
+        title=fields["title"],
+        author=fields["author"] or None,
+        published_at=fields["published_at"] or None,
         content=fields["content"],
     )
 
@@ -152,7 +152,10 @@ async def parse_article(
 
 
 async def save_article(db: AsyncSession, article: ParsedArticle) -> Article:
-    """入库；同一 URL 已存在就更新（重复抓取不产生重复行）。"""
+    """按 URL 原子 upsert，返回重新查询的 Article。
+
+    先校验字段宽度及数据库不支持的空字符，失败抛 ExtractError；不截断原文。
+    成功在内部 commit，更新不重置创建时间；调用者不能假设事务尚未提交。"""
     values = {field: getattr(article, field) for field in ('url', 'title', 'author', 'published_at', 'content', 'source_site')}
     for field, value in values.items():
         if value is not None and '\x00' in value:

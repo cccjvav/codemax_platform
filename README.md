@@ -103,11 +103,7 @@ cd ..
 .venv\Scripts\python.exe -m pytest -q
 ```
 
-2026-09-11 第一批实测 `673 passed, 4 skipped`。4 条 skip 的实测原因（`pytest -rs` 可复现）：
-**2 条并发用例需要真数据库**（`test_e2e.py:504` 并发下单 TD-199、`test_oauth.py:184` 授权码并发 TD-85）—— SQLite 用 StaticPool 共享单连接，一个请求的 `rollback` 会把别人的插入一起回滚，排不成真正的并发；
-**1 条需要真浏览器**（`test_dynamic_crawl.py:338`，要 `playwright install chromium`，见 TD-191）；
-**1 条需要真实 embedding API**（`test_faq_semantic.py:514` 的语义阈值标定，要设 `LLM_API_KEY`，见 TD-206）。真库那一套（`675 passed, 2 skipped`）由 GitHub Actions 自动跑，
-本机不需要装 `pgserver`——它虽然也提供 Windows 轮子，但没有必要。
+各批实际结果见 [验收记录](docs/SECOND_REPAIR_ACCEPTANCE.md) 和 [文档质量复核](docs/DOCUMENTATION_QUALITY_REVIEW.md)。SQLite 的 PostgreSQL 专用用例会跳过；真实模型标定需密钥。动态 Chromium 已停用，安装浏览器不会自动恢复。测试方法和破坏性测试库警告见 [tests/README](tests/README.md)。
 
 ## 运行测试
 
@@ -116,21 +112,21 @@ cd ..
 ./.venv/bin/python -m pytest -q
 ```
 
-## 当前 API（39 条业务路由，另有 FastAPI 自带的 `/docs`、`/redoc`、`/openapi.json`）
+## 主要 API（完整路径与权限见路由说明及生成索引）
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | POST | `/auth/register` | 注册（返回用户信息，不含密码） |
 | POST | `/auth/login` | 登录（OAuth2 表单）。**两条通道**：给浏览器下发 HttpOnly cookie（脚本读不到，防 XSS 偷 token），同时返回 JWT `access_token` 供 Swagger / API 客户端走 Bearer 头 |
-| GET | `/auth/me` | 当前用户（需 Bearer Token） |
-| POST | `/auth/password` | 修改密码（需 Bearer Token；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
+| GET | `/auth/me` | 当前用户（需 Cookie 或 Bearer） |
+| POST | `/auth/password` | 修改密码（需 Cookie 或 Bearer；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
 | POST | `/auth/logout` | 退出登录：清掉登录 cookie（204） |
 | GET | `/oauth/authorize` | **授权同意页**：显示申请方与当前账号，由用户点「同意/拒绝」（不再直接签发 code） |
 | POST | `/oauth/authorize` | 用户点同意后签发一次性 code 并 302 跳回调；表单需带同意页给出的签名 |
 | POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
 | GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
-| POST | `/admin/articles/ingest` | **仅管理员**（`role=1`）：抓取一个 URL → LLM 指认选择器 → 提取入库。同一 URL 重复抓是更新。请求体可加 `"dynamic": true` 改用无头浏览器渲染后再解析（SPA 站点用，需另装 playwright，见 TD-191）。失败分 400（抓不了/robots 不允许/目标站不可达）、422（提不出正文）、502（大模型不可用）、503（服务端浏览器不可用） |
+| POST | `/admin/articles/ingest` | **仅管理员**（`role=1`）：抓取一个 URL → LLM 指认选择器 → 提取入库。同一 URL 重复抓是更新。`dynamic=true` 当前安全停用并返回 503，安装浏览器不能解除限制。失败分 400（抓不了/robots 不允许/目标站不可达）、422（提不出正文）、502（大模型不可用）、503（服务端浏览器不可用） |
 | GET | `/` | 首页（Jinja2 SSR） |
 | GET | `/tools/er` `/tools/mermaid` `/tools/drawio` | 三个工具页（SSR；旧的 `/static/*.html` 已下线，见 TD-94） |
 | POST | `/tools/er-diagram` | DDL → ER 图 JSON（`parse_ddl` 跑在线程池里，不阻塞事件循环） |
@@ -145,19 +141,18 @@ cd ..
 | POST | `/diagrams/{diagram_id}/restore` | 从回收站恢复（会重新检查配额） |
 | POST | `/shop/orders` | 建订单 → 微信 NATIVE 下单 → 返回 `code_url`（未配齐微信支付则 503） |
 | POST | `/shop/pay/notify` | 微信支付回调：验签 → AES-GCM 解密 → 校验金额 → 幂等迁移状态 |
-| POST | `/shop/download/{order_no}` | 换取限时下载链接（**POST 而非 GET**：它会把 `paid` 烧成 `downloaded`） |
+| POST | `/shop/download/{order_no}` | 换取限时下载链接（POST 记录链接发放；paid/downloaded 均可重领） |
 | GET | `/shop/dl` | 本地存储后端的实际出文件口（校验 HMAC 签名后再吐） |
 | GET | `/shop/mock-pay` | 模拟收银台页面（仅 `SHOP_PAY_MODE=mock`，**开着等于免费发货**，见 TD-124） |
 | POST | `/shop/mock-pay/confirm` | 模拟支付确认（复用与真实回调**完全相同**的状态机与幂等逻辑） |
 | POST | `/support/ask` | 智能客服总入口：FAQ 秒回 / 闲聊 LLM / 专业问题 RAG，兜底转人工 |
-| GET | `/admin/articles/ingest` 之外的管理端点 | 暂无（管理面只有上面那一条抓取入库） |
 | GET | `/health` | **只是 `/healthz` 的别名**，同样**不查库**（TD-164 保留它是因为既有文档与测试都在用） |
 | GET | `/healthz` | 存活探针（**刻意不查库**，否则库一抖会被编排器全量重启，见 TD-167） |
 | GET | `/readyz` | 就绪探针 |
 
 > **SSO（OAuth2 授权码模式）流程**：用户登录认证中心拿会话 JWT → 携带 JWT 访问
 > `/oauth/authorize?response_type=code&client_id=...&redirect_uri=...&state=...`
-> → 认证中心校验后 302 跳回回调地址携带一次性 code → 客户端用 `/oauth/token` 以
+> → 显示同意表单，用户 POST 批准后 302 跳回回调地址携带一次性 code → 客户端用 `/oauth/token` 以
 > `code + client_secret` 换取 access_token → 用 access_token 访问双平台受保护资源。
 > 授权码一次性、10 分钟有效；客户端密钥在库中只存 bcrypt 哈希。
 
@@ -242,7 +237,7 @@ start docs\site\index.html
 | GET | `/support/center` | 公开页面外壳，消息需登录 |
 | GET / POST | `/support/messages` | 客户自己的对话；POST 带 UUID nonce，可安全重试 |
 | GET | `/support/conversations` | 仅管理员会话列表 |
-| GET / POST | `/support/conversations/{user_id}/messages` | 仅管理员读取/回复指定客户 |
+| GET / POST | `/support/conversations/{customer_id}/messages` | 仅管理员读取/回复指定客户 |
 | GET | `/shop/orders` | 当前用户最近 50 个订单，不发起支付 |
 | DELETE | `/diagrams/{diagram_id}/purge` | 仅所有者的回收站对象，必须 If-Match，成功 204 |
 
@@ -259,13 +254,13 @@ start docs\site\index.html
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `548efa69f2f7` | L1–L34 |
-| [`.dockerignore`](.dockerignore) | `9570c1dad405` | L1–L21 |
+| [`.dockerignore`](.dockerignore) | `9fe29d4eff0a` | L1–L25 |
 | [`.env.example`](.env.example) | `02acf9619c08` | L1–L113 |
 | [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
-| [`.gitignore`](.gitignore) | `42becfd1ed53` | L1–L43 |
+| [`.gitignore`](.gitignore) | `4d369746b9b2` | L1–L47 |
 | [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
-| [`main.py`](main.py) | `8b3e11b571fe` | L1–L71 |
+| [`main.py`](main.py) | `976473de883b` | L1–L71 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

@@ -284,7 +284,7 @@ def _doc_for(rel: str) -> str | None:
 DOC_GROUPS = [
     ("入口", ["总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md", "docs/README.md", "docs/DOCUMENTATION_POLICY.md"]),
     ("方案原稿", ["代码级文档方案新.md", "代码级文档方案旧.md"]),
-    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md"]),
+    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md", "docs/DOCUMENTATION_QUALITY_REVIEW.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
     ("架构讲解", ["docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/ROOT_FILES.md"]),
     (
@@ -325,8 +325,8 @@ def build_manifest() -> list[dict]:
                     "title": title,
                     "lines": len(text.splitlines()),
                     "chars": len(text),
-                    "headings": len(re.findall(r"^#{2,4}\s", text, flags=re.M)),
-                    "codeblocks": len(re.findall(r"^```\S", text, flags=re.M)),
+                    "headings": sum(h["level"] > 1 for h in _headings(text)),
+                    "codeblocks": _md()(text).count("<pre><code"),
                 }
             )
     return out
@@ -349,7 +349,7 @@ def slug(rel: str) -> str:
 # 为什么是「服务端预渲染 + 零 CDN」而不是浏览器端渲染：
 #   · 本沙箱实测 cdn.jsdelivr.net **不可达**（HTTP 000），浏览器端方案在这里根本跑不起来，
 #     也就无从验证 —— 而「无法验证的东西不该交付」。
-#   · mermaid 的 ESM 构建要带 206 个 chunk / 17 MB，不可能塞进仓库。
+#   · 文档站独立使用原生 SVG，不依赖业务页面的 Mermaid 包。
 #   · highlight.js 的 npm 包里没有现成的浏览器包（只有 CJS/ESM 源）。
 # 所以改成：markdown 用 mistune 服务端渲染，依赖图用 Python 直接生成 SVG，
 # 交互（搜索/过滤/高亮）用几十行原生 JS。**双击 index.html 即可打开，完全离线。**
@@ -882,16 +882,25 @@ def _render_routes_page(routes: list[dict]) -> str:
 def _render_symbols_page(symbols: list[dict], doc_href: dict, src_href: dict) -> str:
     cards = []
     for s in symbols:
-        sh = f's/{slug(s["file"])}.html#L{s["line"]}' if s["file"] in src_href else "#"
+        sh = f's/{slug(s["file"])}.html?end={s["end"]}#L{s["line"]}' if s["file"] in src_href else "#"
         dh = f'd/{slug(s["doc"])}.html' if s["doc"] in doc_href else ""
         # Python 3.11 的 f-string 表达式里不能再出现同类引号，先算好再拼
         span = f'-L{s["end"]}' if s["end"] > s["line"] else ""
+        signature = ("class " if s["kind"] == "class" else ("async def " if s.get("async") else "def ")) + s["name"]
+        if s["kind"] != "class":
+            signature += "(" + (s.get("signature") or "") + ")"
+            if s.get("returns"):
+                signature += " -> " + s["returns"]
+        note = s.get("source_docstring") or "源码未提供 docstring；请结合模块契约与实现阅读。"
+        details = ('<details class="sym-detail"><summary>签名与源码说明</summary>'
+                   f'<pre class="sym-signature">{esc(signature)}</pre><pre class="sym-doc">{esc(note)}</pre>'
+                   '<p class="muted">说明来自源码原文；自动提取不代表语义审核通过。</p></details>')
         cards.append(
             f'<div class="sym-card" data-k="{s["kind"]}" data-pub="{int(not s["private"])}" '
-            f'data-n="{esc(s["name"].lower())}" data-m="{esc(s["module"])}">'
+            f'data-n="{esc(s["name"].lower())}" data-m="{esc(s["module"])}" data-test="{int(s["file"].startswith("tests/"))}">'
             f'<div class="n {s["kind"]}">{"class " if s["kind"] == "class" else "def "}{esc(s["name"])}</div>'
             f'<div class="muted">{esc(s["module"])} · L{s["line"]}{span}</div>'
-            f'<a href="{sh}">源码</a>' + (f' · <a href="{dh}">文档</a>' if dh else "") + "</div>"
+            f'<a href="{sh}">源码</a>' + (f' · <a href="{dh}">文档</a>' if dh else "") + details + "</div>"
         )
     ncls = sum(1 for s in symbols if s["kind"] == "class")
     return f"""<div class="breadcrumb"><a href="index.html">首页</a> · 可视化</div>
@@ -901,6 +910,7 @@ def _render_symbols_page(symbols: list[dict], doc_href: dict, src_href: dict) ->
   <label>搜索 <input type="text" id="sq" size="18" placeholder="函数名 / 类名 / 模块"></label>
   <label>类型 <select id="sk"><option value="">全部</option><option value="def">函数</option><option value="class">类</option></select></label>
   <label><input type="checkbox" id="sp" checked> 只看公开（不以 _ 开头）</label>
+  <label><input type="checkbox" id="st"> 包含测试符号</label>
   <span class="spacer" style="flex:1"></span><span class="muted" id="sstat"></span>
 </div>
 <div class="sym-list" id="slist">{''.join(cards)}</div>"""

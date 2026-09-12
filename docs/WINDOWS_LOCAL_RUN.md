@@ -3,7 +3,7 @@
 > 本文所有命令都是 **cmd.exe** 可直接粘贴执行的，一条一行，不含 `&&` 链、
 > 不含 shell 通配符展开（cmd 不展开 `*`）、不含 `ls`/`grep`/`tail` 这类 POSIX 命令。
 >
-> 文中带 ✅ 的结论都是在真实环境里跑出来验证过的，不是推测。
+> 带 ✅ 的内容是当时的下载/运行记录，不代表本轮重新做过 Windows 桌面验收。当前代码行为与升级步骤以模块指南和部署指南为准。
 
 ---
 
@@ -433,7 +433,7 @@ python -m ruff check .
 | `connection refused` / `could not connect` | PostgreSQL 服务没启动 | Win+R → `services.msc` → 启动 `postgresql-x64-16` |
 | `relation "sys_user" does not exist` | 跳过了第 4 步 | `cd "database init"` 后跑 `python db_init.py` |
 | `db_init.py` 报 `FATAL: password authentication failed` 但密码明明对 | 在项目根目录跑的，没读到 `.env` | **先 `cd "database init"`** |
-| `/tools/mermaid` 返回 502 | 没配 `LLM_API_KEY` | 配 key，或忽略（不影响其他功能） |
+| `/tools/mermaid` 返回 502 | 没配 `LLM_API_KEY` | 配置 key；无 key 时模型文章解析/语义增强也不可用或回退，确定性工具与人工消息保留 |
 | 端口 8000 被占用 | 上次没关干净 | 换个端口：`--port 8001` |
 | `conda activate` 报 `CommandNotFoundError` | conda 没给 cmd 做过初始化 | 跑 `conda init cmd.exe`，**关掉 cmd 重开**，再 activate |
 | conda 环境里 `pip install -r requirements.txt` 报找不到某个版本 | 之前用 `conda install` 装过同名包，版本被钉住了 | `conda create` 一个**干净**环境重来，装依赖只用 `pip`（见 §2 方案 B） |

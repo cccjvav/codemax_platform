@@ -10,6 +10,7 @@ import ast
 import hashlib
 import json
 import os
+import re
 import subprocess
 from pathlib import Path
 from urllib.parse import quote
@@ -44,6 +45,7 @@ def symbols(path: Path) -> list[dict]:
                 name = '.'.join([*parents, child.name])
                 found.append({'name': name, 'line': child.lineno, 'end': child.end_lineno,
                               'kind': 'class' if isinstance(child, ast.ClassDef) else 'def',
+                              'async': isinstance(child, ast.AsyncFunctionDef),
                               'signature': ast.unparse(child.args) if hasattr(child, 'args') else None,
                               'returns': ast.unparse(child.returns) if getattr(child, 'returns', None) else None,
                               'source_docstring': ast.get_docstring(child)})
@@ -101,7 +103,7 @@ def file_table(owner: str, rows: list[dict]) -> str:
     for row in rows:
         href = quote(os.path.relpath(row['path'], str(Path(owner).parent)).replace(os.sep, '/'), safe='/._-')
         label = row['path'].replace('|', '&#124;')
-        scope = '生成物，见模块构建说明' if row['generated'] else f"L1–L{row['lines']}"
+        scope = '生成物，见模块构建说明' if row['generated'] else (f"L1–L{row['lines']}" if row['lines'] else "空文件（无源码行）")
         lines.append(f"| [`{label}`]({href}) | `{row['sha256'][:12]}` | {scope} |")
     lines += ['', '完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。',
               '其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。', '', END]
@@ -115,9 +117,13 @@ def check(root: Path = ROOT, *, write: bool = False) -> tuple[list[dict], list[s
         if not path.is_file():
             continue
         text = path.read_text(encoding='utf-8')
+        human = re.sub(re.escape(START) + r'.*?' + re.escape(END), '', text, flags=re.S)
+        if '\ufffd' in human:
+            errors.append(f'{owner}: replacement character indicates corrupted documentation')
         for section in SECTIONS:
             marker = f'## {section}\n'
-            if marker not in text or not text.split(marker, 1)[1].split('\n## ', 1)[0].strip():
+            body = human.split(marker, 1)[1].split('\n## ', 1)[0].strip() if marker in human else ''
+            if not body or body.strip(' .。!！') in {'TODO', 'TBD', '待补', '待完善'}:
                 errors.append(f'{owner}: missing/nonempty section {section}')
         expected = file_table(owner, [r for r in rows if r['owner'] == owner])
         if text.count(START) != 1 or text.count(END) != 1 or text.index(START) > text.index(END):

@@ -289,3 +289,55 @@ def test_graph_keeps_all_import_aliases(tmp_path, monkeypatch):
     monkeypatch.setattr(bds, 'ROOT', tmp_path)
     edges = {(e['from'], e['to']) for e in bds.build_import_graph()['edges']}
     assert edges == {('main', 'app.a'), ('main', 'app.b'), ('main', 'app.c')}
+
+
+def test_symbol_cards_expose_signature_and_literal_source_explanation():
+    symbol = {'kind': 'def', 'name': 'work', 'module': 'app.example', 'file': 'app/example.py',
+              'doc': 'app/README.md', 'line': 3, 'end': 5, 'private': False, 'async': True,
+              'signature': 'value: str', 'returns': 'list[str]', 'source_docstring': '返回 <b>文字</b>'}
+    html = bds._render_symbols_page([symbol], {'app/README.md': 'd/app_README.md.html'}, {'app/example.py': 's/app_example.py.html'})
+    assert 'async def work(value: str) -&gt; list[str]' in html
+    assert '&lt;b&gt;文字&lt;/b&gt;' in html and '<b>文字</b>' not in html
+    assert '?end=5#L3' in html and 'id="st"' in html and 'data-test="0"' in html
+    symbol['source_docstring'] = None
+    assert '源码未提供 docstring' in bds._render_symbols_page([symbol], {}, {})
+
+
+def test_symbol_filter_can_include_tests_without_changing_public_filter():
+    import subprocess
+    js = r'''
+const fs = require('fs'), vm = require('vm'), assert = require('assert');
+const callbacks = [];
+const cards = [
+ {dataset:{n:'save',m:'app.example',k:'def',pub:'1',test:'0'},style:{}},
+ {dataset:{n:'test_save',m:'tests.example',k:'def',pub:'1',test:'1'},style:{}},
+ {dataset:{n:'_helper',m:'app.example',k:'def',pub:'0',test:'0'},style:{}}
+];
+const elements = {};
+for (const id of ['slist','sq','sk','sp','st','sstat']) elements[id]={value:'',checked:id==='sp',addEventListener(t,f){this.fire=f;}};
+elements.slist.querySelectorAll=()=>cards;
+const context={URL,location:{hash:''},window:{addEventListener(){}},document:{
+ currentScript:{src:'file:///docs/site.js'},querySelector:s=>elements[s.slice(1)]||null,
+ addEventListener(t,f){callbacks.push(f);}
+}};
+vm.runInNewContext(fs.readFileSync('docs/site/site.js','utf8'),context);
+callbacks.forEach(f=>f());
+assert.deepEqual(cards.map(c=>c.style.display),['','none','none']);
+elements.st.checked=true;elements.st.fire();
+assert.deepEqual(cards.map(c=>c.style.display),['','','none']);
+elements.sp.checked=false;elements.sp.fire();
+assert.deepEqual(cards.map(c=>c.style.display),['','','']);
+elements.sq.value='test_save';elements.sq.fire();
+assert.deepEqual(cards.map(c=>c.style.display),['none','','none']);
+'''
+    result = subprocess.run(['node', '-e', js], cwd=ROOT, capture_output=True, text=True)
+    assert result.returncode == 0, result.stderr
+
+
+def test_manifest_counts_actual_headings_and_code_blocks(tmp_path, monkeypatch):
+    (tmp_path / 'README.md').write_text('# Title\n\n```md\n## not a section\n```\n\n## Real section\n\n    indented code\n')
+    monkeypatch.setattr(bds, 'ROOT', tmp_path)
+    monkeypatch.setattr(bds, 'DOC_GROUPS', [('Docs', ['README.md'])])
+    item = bds.build_manifest()[0]
+    assert item['headings'] == 1
+    assert item['codeblocks'] == 2

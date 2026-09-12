@@ -57,7 +57,7 @@ class Settings(BaseSettings):
     # 解决 TD-109：过期二维码的订单被无限复用、扫了必失败。
     ORDER_EXPIRE_MINUTES: int = Field(30, gt=0)
 
-    # 支付通道：wechat = 微信支付（生产必须用这个）；mock = 模拟收银台；
+    # 支付通道：wechat = 微信商户支付（生产也可使用人工核账的 manual）；mock = 模拟收银台；
     #   manual = 展示静态收款码 + 管理员人工确认收款（S5-04）
     # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
     # manual 与 mock 的区别：mock 任何人都能点「确认支付」，manual 只有管理员能确认（TD-205）
@@ -77,9 +77,8 @@ class Settings(BaseSettings):
     STORAGE_PRODUCT_KEY: str = "product/codemax_package.zip"  # 商品文件的对象 key
     DOWNLOAD_URL_TTL: int = Field(300, gt=0)  # 预签名 URL 有效期（秒），S3-02-3
 
-    # 每个用户最多存多少张流程图（TD-64）。删掉一张就腾出一个名额 ——
-    # 配额只数**存活**的行，软删除的（回收站里的）不占。
-    # 注意这只约束存活行数，回收站本身不会自动清空，见 TD-179。
+    # 活跃条数、总条数和总 UTF-8 字节是三道独立预算。
+    # 软删除只释放活跃名额；回收站仍占总量，永久删除才释放。
     DIAGRAM_TOTAL_QUOTA: int = Field(200, gt=0)
     DIAGRAM_BYTE_QUOTA: int = Field(20000000, gt=0)
     DIAGRAM_QUOTA: int = Field(50, ge=0)  # 0 表示关闭云端保存，是合法配置

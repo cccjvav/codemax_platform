@@ -331,3 +331,15 @@ async def test_ingest_is_rate_limited(client, net, monkeypatch):
     codes = [(await client.post("/admin/articles/ingest", json={"url": URL})).status_code for _ in range(4)]
     assert codes[:2] == [200, 200], codes
     assert 429 in codes[2:], codes
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('title', ['x' * 301, 'bad\x00title'])
+async def test_extracted_storage_validation_is_http_422(client, net, title):
+    """Real parsing and save validation must not escape the endpoint as an unhandled error."""
+    await _admin_client(client)
+    net(html=PAGE_HTML.replace('毕业设计的开题报告怎么写', title))
+    response = await client.post('/admin/articles/ingest', json={'url': URL})
+    assert response.status_code == 422, response.text
+    async with TestSession() as db:
+        assert await db.scalar(select(func.count()).select_from(Article)) == 0

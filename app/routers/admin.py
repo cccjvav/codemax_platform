@@ -37,28 +37,11 @@ async def ingest_article(
     llm=Depends(get_llm),
     admin: User = Depends(require_admin),
 ):
-    """抓一个 URL，解析成文章并入库。同一 URL 重复抓是**更新**而不是新增。
+    """管理员抓取、模型提取并原子保存文章，返回摘要而非整篇正文。
 
-    错误分三档，对应三种不同的责任方：
-    - **400** URL 本身抓不了：`CrawlError`（非 http/https、内网地址、DNS 失败、
-      目标非 200、页面过大）、`RobotsDisallowed`（目标站 robots 不允许）、
-      `httpx.HTTPError`（目标站连不上/超时）。都是调用方给的东西有问题，不是本站故障。
-    - **503** `dynamic=true` 但服务端浏览器不可用（没装 playwright 或没下浏览器二进制）。
-      这是**本站能力缺失**，不是调用方的错，所以既不报 400 也不报 500。
-
-    `dynamic=true` 时用无头浏览器渲染后再解析（TD-191）；渲染与静态抓取**共用同一套**
-    `parse_page`，所以解析行为不会因引擎而变。SSRF 与 robots 校验在启动浏览器**之前**
-    就跑完了 —— 浏览器同样会去访问调用方给的地址，这一步省不得。
-    - **422** 提取失败：抓到了但提不出正文（选择器匹配不到、必需字段为空）。
-      页面结构不适合，换个 URL 或改选择器提示词。
-    - **502** 上游大模型不可用。不是调用方的错，也不该让他重试打本站。
-
-    ⚠️ 502 这一档**不能**写成 `except LLMError`：`extract.identify_selectors`
-    会把 `LLMError` 包成 `ExtractError` 再抛（`raise ExtractError(str(e)) from e`），
-    所以大模型故障到这里时**已经是 ExtractError 了**，写成 `except LLMError`
-    是永不可达的死分支，实测会把「未配置 LLM_API_KEY」报成
-    「内容提取失败」（422）—— 诊断和状态码都错。改为顺着 `__cause__` 认回去。
-    """
+    同 URL 更新原行。抓取/robots/目标网络失败 400；提取或字段宽度校验失败 422；
+    ExtractError 的原因是 LLMError 时返回 502；动态浏览器停用返回 503。
+    数据库基础设施故障不包装成输入错误。成功保存会由 save_article 提交事务。"""
     try:
         if data.dynamic:
             # 浏览器路径：渲染完再走**同一套**解析（parse_page），
@@ -67,8 +50,9 @@ async def ingest_article(
             parsed = await parse_page(page.url, page.html, llm=llm)
         else:
             parsed = await parse_article(data.url, llm=llm)
+        row = await save_article(db, parsed)
     except BrowserUnavailable as e:
-        # 服务端能力缺失（没装 playwright / 没下浏览器），不是调用方的错 → 503。
+        # 动态渲染停用或可选依赖缺失，不是调用方输入错误 → 503。
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(e)) from e
     except RobotsDisallowed as e:
         # 独立于 CrawlError 的异常类型，漏接就会变成 500 —— 而这是调用方
@@ -86,7 +70,6 @@ async def ingest_article(
             ) from e
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, f"内容提取失败：{e}") from e
 
-    row = await save_article(db, parsed)
     return {
         "id": row.id,
         "url": row.url,

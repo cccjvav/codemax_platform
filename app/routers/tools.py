@@ -51,12 +51,10 @@ async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
 
 @router.post("/word-export", dependencies=[Depends(rate_limit("word", "RATE_LIMIT_TOOLS"))])
 async def word_export(data: ErDiagramIn) -> Response:
-    """S2-01-4：把 DDL 解析结果导出为 Word 数据字典（python-docx）。
+    """公开但限流的 DDL → Word 数据字典接口，返回 DOCX 附件。
 
-    两步都要进线程池：`build_data_dictionary` 比 `parse_ddl` 贵得多 ——
-    实测 28 表时 parse 32 ms、生成 docx **454 ms**，是前者的 13 倍。
-    也就是说**一个** Word 导出请求就能把整个事件循环占住半秒（TD-159）。
-    """
+    DDL 解析在线程池，DOCX 生成进入有界 CPU 执行器（优先进程池）。
+    无表 400；超过 100 表或合计 400 字段 413；任务槽满或响应等待超时 503 + Retry-After。"""
     graph = await run_in_threadpool(parse_ddl, data.ddl)
     if not graph["tables"]:
         raise HTTPException(400, "未解析到任何 CREATE TABLE 语句")

@@ -41,3 +41,7 @@ docs/site/symbols.html
 docs/site/d/
 docs/site/s/
 docs/site/data/
+
+# CI 临时输出不是源码或镜像内容（精确排除，不忽略任意 txt 文件）
+/docs-build.txt
+/pytest-output.txt

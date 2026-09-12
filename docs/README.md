@@ -6,6 +6,13 @@
 
 文档总入口：保留目录内 README，构建单一离线文档站。
 
+## 现行指南与历史材料
+
+当前阅读：根 README → ARCHITECTURE_GUIDE → 对应目录 README → DEPLOY。
+DOCUMENTATION_QUALITY_REVIEW 记录本轮内容审核；SECOND_REPAIR_ACCEPTANCE 是第二批实现验收快照。
+TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧状态覆盖现行模块契约。
+`documentation_policy.json` 定义有理由的生成例外，不存放函数业务解释。
+
 ## 文件与入口
 
 下表为可复算清单；生成区以外的职责解释由维护者负责。

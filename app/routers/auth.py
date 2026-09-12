@@ -24,18 +24,10 @@ router = APIRouter(prefix="/auth", tags=["认证中心"])
 
 
 def _set_auth_cookie(response: Response, token: str) -> None:
-    """把 token 写进 HttpOnly cookie，浏览器端因此不必再碰 localStorage（TD-44）。
+    """设置 HttpOnly、SameSite=Lax、Path=/ 的会话 Cookie，有效期匹配 token。
 
-    各属性的取舍：
-    - HttpOnly：脚本读不到，XSS 拿不走 token —— 这正是本次改动的目的。
-    - SameSite=Lax：跨站的 POST/PUT/DELETE 不带 cookie，CSRF 对写操作免疫。
-      代价是**跨站顶层导航仍会带上** cookie，所以有副作用的接口一律不能是 GET；
-      该不变式由 tests/test_auth_cookie.py 的路由清单钉住。
-      不用 Strict 是因为它连「从微信/邮件点链接进来」的第一跳都不带 cookie，
-      用户会看到一次莫名的未登录。
-    - Secure 只在 production 开：本地是 http，加了浏览器根本不会存这个 cookie。
-    - Max-Age 与 token 同寿命，免得 cookie 活得比 token 久、反复撞 401。
-    """
+    production 下 Secure，本地 HTTP 开发不加 Secure。HttpOnly 限制脚本读取 Cookie，
+    SameSite 限制部分跨站 Cookie 携带；两者都不保证完全消除 XSS/CSRF，不能替代其他边界。"""
     response.set_cookie(
         AUTH_COOKIE,
         token,

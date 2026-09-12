@@ -1,12 +1,8 @@
 /* codemax_platform 文档站交互脚本
  *
  * **刻意零依赖**：不用 marked / highlight.js / mermaid / d3，也不用任何 CDN。
- * 原因（实测，不是猜测）：
- *   · 本沙箱 cdn.jsdelivr.net 不可达（HTTP 000），浏览器端方案无法验证；
- *   · mermaid 的 ESM 构建要带 206 个 chunk / 17 MB，不可能进仓库；
- *   · highlight.js 的 npm 包里没有现成浏览器包（只有 CJS/ESM 源）。
- * 所以：Markdown 由 scripts/build_docs_site.py 用 mistune 服务端渲染，
- *       依赖图由 Python 直接生成 SVG，这里只留原生 JS 做的搜索与过滤。
+ * Markdown 由 Python/Mistune 预渲染，依赖图由 Python 生成 SVG。
+ * 业务 Mermaid 已本地打包；本独立文档站仍不需要加载它。
  */
 
 (function () {
@@ -15,7 +11,7 @@
   const $$ = (s, r) => Array.prototype.slice.call((r || document).querySelectorAll(s));
 
   /* ------------------------------------------------------------ 搜索
-   * 索引是构建时生成的 data/search.json（只含标题与小节，体积小）。
+   * 索引是构建时生成的 data/search-index.js（只含标题与小节，体积小）。
    * 正文搜索交给浏览器自带的 Ctrl+F —— 自己做全文索引会让站点体积翻倍，收益不值。
    */
   const SITE_ROOT = new URL(".", document.currentScript.src);
@@ -132,13 +128,14 @@
       cards.forEach(c => {
         const ok = (!q || c.dataset.n.includes(q) || c.dataset.m.toLowerCase().includes(q))
           && (!k || c.dataset.k === k)
-          && (!pub || c.dataset.pub === "1");
+          && (!pub || c.dataset.pub === "1")
+          && ($("#st").checked || c.dataset.test !== "1");
         c.style.display = ok ? "" : "none";
         if (ok) n++;
       });
       $("#sstat").textContent = n + " / " + cards.length + " 个";
     };
-    ["sq", "sk", "sp"].forEach(id => {
+    ["sq", "sk", "sp", "st"].forEach(id => {
       const el = $("#" + id);
       if (el) el.addEventListener("input", draw);
     });

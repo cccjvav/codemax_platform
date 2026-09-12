@@ -11,7 +11,7 @@ from .timeutil import as_utc
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # 浏览器侧存放 access token 的 cookie 名（TD-44）。
-# 必须是 HttpOnly —— 这是整件事的重点：脚本读不到它，XSS 就拿不走 token；
+# HttpOnly 限制脚本直接读取 Cookie，但注入脚本仍可能借会话发请求；
 # 存在 localStorage 里的话任何一段注入脚本都能直接读走。
 AUTH_COOKIE = "access_token"
 
@@ -52,12 +52,9 @@ _DUMMY_HASH: str | None = None
 
 
 async def adummy_verify(plain: str) -> None:
-    """对固定假哈希跑一次 verify，只为把耗时拉平。结果恒为 False，直接丢弃。
+    """对固定假哈希执行校验并丢弃结果，返回 None。
 
-    用户不存在时若不跑 bcrypt，登录失败耗时差就是**用户名枚举侧信道**：
-    实测用户不存在 4.6 ms vs 密码错 263 ms，差 58 倍 —— 攻击者不用撞密码，
-    光看响应时间就能把有效用户名列出来。
-    """
+    用于减小不存在用户与错误密码的明显耗时差；不是对所有输入保证恒定时间的实现。"""
     global _DUMMY_HASH
     if _DUMMY_HASH is None:
         _DUMMY_HASH = await ahash_password("dummy-password-for-timing-equalization")
@@ -86,22 +83,18 @@ def _pwd_stamp(moment: datetime | None) -> int | None:
 
 
 def create_access_token(subject: str, password_changed_at: datetime | None = None, credential_version: int = 0) -> str:
-    """签发 access token。
+    """由用户名及数据库当前改密时间、凭据版本签发 JWT 字符串。
 
-    `password_changed_at` 必须传**当前库里的值**，否则改过密码的用户拿到的
-    token 会立刻被判为失效。
-    """
+    本函数不查库。调用者必须传当前 credential_version；默认 0 仅适用于尚处于版本 0 的用户。"""
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     claims: dict = {"sub": subject, "exp": expire, "pwd": _pwd_stamp(password_changed_at), "ver": credential_version}
     return jwt.encode(claims, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
 def decode_token(token: str) -> TokenClaims | None:
-    """解析并校验 JWT 签名与过期时间，返回声明；无效返回 None。
+    """校验签名、过期和声明结构，返回 TokenClaims；无效返回 None。
 
-    注意这里**只**验签与 exp，不判断 pwd 是否过期 —— 那需要查库拿用户当前值，
-    属于 `get_current_user` 的职责。
-    """
+    不查用户状态/当前凭据版本，也不单独授权请求；get_current_user 负责数据库校验。"""
     try:
         raw = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
     except JWTError:

@@ -13,8 +13,8 @@
 | 配置 | 生产要求 | 配错的后果 |
 |---|---|---|
 | `ENV` | `production` | 不开启下面这些检查 |
-| `SECRET_KEY` | 长随机串，**不能**是 `dev-secret-change-me` | 任何人都能伪造 JWT |
-| `SHOP_PAY_MODE` | `wechat` | 若是 `mock`＝**免费发货**（TD-124） |
+| `SECRET_KEY` | 至少 32 字符的高随机性字符串，**不能**是 `dev-secret-change-me` | 任何人都能伪造 JWT |
+| `SHOP_PAY_MODE` | `wechat` 或已安排人工核账的 `manual` | 若是 `mock`＝**免费发货**（TD-124） |
 | `RATE_LIMIT_ENABLED` | `true` | 公开的 `/tools/*` 可被无限刷（TD-15） |
 | `TRUST_PROXY_HEADERS` | `true`（在反向代理之后） | 所有用户被当成同一个 IP，限流形同虚设（TD-142） |
 | `DB_PASSWORD` | 真实密码 | 连不上库，`/readyz` 返回 503 |
@@ -34,7 +34,7 @@ docker compose up -d --build
   （挂到 `/docker-entrypoint-initdb.d/`；已存在的库不会重复初始化）
 
 > **已有数据的库不会自动升级。** `full_init.sql` 开头是 `DROP TABLE ... CASCADE`，
-> 对已有库跑它等于清库。升级请用增量脚本，按编号顺序执行（每个都可重复跑）：
+> 对已有库跑它等于清库。升级请用增量脚本，核对当前基线后按编号顺序执行（重复运行不代表没有业务副作用）：
 >
 > 迁移脚本没有挂进容器（compose 只挂了 `full_init.sql`），所以从宿主机用管道喂进去；
 > `-T` 是关掉伪终端，少了它 stdin 重定向不生效：
@@ -46,12 +46,15 @@ docker compose up -d --build
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0004_diagram_version.sql"
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0005_user_role.sql"
 > docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0006_order_single_pending.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0007_support_messages.sql"
+> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0008_credential_revision.sql"
 > ```
 >
 > 0001 = 时间列统一 `TIMESTAMPTZ`（TD-146）；0002 = `sys_user.password_changed_at`（TD-70）；
 > 0003 = `sys_diagram.deleted_at` + 索引升级（TD-64）；0004 = `sys_diagram.version` 乐观锁列（TD-65）；
 > 0005 = `sys_user.role` 管理员角色列（TD-138/188）；
-> 0006 = `sys_order` 部分唯一索引「同一用户最多一张待支付单」（TD-199）。
+> 0006 = pending 部分唯一索引；0007 = 站内消息；0008 = 凭据版本并清未兑换授权码，旧 JWT 重新登录。
+> 上述重定向示例适用于 Bash/cmd，不是 PowerShell；用户名和库名须按实际配置替换。
 >
 > ⚠️ **0006 执行前必须先清存量重复**：同一用户若已有 ≥2 张 pending 单，建唯一索引会失败。
 > 脚本头部给了排查与批量关单的 SQL，先跑排查那条确认再决定。
@@ -60,7 +63,7 @@ docker compose up -d --build
 - 给应用注入 `DB_HOST=db`、`TRUST_PROXY_HEADERS=true`
 
 `.dockerignore` 已排除 `.env`、`.venv`、`.git`、`storage`，密钥不会进镜像
-（有测试守着：`test_dockerfile_does_not_copy_secrets_or_venv`）。
+（忽略规则只覆盖列明路径，不能保证任意新增秘密文件都不会被复制）。
 
 ⚠️ compose 里**没有**反向代理和 SSL。生产上必须在前面加一层 nginx 或云负载均衡。
 
@@ -93,7 +96,7 @@ server {
 
 配好后应用会自动做两件事（都有测试）：
 - 响应带 `Strict-Transport-Security: max-age=31536000; includeSubDomains`
-  —— **只在 `X-Forwarded-Proto: https` 且 `TRUST_PROXY_HEADERS=true` 时**才下发。
+  —— 可信直接对端提供 https 转发头且启用代理头处理，或 ASGI 本身标记 https 时才下发；还取决于 HSTS_MAX_AGE。
   http 上不发，否则还在用 http 的环境会被浏览器锁死一年；不信任代理头时也不发，
   否则伪造一个头就能触发。
 - 限流按真实客户端 IP 计（而不是全部算成代理 IP）。
@@ -125,10 +128,10 @@ server {
 ```
 
 **`X-Request-ID` 是排障的关键**：用户报障时让他把响应头里的这个值报上来，
-就能在日志里精确定位那一次请求。上游网关若已给了 `X-Request-ID`，应用会沿用，
+就能在日志里精确定位那一次请求。上游非空 `X-Request-ID` 当前直接沿用，否则生成新值，
 这样一条链路能串起来查。异常也会记一行（带堆栈），500 在日志里不会是空白。
 
-日志级别用 `LOG_LEVEL` 控制。
+日志级别用 `LOG_LEVEL` 控制。request id 是排障标签，不经过身份认证，也不是可信授权或防篡改审计凭据。
 
 ### 报警建议
 

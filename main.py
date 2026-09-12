@@ -13,7 +13,7 @@ from app.routers import admin, auth, diagrams, health, messages, oauth, shop, si
 from app.startup_checks import enforce_production_settings
 from app.tools.faq import warm_semantic_index
 
-# 日志配置放在导入应用之前：uvicorn 自己也会配 logging，这里只设定级别与格式，
+# 依赖模块导入后、应用实例装配前配置 logging；uvicorn 也会配置日志，这里只设级别与格式，
 # 不去动它的 handler，避免两边打架（TD-165）。
 logging.basicConfig(
     level=settings.LOG_LEVEL.upper(),
@@ -63,7 +63,7 @@ app.include_router(messages.router)
 app.include_router(support.router)  # S4-02：智能客服三层
 app.include_router(admin.router)  # TD-138：管理员抓取入库（S4-01-4 的 HTTP 入口）
 
-# 工具平台前端静态资源（er.js 等）；HTML 页面走 Jinja2 SSR，见 app/routers/site.py
+# 工具平台前端静态资源（Vite 页面入口和分块等）；HTML 页面走 Jinja2 SSR，见 app/routers/site.py
 app.mount(
     "/static",
     StaticFiles(directory=Path(__file__).resolve().parent / "app" / "static", html=True),

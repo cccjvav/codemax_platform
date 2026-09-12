@@ -174,26 +174,10 @@ async def create_order(
 async def order_status(
     order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    """查订单状态（S2-02-2）：给下单页轮询用。
+    """只读查询当前用户的订单状态，返回展示字段和 expired，并禁止缓存。
 
-    ## 为什么必须有这个接口
-
-    微信 Native 支付的流程是：用户扫码付钱 → 微信回调 `POST /shop/pay/notify` → 订单变 `paid`。
-    **前端完全不知道这件事发生了** —— 回调是微信打到服务端的，浏览器那边没有任何推送。
-    所以页面只能轮询。而在此接口之前，全站**没有任何可以轮询的接口**：
-    `POST /shop/download/{order_no}` 虽然也能反映状态，但它**会把订单烧成 `downloaded`**
-    （一次性下载，见 download_url 里的 CAS），拿它当状态查询等于把用户的货直接销毁。
-
-    ## 三条设计约束
-
-    1. **只读**。轮询每 3 秒一次，绝不能在里面写库（连"顺手关掉过期单"都不行）——
-       过期关单只在 `create_order` 里做，那是用户主动重新下单时的一次性动作。
-       这里只**报告**是否已过期，由前端提示"二维码已失效，请重新下单"。
-    2. **非本人一律 404**，与 `download_url` 同一口径：不暴露"这个订单号存在"。
-    3. **禁止缓存**。这是个轮询接口（前端 3 秒一次），而浏览器/中间代理完全可能
-       缓存一个 200 GET。一旦命中缓存，页面会**永远看不到订单变 paid** ——
-       用户付了钱页面却一直转圈。`no-store` 同时挡掉浏览器与中间代理。
-    """
+    过期关闭只发生在主动下单流程；轮询不下新单、不发链接、不改变订单状态。
+    不是当前用户的订单与不存在均返回 404。downloaded 表示曾发过链接，不消灭购买权益。"""
     order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")
@@ -328,7 +312,10 @@ async def order_history(before: int | None = Query(None, gt=0), user: User = Dep
 async def download_url(
     request: Request, order_no: str, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
-    """Issue/reissue an expiring link to its paid owner; downloaded records issuance, not consumption."""
+    """为已付款订单所有者领取或重领短时链接，返回 URL、有效秒数和状态。
+
+    先验证所有权、paid/downloaded 状态和对象存在，再生成 URL、幂等记录发放。
+    downloaded 不是已收完文件的证明，也不是禁止重领的标志。"""
     storage = _storage(request)
     order = await db.scalar(select(Order).where(Order.order_no == order_no, Order.user_id == user.id))
     if order is None:
