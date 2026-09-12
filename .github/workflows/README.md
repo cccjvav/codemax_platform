@@ -23,7 +23,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.github/workflows/ci.yml`](ci.yml) | `92cfa70893bb` | L1–L304 |
+| [`.github/workflows/ci.yml`](ci.yml) | `38969a98f87b` | L1–L306 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

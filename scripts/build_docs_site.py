@@ -5,11 +5,11 @@
 
 用法：
     python scripts/build_docs_site.py              # 默认：出数据 + 渲染整站（**需要 mistune**）
-    python scripts/build_docs_site.py --data-only  # 只出 docs/site/data/*.json，不需要 mistune
+    python scripts/build_docs_site.py --data-only  # 只出结构化数据，不写 HTML 页面
 
-依赖：**默认那条要 mistune**（纯 Python、零依赖，`pip install mistune`）。
-只有 `--data-only` 不需要任何额外依赖 —— 它只用标准库的 ast / json 扫代码。
-本脚本不接入 pytest —— 它是文档工具，不是每次改动的必经检查（由 TD-201 记录代价）。
+依赖：两种 CLI 模式都需要 mistune，用于从真实 Markdown 渲染结果提取标题和代码块。
+导入模块及纯 AST helper 不需要它；不需要数据库、应用配置或运行时应用依赖。
+本脚本有独立 pytest 回归测试，CI 的 docs job 还会构建整站并校验链接和精读完整性。
 """
 from __future__ import annotations
 
@@ -988,6 +988,12 @@ def main() -> int:
 
     from check_docs_contract import check
 
+    try:
+        import mistune  # noqa: F401
+    except ImportError:
+        print("文档数据与静态站均需要 mistune：pip install mistune", file=sys.stderr)
+        return 1
+
     code_manifest, errors = check(ROOT)
     if errors:
         print("\n".join(errors), file=sys.stderr)
@@ -995,7 +1001,7 @@ def main() -> int:
     from code_reading import build_reading
 
     try:
-        reading = build_reading(ROOT, code_manifest)
+        reading = build_reading(ROOT, code_manifest, require_complete=True)
     except ValueError as error:
         print(str(error), file=sys.stderr)
         return 1
@@ -1040,12 +1046,6 @@ def main() -> int:
 
     if args.data_only:
         return 0
-
-    try:
-        import mistune  # noqa: F401
-    except ImportError:
-        print("渲染静态站需要 mistune：pip install mistune", file=sys.stderr)
-        return 1
 
     stats = render_site(payload)
     errors = validate_site(SITE)

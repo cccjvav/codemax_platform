@@ -8,8 +8,8 @@
     它<strong>拿不到</strong>你的密码。
   </p>
   <p style="color: #64748b; font-size: 13px;">回调地址：<code>{{ redirect_uri }}</code></p>
-  {# 纯表单，不含任何内联 <script> —— 见 TD-163（CSP 仍允许 unsafe-inline，
-     新页面就别再添一个理由） #}
+  {# 纯表单，无脚本；auth_ui=False 同时关闭 base.html 登录脚本。
+     当前 script-src 不允许 unsafe-inline；内联样式是另一条 style-src 策略。 #}
   <form method="post" action="/oauth/authorize" style="display: flex; gap: 8px; margin-top: 16px;">
     <input type="hidden" name="client_id" value="{{ client_id }}" />
     <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}" />

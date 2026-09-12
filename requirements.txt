@@ -57,7 +57,7 @@ coverage==7.16.0       # 覆盖率。N-4 修复前 `.coveragerc` 入库却**连 
 
 # ---- 文档工具（可选，运行时不需要）----
 mistune==3.3.4           # scripts/build_docs_site.py 默认那条命令要把 .md 渲染成静态站。
-                         # 只有 `--data-only` 不需要它（那条只用标准库 ast/json）。
+                         # `--data-only` 也要它解析真实 Markdown 标题/代码块；不需要应用数据库。
                          # 刻意放进主 requirements 而不是另开一个文件：纯 Python、零依赖、
                          # 体积可忽略，拆文件的收益低于「装了就能跑」的收益。
 

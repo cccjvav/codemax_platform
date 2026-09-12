@@ -13,7 +13,7 @@
   <div class="mock-banner">⚠️ 模拟支付通道 —— 不会产生真实扣款，仅用于本地开发与答辩演示</div>
   <h1>模拟收银台</h1>
   <p>订单号：<code id="no">{{ order_no }}</code></p>
-  <p>本页由 <code>SHOP_PAY_MODE=mock</code> 开启；生产环境必须设为 <code>wechat</code>，
+  <p>本页由 <code>SHOP_PAY_MODE=mock</code> 开启；生产应设为 <code>wechat</code> 或 <code>manual</code>，
      此时本页与模拟支付接口都会返回 404。</p>
   <button id="pay">模拟支付成功</button>
   <pre id="out"></pre>

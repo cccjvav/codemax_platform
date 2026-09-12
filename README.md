@@ -9,7 +9,7 @@
 
 ## 从零理解代码
 
-先读 [代码复盘入口](docs/CODE_READING_GUIDE.md)：术语、启动/登录/鉴权和客户—管理员消息链路。文档站新增“精读覆盖与缺口”，源码页提供部分核心文件的解释与代码并排阅读；未补项明确保留。源码可定位、函数有签名、门禁通过都不等于全项目逐行讲解完成。历史报告不冒充现行教程。
+先读 [代码复盘入口](docs/CODE_READING_GUIDE.md)：术语与身份、客服、订单/支付、OAuth、图形工具、采集/模型及运维完整链路。文档站“精读覆盖与缺口”提供全部 136 个非空非生成源码文件的分段说明与原代码并排阅读；新增漏项会阻止构建。人工功能契约与 AST 语句导读明确区分，门禁不认证语义。生成物讲来源、空文件讲作用，历史报告不冒充现行教程。
 
 ## 技术栈
 
@@ -204,20 +204,20 @@ start docs\site\index.html
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.coveragerc`](.coveragerc) | `548efa69f2f7` | L1–L34 |
+| [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `9fe29d4eff0a` | L1–L25 |
-| [`.env.example`](.env.example) | `02acf9619c08` | L1–L113 |
+| [`.env.example`](.env.example) | `6713c4cc4728` | L1–L113 |
 | [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
-| [`.gitignore`](.gitignore) | `6d716a3d4678` | L1–L48 |
+| [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
 | [`main.py`](main.py) | `976473de883b` | L1–L71 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
-| [`requirements.txt`](requirements.txt) | `6ba30eb3b268` | L1–L65 |
+| [`requirements.txt`](requirements.txt) | `56bb140d8218` | L1–L65 |
 | [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
-| [`vite.config.mjs`](vite.config.mjs) | `50a1c4ab1007` | L1–L57 |
+| [`vite.config.mjs`](vite.config.mjs) | `dad8237ecce1` | L1–L57 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

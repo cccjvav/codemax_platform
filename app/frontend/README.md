@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `d913c6eea5cd` | L1–L232 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `5b953a5c278b` | L1–L232 |
 | [`app/frontend/support-page.js`](support-page.js) | `23385e160502` | L1–L113 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

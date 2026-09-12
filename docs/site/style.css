@@ -145,7 +145,7 @@ body {
 
 .markdown-body hr { border: 0; border-top: 1px solid var(--line); margin: 2.2em 0; }
 
-/* 源码位置引用变成可点链接（app.js 负责改写） */
+/* 源码位置引用由 Python 构建器改为可点链接；这里仅设置外观。 */
 .markdown-body a.srcref {
   font-family: ui-monospace, Consolas, monospace; font-size: .92em;
   background: var(--accent-soft); padding: .05em .3em; border-radius: 4px;

@@ -205,11 +205,11 @@ def test_generated_paths_are_gitignored():
         assert entry in ignore, f".gitignore 缺 {entry}"
 
 
-def test_data_extraction_is_dependency_free():
-    """数据提取阶段只依赖标准库 —— 这是文档站的设计承诺。
+def test_pure_ast_helpers_do_not_import_mistune_at_module_level():
+    """纯 AST helper 可独立导入；完整 CLI 仍需 Markdown 解析依赖。
 
-    `--data-only` 必须能在没装 mistune 的环境跑（`docs/site/README.md` 明确写了
-    只有渲染那一步才需要 mistune）。这里断言 `mistune` 不在模块顶层导入。
+    导入模块及纯 AST helper 不需要 mistune，因此它不应在模块顶层导入。
+    CLI 两种模式都用它提取真实 Markdown 标题；缺依赖提示另有执行级测试。
     """
     src = (ROOT / "scripts" / "build_docs_site.py").read_text(encoding="utf-8")
     toplevel = [
@@ -217,7 +217,7 @@ def test_data_extraction_is_dependency_free():
         for line in src.splitlines()
         if line.startswith("import mistune") or line.startswith("from mistune")
     ]
-    assert not toplevel, f"mistune 被顶层导入，会破坏 --data-only 的零依赖承诺：{toplevel}"
+    assert not toplevel, f"mistune 被顶层导入，会破坏纯 AST helper 的独立导入：{toplevel}"
 
 
 # ---------------------------------------------------------------- 可视化标记 ↔ 样式表
@@ -416,3 +416,20 @@ def test_documented_calibration_loads_env_before_collection(monkeypatch):
     tree = ast.parse((ROOT / 'tests/test_faq_semantic.py').read_text(encoding='utf-8'))
     assert any(isinstance(node, ast.AsyncFunctionDef) and node.name == 'test_calibrate_semantic_threshold'
                for node in tree.body)
+
+
+@pytest.mark.parametrize('arguments', [[], ['--data-only']])
+def test_cli_missing_mistune_is_clear_nonzero_error(monkeypatch, capsys, arguments):
+    import builtins
+
+    original_import = builtins.__import__
+
+    def without_mistune(name, *args, **kwargs):
+        if name == 'mistune':
+            raise ModuleNotFoundError('isolated missing dependency')
+        return original_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, '__import__', without_mistune)
+    monkeypatch.setattr(sys, 'argv', ['build_docs_site.py', *arguments])
+    assert bds.main() == 1
+    assert '均需要 mistune' in capsys.readouterr().err

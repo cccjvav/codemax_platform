@@ -48,14 +48,14 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `173f70aa70a9` | L1–L327 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
-| [`tests/test_code_reading.py`](test_code_reading.py) | `8e48adefb347` | L1–L142 |
+| [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `b5811f75840a` | L1–L418 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `6ac29c96ae1b` | L1–L435 |
 | [`tests/test_download.py`](test_download.py) | `0a05c879945a` | L1–L247 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -106,8 +106,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ### 精读机制回归
 
-`test_code_reading.py` 用隔离文件验证分段连续性、旧指纹即使主清单刷新后仍失败、未知/重复文件、非法段界、漏尾、占位文字、生成/空文件不能冒充精读、未补项可见和输出转义。另验证 docs CLI 在数据模式也拒绝过期说明。
-它不会给解释内容自动判真；业务含义仍需对照源码和对应业务回归。本批 `test_support_messages.py` 另有逐段造数/断言/边界说明，其他测试不会因为在清单中就标成精读完成。
+`test_code_reading.py` 用隔离文件验证分段连续性、旧指纹即使主清单刷新后仍失败、未知/重复文件、非法段界、漏尾、占位文字、生成/空文件不能冒充精读、未补项可见和输出转义。另验证 docs CLI 在数据模式也拒绝过期/缺失说明、未知method被拒、guided不冒充认证、唯一notes自引用例外不会扩散到其他JSON。
+它不会给解释内容自动判真；业务含义仍需对照源码和对应业务回归。当前全部测试文件都有分段讲解：首批消息测试为人工段落，其余为人工测试边界说明＋每个函数的AST语句/断言导读，不是只列测试名。Node脚本与FakeLLM等属于测试替身；真实模型/浏览器/商户仍独立验收。`test_docs_site` 新增两种CLI缺Mistune的执行级错误测试，不再用顶层无import推定完整数据模式零依赖。
 
 ## 变更与验证
 

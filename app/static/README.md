@@ -117,7 +117,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardley-WFR3VGLG.js`](js/wardley-WFR3VGLG.js) | `eabfd763cf64` | 生成物，见模块构建说明 |
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `c8f3a7cb403f` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `48d7bbc18667` | 生成物，见模块构建说明 |
-| [`app/static/pay_qr.svg`](pay_qr.svg) | `9b3668a55882` | L1–L17 |
+| [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
 | [`app/static/support.css`](support.css) | `15df7d6e48e3` | L1–L10 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

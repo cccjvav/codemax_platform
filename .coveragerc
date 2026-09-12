@@ -24,7 +24,7 @@
 concurrency = thread,greenlet
 source = app, main
 # 文档站构建脚本与建库脚本不属于被测应用代码：
-# 前者是文档工具（不接入 pytest，见 TD-83），后者要真库才跑得动。
+# 前者另有 pytest 回归测试，但不计入应用覆盖率；后者另需隔离的 PostgreSQL。
 omit =
     scripts/*
     database init/*

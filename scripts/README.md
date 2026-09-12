@@ -19,6 +19,8 @@
 
 ### build_docs_site.py
 
+完整 CLI 与 `--data-only` 都需要 Mistune 提取真实 Markdown 标题/代码块；仅导入模块及纯 AST helper 不需要它。缺依赖明确非零退出，不把顶层无 import 的静态检查冒充完整执行证据。
+
 DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验收手册，让三者进入同一离线导航与搜索；不能只在仓库添加文件而漏掉站点入口。
 
 | 阶段 / 函数 | 做什么、返回什么 | 不代表什么 |
@@ -39,11 +41,11 @@ DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验�
 
 | 函数 | 输入 → 输出 | 限制 |
 | --- | --- | --- |
-| `build_reading(root, sources)` | 当前源码清单 + 人工 notes → 全量文件状态、段落和计数 | 检查版本、来源/重复项、完整 SHA、递增段界、文件尾与非占位说明；非法抛 ValueError；不执行源码、不推断语义 |
+| `build_reading(root, sources, require_complete=False)` | 当前源码清单 + 人工 notes → 全量文件状态、段落和计数 | 检查版本、来源/重复项、完整 SHA、method、递增段界、文件尾与非占位说明；完整模式拒绝缺项，notes 本身单列 note_data；非法抛 ValueError；不执行源码、不推断语义 |
 | `render_notes(entry, text)` | 验证后的单文件条目和原文 → HTML | 转义人工说明及源码；显示行号和完整源码跳转；窄屏折行/代码区滚动；无讲解时明确待补 |
 | `render_inventory(report, doc_href, src_href)` | 全量状态和站内路径 → 覆盖表 HTML | 保留未讲解、空文件和生成物；状态不是语义认证，不把 README 里的函数名算作精读 |
 
-build_docs_site.main 在数据提取/渲染前调用 build_reading，连 `--data-only` 也拒绝过期讲解；reading.json 和 reading.html 都是生成物。源码与讲解并排嵌入既有源码页，完整源码仍保留。没有修改既有 CI 工作流；现有文档 job 会执行新增校验。
+build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 build_reading，连 `--data-only` 也拒绝漏项与过期讲解；reading.json 和 reading.html 都是生成物。源码与讲解并排嵌入既有源码页，完整源码仍保留。现有文档 job 执行新增完整性校验；本轮只修正工作流注释，没有新增 job。manual/guided 来源明确展示，不把 AST 导读自动认证为设计解释。
 
 ### check_schema_pg.mjs
 
@@ -54,10 +56,10 @@ build_docs_site.main 在数据提取/渲染前调用 build_reading，连 `--data
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `d6379ac47f5e` | L1–L1062 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `5542820d4d70` | L1–L1062 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
-| [`scripts/code_reading.py`](code_reading.py) | `9790b7fb388a` | L1–L118 |
+| [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -76,7 +78,9 @@ build_docs_site.main 在数据提取/渲染前调用 build_reading，连 `--data
 ```bash
 python scripts/check_docs_contract.py
 python scripts/build_docs_site.py
-python -m pytest tests/test_docs_contract.py tests/test_docs_site.py -q
+python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_code_reading.py -q
 ```
+
+同一工作区先完成 `npm run build` 再构建文档，不要两者并行：Vite 会清空并重建静态目录，文档扫描可能碰到暂时缺失的 chunk。CI 各 job 使用独立工作区，不存在共享目录竞态。
 
 源码变动且已复核解释后才执行 `python scripts/check_docs_contract.py --write`。新增 Markdown 同时登记 DOC_GROUPS；变更排版要检查窄屏、长签名、表格横向滚动及键盘焦点。

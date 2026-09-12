@@ -120,7 +120,7 @@ def test_repository_notes_match_current_source_and_include_other_languages():
 
     rows, errors = inventory(ROOT)
     assert not errors
-    report = cr.build_reading(ROOT, rows)
+    report = cr.build_reading(ROOT, rows, require_complete=True)
     annotated = {f['path'] for f in report['files'] if f['state'] == 'annotated'}
     assert {'main.py', 'app/routers/messages.py', 'app/frontend/support-page.js',
             'app/templates/support-center.html', 'app/static/support.css',
@@ -140,3 +140,67 @@ def test_docs_cli_stops_on_stale_notes_before_render(specimen, monkeypatch, caps
     monkeypatch.setattr(sys, 'argv', ['build_docs_site.py', '--data-only'])
     assert bds.main() == 1
     assert 'stale source hash' in capsys.readouterr().err
+
+
+def test_complete_mode_rejects_missing_explanations(specimen):
+    root, row, data = specimen
+    data['files'] = []
+    save_notes(root, data)
+    with pytest.raises(ValueError, match='missing explanations for sample.py'):
+        cr.build_reading(root, [row], require_complete=True)
+
+
+@pytest.mark.parametrize('method', ['automatic_certification', '', None, [], {}])
+def test_unknown_provenance_is_rejected(specimen, method):
+    root, row, data = specimen
+    data['files'][0]['method'] = method
+    save_notes(root, data)
+    with pytest.raises(ValueError, match='unknown explanation method'):
+        cr.build_reading(root, [row])
+
+
+def test_guided_notes_disclose_syntax_not_semantic_certification(specimen):
+    root, row, data = specimen
+    data['files'][0]['method'] = 'guided'
+    save_notes(root, data)
+    entry = cr.build_reading(root, [row], require_complete=True)['files'][0]
+    html = cr.render_notes(entry, (root / row['path']).read_text())
+    assert entry['method'] == 'guided'
+    assert 'AST 语句导读' in html and '不推断设计意图' in html
+    assert entry['semantic_review'] == 'not_automatically_verified'
+
+
+def test_notes_data_has_one_narrow_documented_self_reference_exception(specimen):
+    root, row, data = specimen
+    save_notes(root, data)
+    note_row = {**row, 'path': 'docs/code_reading_notes.json', 'lines': 1}
+    note_row['sha256'] = hashlib.sha256((root / note_row['path']).read_bytes()).hexdigest()
+    report = cr.build_reading(root, [row, note_row], require_complete=True)
+    assert report['counts'] == {'annotated': 1, 'note_data': 1}
+    assert report['files'][1]['blocks'] == []
+    html = cr.render_inventory(report, {'README.md': 'README.html'},
+                               {r['path']: r['path'] + '.html' for r in [row, note_row]})
+    assert '格式、来源和维护规则' in html
+    # A different JSON source cannot borrow the exact-path exception.
+    other = {**note_row, 'path': 'docs/other_notes.json'}
+    with pytest.raises(ValueError, match='missing explanations for docs/other_notes.json'):
+        cr.build_reading(root, [row, note_row, other], require_complete=True)
+    data['files'].append({'path': note_row['path'], 'sha256': note_row['sha256'],
+                          'blocks': [{'end': 1, 'title': '数据', 'explanation': '不允许自引用摘要。'}]})
+    save_notes(root, data)
+    with pytest.raises(ValueError, match='self-hashing annotation is not allowed'):
+        cr.build_reading(root, [row, note_row])
+
+
+def test_docs_cli_requires_complete_notes_even_in_data_only_mode(specimen, monkeypatch, capsys):
+    import build_docs_site as bds
+    import check_docs_contract as contract
+
+    root, row, data = specimen
+    data['files'] = []
+    save_notes(root, data)
+    monkeypatch.setattr(bds, 'ROOT', root)
+    monkeypatch.setattr(contract, 'check', lambda root: ([row], []))
+    monkeypatch.setattr(sys, 'argv', ['build_docs_site.py', '--data-only'])
+    assert bds.main() == 1
+    assert 'missing explanations for sample.py' in capsys.readouterr().err

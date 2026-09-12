@@ -6,7 +6,7 @@
     直接覆盖本文件即可，代码与配置都不用动（路径见 SHOP_MANUAL_QR）。
 
     刻意做成 SVG 而不是 PNG：纯文本、可评审、体积 1 KB 以内，
-    而且不含任何脚本，不受 CSP img-src / script-src 约束。
+    不含脚本；作为图片加载时仍受 CSP img-src 约束，默认允许本站图片。
   -->
   <rect width="220" height="240" fill="#fff" stroke="#d0d7de" stroke-width="2" rx="8"/>
   <rect x="46" y="26" width="128" height="128" fill="none" stroke="#9aa4af" stroke-width="2" stroke-dasharray="6 5"/>

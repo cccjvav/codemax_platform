@@ -1,8 +1,10 @@
 # ============================================================================
 # GitHub Actions CI（TD-84）
 #
-# 四个 job：
+# 六个 job（实际 jobs 定义为准）：
 #   lint          —— ruff check .（规则集见 ruff.toml，TD-145）
+#   audit         —— Python 依赖漏洞审计
+#   frontend      —— npm 构建与提交产物的漂移检查
 #   docs          —— 构建文档站（scripts/build_docs_site.py），核对路由数与页数
 #   test-sqlite   —— 默认后端，全量 pytest
 #   test-postgres —— postgres:16 service 容器，另建库把建表脚本连跑两遍验证幂等
@@ -121,7 +123,7 @@ jobs:
           cache: pip
 
       # 只装 mistune：这个脚本的顶层 import 全是标准库（argparse/ast/json/re/sys/pathlib），
-      # mistune 是唯一的外部依赖，且只在渲染那一步用到。
+      # mistune 是唯一外部依赖；标题/代码块的数据提取也基于它的渲染结果。
       # 刻意**不**装 requirements.txt —— 里面有 pgserver（自带 PG 二进制，33 MB），构建文档用不上。
       # 这也顺便验证了 docs/site/README.md 的承诺：构建文档站不需要数据库、.env 与那 24 个依赖。
       - name: 安装 mistune

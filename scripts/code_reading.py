@@ -13,14 +13,15 @@ from html import escape
 from pathlib import Path
 
 LABELS = {
-    'annotated': '有人工分段讲解（不是语义认证）',
+    'annotated': '有分段精读（契约与语句导读，不是语义认证）',
+    'note_data': '讲解数据本身：格式、来源和维护规则见模块说明',
     'contract_only': '源码与模块契约；分段精读待补',
     'generated': '生成物：追溯构建源，不逐段解释依赖',
     'empty': '空文件：无语句，作用见模块说明',
 }
 
 
-def build_reading(root: Path, sources: list[dict]) -> dict:
+def build_reading(root: Path, sources: list[dict], *, require_complete: bool = False) -> dict:
     """Validate notes against the source inventory; return files/counts or ValueError.
 
     Block end lines form a contiguous partition from line 1 to EOF. The count
@@ -31,12 +32,15 @@ def build_reading(root: Path, sources: list[dict]) -> dict:
         raise ValueError('reading notes: expected version 1 and files array')
     known = {row['path']: row for row in sources}
     notes = {}
+    methods = {}
     for entry in data['files']:
         if not isinstance(entry, dict) or not isinstance(entry.get('path'), str):
             raise ValueError('reading notes: each file needs a string path')
         rel = entry.get('path')
         if rel not in known or rel in notes:
             raise ValueError(f'reading notes: unknown/duplicate source {rel}')
+        if rel == 'docs/code_reading_notes.json':
+            raise ValueError('reading notes: self-hashing annotation is not allowed; use the schema guide')
         source = known[rel]
         if source['generated'] or not source['lines']:
             raise ValueError(f'reading notes: generated/empty source {rel} cannot claim annotation')
@@ -63,15 +67,24 @@ def build_reading(root: Path, sources: list[dict]) -> dict:
             end = next_end
         if end != source['lines']:
             raise ValueError(f'reading notes: uncovered tail in {rel}')
+        method = entry.get('method', 'manual')
+        if not isinstance(method, str) or method not in {'manual', 'guided'}:
+            raise ValueError(f'reading notes: unknown explanation method in {rel}')
+        methods[rel] = method
         notes[rel] = clean
     files = []
     for source in sources:
         rel = source['path']
-        state = ('generated' if source['generated'] else 'empty' if not source['lines']
+        state = ('note_data' if rel == 'docs/code_reading_notes.json' else
+                 'generated' if source['generated'] else 'empty' if not source['lines']
                  else 'annotated' if rel in notes else 'contract_only')
         files.append({'path': rel, 'owner': source['owner'], 'lines': source['lines'],
                       'state': state, 'label': LABELS[state], 'blocks': notes.get(rel, []),
+                      'method': methods.get(rel),
                       'semantic_review': 'not_automatically_verified'})
+    missing = [row['path'] for row in files if row['state'] == 'contract_only']
+    if require_complete and missing:
+        raise ValueError('reading notes: missing explanations for ' + ', '.join(missing))
     return {'files': files, 'counts': dict(Counter(row['state'] for row in files)),
             'note_blocks': sum(len(row['blocks']) for row in files)}
 
@@ -80,8 +93,11 @@ def render_notes(entry: dict, text: str) -> str:
     """Render escaped prose beside the exact numbered source; no Markdown/HTML execution."""
     if not entry['blocks']:
         return f'<p class="reading-status">{escape(entry["label"])}</p>'
+    method = ('人工整理的段落说明' if entry.get('method', 'manual') == 'manual' else
+              '人工整理功能契约＋AST 语句导读；语句导读只说明语法事实，不推断设计意图')
     lines = text.splitlines()
-    out = ['<section id="reading-notes"><h2>人工分段精读</h2>',
+    out = ['<section id="reading-notes"><h2>分段精读</h2>',
+           f'<p>{escape(method)}</p>',
            '<p>按连续逻辑块对照每一行。范围/指纹有校验，解释仍需人工复核；不是自动语义认证。</p>']
     for block in entry['blocks']:
         start, end = block['start'], block['end']
@@ -98,7 +114,7 @@ def render_notes(entry: dict, text: str) -> str:
 def render_inventory(report: dict, doc_href: dict, src_href: dict) -> str:
     """List ALL inventoried source, including pending files; keep history out of certification."""
     out = ['<h1>代码精读覆盖与缺口</h1>',
-           '<p>这张表只统计人工分段讲解是否存在；不统计历史报告是否正确，也不把 docstring、'
+           '<p>这张表统计分段说明是否存在；不统计历史报告是否正确，也不把 docstring、'
            '函数名或文件指纹当作业务解释。没有分段讲解不等于没有模块文档。</p>']
     if 'docs/CODE_READING_GUIDE.md' in doc_href:
         out.append(f'<p><a href="{escape(doc_href["docs/CODE_READING_GUIDE.md"])}">从零复盘：顺序、术语与功能链路</a></p>')

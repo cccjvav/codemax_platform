@@ -27,9 +27,9 @@ function show(name) {
 const yuan = (fen) => `¥${(fen / 100).toFixed(2)}`;
 
 // 按订单状态切页面。
-// ⚠️ 这里**绝不**调用 POST /shop/download —— 那个接口会把订单一次性烧成 downloaded
-//    （后端 CAS 只让一个请求拿到链接）。所以状态只能从 GET /shop/orders/{no} 读，
-//    下载必须由用户主动点按钮触发。
+// 状态渲染不调用 POST /shop/download/{no}：读取订单和申请文件链接是两件事。
+// downloaded 只记录已经发过链接，paid/downloaded 均支持重新申请短时链接。
+// 下载仍由用户主动点按钮触发，避免轮询反复申请链接或跳转页面。
 function render(o) {
   currentNo = o.order_no;
   if (o.status === "pending") {

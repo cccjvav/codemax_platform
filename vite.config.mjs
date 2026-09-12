@@ -29,7 +29,7 @@ export default defineConfig({
     // ⚠️ 不要写 `minify: "esbuild"`：Vite 8 改用 rolldown，那条已废弃且要求单独安装
     // esbuild 包，否则构建直接报 `Cannot find package 'esbuild'`。留空用默认压缩器。
     minify: true,
-    // 让报错带上原始行号，否则压缩后的堆栈没法读
+    // 当前不发布 source map；压缩堆栈需结合 app/frontend 源码和测试定位
     sourcemap: false,
     rollupOptions: {
       input: {
