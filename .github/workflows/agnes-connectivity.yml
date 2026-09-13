@@ -1,3 +1,4 @@
+# User authorized live verification after configuring AGNES_API_KEY (2026-09-13).
 # Independent provider diagnostics; never a replacement for the six normal CI jobs.
 # Ordinary pushes are keyless. Explicitly marked, authorized pushes may request live checks.
 name: Agnes connectivity diagnosis
@@ -55,12 +56,22 @@ jobs:
           python-version: "3.11"
       - name: Install project dependencies without provider credentials
         run: python -m pip install -r requirements.txt
-      - name: Two opt-in requests, no response content in logs
+      - name: Authorized chat checks and bounded capability probes
         env:
           LLM_API_KEY: ${{ secrets.AGNES_API_KEY }}
           LLM_BASE_URL: https://apihub.agnes-ai.com/v1
           LLM_MODEL: agnes-2.5-flash
           LLM_EMBED_ENABLED: "false"
         run: |
+          set +e
+          python scripts/probe_llm.py models
+          models=$?
           python scripts/probe_llm.py chat
+          chat=$?
           python scripts/probe_llm.py mermaid
+          mermaid=$?
+          # One diagnostic of the documented chat model, NOT a recommended embedding configuration.
+          LLM_EMBED_ENABLED=true LLM_EMBED_MODEL=agnes-2.5-flash python scripts/probe_llm.py embeddings
+          embedding=$?
+          echo "::notice title=Agnes live results::models_exit=$models chat_exit=$chat mermaid_exit=$mermaid embedding_probe_exit=$embedding"
+          test "$chat" -eq 0 && test "$mermaid" -eq 0

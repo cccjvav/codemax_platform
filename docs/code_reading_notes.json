@@ -86,23 +86,23 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "579dad62d5d3a3a3c4c441f159dc746b506cbd3f0c86a98be29d386aa64b9b16",
+      "sha256": "96fa933128f305da7798e697084c782bcae90622623eb69f2adf1ef04527ea1d",
       "method": "manual",
       "blocks": [
         {
-          "end": 17,
+          "end": 18,
           "title": "触发范围与权限",
-          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。"
+          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。 本次请求注释记录用户已配置Secret并授权，不保存密钥值。"
         },
         {
-          "end": 45,
+          "end": 46,
           "title": "无密钥跨环境对照",
           "explanation": "Ubuntu runner限时五分钟，无提供方key。先用curl保留系统证书校验、不跟重定向且丢弃正文，只取HTTP码和退出码；set+e保存失败证据后原码退出。GITHUB_OUTPUT、notice和always步骤名保留HTTP状态，下载日志受阻仍能读元数据。curl通后checkout同一提交、Python3.11安装相同依赖，再运行项目connectivity，以排除只换curl程序造成的误判。两种方式均不发送Authorization，401只证明HTTP可达，绝不是鉴权通过。"
         },
         {
-          "end": 66,
+          "end": 77,
           "title": "仅手动允许的真实请求",
-          "explanation": "live-chat 仅手动 workflow_dispatch+live_chat，或固定分支修改本工作流且提交说明有明确 [agnes-live-test] 标记时执行；普通push/PR不触发真实请求。标记提交是 Actions API 无调度权限时的用户授权替代入口，不使用持久开启标志。网络job成功后checkout受控代码/Python3.11，安装依赖不注入secret，最后一步才通过AGNES_API_KEY发送两条固定示例；不打印正文、不启用embedding。"
+          "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。"
         }
       ]
     },
