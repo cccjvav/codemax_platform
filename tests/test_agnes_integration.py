@@ -166,3 +166,11 @@ def test_live_workflow_requires_manual_opt_in_and_scopes_secret():
     assert live['steps'][-1]['env']['LLM_API_KEY'] == '${{ secrets.AGNES_API_KEY }}'
     assert live['steps'][-1]['env']['LLM_EMBED_ENABLED'] == 'false'
     assert 'AGNES_API_KEY' not in str(config['jobs']['connectivity'])
+    run = live['steps'][-1]['run']
+    for mode in ('models', 'chat', 'mermaid'):
+        assert run.count(f'run_probe {mode} python scripts/probe_llm.py {mode}') == 1
+    assert 'run_probe embedding env LLM_EMBED_ENABLED=true LLM_EMBED_MODEL=agnes-2.5-flash python scripts/probe_llm.py embeddings' in run
+    assert 'sys.stdin.read()[:4000]' in run
+    assert "replace('%', '%25')" in run and "'%0D'" in run and "'%0A'" in run
+    assert 'return "$result"' in run
+    assert 'test "$chat" -eq 0 && test "$mermaid" -eq 0' in run

@@ -404,6 +404,13 @@ parse_page 不再先截短 title/author/published_at；由保存前的统一校�
 
 按用户选择把 Settings、LLMClient 与 .env.example 默认改为 Agnes 2.5 Flash，保留 OpenAI Chat Completions 兼容协议并显式非流式；不自动试付费模型。无公开向量能力证明，因此增加 LLM_EMBED_ENABLED 默认 false，预热/查询真正短路，客户端拒绝空向量模型；测试显式启用合成向量而不删原断言。真实标定必须显式开启并具备 key/模型，避免聊天 key 触发未知接口。代价是升级后向量增强需主动重新启用并标定；暂不增加另一提供方的独立凭证，未来有确认的需求再拆客户端。
 
-连接问题先区分 TCP、TLS、HTTP、鉴权、输出合同。错误分类保留 HTTP 状态与安全原因类型，不回显上游正文。独立工作流只因自身改变或手动请求触发无 key 对照；两次真实调用仅手动 opt-in 或明确标记提交 + GitHub Secret，避免普通 CI 外部依赖/消耗额度。源/文档相符不是实测成功，GitHub 可达也不能倒推 Arena 出口已恢复；不以关闭证书或第三方转发 key 绕过。
+连接问题先区分 TCP、TLS、HTTP、鉴权、输出合同。错误分类保留 HTTP 状态与安全原因类型，不回显上游正文。独立工作流只因自身改变或手动请求触发无 key 对照；真实调用仅手动 opt-in 或明确标记提交 + GitHub Secret，避免普通 CI 外部依赖/消耗额度。源/文档相符不是实测成功，GitHub 可达也不能倒推 Arena 出口已恢复；不以关闭证书或第三方转发 key 绕过。
 
 本轮实测 GitHub 集成可 push/read Actions，但 Secrets 元数据和 workflow_dispatch 返回权限 403。因此增加受限分支/文件路径 + 显式 [agnes-live-test] 提交标记的调度后备，不存持久开启标志，也不要求用户交出 GitHub token 或合并默认分支。
+
+
+### TD-237：Agnes 能力取证与免费向量候选不越界接入（2026-09-13）
+
+用户已确认 AGNES_API_KEY 后，授权工作流做列表、chat、Mermaid 和一次已知聊天 ID 的探索性 embeddings 请求。四项独立退出码，chat/Mermaid 决定 job 状态，不能让绿色状态覆盖 embedding 失败。日志下载通道受阻时，仅把现有 CLI 已脱敏摘要/ID 限长并转义后发布 notice，保留原退出码，不增加上游正文日志。两轮真实探测都有聊天/图前缀成功，第二轮明确向量 HTTP 500；该错误与未列出向量模型不能推出平台不存在向量能力。
+
+保留 Agnes 聊天与默认关闭的语义增强。调研本地 BGE-M3、Qwen3-Embedding-0.6B 和带条件免费额度的 Gemini Embedding 2，不未经选择就新增运行服务、依赖或独立提供方配置。代价是 FAQ 向量增强仍未启用；收益是避免猜模型 ID、跨提供方误发 key、混用旧向量或把限额/地区条款误报为永久免费。回看条件是 Agnes 提供正式向量端点/ID证据，或用户确定候选并批准接入；随后按真实中文样本重新标定。

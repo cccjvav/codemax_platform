@@ -49,7 +49,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`tests/conftest.py`](conftest.py) | `c70cb44c495d` | L1–L212 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
-| [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f78fec9ef98f` | L1–L168 |
+| [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `173f70aa70a9` | L1–L327 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |

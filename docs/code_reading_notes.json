@@ -86,13 +86,13 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "7e88ba567cebc41f3b28b090382b4b5b6d604b03afaa230e682c4f5774b8033e",
+      "sha256": "efbbecbc14c4badc8bfc7168021af0c0d0567b1f9c1df60230e9b54601b767a0",
       "method": "manual",
       "blocks": [
         {
           "end": 18,
           "title": "触发范围与权限",
-          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。 本次请求注释记录用户已配置Secret并授权，不保存密钥值。"
+          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。 本次请求注释记录用户已配置Secret并授权，不保存密钥值。 手动输入说明明确四项请求（列表、聊天、图表、一次向量探索），而非只提示两项。"
         },
         {
           "end": 46,
@@ -3586,7 +3586,7 @@
     },
     {
       "path": "tests/test_agnes_integration.py",
-      "sha256": "f78fec9ef98f5bf00279662c90a58139f7bfd1440f259bb7118343aee3f05984",
+      "sha256": "f51ea27a435fe3a5c6a90faff89df4b0c1b1f8b18180b7676a8ad8741306f556",
       "method": "manual",
       "blocks": [
         {
@@ -3650,9 +3650,9 @@
           "explanation": "429 正文回显虚构 key，注入 main 后必须退出1且 stderr含HTTP429而不含key；用户能够区分限频而无需公开完整服务端正文。"
         },
         {
-          "end": 168,
+          "end": 176,
           "title": "test_live_workflow_requires_manual_opt_in_and_scopes_secret",
-          "explanation": "BaseLoader保留YAML on键，检查push严格限定固定分支/本文件、无PR触发。真实job条件必须是手动输入或显式标记提交，手动默认false；这支持Actions API无调度权限时仍通过受控push启动，不让普通提交自动消耗额度。断言Secret仅存在最后步骤，安装/无key诊断均无它，并固定关闭embedding。"
+          "explanation": "BaseLoader保留YAML on键，检查push严格限定固定分支/本文件、无PR触发。真实job条件必须是手动输入或显式标记提交，手动默认false；这支持Actions API无调度权限时仍通过受控push启动，不让普通提交自动消耗额度。断言Secret仅存在最后步骤，安装/无key诊断均无它，并固定关闭embedding。 工作流合同同时要求四个有界探测调用、探索开关只传子进程、notice的4000字符上限及百分号/换行转义，并保留原退出码和chat/Mermaid联合成功条件；静态配置断言不替代runner实测。"
         }
       ]
     },

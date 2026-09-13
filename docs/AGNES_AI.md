@@ -1,6 +1,6 @@
 # Agnes AI 接入与连接排错
 
-本项目已按用户选择默认使用 **Agnes AI / agnes-2.5-flash**。这是配置和协议适配，不把文档相符或 MockTransport 通过等同于真实账号联调成功。
+本项目已按用户选择默认使用 **Agnes AI / agnes-2.5-flash**。已用用户配置的 GitHub Secret 完成真实聊天与 Mermaid 前缀检查；向量探测没有取得有效向量。具体证据与不能推断的范围见第 5 节，不把 MockTransport、模型列表或图前缀通过等同于完整上线验收。
 
 ## 1. 现行配置：已有 .env 不会自动被覆盖
 
@@ -21,7 +21,7 @@ LLM_EMBED_MODEL=
 - 只换 key 而保留 `https://api.openai.com/v1`，请求会发给错误提供方。
 - 只换基址而保留旧默认 `gpt-4o-mini`，不是本项目选定的 Agnes 模型。
 - 基址重复写 `/v1` 或末尾再加 `/chat/completions`，客户端会拼错端点。
-- 把聊天模型名填进 embedding，不能获得有效向量。
+- 把聊天模型名填进 embedding，不能据此推定它具有向量能力；需要端点、模型和真实向量响应证据。
 
 ## 2. 为什么协议相符
 
@@ -100,10 +100,57 @@ echo %ERRORLEVEL%
 3. HTTP 状态也出现在步骤名称/notice，日志下载受阻时可从 GitHub job 元数据取证。
 4. 可选的真实 chat/Mermaid job **只在手动勾选 live_chat，或修改工作流且提交说明明确带 `[agnes-live-test]` 标记时运行**；只在最后执行步骤注入 GitHub Secret，不给安装依赖步骤传 key。
 
-本轮已实测 GitHub runner 可达：curl HTTP 401/退出0，同一提交与锁定依赖的 Python 无密钥探测亦通过（[执行记录](https://github.com/cccjvav/codemax_platform/actions/runs/34767857601)，代码提交 `4b221eb`）。Arena 直连仍受阻；可以用这个远端入口继续测试，不必更换 Agnes。此处是可用替代路径，不声称已修复 Arena 出口或已定位具体断开设备。真实 key 没有存入本仓库或恢复后的沙箱，不能凭旧会话的授权制造一次不存在的鉴权成功。需要远端实测时，在 GitHub 项目 **Settings → Secrets and variables → Actions → New repository secret** 保存你原来的 key，名称 `AGNES_API_KEY`；这是私有凭据配置，不是更换 key。
+### 已完成的真实调用（2026-09-13）
 
-保存 Secret 后告诉本会话“已设置”。当前 GitHub 集成调度 Actions API 返回 403（不是认证过期），因此推荐由本会话修改本工作流中的受控请求注释、同步源码讲解，并以包含 `[agnes-live-test]` 的明确授权提交推送当前固定分支，触发两次实测。仅空提交或只改说明文档不满足工作流路径过滤；普通无标记提交不使用 Secret。
+用户已经确认 `AGNES_API_KEY` 已设置，不需要重复配置或更换 key。两次显式授权的固定分支推送完成了探测；第二次为补充日志下载受阻时的安全 notice 取证，并非无限重试。
 
-有 Actions 调度权限时也可手动运行，分支必须为 `arena/01a08bf5-codemax-platform`：`gh workflow run agnes-connectivity.yml --ref arena/01a08bf5-codemax-platform -f live_chat=true`。如果网页没有 Run workflow 按钮或集成调度被拒绝，不需要为了此事交出 GitHub token、切换/合并默认分支或关闭安全校验，使用上述显式标记提交入口即可。
+- 首次：[run 34769292339](https://github.com/cccjvav/codemax_platform/actions/runs/34769292339)，提交 `aeb4fb2`，四项退出码依次为 0/0/0/1。
+- 完整摘要：[run 34769446500](https://github.com/cccjvav/codemax_platform/actions/runs/34769446500)，提交 `bba8ab0`。模型列表通过、聊天返回 4 字符非空文本、Mermaid 返回 287 字符且图类型前缀通过；内容不公开。这不是浏览器渲染验收。
+- 对 `POST /v1/embeddings`、模型 `agnes-2.5-flash` 的探索返回 **HTTP 500**，未取得有效向量。500 只表明此请求的服务端/上游失败，不能区分暂时故障、端点路由或模型能力，更不能证明 Agnes 所有模型都不支持 embedding。
+- 本次列表有 12 个 ID，没有提供可确认的向量模型：Agnes 文本、图像和视频系列。列表只是清单，不是每个模型的能力认证；不根据名字或清单缺项证明能力不存在。
+- 首次无 key curl 得到 HTTP 401，第二次 HTTP 200，退出码均为 0；两次同提交的锁定 Python 客户端 connectivity 均通过。它们只证明 HTTPS 可达，状态变化不能当作 key 有效性证明。带 Secret 的聊天成功才是本轮真实调用证据。
 
-**当前实际对照、鉴权和 CI 结果统一见[本轮阶段记录](../manager/stages/agnes-integration.md)。** GitHub 的网络 job 成功不代表两个真实请求已跑；live-chat skipped 必须写未执行。
+工作流把脚本已经脱敏的摘要/模型 ID 截断并转义后发布为 notice，以便在日志下载受阻时通过 job 元数据取证。不记录 key、响应正文或向量。**live-chat 的成功条件是 chat 和 Mermaid 均通过，不能把绿色 job 当作四项全通过。** 探索性的向量开关/model 只作用于那个子进程，项目默认仍关闭。
+
+Arena 运行时直连的 TLS 问题尚未修复，具体断开设备未知；GitHub runner 是已验证可用的替代测试路径。仓库 Secret 不会自动写进 Windows 私有 `.env`。
+
+### 将来需要重测时
+
+当前 GitHub 集成可推送、读取 Actions 元数据，但 workflow_dispatch API 返回权限 403。已授权的重测可由本会话修改本工作流、同步源码讲解，并以带 `[agnes-live-test]` 的明确标记提交推送固定分支；每次共四项探测，普通提交不使用 Secret。空提交或只改说明文档不满足路径过滤，不应为猜测模型 ID 批量触发。
+
+有 Actions 调度权限时也可手动运行：`gh workflow run agnes-connectivity.yml --ref arena/01a08bf5-codemax-platform -f live_chat=true`。不需要交出 GitHub token、切换/合并默认分支或关闭证书校验。
+
+若继续确认 Agnes embedding，向官方支持询问：是否开放 `/v1/embeddings`、确切模型 ID、当前账号权限、请求示例及费用/限额。提供脱敏时间与 HTTP 状态，不发送 key。官方目录未列出相关说明与本次 500，只能支持“尚未确认可用”，不能支持“确定不存在”。
+
+## 6. 免费 embedding 候选与本项目建议
+
+核对日期：2026-09-13。**聊天模型像客服负责写回答；embedding 模型像索引员，把问题转成数字向量，帮助找到意思相近的 FAQ。两者不必来自同一家。** 让聊天模型编造数字数组，不等于可靠的向量检索。
+
+| 候选 | 真实向量能力与免费方式 | 代价/边界 |
+| --- | --- | --- |
+| **BGE-M3，经 Ollama 本地运行** | 官方模型支持多语言检索；Ollama ID `bge-m3`，下载约 1.2GB。本地推理不付云 API 调用费 | 占 CPU/RAM/磁盘/电力，文件大小不是运行内存；不是免费云托管服务，速度需在本机验 |
+| **Qwen3-Embedding-0.6B，经 Ollama 本地运行** | 专门的多语言文本向量模型；Ollama ID `qwen3-embedding:0.6b`，当前 Q8 文件约 639MB，本地无 API 账单 | 小体积候选，不保证比 BGE-M3 在本项目更准；官方建议查询任务指令，需按查询/文档用途适配与标定 |
+| **Google Gemini Embedding 2** | 官方 `gemini-embedding-2` 提供原生 `embedContent`；价格页 Standard 文本输入 Free Tier 为 Free of charge | 独立 Google key、账号/地区资格和项目额度；不是无限免费，Batch 没有该免费层；面向 EEA/瑞士/英国用户的 API 应用受付费服务条款限制 |
+
+官方依据：
+
+- BGE：[官方模型说明](https://huggingface.co/BAAI/bge-m3)、[Ollama 模型页](https://ollama.com/library/bge-m3)。支持 100 多种语言、原模型 dense 向量维度 1024；Ollama 接口输出范围不能从原模型的稀疏/多向量能力直接推定。
+- Qwen：[官方 0.6B 模型说明](https://huggingface.co/Qwen/Qwen3-Embedding-0.6B)、[Ollama 对应版本](https://ollama.com/library/qwen3-embedding:0.6b)。不要把 8B 的评测成绩或维度冒充 0.6B 的效果。
+- Ollama：[OpenAI 兼容文档](https://docs.ollama.com/api/openai-compatibility)明确支持 `/v1/embeddings` 的 model、字符串/字符串数组 input；也有原生 `/api/embed`。本项目只需 dense 向量，不必为此引入大型 Python 推理依赖。
+- Gemini：[向量文档](https://ai.google.dev/gemini-api/docs/embeddings)、[价格表](https://ai.google.dev/gemini-api/docs/pricing#gemini-embedding-2)、[限额](https://ai.google.dev/gemini-api/docs/rate-limits)、[地区](https://ai.google.dev/gemini-api/docs/available-regions)、[条款](https://ai.google.dev/gemini-api/terms)。RPM/TPM/RPD 按项目限制，实际额度在 AI Studio 查，不能通过多 key 叠加。丹麦在地区清单中，但地区可用不等于免费上线许可。
+
+**Gemini 的重要限制：** 当前条款要求面向欧洲经济区、瑞士或英国用户开放 API 应用时使用 Paid Services（API 项目关联有效账单账户），不能把价格表的免费栏当作免费上线承诺。免费服务一般涉及数据改进用途，但 EEA/瑞士/英国用户的数据处理有付费条款例外；不要一概说所有免费用户的数据都用于训练。学习测试只用非敏感示例，正式客户数据先核对适用条款。其 OpenAI 兼容页目前示例使用 `gemini-embedding-2-preview`，与原生文档/价格表的 `gemini-embedding-2` 不同，不能未经实测就承诺只改基址即可接入。
+
+硅基流动另有官方 embeddings API，但本轮未确认 **当前免费**的具体托管型号/价格，国内和国际站清单也不能混用；不把旧博客中的“免费 BGE-M3”当成今天可用的承诺，暂不列为已确认免费推荐。
+
+### 推荐路线，不等于本轮已安装
+
+优先考虑 **Agnes 聊天 + 本地 BGE-M3 向量**；更在意文件体积可比较 Qwen3-Embedding-0.6B。两者都只是候选，尚未在你的 Windows 或此项目实际部署，不宣称 FAQ 准确率已经通过。
+
+后续接入需把向量 base URL/key 与聊天配置分开。**现在不能把 LLM_BASE_URL 改成 Ollama 来“顺便开启向量”，那会把 Agnes 聊天也改走。** 本轮只改诊断与证据，不安装 Ollama、不增加依赖/schema、不更换聊天提供方，也没有伪造尚不存在的配置变量。
+
+本地 Ollama 一般由 Python 后端调用同机服务；不能让浏览器访问它自己的 localhost，也不能为了远端预览把无鉴权 Ollama 端口直接暴露到公网。现有 probe CLI 强制 HTTPS，不能直接拿它测默认本机 HTTP Ollama；接入时需专门设计仅本机允许 HTTP 的边界，不全面放宽远端校验。
+
+实际启用前要用真实中文 FAQ 正例、近义句和易混淆负例验证向量格式、相关性与阈值，再重新生成索引；现有 0.55 不是跨模型通用标准。替换模型、维度或查询预处理后不能混用旧向量。
+
+完整执行记录与下一步统一见[阶段记录](../manager/stages/agnes-integration.md)。

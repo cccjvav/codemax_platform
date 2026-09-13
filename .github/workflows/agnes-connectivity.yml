@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
     inputs:
       live_chat:
-        description: "Run two small chat/Mermaid requests using repository secret AGNES_API_KEY"
+        description: "Run model listing, chat, Mermaid and one embedding probe using repository secret AGNES_API_KEY"
         required: true
         default: false
         type: boolean

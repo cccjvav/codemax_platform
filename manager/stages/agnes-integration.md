@@ -15,8 +15,10 @@
 - 同环境 api.github.com 返回 HTTP/2 200；Agnes 的 wiki/platform 域名也无法通过此运行时 curl 建立 HTTPS。不是模型字段或业务数据库导致，尚未定位实际断开的网关/出口设备。
 - GitHub runner 对照已执行：[run 34767857601](https://github.com/cccjvav/codemax_platform/actions/runs/34767857601)，代码提交 `4b221ebfa9c528531a3b834029449cd3ec1ead19`。curl 得到 HTTP=401、curl_exit=0，随后同一提交/锁定依赖的 Python connectivity 步骤 success；无 key、保留 TLS 校验。`live-chat` 为 skipped，不能算已鉴权。后续仅拓展调度入口，HTTP/Python实现未变。
 - 结论：已获得可用的远端诊断/后续测试路径，问题收敛到 Arena 直连环境的 TLS/网络路径差异，不是项目 JSON 或默认模型引起这次握手断开；还没定位具体网关策略，也未修复 Arena 直连。
-- 鉴权与真实模型：恢复后的沙箱没有保存原 key。不会伪造已验证状态，也不要求换 key；读取仓库 Secret 元数据返回 HTTP 403 Resource not accessible by integration，不能确认它是否已配置；这不是 GitHub 登录失效或 Agnes 拒绝 key 的证据。调度 Actions API 同样返回 403；已增加用户授权的显式标记提交入口，利用可用的固定分支 push 触发，普通提交不发真实请求。由用户在私有设置确认/保存原 key 后继续，不索要 GitHub token。
-- FAQ 向量/标定：提供方公开文档尚未确认，默认禁用，不作为聊天不可用的理由。
+- 鉴权与真实模型：用户确认仓库 Secret 已设置后，使用固定分支明确标记推送完成真实调用。首次 run [34769292339](https://github.com/cccjvav/codemax_platform/actions/runs/34769292339)（`aeb4fb2`）四模式退出 0/0/0/1；为解决日志下载受阻，第二次加入已脱敏摘要的 notice，[34769446500](https://github.com/cccjvav/codemax_platform/actions/runs/34769446500)（`bba8ab0`）取得具体证据：模型列表通过（12 ID）、chat 4 字符非空、Mermaid 287 字符且前缀通过、embedding HTTP 500。无原始正文或 key 输出；Secret 只进入执行步骤。原 key 不需要再配置，也不索要 GitHub token。
+- 第二次 keyless curl HTTP 200/退出0、同提交锁定 Python connectivity 成功；首次 keyless HTTP 401，不能把其变化当作账号鉴权结论。模型清单：agnes-2.5-pro-alpha、agnes-video-2.5-flash、agnes-3.0-flash、agnes-image-2.1-flash、agnes-video-2.5、agnes-2.0-flash、agnes-image-2.0-flash、agnes-2.5-flash、agnes-2.5-pro、agnes-2.5-pro-beta、agnes-video-v2.0、agnes-image-2.5-flash。清单不是能力认证，旧模型出现在清单中也不覆盖官方弃用说明。
+- 向量探测只用已知聊天 ID agnes-2.5-flash，开关只对该子进程生效。HTTP 500 不证明平台无向量模型；当前正确结论是“未取得有效向量、未确认受支持的 embedding ID”。不批量猜 ID 或调用其他收费模型。FAQ 向量/标定仍未验收，不影响已通过的聊天检查。
+- 免费替代候选、额度/地区/隐私与跨提供方实现边界见[接入说明第 6 节](../../docs/AGNES_AI.md#6-免费-embedding-候选与本项目建议)。推荐保留 Agnes 聊天，待确认后考虑本地 BGE-M3；更小候选 Qwen3-Embedding-0.6B，云免费额度候选 Gemini Embedding 2 受条款限制。本轮没有安装或实测这些候选。
 
 ## 验证与交付
 
@@ -26,8 +28,9 @@
 - 140 文件/1489 段解释，零待补；41 文档页、244 源码页，不作为语义或真机认证。
 - 内存变异：去掉关闭向量保护→1 failed；错误正文回显→7 failed；connectivity 保留 key→5 failed。原实现不落盘改坏，恢复/原实现定向通过。
 - 网络工作流和最终提交六项 CI 需绑定各自实际 headSha；最终消息给出结果/链接，不继承旧提交绿色状态。
-- Linux/Node/合成向量并不代替 Windows、Mermaid 浏览器或真实账号测试。
+- Linux/Node/合成向量并不代替 Windows、Mermaid 浏览器或真实向量标定；带 Secret 的 chat/图前缀检查已另行取证。
+- 本次诊断增量：Ruff、125 项定向通过；Linux Bash 离线抽取真实 helper 验证退出码、notice 转义与4000字符上限，吞退出码变异被拒绝。静态工作流合同覆盖四项调用/子进程开关和 notice 边界。
 
 ## 元复盘与后续
 
-本轮教训：网页通道可达不等于运行时 TLS 可达；应把网络诊断和鉴权调用分开，并用手动私有 secret 入口解决凭据无法跨环境恢复的问题，而不是将 key 写进仓库。既有工作流已要求分层证据，此次无需再为此升级 Skill 版本。分环境对照已确认 GitHub runner 可达；下一步是通过私有 Secret 提供原 key，在该可达路径做真实聊天/Mermaid；向量增强待官方支持证据。
+本轮教训：网页通道可达不等于运行时 TLS 可达；应把网络诊断和鉴权调用分开，并用手动私有 secret 入口解决凭据无法跨环境恢复的问题，而不是将 key 写进仓库。既有工作流已要求分层证据，此次无需再为此升级 Skill 版本。分环境对照已确认 GitHub runner 可达；真实聊天/图前缀检查已经完成；下一步是用户选择向量候选后再做独立配置接入、真实向量与中文 FAQ 标定，并保留 Windows/浏览器验收。新增教训是 HTTP 500 和目录缺项都不能证明能力不存在；可用、协议通过、语义准确度与免费条款要分别取证。既有 Skill 已要求分层证据和日志替代取证，此次不再机械升版本。
