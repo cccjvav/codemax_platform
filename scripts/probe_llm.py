@@ -1,6 +1,6 @@
 """Explicit, low-volume live probes. Never run from the normal pytest/CI suite.
 
-Run from the repository root: python scripts/probe_llm.py models|chat|mermaid|embeddings
+Run from the repository root: python scripts/probe_llm.py connectivity|models|chat|mermaid|embeddings
 Reads the private root .env; environment variables take precedence. No key CLI flag.
 """
 from __future__ import annotations
@@ -27,9 +27,9 @@ def configured_client(mode: str) -> LLMClient:
     base = config.LLM_BASE_URL.strip().rstrip('/')
     model = config.LLM_MODEL.strip()
     embed = config.LLM_EMBED_MODEL.strip()
-    if 'LLM_BASE_URL' not in config.model_fields_set:
+    if mode != 'connectivity' and 'LLM_BASE_URL' not in config.model_fields_set:
         raise ValueError('Explicitly configure the intended provider LLM_BASE_URL')
-    if not key:
+    if mode != 'connectivity' and not key:
         raise ValueError('Missing LLM_API_KEY in private .env or environment')
     parsed = urlsplit(base)
     if (parsed.scheme != 'https' or not parsed.hostname or parsed.username is not None
@@ -40,16 +40,22 @@ def configured_client(mode: str) -> LLMClient:
         raise ValueError('Set LLM_MODEL to an exact provider-supported chat model ID')
     if mode == 'embeddings' and (not embed or 'LLM_EMBED_MODEL' not in config.model_fields_set):
         raise ValueError('Set LLM_EMBED_MODEL to a confirmed embedding model ID')
-    return LLMClient(api_key=key, base_url=base, model=model, embed_model=embed, timeout=30.0)
+    if mode == 'embeddings' and not config.LLM_EMBED_ENABLED:
+        raise ValueError('Enable LLM_EMBED_ENABLED only after confirming provider support')
+    return LLMClient(api_key=key if mode != 'connectivity' else '', base_url=base, model=model, embed_model=embed, timeout=30.0)
 
 
 async def probe(mode: str, client: LLMClient) -> None:
     """One request per mode; fixed non-sensitive prompts, no DB, no automatic retries."""
-    if mode == 'models':
+    if mode == 'connectivity':
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=False, transport=client.transport) as http:
+            response = await http.get(client.base_url + '/models')
+        print(f'HTTP REACHED: {response.status_code}; TLS verified, no key sent; not an authentication/model test')
+    elif mode == 'models':
         async with httpx.AsyncClient(timeout=30.0, follow_redirects=False, transport=client.transport) as http:
             response = await http.get(client.base_url + '/models', headers={'Authorization': 'Bearer ' + client.api_key})
         if response.status_code != 200:
-            raise ValueError(f'Model listing HTTP {response.status_code}; response body withheld')
+            raise LLMError('Model listing request failed', category='http', status_code=response.status_code)
         data = response.json()
         rows = data.get('data') if isinstance(data, dict) else None
         if not isinstance(rows, list) or not rows:
@@ -75,14 +81,17 @@ async def probe(mode: str, client: LLMClient) -> None:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('models', 'chat', 'mermaid', 'embeddings'))
+    parser.add_argument('mode', choices=('connectivity', 'models', 'chat', 'mermaid', 'embeddings'))
     args = parser.parse_args(argv)
     try:
         client = configured_client(args.mode)
         asyncio.run(probe(args.mode, client))
     except (httpx.HTTPError, LLMError, ValueError, OSError) as error:
         # Neither response bodies nor exception messages are printed: upstream errors may echo secrets.
-        print(f'PROBE FAILED: {type(error).__name__}; no success claimed. See Windows guide troubleshooting.', file=sys.stderr)
+        category = error.category if isinstance(error, LLMError) else type(error).__name__
+        status = f' HTTP {error.status_code}' if isinstance(error, LLMError) and error.status_code else ''
+        cause = f' ({type(error.__cause__).__name__})' if error.__cause__ else ''
+        print(f'PROBE FAILED: {category}{status}{cause}; body withheld. See Windows guide troubleshooting.', file=sys.stderr)
         return 1
     return 0
 

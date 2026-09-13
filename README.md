@@ -196,6 +196,8 @@ start docs\site\index.html
 
 ## 模块职责
 
+默认模型提供方为 Agnes AI：`agnes-2.5-flash`，保留 OpenAI Chat Completions 兼容协议；向量 FAQ 默认关闭。已有私有 `.env` 不会自动覆盖，迁移/网络诊断见 [Agnes 接入](docs/AGNES_AI.md)。
+
 项目入口：安装、配置、构建、运行与部署；代码导航见 docs/README.md。
 
 ## 文件与入口
@@ -208,12 +210,12 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `9fe29d4eff0a` | L1–L25 |
-| [`.env.example`](.env.example) | `6713c4cc4728` | L1–L113 |
+| [`.env.example`](.env.example) | `5c76558c963e` | L1–L108 |
 | [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
-| [`main.py`](main.py) | `976473de883b` | L1–L71 |
+| [`main.py`](main.py) | `a57b8f8a067a` | L1–L71 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

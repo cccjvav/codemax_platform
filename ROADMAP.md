@@ -1,3 +1,5 @@
+> 当前模型默认改为 Agnes 2.5 Flash；embedding 默认关闭。适配与实测边界见[当前阶段](manager/stages/agnes-integration.md)，历史模型/测试记录不作替换。
+
 > 2026-09-13 当前增量：[Windows 新手逐步验收](Windows新手逐步验收.md)；远端模型实测边界、管理元复盘与后续执行统一见[阶段记录](manager/stages/windows-acceptance.md)。旧阶段表不是当前状态副本。
 
 > 2026-09-12 新手复盘：[学习入口](docs/CODE_READING_GUIDE.md) 与源码旁分段讲解已完成纳入范围的全量覆盖；生成站 reading.html 展示分段来源及严格门禁，不等于所有语义已独立认证。

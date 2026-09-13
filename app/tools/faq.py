@@ -310,6 +310,9 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
     「退回词袋」，而不是「客服功能挂掉」。启动流程不能因为一个可选增强而拒绝起服务。
     """
     global _SEMANTIC, _SEMANTIC_NORM, _SEMANTIC_KEY
+    if not settings.LLM_EMBED_ENABLED:
+        reset_semantic_index()
+        return False
     # 只给预热这一步换短超时，不动全局 client：对话调用该等就得等。
     # 用 replace 造副本而不是改属性 —— 改全局实例会让测试之间互相污染。
     client = _with_warm_up_timeout(client)
@@ -338,7 +341,7 @@ async def warm_semantic_index(client: LLMClient = default_llm) -> bool:
 
 def semantic_ready() -> bool:
     """语义索引是否可用（供上层决定走哪条路、供测试断言）。"""
-    return _SEMANTIC is not None
+    return settings.LLM_EMBED_ENABLED and _SEMANTIC is not None
 
 
 def reset_semantic_index() -> None:
@@ -358,7 +361,7 @@ async def semantic_search(
     「语义检索不可用」（该回落）和「语义检索跑了但没相关内容」（该转人工）。
     用空列表会把这两件事混成一件，上层就没法做正确的兜底。
     """
-    if _SEMANTIC is None or _semantic_key(client) != _SEMANTIC_KEY or not query.strip():
+    if not settings.LLM_EMBED_ENABLED or _SEMANTIC is None or _semantic_key(client) != _SEMANTIC_KEY or not query.strip():
         return None
     key, vectors, norms, corpus = _SEMANTIC_KEY, _SEMANTIC, _SEMANTIC_NORM, FAQS
     try:
@@ -366,7 +369,7 @@ async def semantic_search(
     except LLMError as exc:
         _semantic_logger.info("查询向量化失败，本次退回词袋：%s", exc)
         return None
-    if key != _SEMANTIC_KEY or not qv or not qv[0]:
+    if not settings.LLM_EMBED_ENABLED or key != _SEMANTIC_KEY or not qv or not qv[0]:
         return None
     q = qv[0]
     if len(q) != len(vectors[0]) or any(not math.isfinite(x) for x in q):

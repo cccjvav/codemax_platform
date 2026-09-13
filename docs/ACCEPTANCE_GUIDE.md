@@ -2,6 +2,8 @@
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](../Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
+当前默认提供方已改为 **Agnes 2.5 Flash**，向量增强默认关闭；基址、模型、旧 `.env` 迁移与分层诊断见 [Agnes 接入说明](AGNES_AI.md)。不要因配置聊天 key 就执行向量标定。
+
 适用入口：[Windows + conda 指南](WINDOWS_CONDA.md)。本手册是**待执行步骤和通过标准**，不是已经执行完的报告。每项记录通过/失败/未执行/不适用及原因；未启用的功能不能为了“全绿”伪装成通过。
 
 ## 1. 是否只能在 Windows 上验收？
@@ -156,7 +158,7 @@ manual 模式需要真实核账流程：展示的是个人收款码，平台不�
 
 ## 7. MODEL：实际模型与阈值标定
 
-只有要启用模型能力时才需要真实 key。在**应用的本地开发目录**私密 `.env` 配置 LLM_API_KEY、LLM_BASE_URL、LLM_MODEL、LLM_EMBED_MODEL；对话与向量模型不是同一个参数。请求可能付费，不提供生产客户资料作样本。
+只有要启用模型能力时才需要真实 key。在**应用的本地开发目录**私密 `.env` 配置 LLM_API_KEY、LLM_BASE_URL、LLM_MODEL；LLM_EMBED_ENABLED=false、LLM_EMBED_MODEL 留空为当前默认；对话与向量模型不是同一个参数。请求可能付费，不提供生产客户资料作样本。
 
 真实阈值测试的 skip 判定读取进程环境，仅在 `.env` 填 key 可能仍被跳过。以下命令先加载 `.env` 再让 pytest 收集，且只运行该一条实际模型用例：
 

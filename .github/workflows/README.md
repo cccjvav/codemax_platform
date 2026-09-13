@@ -2,10 +2,12 @@
 
 ## 模块职责
 
-`ci.yml` 是当前唯一工作流，push 与 pull_request 触发。同一 ref 的新运行可取消旧运行；取消不是通过。
+`ci.yml` 是当前常规六项 CI 工作流，push 与 pull_request 触发。同一 ref 的新运行可取消旧运行；取消不是通过。
 判断交付时检查 headSha、整体 conclusion 与每个 job，而不是只看分支上最近一条绿色记录。
 
 ## 文件与入口
+
+`agnes-connectivity.yml` 是独立网络对照，不改变六项 CI：固定分支修改本工作流时仅运行无凭证 curl，保留 TLS 校验、不跟重定向、记录 HTTP 与退出码；失败非零。curl 可达后用同一提交、Python3.11及锁定依赖复验无 key 连通性；只有 workflow_dispatch 显式 live_chat=true 时才执行两次带凭证的固定示例调用，AGNES_API_KEY 只在最后一步注入，不传给安装阶段。此 job 的跳过不是真实模型通过。
 
 | Job | 做什么 | 边界 |
 | --- | --- | --- |
@@ -23,6 +25,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
+| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `59e20acc5504` | L1–L66 |
 | [`.github/workflows/ci.yml`](ci.yml) | `38969a98f87b` | L1–L306 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

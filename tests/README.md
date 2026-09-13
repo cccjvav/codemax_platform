@@ -9,6 +9,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ## 文件与入口
 
+`test_agnes_integration.py` 验证 Agnes 默认值/模板一致、实际 LLMClient 非流式协议、HTTP分类与正文脱敏、关闭向量时零请求且不使用缓存、无密钥连通性模式以及 GitHub 真实请求只能手动启用。全部是离线断言，不伪装账号实测。语义测试的隔离 fixture 显式打开增强，真实标定的收集开关仍取实际配置，不因测试 fixture 自动解锁网络。
+
 `test_probe_llm.py` 用虚构 key / MockTransport 核对单次探测的端点、方法、模型与固定输入、配置优先级、TLS基址/显式选择前置要求、重定向不转发、畸形响应和密钥回显脱敏；没有真实请求，不替代模型标定。`test_docs_site.py` 另检查 Skill 源/副本逐字一致和全部 Skill 提交/验证代码块不恢复旧分支、全量暂存、自动合并、固定 passed 数或旧 HANDOVER 编号。
 
 ### 全局 fixture 与辅助函数
@@ -47,6 +49,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`tests/conftest.py`](conftest.py) | `c70cb44c495d` | L1–L212 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
+| [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `dc709b791d8f` | L1–L167 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `173f70aa70a9` | L1–L327 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
@@ -65,9 +68,9 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_er_page.py`](test_er_page.py) | `85003015e498` | L1–L176 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
-| [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `9c4111f977a0` | L1–L605 |
+| [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `5238ce5719c4` | L1–L207 |
-| [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `56e85b17742f` | L1–L213 |
+| [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `de4540b98674` | L1–L323 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `96bc978f5dc2` | L1–L157 |
@@ -77,13 +80,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_order_state.py`](test_order_state.py) | `7deb8e28ef91` | L1–L134 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
-| [`tests/test_probe_llm.py`](test_probe_llm.py) | `565df46c3f02` | L1–L153 |
+| [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `344be2cad4cf` | L1–L124 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
-| [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `2b2173f2571c` | L1–L340 |
+| [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `0a36d6860d03` | L1–L455 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `76a98525c2db` | L1–L179 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |

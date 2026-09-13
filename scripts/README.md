@@ -8,7 +8,7 @@
 
 ### probe_llm.py
 
-用户显式运行的低量外部模型探测，不由 CI 自动联网。`configured_client(mode)` 每次用中央 Settings 读取私有根 `.env`（进程变量优先），要求明确提供方基址及对应模型而非悄悄用默认模型；拒绝非 HTTPS、userinfo、query/fragment 和坏端口。`probe(mode, client)` 每模式一次请求，models 校验列表结构且不跟重定向，其余复用 LLMClient 的响应/向量/前缀合同。输出只留摘要、转义脱敏模型 ID；`main(argv)` 要求显式模式，失败只打印类型并非零退出，避免异常正文带回 key。脚本先加入仓库根路径才能导入 app（对应 E402），不改全局 Python 路径配置。
+用户显式运行的低量外部模型探测，普通 CI 不自动联网；独立 Agnes 诊断工作流仅手动授权时运行真实 chat/Mermaid。`configured_client(mode)` 每次用中央 Settings 读取私有根 `.env`（进程变量优先），鉴权探测要求明确提供方基址及对应模型而非悄悄用默认模型；拒绝非 HTTPS、userinfo、query/fragment 和坏端口。connectivity 模式无需 key，强制不发送 Authorization，只证明 HTTPS/HTTP 可达；embedding 模式还需显式开关。`probe(mode, client)` 每模式一次请求，models 校验列表结构且不跟重定向，其余复用 LLMClient 的响应/向量/前缀合同。输出只留摘要、转义脱敏模型 ID；`main(argv)` 要求显式模式，失败打印安全类别/HTTP状态/原因类型并非零退出，避免异常正文带回 key。脚本先加入仓库根路径才能导入 app（对应 E402），不改全局 Python 路径配置。
 
 执行方式及实际联调边界见 [新手指南](../Windows新手逐步验收.md) 第 13 节；离线回归见 `tests/test_probe_llm.py`，不是远端兼容证明。
 
@@ -62,11 +62,11 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `d65c48ad3991` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `c7cae4aa8f1c` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
-| [`scripts/probe_llm.py`](probe_llm.py) | `5805f42b6e88` | L1–L91 |
+| [`scripts/probe_llm.py`](probe_llm.py) | `0ae5958877a2` | L1–L100 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

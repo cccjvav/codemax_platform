@@ -9,6 +9,8 @@
 
 ## 文件与入口
 
+Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_ENABLED=false、向量模型为空，0.55 仅是启用前待标定阈值。环境/.env 仍可显式覆盖，不自动改写用户私有配置。详细迁移见 [Agnes 接入](../docs/AGNES_AI.md)。
+
 ### 配置与会话
 
 | 入口 | 输入与结果 | 副作用、失败与调用要求 |
@@ -99,7 +101,7 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `793b6335c51d` | L1–L142 |
+| [`app/config.py`](config.py) | `e730621e66ef` | L1–L135 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9817d188d978` | L1–L105 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |

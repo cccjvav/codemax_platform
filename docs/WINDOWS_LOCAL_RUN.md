@@ -2,6 +2,8 @@
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](../Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
+当前默认提供方已改为 **Agnes 2.5 Flash**，向量增强默认关闭；基址、模型、旧 `.env` 迁移与分层诊断见 [Agnes 接入说明](AGNES_AI.md)。不要因配置聊天 key 就执行向量标定。
+
 你使用 **conda** 时，请从 [Windows + conda：运行、维护与测试](WINDOWS_CONDA.md) 开始；不需要 `.venv`。该指南覆盖解释器核对、依赖安装、PostgreSQL、新库初始化、每日启动、环境维护、SQLite/真实 PG 测试及文档构建。
 
 浏览器、Word、Drawio、客服、订单、模型和上线检查见 [验收手册](ACCEPTANCE_GUIDE.md)。这些验收并不都只能在 Windows 执行；本机验收与跨平台 CI、外部服务联调分别记录，不能互相代替。

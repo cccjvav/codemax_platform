@@ -1,6 +1,6 @@
 """可注入的 OpenAI 兼容模型客户端与 Mermaid 文本生成。
 
-配置 base_url、对话与向量模型后仍需验证供应商协议。测试使用替身，不默认调用真实服务。
+默认 Agnes 2.5 Flash；向量增强默认关闭，启用前仍需验证供应商协议。测试使用替身，不默认调用真实服务。
 结构校验不证明模型输出事实正确；Mermaid 前缀检查也不是完整语法解析。"""
 from __future__ import annotations
 
@@ -37,24 +37,27 @@ _FENCE = re.compile(r"```(?:mermaid|md)?[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL | re
 
 
 class LLMError(RuntimeError):
-    """LLM 调用失败（未配置密钥 / 网络 / 非 200 / 返回体缺字段 / 内容不是 Mermaid）。"""
+    """安全的错误摘要与分类；不把提供方正文/凭证写进日志或 HTTP 错误。"""
+
+    def __init__(self, message: str, *, category: str = "response", status_code: int | None = None):
+        super().__init__(message)
+        self.category = category
+        self.status_code = status_code
 
 
 @dataclass
 class LLMClient:
     api_key: str = ""
-    base_url: str = "https://api.openai.com/v1"
-    model: str = "gpt-4o-mini"
-    # 向量化必须单独指定模型：chat 用的 gpt-4o-mini 这类对话模型**不能**打 /embeddings，
-    # 拿它去请求会得到 400 model_not_supported。换本地 Ollama 时这里要换成
-    # 例如 nomic-embed-text，两个字段是独立的。
-    embed_model: str = "text-embedding-3-small"
+    base_url: str = "https://apihub.agnes-ai.com/v1"
+    model: str = "agnes-2.5-flash"
+    # 不假设 Agnes 提供向量模型，调用时必须明确填写支持的 ID。
+    embed_model: str = ""
     timeout: float = 60.0
     transport: httpx.AsyncBaseTransport | None = field(default=None, repr=False)  # 测试注入 MockTransport
 
     async def chat(self, system: str, user: str) -> str:
         if not self.api_key:
-            raise LLMError("未配置 LLM_API_KEY，无法调用大模型")
+            raise LLMError("未配置 LLM_API_KEY，无法调用大模型", category="configuration")
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
             try:
                 resp = await client.post(
@@ -63,6 +66,7 @@ class LLMClient:
                     json={
                         "model": self.model,
                         "temperature": 0.2,
+                        "stream": False,
                         "messages": [
                             {"role": "system", "content": system},
                             {"role": "user", "content": user},
@@ -70,9 +74,9 @@ class LLMClient:
                     },
                 )
             except httpx.HTTPError as exc:
-                raise LLMError(f"调用大模型失败：{exc}") from exc
+                raise LLMError(f"调用大模型失败（{type(exc).__name__}）", category="network") from exc
         if resp.status_code != 200:
-            raise LLMError(f"大模型返回 {resp.status_code}：{resp.text[:200]}")
+            raise LLMError(f"大模型返回 {resp.status_code}", category="http", status_code=resp.status_code)
         try:
             content = resp.json()["choices"][0]["message"]["content"]
             if not isinstance(content, str) or not content.strip() or len(content) > 100000:
@@ -93,7 +97,9 @@ class LLMClient:
         if not texts:
             return []
         if not self.api_key:
-            raise LLMError("未配置 LLM_API_KEY，无法调用向量化接口")
+            raise LLMError("未配置 LLM_API_KEY，无法调用向量化接口", category="configuration")
+        if not self.embed_model.strip():
+            raise LLMError("未配置 LLM_EMBED_MODEL，不能调用向量化接口", category="configuration")
         async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
             try:
                 resp = await client.post(
@@ -102,9 +108,9 @@ class LLMClient:
                     json={"model": self.embed_model, "input": texts},
                 )
             except httpx.HTTPError as exc:
-                raise LLMError(f"调用向量化接口失败：{exc}") from exc
+                raise LLMError(f"调用向量化接口失败（{type(exc).__name__}）", category="network") from exc
         if resp.status_code != 200:
-            raise LLMError(f"向量化接口返回 {resp.status_code}：{resp.text[:200]}")
+            raise LLMError(f"向量化接口返回 {resp.status_code}", category="http", status_code=resp.status_code)
         try:
             rows = resp.json()["data"]
             if len(rows) != len(texts):
@@ -146,7 +152,7 @@ async def generate_mermaid(text: str, llm: LLMClient = default_llm) -> str:
     reply = await llm.chat(SYSTEM_PROMPT, text)
     diagram = _strip_fence(reply)
     if not diagram.startswith(_DIAGRAM_TYPES):
-        raise LLMError(f"大模型未返回 Mermaid 图，实际输出：{diagram[:120]}")
+        raise LLMError("大模型未返回 Mermaid 图的认可类型前缀")
     return diagram
 
 

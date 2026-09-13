@@ -117,3 +117,7 @@ Manifest：清单；fingerprint：内容指纹；contract test：接口约定测
 ## 继续阅读
 
 [公共后端](../app/README.md) · [路由契约](../app/routers/README.md) · [工具算法](../app/tools/README.md) · [前端](../app/frontend/README.md) · [测试](../tests/README.md) · [部署](DEPLOY.md) · [文档质量复核](DOCUMENTATION_QUALITY_REVIEW.md)
+
+## Agnes 模型配置边界
+
+默认使用 Agnes 2.5 Flash 的 Chat Completions，显式非流式请求，输出仍经项目合同校验；“OpenAI 兼容”是协议，不代表请求发给 OpenAI。LLM_EMBED_ENABLED 默认 false，FAQ 预热/查询会短路且不发外部向量请求；开启增强必须另行确认同一提供方的向量能力并标定，不能把聊天模型当向量模型。错误保留 network/http/response/configuration 类别和 HTTP 状态，不打印提供方错误正文。接口、默认值与部署迁移详见 [Agnes 接入说明](AGNES_AI.md)。

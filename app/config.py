@@ -19,22 +19,15 @@ class Settings(BaseSettings):
     # 0 或负数会让签出来的令牌立刻过期，用户表现为「登录成功但下一秒就掉线」
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, gt=0)
 
-    # LLM（S2-01-2）：OpenAI 兼容接口，换 base_url 即可对接国产模型 / 本地 Ollama
+    # LLM：默认使用用户选定的 Agnes；保留 OpenAI 兼容协议，不自动尝试付费模型。
     LLM_API_KEY: str = ""
-    LLM_BASE_URL: str = "https://api.openai.com/v1"
-    LLM_MODEL: str = "gpt-4o-mini"
-    # 向量模型必须单独配：对话模型不能打 /embeddings（S4-02-5 的语义 FAQ 检索用）。
-    # 本地 Ollama 换成 nomic-embed-text 之类，与 LLM_MODEL 互不影响。
-    LLM_EMBED_MODEL: str = "text-embedding-3-small"
-    # 语义检索判定阈值（S4-02-5）。**必须跟着 embedding 模型走**：换模型
-    # （text-embedding-3-small → nomic-embed-text → bge-m3）会让余弦分布整体
-    # 漂移，沿用旧阈值要么永远不命中、要么乱命中。所以它是配置项而不是常量。
-    # ⚠ 0.55 目前是按 text-embedding-3-small 的经验值，**尚未实测标定**，
-    # 上线前跑 tests/test_faq_semantic.py 的标定用例重新量（TD-206）。
-    # 余弦相似度只在 [0,1]（faq.semantic_search 里负值被截断为 0），所以越界值
-    # 必然是误配，而且是**静默**的那种：>1 等于悄悄关掉语义检索，
-    # <0 则几乎所有问句都被当成命中 FAQ —— 后者会把本该转人工的问题
-    # 短路成一个自信的错答。配置项一旦暴露给 .env，就必须把范围一起约束住。
+    LLM_BASE_URL: str = "https://apihub.agnes-ai.com/v1"
+    LLM_MODEL: str = "agnes-2.5-flash"
+    # Agnes 公开文档未确认 embedding；显式关闭，不因填写聊天 key 而预热。
+    LLM_EMBED_ENABLED: bool = False
+    LLM_EMBED_MODEL: str = ""
+    # 仅在提供方已证实支持 embedding 时启用；阈值须随真实模型重新标定。
+    # 保留历史 0.55 作为待标定配置值，不声称它适合 Agnes。
     LLM_SEMANTIC_THRESHOLD: float = Field(0.55, ge=0.0, le=1.0)
 
     # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL

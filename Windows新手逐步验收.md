@@ -331,6 +331,7 @@ set SECRET_KEY=
 set LLM_API_KEY=
 set LLM_BASE_URL=
 set LLM_MODEL=
+set LLM_EMBED_ENABLED=
 set LLM_EMBED_MODEL=
 python -c "from app.config import settings as s; print(s.ENV, s.DB_HOST, s.DB_PORT, s.DB_NAME, s.SHOP_PAY_MODE); assert not s.DATABASE_URL and s.ENV == 'development' and s.DB_HOST == '127.0.0.1' and s.DB_NAME == 'codemax_walkthrough' and s.SHOP_PAY_MODE == 'mock', 'STOP: check private demo database configuration'"
 ```
@@ -451,42 +452,48 @@ CREATE TABLE purchase (
 
 **本节才会向外部提供方发请求，可能消耗免费额度。** 每个探测命令只发一次请求，无自动重试；只发送脚本内固定的简单示例，不上传源码/真实客户资料。密钥不作为命令行参数，不放进 Git。
 
+当前 Agnes 配置与网络诊断进展见 [Agnes 接入说明](docs/AGNES_AI.md)。下列为历史探测边界，不代表已完成鉴权：
+
 2026-09-13 远端探测说明：已获用户授权并尝试使用所给 key 访问 `/v1/models`，但该沙箱对提供方发生 TLS 握手断开，未取得 HTTP 响应，无法判断 key 或模型权限。网页工具能访问不等于 Python 能连通。没有据此宣称聊天/embedding不受支持，亦未将它们记为通过；记录见[本轮状态](manager/stages/windows-acceptance.md)。你的本机可能有不同结果，按下面实际执行。
 
-### 13.1 先只查模型列表
+### 13.1 配置 Agnes，先做无密钥连通性诊断
 
 在应用目录的私有 `.env` 修改：
 
 ```dotenv
 LLM_API_KEY=在本机粘贴你授权使用的key
 LLM_BASE_URL=https://apihub.agnes-ai.com/v1
-LLM_MODEL=
+LLM_MODEL=agnes-2.5-flash
+LLM_EMBED_ENABLED=false
 LLM_EMBED_MODEL=
 ```
 
-中文占位符必须替换；后两项暂留空，**不猜模型名**。保存后，终端 A 先清除本终端可能继承的同名变量，确保读取你刚写的私有 `.env`：
+中文密钥占位符必须替换；聊天模型使用官方 ID `agnes-2.5-flash`，embedding 默认关闭并留空，不猜向量模型名。保存后，终端 A 先清除本终端可能继承的同名变量，确保读取你刚写的私有 `.env`：
 
 ```cmd
 set LLM_API_KEY=
 set LLM_BASE_URL=
 set LLM_MODEL=
+set LLM_EMBED_ENABLED=
 set LLM_EMBED_MODEL=
 ```
 
 再执行：
 
 ```cmd
-python scripts/probe_llm.py models
+python scripts/probe_llm.py connectivity
 echo %ERRORLEVEL%
 ```
 
-应退出 0，输出 `MODEL IDS` 与模型 ID 列表。这里只是列举，不证明每个模型都支持聊天/向量化。复制模型 ID 时不含输出外面的引号，以供应商控制台的实际 ID 为准。
+应退出 0 并显示 `HTTP REACHED` 和 HTTP 状态码。该模式不发送 key，401/403/404/503 都只证明已得到 HTTP 响应，不证明鉴权或模型通过。若 TLS/ConnectError，先处理网络路径，不重装数据库或换模型来修 TLS。
+
+模型列表可选运行 `python scripts/probe_llm.py models`；已知官方模型 ID 时，**不要求 models 成功才测 chat**。若 models 返回 404 而 chat 正常，不把聊天判为失败。
 
 若提示 `PROBE FAILED`，先查看本节末尾排错表；脚本刻意不回显服务端错误正文，防止其意外带回 key。不要加 `verify=False`、`curl -k` 或把 key 放 URL 查询参数。
 
 ### 13.2 聊天与 Mermaid 分开确认
 
-从模型列表和提供方说明确认一个聊天模型 ID，写到 `.env` 的 `LLM_MODEL=` 后并保存：
+Agnes 官方 Chat Completions 的模型 ID 已确认为 `agnes-2.5-flash`，上一步已填好。不要保留旧 `gpt-4o-mini`，也不要切到付费 Pro 来碰运气。现在逐个执行：
 
 ```cmd
 python scripts/probe_llm.py chat
@@ -506,7 +513,7 @@ echo %ERRORLEVEL%
 
 ### 13.3 embedding 只有确认支持时再测
 
-向量模型是另外一种能力。只有提供方明确支持 `/embeddings`，且给出你账号能用的 embedding 模型 ID，才填写 `LLM_EMBED_MODEL`：
+Agnes 当前公开文档没有确认向量模型，本次默认**跳过本节及 13.4**，词袋 FAQ 和聊天仍可用。未来只有提供方明确支持同一基址/账号的 `/embeddings` 并给出具体 ID，才同时设 `LLM_EMBED_ENABLED=true` 和 `LLM_EMBED_MODEL=实际ID`，再执行：
 
 ```cmd
 python scripts/probe_llm.py embeddings
@@ -533,8 +540,8 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise S
 | --- | --- | --- |
 | `ConnectError` / TLS / SSL EOF | 检查这台机器能否访问提供方；保留异常类型，不关闭证书校验 | 不是已验证的 key 无效，也不是模型必然不支持 |
 | `TimeoutException` | 稍后人工重试一次，核提供方状态；不要无限循环耗额度 | 不是项目所有功能都坏了 |
-| `ValueError` | 查 key/HTTPS基址/模式对应模型ID是否填好；模型列表可能非兼容JSON | 不是靠换数据库解决 |
-| `LLMError` | 已识别的网络/HTTP/输出合同失败；去提供方控制台看请求状态、权限、额度和模型支持 | 不应打印 Authorization 或原始响应到公开日志 |
+| `ValueError` / `configuration` | 查 key/HTTPS基址/模式对应模型ID是否填好；模型列表可能非兼容JSON | 不是靠换数据库解决 |
+| `http HTTP 401/402/403/404/429/5xx` | 依次核对 key、余额/权限、模型/端点、限频及服务状态；不打印错误正文 | 不应打印 Authorization 或原始响应到公开日志 |
 | 本机能打开登录网页，Python仍连接失败 | 分开记录网页地址、API地址和进程出站结果 | 网页通不保证API通，更不保证embedding可用 |
 
 ## 14. 在干净副本运行自动化验收
@@ -574,6 +581,7 @@ set SECRET_KEY=
 set LLM_API_KEY=
 set LLM_BASE_URL=
 set LLM_MODEL=
+set LLM_EMBED_ENABLED=
 set LLM_EMBED_MODEL=
 set LLM_SEMANTIC_THRESHOLD=
 ```

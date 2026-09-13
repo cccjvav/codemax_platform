@@ -59,7 +59,9 @@ _VECTORS = {FAQS[0].q: [1.0, 0.0, 0.0], "贵不贵": [0.96, 0.12, 0.0]}
 
 
 @pytest.fixture(autouse=True)
-def _isolate_index():
+def _isolate_index(monkeypatch):
+    from app.config import settings
+    monkeypatch.setattr(settings, "LLM_EMBED_ENABLED", True)
     reset_semantic_index()
     yield
     reset_semantic_index()

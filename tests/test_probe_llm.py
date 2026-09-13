@@ -13,7 +13,7 @@ from scripts import probe_llm as probe
 def configured(monkeypatch):
     for name, value in {
         'LLM_API_KEY': 'test-only-key', 'LLM_BASE_URL': 'https://provider.invalid/v1',
-        'LLM_MODEL': 'test-chat', 'LLM_EMBED_MODEL': 'test-embedding',
+        'LLM_MODEL': 'test-chat', 'LLM_EMBED_MODEL': 'test-embedding', 'LLM_EMBED_ENABLED': 'true',
     }.items():
         monkeypatch.setenv(name, value)
     settings_class = probe.Settings
@@ -92,8 +92,9 @@ def test_models_do_not_forward_credentials_to_redirect(configured):
 
     client = probe.configured_client('models')
     client.transport = httpx.MockTransport(redirect)
-    with pytest.raises(ValueError, match='HTTP 302'):
+    with pytest.raises(probe.LLMError) as result:
         asyncio.run(probe.probe('models', client))
+    assert result.value.status_code == 302
     assert len(requests) == 1
 
 
@@ -129,7 +130,7 @@ def test_non_mermaid_content_and_invalid_vectors_fail():
         ('mermaid', {'choices': [{'message': {'content': 'plain prose'}}]}),
         ('embeddings', {'data': [{'index': 0, 'embedding': []}, {'index': 1, 'embedding': []}]}),
     ]:
-        client = LLMClient(api_key='test-only-key', transport=httpx.MockTransport(
+        client = LLMClient(api_key='test-only-key', embed_model='test-embedding', transport=httpx.MockTransport(
             lambda request, data=payload: httpx.Response(200, json=data)))
         with pytest.raises(probe.LLMError):
             asyncio.run(probe.probe(mode, client))

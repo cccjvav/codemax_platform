@@ -398,3 +398,10 @@ parse_page 不再先截短 title/author/published_at；由保存前的统一校�
 管理参考 web_agent project-manager v13，映射 CONTEXT 职责到现有 HANDOVER，按需阶段/经验，不复制全局状态与隐私收集方案。权威源在本仓库 codemax-workflow Skill，同步 manager 副本，两个配套收尾 Skill 修正失效例子；阶段关闭/已解决 P1 必须元复盘，有依据才改源/升版本/同步/留进化记录。回看条件是再次出现流程诱发返工或状态分叉，不等于自动模型训练或已安装全局技能。
 
 本轮收尾复查再把健康检查扩至全部现行 Skill，修正 schema/新工具页中的旧配方和通用测试仅凭 docstring 的建议；本仓库工作流升 v2.1，命令门禁同步扩大，详细触发与验证记 manager/experience.md。
+
+
+### TD-236：Agnes 默认、向量增强显式关闭及分环境诊断（2026-09-13）
+
+按用户选择把 Settings、LLMClient 与 .env.example 默认改为 Agnes 2.5 Flash，保留 OpenAI Chat Completions 兼容协议并显式非流式；不自动试付费模型。无公开向量能力证明，因此增加 LLM_EMBED_ENABLED 默认 false，预热/查询真正短路，客户端拒绝空向量模型；测试显式启用合成向量而不删原断言。真实标定必须显式开启并具备 key/模型，避免聊天 key 触发未知接口。代价是升级后向量增强需主动重新启用并标定；暂不增加另一提供方的独立凭证，未来有确认的需求再拆客户端。
+
+连接问题先区分 TCP、TLS、HTTP、鉴权、输出合同。错误分类保留 HTTP 状态与安全原因类型，不回显上游正文。独立工作流只因自身改变或手动请求触发无 key 对照；两次真实调用仅 manual opt-in + GitHub Secret，避免普通 CI 外部依赖/消耗额度。源/文档相符不是实测成功，GitHub 可达也不能倒推 Arena 出口已恢复；不以关闭证书或第三方转发 key 绕过。

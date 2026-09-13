@@ -23,6 +23,8 @@
 
 ### LLM 协议
 
+默认 Agnes 2.5 Flash，Chat Completions 显式 stream=false；LLMError 初始化保留 category/status_code，网络错误不伪造 HTTP 状态，HTTP 失败不打印服务端正文，Mermaid 错误不回显生成内容。embeddings 非空输入须显式配置向量模型。
+
 | 入口 | 契约 | 失败与注意事项 |
 | --- | --- | --- |
 | `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、网络/HTTP 异常、响应结构错误抛 LLMError；不证明模型内容事实正确 |
@@ -68,7 +70,7 @@
 | `search(query, k)` | Top-k FaqHit，含 score 和 confidence | score 是当前候选集的融合排序分，不可跨查询比较；confidence 是绝对启发式置信分，也不是统计校准概率 |
 | `_normalize` / `_saturate` | 相对归一化／有界饱和值 | 分别服务排序与置信度，不能混用阈值 |
 | `semantic_threshold` / `calibrate_threshold` | 当前配置阈值／正负样本分数的分隔值 | 空样本、分布重叠或安全间隔不足拒绝计算；默认经验值未代替真实模型标定 |
-| `_semantic_key` / `warm_semantic_index` | 提供方、凭据摘要、模型、transport、语料绑定的向量缓存；成功 bool | 预热客户端超时最多 5 秒；模型失败回退词袋；先验证完整向量再发布，不把半个索引提供给查询 |
+| `_semantic_key` / `warm_semantic_index` | 提供方、凭据摘要、模型、transport、语料绑定的向量缓存；成功 bool | LLM_EMBED_ENABLED 默认 false，关闭时预热不请求并清缓存、查询不使用语义结果；开启后预热超时最多 5 秒，模型失败回退词袋；先验证完整向量再发布，不把半个索引提供给查询 |
 | `semantic_ready` / `semantic_search` | 是否有索引／语义 Top-k；不可用 None | ready 不证明任意客户端/语料都兼容；查询持有一致快照，等待期间缓存换代则回退；None 与“有结果但不相关”不同 |
 | `reset_semantic_index` | 清空语义向量、模长、键 | 用于测试/显式失效，不负责重建词袋索引 |
 | `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答 |
@@ -85,9 +87,9 @@
 | [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
 | [`app/tools/crawler.py`](crawler.py) | `d90c8f402324` | L1–L285 |
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
-| [`app/tools/faq.py`](faq.py) | `92d4a215ceb2` | L1–L392 |
+| [`app/tools/faq.py`](faq.py) | `02f79e9ef5b7` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
-| [`app/tools/llm.py`](llm.py) | `b8c288c5b3cb` | L1–L156 |
+| [`app/tools/llm.py`](llm.py) | `cefd84c87b86` | L1–L162 |
 | [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `0919561c4417` | L1–L336 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |

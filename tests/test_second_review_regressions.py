@@ -220,7 +220,7 @@ async def test_llm_chat_contract_is_validated(content):
 async def test_embedding_indices_dimensions_and_values_are_validated(rows):
     transport = httpx.MockTransport(lambda request: httpx.Response(200, json={'data': rows}))
     with pytest.raises(LLMError):
-        await LLMClient(api_key='test', transport=transport).embeddings(['a', 'b'])
+        await LLMClient(api_key='test', embed_model='test-embedding', transport=transport).embeddings(['a', 'b'])
 
 
 @pytest.mark.asyncio
@@ -285,8 +285,9 @@ def test_callback_preserves_query_and_consent_is_bound_to_user():
 
 
 @pytest.mark.asyncio
-async def test_semantic_cache_credentials_and_concurrent_replacement():
+async def test_semantic_cache_credentials_and_concurrent_replacement(monkeypatch):
     from app.tools import faq
+    monkeypatch.setattr(faq.settings, "LLM_EMBED_ENABLED", True)
     started, release = asyncio.Event(), asyncio.Event()
     class Provider:
         api_key = 'test-account-a'

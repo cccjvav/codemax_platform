@@ -25,7 +25,7 @@ enforce_production_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # 语义 FAQ 索引预热（S4-02-5）：把 12 条 FAQ 向量化一次缓存住。
+    # 可选语义 FAQ 预热：LLM_EMBED_ENABLED 默认 false，关闭时不发网络请求。
     # **best-effort** —— 没配 LLM_API_KEY、网络不通、模型不支持中文，任何一条都只
     # 意味着退回词袋检索，绝不让启动失败。
     #

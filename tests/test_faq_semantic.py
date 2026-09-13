@@ -33,8 +33,9 @@ from app.tools.llm import LLMClient, LLMError, default_llm
 
 
 @pytest.fixture(autouse=True)
-def _isolate_index():
+def _isolate_index(monkeypatch):
     """每个用例前后都清空进程内缓存 —— 它是全局变量，不隔离会互相污染。"""
+    monkeypatch.setattr(settings, "LLM_EMBED_ENABLED", True)
     reset_semantic_index()
     yield
     reset_semantic_index()
@@ -44,6 +45,7 @@ def _client(handler) -> LLMClient:
     return LLMClient(
         api_key="test-key",
         base_url="http://llm.test/v1",
+        embed_model="test-embedding",
         transport=httpx.MockTransport(handler),
     )
 
@@ -92,7 +94,7 @@ async def test_embeddings_without_api_key_raises_llm_error():
         await c.embeddings(["x"])
 
 
-async def test_embeddings_non_200_raises_with_status_and_body():
+async def test_embeddings_non_200_raises_with_status_without_body():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(400, text="model_not_supported")
 
@@ -513,8 +515,8 @@ async def test_calibration_harness_catches_a_paraphrase_matching_the_wrong_faq()
 
 
 @pytest.mark.skipif(
-    not __import__("os").environ.get("LLM_API_KEY"),
-    reason="标定需要真实 embedding API：设 LLM_API_KEY 后运行（做法见 TD-206）",
+    not (settings.LLM_EMBED_ENABLED and settings.LLM_API_KEY and settings.LLM_EMBED_MODEL),
+    reason="标定需要显式开启 LLM_EMBED_ENABLED 并配置真实 key/向量模型；Agnes 默认不启用",
 )
 async def test_calibrate_semantic_threshold():
     """**上线前必须跑一次**，并且要带 `-s` 才看得到打印出来的分布。

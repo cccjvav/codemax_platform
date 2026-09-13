@@ -1,0 +1,66 @@
+# Independent provider diagnostics; never a replacement for the six normal CI jobs.
+# Push only runs the keyless network check. Authenticated requests require manual opt-in.
+name: Agnes connectivity diagnosis
+on:
+  workflow_dispatch:
+    inputs:
+      live_chat:
+        description: "Run two small chat/Mermaid requests using repository secret AGNES_API_KEY"
+        required: true
+        default: false
+        type: boolean
+  push:
+    branches: ["arena/01a08bf5-codemax-platform"]
+    paths: [".github/workflows/agnes-connectivity.yml"]
+permissions:
+  contents: read
+jobs:
+  connectivity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Probe HTTPS without credentials
+        id: network
+        shell: bash
+        run: |
+          set +e
+          status=$(curl --silent --show-error --connect-timeout 10 --max-time 25 \
+            --output /dev/null --write-out '%{http_code}' \
+            https://apihub.agnes-ai.com/v1/models)
+          result=$?
+          echo "http=$status" >> "$GITHUB_OUTPUT"
+          echo "curl_exit=$result" >> "$GITHUB_OUTPUT"
+          echo "::notice title=Agnes network result::HTTP=$status curl_exit=$result; no key sent"
+          exit "$result"
+      - name: HTTP=${{ steps.network.outputs.http }} curl_exit=${{ steps.network.outputs.curl_exit }} (not authentication)
+        if: always()
+        run: echo 'This job only checks verified HTTPS reachability, not account or model capability.'
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install the same pinned project client without credentials
+        run: python -m pip install -r requirements.txt
+      - name: Same Python client, verified HTTPS, no Authorization
+        run: python scripts/probe_llm.py connectivity
+  live-chat:
+    if: github.event_name == 'workflow_dispatch' && inputs.live_chat
+    needs: connectivity
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install project dependencies without provider credentials
+        run: python -m pip install -r requirements.txt
+      - name: Two opt-in requests, no response content in logs
+        env:
+          LLM_API_KEY: ${{ secrets.AGNES_API_KEY }}
+          LLM_BASE_URL: https://apihub.agnes-ai.com/v1
+          LLM_MODEL: agnes-2.5-flash
+          LLM_EMBED_ENABLED: "false"
+        run: |
+          python scripts/probe_llm.py chat
+          python scripts/probe_llm.py mermaid
