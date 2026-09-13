@@ -1,5 +1,7 @@
 # 文档导航
 
+> 第一次在 Windows 操作？请从 [Windows 新手逐步验收](../Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
+
 [项目总览](../总览.md) · [架构讲解](ARCHITECTURE_GUIDE.md) · [文档策略](DOCUMENTATION_POLICY.md)
 
 ## 模块职责
@@ -35,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `8b6a8286a0f7` | L1–L8171 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `d2d2497b1594` | L1–L8320 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

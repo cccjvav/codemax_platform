@@ -2,8 +2,9 @@
 name: pre-commit-review
 description: >
   提交前的自查闭环：残留引用 → 硬编码 → 死代码 → 时区 → 变异测试 → 文档同步。
-  发现问题就地修，修完重跑，直到零问题再提交。
+  发现问题就地修，修完重跑；无法验证的范围如实记录。
   Trigger: 任何代码改动完成、准备 git commit 之前。
+version: 2.0
 ---
 
 # pre-commit-review
@@ -19,7 +20,7 @@ description: >
 - [ ] 文档里提到的路径/命令是否还成立（`grep -rn "<旧名>" --include="*.md"`）
 
 ### 2. 硬编码
-- [ ] 密钥、token、密码 —— 一律走 `.env`，新增项同时进 `.env.example`
+- [ ] 密钥、token、密码 —— 只用私有被忽略 `.env` 或临时进程变量；`.env.example` 只放配置名与无真实秘密的示例
 - [ ] URL / 域名 —— 走 `settings.SITE_BASE_URL` 等配置，不写死
 - [ ] 金额 —— 走 `settings.SHOP_PRODUCT_AMOUNT`，单位是**分**
 - [ ] 魔法数字 —— 提成常量或写清来源（例如限流窗口、TTL）
@@ -45,12 +46,12 @@ description: >
       `rowcount` 写法，TD 里有记录）
 
 ### 6. 测试
-- [ ] `.venv/bin/python -m pytest -q` → **本轮新增后全量通过**（当前基线见 HANDOVER.md）
-- [ ] 改了表结构 → 真库那一遍也要跑（**当前基线见 HANDOVER.md**，配方见 `HANDOVER.md` §9）
+- [ ] `.venv/bin/python -m pytest -q` → **本轮新增后全量通过**（数量以本次输出记入阶段证据）
+- [ ] 改了表结构 → 真库那一遍也要跑（专用可丢弃库，配方见 `docs/ACCEPTANCE_GUIDE.md`）
 - [ ] 修 bug → 补了一个能复现该 bug 的回归测试
 - [ ] **关键逻辑做过变异测试**：把实现改坏 → 确认对应用例变红 → 改回来。
       记录格式：`去掉 X → N 个用例红`。
-      抓不到的变异要如实写成「等价变异，不可捕获」，**不得当成已覆盖**
+      抓不到的变异先区分等价变异、测试缺口或运行错误；不能一律归为等价，更不能当成已覆盖。
 
 ### 7. 不该进仓库的东西
 - [ ] `.env`、`storage/`、`__pycache__/`、`.venv/`、临时脚本（`/tmp/*.py` 不要挪进仓库）
@@ -58,9 +59,9 @@ description: >
 
 ### 8. 文档同步
 - [ ] 新取舍 → `TECH_DECISIONS.md` 加 TD-xx（含放弃了什么 / 代价 / 何时回头改）
-- [ ] TD 总数变了 → `AGENTS.md` 与 `HANDOVER.md` 里的计数一起改
-- [ ] 新踩的坑 → `HANDOVER.md` §6
-- [ ] 完成/未完成状态 → `HANDOVER.md` §7 与 `ROADMAP.md`
+- [ ] 不在多个入口手工同步 TD/测试数量；本次证据只放对应阶段文件
+- [ ] 可复用经验 → `manager/experience.md`；阶段关闭/已解决 P1 按 codemax-workflow 做元复盘
+- [ ] `HANDOVER.md` 保持当前导航；阶段状态 → `manager/stages/`，不复制一份冲突的路线图
 
 ## 提交
 
@@ -73,8 +74,8 @@ git push origin "$branch"
 git ls-remote origin "refs/heads/$branch"   # 确认远端 tip
 ```
 
-改动若涉及 `.github/workflows/**`：本会话已有 Workflows 写权限、可直接 push，
-但 CI 是全局闸门，push 完必须 `gh run watch <run_id> --exit-status` 看到绿才算完成。
+CI 是全局闸门，每次 push 都必须核对最终 SHA 的全部 jobs（不仅修改 workflow 时）；
+按 `finish-subitem` 筛选 headSha，再 watch/view。历史绿色或只看两个 job 都不算本次完成。
 
 ## 收尾报告（提交后必须给出）
 

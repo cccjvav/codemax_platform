@@ -433,3 +433,22 @@ def test_cli_missing_mistune_is_clear_nonzero_error(monkeypatch, capsys, argumen
     monkeypatch.setattr(sys, 'argv', ['build_docs_site.py', *arguments])
     assert bds.main() == 1
     assert '均需要 mistune' in capsys.readouterr().err
+
+
+def test_workflow_distribution_matches_the_editable_source():
+    source = bds.ROOT / '.claude/skills/codemax-workflow/SKILL.md'
+    mirror = bds.ROOT / 'manager/SKILL.md'
+    assert source.read_bytes() == mirror.read_bytes(), 'Edit the workflow source, then synchronize its mirror'
+    text = source.read_text(encoding='utf-8')
+    assert 'version:' in text and '元复盘' in text and '已解决 P1' in text
+    assert (bds.ROOT / 'manager/experience.md').is_file()
+
+
+def test_current_skill_command_blocks_do_not_restore_obsolete_delivery_commands():
+    for name in ('codemax-workflow', 'pre-commit-review', 'finish-subitem'):
+        text = (bds.ROOT / f'.claude/skills/{name}/SKILL.md').read_text(encoding='utf-8')
+        blocks = re.findall(r'```(?:bash|cmd)\n(.*?)```', text, re.S)
+        for block in blocks:
+            assert 'git add -A' not in block
+            assert 'arena/01a0599b-codemax-platform' not in block
+            assert 'gh pr merge' not in block

@@ -1,10 +1,12 @@
 # 交接与恢复工作
 
-学习入口：[从零复盘](docs/CODE_READING_GUIDE.md)；文档站 reading.html 列明人工精读与待补项。已有核心链路精读，不代表全部文件/函数已逐段讲完；历史报告不作为当前实现认证。
+学习入口：[从零复盘](docs/CODE_READING_GUIDE.md)；文档站 reading.html 列明人工精读与待补项。已有全部纳入范围非生成非空源码的连续分段讲解与来源标识；覆盖不等于每句语义已认证，历史报告也不作为当前实现认证。
 
-Windows 本机以 [conda 指南](docs/WINDOWS_CONDA.md) 为主要路径；剩余项目依 [验收手册](docs/ACCEPTANCE_GUIDE.md) 分层执行，并非全部只能在 Windows。未执行项不转写成通过记录。
+Windows 本机先按 [新手逐步验收](Windows新手逐步验收.md) 一路操作，深入维护见 [conda 指南](docs/WINDOWS_CONDA.md)；剩余项目依 [验收手册](docs/ACCEPTANCE_GUIDE.md) 分层执行，并非全部只能在 Windows。未执行项不转写成通过记录。
 
 ## 当前入口
+
+- 当前本地验收/外部模型任务：[阶段证据与下一步](manager/stages/windows-acceptance.md)；[管理约定与经验](manager/README.md)
 
 - 第二批实现与迁移：[验收记录](docs/SECOND_REPAIR_ACCEPTANCE.md)
 - 文档语义重做、排版和 CI 修复：[质量复核](docs/DOCUMENTATION_QUALITY_REVIEW.md)

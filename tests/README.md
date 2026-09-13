@@ -9,6 +9,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ## 文件与入口
 
+`test_probe_llm.py` 用虚构 key / MockTransport 核对单次探测的端点、方法、模型与固定输入、配置优先级、TLS基址/显式选择前置要求、重定向不转发、畸形响应和密钥回显脱敏；没有真实请求，不替代模型标定。`test_docs_site.py` 另检查 Skill 源/副本逐字一致和提交代码块不恢复旧分支、全量暂存或自动合并。
+
 ### 全局 fixture 与辅助函数
 
 | 入口 | 职责与风险 |
@@ -55,7 +57,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `6ac29c96ae1b` | L1–L435 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `1f247cafa607` | L1–L454 |
 | [`tests/test_download.py`](test_download.py) | `0a05c879945a` | L1–L247 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -75,6 +77,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_order_state.py`](test_order_state.py) | `7deb8e28ef91` | L1–L134 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
+| [`tests/test_probe_llm.py`](test_probe_llm.py) | `565df46c3f02` | L1–L153 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `344be2cad4cf` | L1–L124 |

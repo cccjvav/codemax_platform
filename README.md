@@ -1,5 +1,7 @@
 # codemax_platform
 
+> 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
+
 > 2026-09-12：第二批修复、站内人工客服和文档门禁已实现。先读 [当前验收与迁移](docs/SECOND_REPAIR_ACCEPTANCE.md)、[文档方案比较](docs/DOCUMENTATION_POLICY.md)。存量库需要 0007/0008；旧会话重新登录。管理员和客户均从 `/support/center` 进入站内会话。历史测试数字不是本批结果。
 
 

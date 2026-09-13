@@ -6,6 +6,12 @@
 
 ## 文件与入口
 
+### probe_llm.py
+
+用户显式运行的低量外部模型探测，不由 CI 自动联网。`configured_client(mode)` 每次用中央 Settings 读取私有根 `.env`（进程变量优先），要求明确提供方基址及对应模型而非悄悄用默认模型；拒绝非 HTTPS、userinfo、query/fragment 和坏端口。`probe(mode, client)` 每模式一次请求，models 校验列表结构且不跟重定向，其余复用 LLMClient 的响应/向量/前缀合同。输出只留摘要、转义脱敏模型 ID；`main(argv)` 要求显式模式，失败只打印类型并非零退出，避免异常正文带回 key。脚本先加入仓库根路径才能导入 app（对应 E402），不改全局 Python 路径配置。
+
+执行方式及实际联调边界见 [新手指南](../Windows新手逐步验收.md) 第 13 节；离线回归见 `tests/test_probe_llm.py`，不是远端兼容证明。
+
 ### check_docs_contract.py
 
 | 函数 | 输入 → 输出 | 约束 |
@@ -56,10 +62,11 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `5542820d4d70` | L1–L1062 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `d65c48ad3991` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
+| [`scripts/probe_llm.py`](probe_llm.py) | `5805f42b6e88` | L1–L91 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

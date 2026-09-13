@@ -1,5 +1,7 @@
 # Windows + conda：运行、维护与测试
 
+> 第一次在 Windows 操作？请从 [Windows 新手逐步验收](../Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
+
 本指南适用于你的 conda 环境，不要求创建 `.venv`。使用 **Anaconda Prompt / Miniconda Prompt（cmd.exe）**，不是 PowerShell；每行单独执行。示例目录 `C:\work\codemax_platform` 请改为你的实际路径。
 
 conda 管理 Python 解释器和环境，项目依赖仍以 `requirements.txt` 与 `package-lock.json` 为准；不另维护一份容易漂移的 conda 包版本清单。本文命令已按仓库接口核对，但没有在你的 Windows/conda 环境实际执行，不能据此标记本机验收通过。

@@ -58,3 +58,7 @@ npm run build
 默认单实例；数据库锁不等于共享限流。网站账号角色是后端权限，不由前端控件或 JWT 自报决定。
 
 按需读取 .claude/skills：codemax-workflow、fastapi-python、python-testing、schema-sync、new-tool-page、pre-commit-review、finish-subitem；旧示例数字不作为现行验收标准。
+
+## 管理元复盘入口
+
+阶段关闭或已解决 P1 后执行 [本仓库工作流](manager/SKILL.md) 的元复盘，必要时修改权威源、升版本并同步副本；不是自动模型学习。全局当前导航仍在 HANDOVER，阶段证据与经验入口在 [manager](manager/README.md)，不复制竞争状态。

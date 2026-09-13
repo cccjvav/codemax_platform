@@ -1,4 +1,6 @@
-> 2026-09-12 新手复盘：[学习入口](docs/CODE_READING_GUIDE.md) 与源码旁分段讲解已补核心实例；全量精读缺口在生成站 reading.html，尚未声称全部函数/语句讲解完成。
+> 2026-09-13 当前增量：[Windows 新手逐步验收](Windows新手逐步验收.md)；远端模型实测边界、管理元复盘与后续执行统一见[阶段记录](manager/stages/windows-acceptance.md)。旧阶段表不是当前状态副本。
+
+> 2026-09-12 新手复盘：[学习入口](docs/CODE_READING_GUIDE.md) 与源码旁分段讲解已完成纳入范围的全量覆盖；生成站 reading.html 展示分段来源及严格门禁，不等于所有语义已独立认证。
 
 > 2026-09-12 本机补充：[conda 运行/维护/测试](docs/WINDOWS_CONDA.md) 与 [分层验收步骤](docs/ACCEPTANCE_GUIDE.md) 已补齐；Windows、浏览器和外部服务项目仍需实际执行留证，不因文档新增而变成通过。
 
