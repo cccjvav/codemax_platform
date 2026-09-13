@@ -86,7 +86,7 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "59e20acc5504546bc4deb1eeef3f44deb67834aca4e4474b0cda7a9f5feed138",
+      "sha256": "579dad62d5d3a3a3c4c441f159dc746b506cbd3f0c86a98be29d386aa64b9b16",
       "method": "manual",
       "blocks": [
         {
@@ -102,7 +102,7 @@
         {
           "end": 66,
           "title": "仅手动允许的真实请求",
-          "explanation": "live-chat仅workflow_dispatch且输入true、网络job成功后执行。checkout受控仓库和Python3.11，安装依赖阶段没有提供方secret；最后一步才注入AGNES_API_KEY，固定Agnes免费Flash目标并关闭embedding，依次调用现有脚本chat/mermaid两次非敏感请求。shell错误必须失败，脚本输出安全摘要；不写APIkey到文件或查询参数。"
+          "explanation": "live-chat 仅手动 workflow_dispatch+live_chat，或固定分支修改本工作流且提交说明有明确 [agnes-live-test] 标记时执行；普通push/PR不触发真实请求。标记提交是 Actions API 无调度权限时的用户授权替代入口，不使用持久开启标志。网络job成功后checkout受控代码/Python3.11，安装依赖不注入secret，最后一步才通过AGNES_API_KEY发送两条固定示例；不打印正文、不启用embedding。"
         }
       ]
     },
@@ -3586,7 +3586,7 @@
     },
     {
       "path": "tests/test_agnes_integration.py",
-      "sha256": "dc709b791d8f13b95fecbfd54e53e774d9c74d946903ed3072e8339c2fb1a1f7",
+      "sha256": "f78fec9ef98f5bf00279662c90a58139f7bfd1440f259bb7118343aee3f05984",
       "method": "manual",
       "blocks": [
         {
@@ -3650,9 +3650,9 @@
           "explanation": "429 正文回显虚构 key，注入 main 后必须退出1且 stderr含HTTP429而不含key；用户能够区分限频而无需公开完整服务端正文。"
         },
         {
-          "end": 167,
+          "end": 168,
           "title": "test_live_workflow_requires_manual_opt_in_and_scopes_secret",
-          "explanation": "BaseLoader 保留 YAML on 键，检查仅自身路径 push、无PR触发，真实job必须workflow_dispatch且live_chat，默认false。Secret只存在最后执行步骤，安装/无key诊断步骤都无它，并固定关闭embedding；保护CI不会意外消耗模型额度或把key带入安装日志。"
+          "explanation": "BaseLoader保留YAML on键，检查push严格限定固定分支/本文件、无PR触发。真实job条件必须是手动输入或显式标记提交，手动默认false；这支持Actions API无调度权限时仍通过受控push启动，不让普通提交自动消耗额度。断言Secret仅存在最后步骤，安装/无key诊断均无它，并固定关闭embedding。"
         }
       ]
     },

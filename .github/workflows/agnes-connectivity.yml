@@ -1,5 +1,5 @@
 # Independent provider diagnostics; never a replacement for the six normal CI jobs.
-# Push only runs the keyless network check. Authenticated requests require manual opt-in.
+# Ordinary pushes are keyless. Explicitly marked, authorized pushes may request live checks.
 name: Agnes connectivity diagnosis
 on:
   workflow_dispatch:
@@ -44,7 +44,7 @@ jobs:
       - name: Same Python client, verified HTTPS, no Authorization
         run: python scripts/probe_llm.py connectivity
   live-chat:
-    if: github.event_name == 'workflow_dispatch' && inputs.live_chat
+    if: (github.event_name == 'workflow_dispatch' && inputs.live_chat) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agnes-live-test]'))
     needs: connectivity
     runs-on: ubuntu-latest
     timeout-minutes: 5

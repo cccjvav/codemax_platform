@@ -98,10 +98,12 @@ echo %ERRORLEVEL%
 1. 只有修改该工作流的固定分支 push、或手动触发才运行，不污染常规六项 CI。
 2. 默认在 GitHub runner 无 key 请求同一 API，记录 HTTP 状态和 curl 退出码；随后用同一提交和锁定依赖的 Python 脚本复验，避免只对比不同 curl 程序。网络失败会失败，不把 000 伪装成可达。
 3. HTTP 状态也出现在步骤名称/notice，日志下载受阻时可从 GitHub job 元数据取证。
-4. 可选的真实 chat/Mermaid job **只在手动勾选 live_chat 时运行**；只在最后执行步骤注入 GitHub Secret，不给安装依赖步骤传 key。
+4. 可选的真实 chat/Mermaid job **只在手动勾选 live_chat，或修改工作流且提交说明明确带 `[agnes-live-test]` 标记时运行**；只在最后执行步骤注入 GitHub Secret，不给安装依赖步骤传 key。
 
 本轮已实测 GitHub runner 可达：curl HTTP 401/退出0，同一提交与锁定依赖的 Python 无密钥探测亦通过（[执行记录](https://github.com/cccjvav/codemax_platform/actions/runs/34767857601)，代码提交 `4b221eb`）。Arena 直连仍受阻；可以用这个远端入口继续测试，不必更换 Agnes。此处是可用替代路径，不声称已修复 Arena 出口或已定位具体断开设备。真实 key 没有存入本仓库或恢复后的沙箱，不能凭旧会话的授权制造一次不存在的鉴权成功。需要远端实测时，在 GitHub 项目 **Settings → Secrets and variables → Actions → New repository secret** 保存你原来的 key，名称 `AGNES_API_KEY`；这是私有凭据配置，不是更换 key。
 
-之后由 Actions 页面选择 **Agnes connectivity diagnosis → Run workflow**，分支必须为 `arena/01a08bf5-codemax-platform`，勾选 `live_chat`。也可以让本会话通过 `gh workflow run agnes-connectivity.yml --ref arena/01a08bf5-codemax-platform -f live_chat=true` 执行。普通 push 不会使用这个 secret，不运行真实模型测试。
+保存 Secret 后告诉本会话“已设置”。当前 GitHub 集成调度 Actions API 返回 403（不是认证过期），因此推荐由本会话修改本工作流中的受控请求注释、同步源码讲解，并以包含 `[agnes-live-test]` 的明确授权提交推送当前固定分支，触发两次实测。仅空提交或只改说明文档不满足工作流路径过滤；普通无标记提交不使用 Secret。
+
+有 Actions 调度权限时也可手动运行，分支必须为 `arena/01a08bf5-codemax-platform`：`gh workflow run agnes-connectivity.yml --ref arena/01a08bf5-codemax-platform -f live_chat=true`。如果网页没有 Run workflow 按钮或集成调度被拒绝，不需要为了此事交出 GitHub token、切换/合并默认分支或关闭安全校验，使用上述显式标记提交入口即可。
 
 **当前实际对照、鉴权和 CI 结果统一见[本轮阶段记录](../manager/stages/agnes-integration.md)。** GitHub 的网络 job 成功不代表两个真实请求已跑；live-chat skipped 必须写未执行。
