@@ -25,7 +25,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `96fa933128f3` | L1–L77 |
+| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `7e88ba567ceb` | L1–L88 |
 | [`.github/workflows/ci.yml`](ci.yml) | `38969a98f87b` | L1–L306 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -44,3 +44,5 @@ checkout 的源码 → 安装锁定依赖 → 检查/构建/测试 → 对应提
 改工作流时同步核对本表，不手写固定步骤数/秒数。完整本地命令见根 README 和 tests/README.md。
 
 本次用户确认 Secret 后，授权 job 还会读取一次模型列表、对已知 Agnes 2.5 Flash 做一次 embedding 兼容性探索；仅该子进程暂开增强，不改变应用默认。各退出码用 notice 分别记录，chat/Mermaid 为 job 成功条件；列表或探索失败不会伪装成通过。
+
+远端日志下载受限时，run_probe 把现有探测脚本已脱敏的摘要/模型 ID 转为有界、转义后的 notice，保留 HTTP 错误分类供 API 取证；不发布提供方原始正文，也不改变检查的退出码。

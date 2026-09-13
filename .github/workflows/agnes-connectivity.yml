@@ -64,14 +64,25 @@ jobs:
           LLM_EMBED_ENABLED: "false"
         run: |
           set +e
-          python scripts/probe_llm.py models
+          run_probe() {
+            label=$1
+            shift
+            output=$("$@" 2>&1)
+            result=$?
+            printf '%s\n' "$output"
+            # Only the probe's already-redacted summary/IDs; escape workflow command delimiters.
+            escaped=$(printf '%s' "$output" | python -c "import sys; print(sys.stdin.read()[:4000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A'))")
+            printf '::notice title=Agnes %s::%s\n' "$label" "$escaped"
+            return "$result"
+          }
+          run_probe models python scripts/probe_llm.py models
           models=$?
-          python scripts/probe_llm.py chat
+          run_probe chat python scripts/probe_llm.py chat
           chat=$?
-          python scripts/probe_llm.py mermaid
+          run_probe mermaid python scripts/probe_llm.py mermaid
           mermaid=$?
           # One diagnostic of the documented chat model, NOT a recommended embedding configuration.
-          LLM_EMBED_ENABLED=true LLM_EMBED_MODEL=agnes-2.5-flash python scripts/probe_llm.py embeddings
+          run_probe embedding env LLM_EMBED_ENABLED=true LLM_EMBED_MODEL=agnes-2.5-flash python scripts/probe_llm.py embeddings
           embedding=$?
           echo "::notice title=Agnes live results::models_exit=$models chat_exit=$chat mermaid_exit=$mermaid embedding_probe_exit=$embedding"
           test "$chat" -eq 0 && test "$mermaid" -eq 0

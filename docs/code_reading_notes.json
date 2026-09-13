@@ -86,7 +86,7 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "96fa933128f305da7798e697084c782bcae90622623eb69f2adf1ef04527ea1d",
+      "sha256": "7e88ba567cebc41f3b28b090382b4b5b6d604b03afaa230e682c4f5774b8033e",
       "method": "manual",
       "blocks": [
         {
@@ -100,9 +100,9 @@
           "explanation": "Ubuntu runner限时五分钟，无提供方key。先用curl保留系统证书校验、不跟重定向且丢弃正文，只取HTTP码和退出码；set+e保存失败证据后原码退出。GITHUB_OUTPUT、notice和always步骤名保留HTTP状态，下载日志受阻仍能读元数据。curl通后checkout同一提交、Python3.11安装相同依赖，再运行项目connectivity，以排除只换curl程序造成的误判。两种方式均不发送Authorization，401只证明HTTP可达，绝不是鉴权通过。"
         },
         {
-          "end": 77,
+          "end": 88,
           "title": "仅手动允许的真实请求",
-          "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。"
+          "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。 日志下载通道受阻时，run_probe捕获脚本已脱敏的摘要/ID，截断到4000字符并转义百分号与换行，发布notice取证；不捕获原始API响应或密钥。函数返回原退出码，最后仍由聊天/图表检查决定job结果，不能因为notice成功就掩盖探测失败。"
         }
       ]
     },
