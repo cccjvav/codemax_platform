@@ -396,3 +396,5 @@ parse_page 不再先截短 title/author/published_at；由保存前的统一校�
 在保留原 Conda/验收深入文档的前提下，以根目录 Windows新手逐步验收.md 为首次入口，明确 VS Code CMD、Conda Python、系统 Node 与各终端的工作目录。新建演示库与可丢弃测试库隔离，任何已存在/创建失败的库不继续 full_init；自动测试副本无真实 key。增加无新依赖的显式 probe CLI，复用 Settings/LLMClient，不改应用协议或默认模型；要求提供方/模型明确配置而非悄悄用默认值，拒绝不安全基址、不跟模型列表重定向，失败正文不打印。入口脚本为直接 python scripts/... 执行先加入根路径再导入 app，保留局部 E402 理由，而不要求用户额外设置 PYTHONPATH。代价是诊断信息较克制，HTTP失败详情要去提供方控制台核对；真实支持需实际联调而非 MockTransport。
 
 管理参考 web_agent project-manager v13，映射 CONTEXT 职责到现有 HANDOVER，按需阶段/经验，不复制全局状态与隐私收集方案。权威源在本仓库 codemax-workflow Skill，同步 manager 副本，两个配套收尾 Skill 修正失效例子；阶段关闭/已解决 P1 必须元复盘，有依据才改源/升版本/同步/留进化记录。回看条件是再次出现流程诱发返工或状态分叉，不等于自动模型训练或已安装全局技能。
+
+本轮收尾复查再把健康检查扩至全部现行 Skill，修正 schema/新工具页中的旧配方和通用测试仅凭 docstring 的建议；本仓库工作流升 v2.1，命令门禁同步扩大，详细触发与验证记 manager/experience.md。

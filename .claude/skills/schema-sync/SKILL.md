@@ -1,72 +1,32 @@
 ---
 name: schema-sync
-description: >
-  改数据库表结构时的跨文件同步检查单：ORM 模型、建表脚本、测试三处必须一起改。
-  Trigger: 新增列、删除列、重命名列、新增表、改列类型、加索引或外键。
+description: ORM、全量建表、增量迁移与业务约束同步；只在专用可丢弃库验证破坏性脚本。
+version: 2.1
 ---
 
-# schema-sync
+# 数据结构同步
 
-> **本项目的表结构有两个权威来源**：`app/models.py`（ORM）与
-> `database init/full_init.sql`（建表脚本）。两边手工同步，靠
-> `tests/test_schema_sync.py` 兜底。**它只比对「表名 + 列名」**
-> （见该文件的 `_sql_schema()` / `_orm_schema()`），
-> **不比类型、长度、NOT NULL、DEFAULT、索引** —— 类型写错测试不会报，必须自己核。
+先服从 AGENTS 的审批与数据边界。`app/models.py` 与 `database init/full_init.sql` 要同步；存量升级还要有对应增量迁移，不能用 full_init 代替升级。
 
-## 检查单（按顺序）
+## 修改前后逐项核对
 
-### 1. ORM 模型 — `app/models.py`
-- [ ] `Mapped[...]` 类型注解与 `mapped_column(...)` 一致
-- [ ] 新列要不要 `server_default=func.now()`（时间列的既有写法）
-- [ ] 外键用 `ForeignKey("表.列")`，不要手写裸列名
-- [ ] 列名 snake_case，与 SQL 侧完全一致（大小写也要一致）
+- [ ] 阅读实际模型、SQL、路由事务和测试：列类型/长度、空值、默认值、索引、外键与业务状态一起核，不只比名字。
+- [ ] `Mapped` 与 `mapped_column` 一致，时间列保持时区语义；外键引用和删除行为明确。
+- [ ] 新表同步 full_init 的建表/清理依赖顺序，按当前外键拓扑检查，不复制过期表名顺序。
+- [ ] **full_init 有 DROP TABLE**；连续执行两遍仅证明在干净可丢弃库中可重复重建，不是无损幂等升级。
+- [ ] 增量迁移说明前置版本、备份/停写要求、会话失效与重复执行副作用；不能仅凭 IF EXISTS 就称完全幂等。
+- [ ] fixture、权限/金额/状态/并发等业务用例同步，关键约束显式断言，而不是认为跑真 PG 就自动覆盖所有约束。
+- [ ] 人工讲解、目录 README、架构/迁移文档和必要 TD 同步；当前阶段记结果，不向 HANDOVER 失效章节追加固定表数。
 
-### 2. 建表脚本 — `database init/full_init.sql`
-- [ ] `CREATE TABLE` 里加同名列，类型与 ORM 对得上（`VARCHAR(n)` 的长度也要对）
-- [ ] **新表**要在文件开头的 `DROP TABLE IF EXISTS ... CASCADE` 段落里补一行，
-      且**子表排在父表前面**（现有顺序：article → diagram → oauth_code →
-      oauth_client → order → config → user）
-- [ ] 索引写在对应 `CREATE TABLE` 之后，命名 `idx_<表>_<列>`
-- [ ] 保持**幂等**：CI 会把整个脚本**连跑两遍**，第二遍必须同样成功
-      （`.github/workflows/ci.yml` 的「建表脚本在真 PostgreSQL 上执行」那一步）
+## 现有测试能证明什么
 
-### 3. 测试
-- [ ] `tests/test_schema_sync.py::test_columns_match_for_every_table` 会自动比列名，
-      两边不同步这里立刻红
-- [ ] ⚠️ `test_sys_diagram_shape` **硬编码了 sys_diagram 的完整列清单**——
-      动这张表必须同时改那行断言，否则会红
-- [ ] 用到该列的测试 fixture（`tests/conftest.py` 里的建对象辅助）要跟上
-- [ ] 新列若参与业务判断（状态、金额、时间），补一条针对它的用例
-
-### 4. 文档
-- [ ] 若这次改动是个取舍（例如「类型用 VARCHAR 不用 PG enum」），
-      去 `TECH_DECISIONS.md` 追加 TD-xx
-- [ ] `HANDOVER.md` §3 工程结构里若提到表数量，同步更新
-
-## 验证
+`tests/test_schema_sync.py` 比表集合与列集合，另有 `sys_diagram` 列清单、ORM 时间列时区与 SQL TIMESTAMPTZ/默认时间表达式检查。它不是完整 DDL 等价性证明，不覆盖任意类型、长度、全部默认值/索引/外键；新增这些约束要补对应测试。
 
 ```bash
 .venv/bin/python -m pytest tests/test_schema_sync.py -q
-.venv/bin/python -m pytest -q          # 全量：650 passed, 4 skipped
+.venv/bin/python -m pytest -q
 ```
 
-真库那一遍（起库配方见 `HANDOVER.md` §9）——**改表结构必须跑**，
-因为 SQLite 对类型和约束比 PostgreSQL 宽松得多：
+以上是 Linux 沙箱示例，数量以本次结果为准。真 PostgreSQL 必须再验，步骤与专用测试角色见 `docs/ACCEPTANCE_GUIDE.md`；Windows 的 CMD/Conda/密码交互方式见 `Windows新手逐步验收.md`。绝不将业务 DATABASE_URL 复制给 TEST_DATABASE_URL，不在 Skill 示例硬编码超级用户业务连接串。
 
-```bash
-TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-  .venv/bin/python -m pytest -q        # 563 passed, 2 skipped
-```
-
-## 已知会漏的（别指望测试）
-
-| 改了什么 | 测试会不会报 |
-| --- | --- |
-| 加/删/改**列名** | ✅ 会 |
-| 加/删**表** | ✅ 会 |
-| 改**列类型 / 长度** | ❌ 不会 |
-| 改 `NOT NULL` / `DEFAULT` | ❌ 不会 |
-| 加/删**索引** | ❌ 不会 |
-| 外键指向错表 | ❌ 不会（SQLite 默认不校验外键） |
-
-下面这几行只能靠真 PostgreSQL 跑一遍来兜。
+收尾按 codemax-workflow 与 finish-subitem，核对最终 SHA 全部 CI jobs。表结构变更需要的审批不因执行本 Skill 而自动获得。

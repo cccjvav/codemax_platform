@@ -1,12 +1,12 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.0
+version: 2.1
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.0，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.1，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
@@ -39,6 +39,8 @@ version: 2.0
 6. 元复盘没有替代功能验收；阻塞项目不打勾，阶段关闭也可以是“交付已完成、外部验收转后续”，必须说清。
 
 ## 管理健康检查
+
+检查范围包括全部现行 Skill（含 schema-sync、new-tool-page 和通用开发/测试约定），不能只审收尾文件；按实际源码核对例子，别仅搜索一个旧分支名。
 
 - 当前入口能否走到实际阶段？是否出现两份冲突的当前状态？
 - 现行命令是否引用旧分支、失效路径、固定测试数、只看部分 CI job？

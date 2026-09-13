@@ -4354,7 +4354,7 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "1f247cafa607bad3ad11c85cf0ee0aeb86f19df7b61ad3510c172f2392700b2f",
+      "sha256": "70ed5605ff6737c999612999dd1a8676169d08f8fe39529f90079301be3cdd89",
       "method": "guided",
       "blocks": [
         {
@@ -4503,9 +4503,9 @@
           "explanation": "从 bds.ROOT 定位权威 .claude Skill 和 manager/SKILL.md；按原始 bytes 比较，连换行差异也会被捕获，避免同一管理规则两处漂移。随后 UTF-8 读取源并检查版本声明、元复盘与已解决 P1 触发词，确认经验页存在。它验证可访问仓库副本，不证明全局安装或平台自动执行了规则。"
         },
         {
-          "end": 454,
+          "end": 456,
           "title": "拒绝恢复旧危险提交示例",
-          "explanation": "遍历三个现行流程 Skill，用 DOTALL 正则只取 bash/cmd 围栏中的可执行示例；分别拒绝 git add -A、上一会话旧分支和自动 gh pr merge。说明文字可以讲述旧坑，但操作框不能把坑恢复回来；检查范围是这三种已知回退，不是任意 shell 脚本安全证明。"
+          "explanation": "遍历全部现行 .claude/skills/*/SKILL.md，用 DOTALL 正则只取 bash/cmd 围栏中的命令；拒绝 git add -A、上一会话旧分支、自动 gh pr merge、固定数字 passed 和 HANDOVER 旧章节号。说明文字可以回顾旧坑，但可执行示例不能恢复它。glob 扩大到新增 Skill，避免只守三份收尾文件；检查这些已知回退不等于任意 shell 安全或所有文档语义已获证明。"
         }
       ]
     },

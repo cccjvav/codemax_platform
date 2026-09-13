@@ -7,6 +7,7 @@
 - [Windows新手逐步验收.md](../../Windows新手逐步验收.md)：VS Code 集成 CMD＋Conda＋系统 Node 的连续路线；独立演示库/测试库、建库失败停止、模拟支付、私人图、站内留言、模型与退出重启。
 - `scripts/probe_llm.py`：显式单次 models/chat/mermaid/embeddings 探测，复用项目 Settings/LLMClient；HTTPS、禁止带凭证/查询的基址、显式模型/提供方选择、不回显响应和异常正文。密钥只在私有忽略配置/环境中。
 - [管理工作流](../SKILL.md)、[经验](../experience.md)：映射现有 HANDOVER/ROADMAP，修正旧 Skill，增加元复盘，不新建竞争状态源。
+- 扩大健康检查至全部现行 Skill，另修 schema-sync/new-tool-page 旧示例和通用测试约定；不把签名/docstring 当测试依据。
 - 文档站导航、目录 README、受影响源码的连续段界与指纹同步；原 Windows/Conda/分层验收指南保留为深入参考。
 
 ## 实际远端提供方探测
@@ -38,6 +39,7 @@
 - 文档完整构建与 data-only 均通过：39 文档页、242 源码页；138 文件/1473 段连续讲解，零待补（不是语义认证）。
 - 受控内存变异：允许 models 跟重定向、打印异常正文、模拟 Skill 副本漂移，分别导致对应测试 1 failed；没有修改磁盘实现，全量使用原实现。
 - PostgreSQL 全量：809 passed、1 skipped，372.35 秒，退出码 0；独立无超级权限测试角色（rolsuper=false）与可丢弃 PostgreSQL 16.2 集群，已清理。仅真实 embedding 标定跳过。
+- 后续全 Skill 审阅仅改变管理文档与命令门禁覆盖范围，97 项定向回归重跑通过；注入 new-tool-page 固定 passed 例子的内存变异亦被拒绝（1 failed）。最新提交全量由精确 SHA CI 复验。
 - CI 权威证据是交付提交的 GitHub Actions 全部 jobs；最终交付消息提供精确 SHA/run 链接，不能用历史绿色替代，也不把自身提交哈希写入参与生成该哈希的本文。
 - Windows/VS Code/Conda、桌面 Word、浏览器 Drawio 与真人多账号流程：本 Linux 沙箱未执行，指南中的证据表保持未执行。
 - 真实支付/公网部署/云存储：不在本轮免费本地演示验收范围，没有新增已接通声明。
@@ -45,7 +47,7 @@
 ## 元复盘与下一步
 
 - [x] 复核参考 v13 与本仓库管理冲突；用现有 HANDOVER 承接 CONTEXT 职责，不另建全局状态。
-- [x] 发现旧 Skill 实质性缺陷，修权威源至本仓库 v2.0，同步可访问副本；记录[技能进化](../experience.md)。
+- [x] 发现旧 Skill 实质性缺陷，修权威源至本仓库 v2.1，同步可访问副本；记录[技能进化](../experience.md)。
 - [x] 完成本轮所有本地门禁与受控反例；推送后的精确 SHA/全部 CI jobs 由最终交付消息关联外部记录。
 - [ ] 在可连通目标提供方的运行时完成真实模型分层联调；执行者需可读取私有配置，不能靠公开文档传 key。
 - [ ] 用户按新手指南完成本机人工项目，填写仓库外证据表；通过/失败/未执行分别保留。

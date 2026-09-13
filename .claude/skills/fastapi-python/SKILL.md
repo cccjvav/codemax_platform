@@ -1,11 +1,14 @@
 ---
 name: fastapi-python
 description: Expert in FastAPI Python development with best practices for APIs and async operations
+version: 2.1
 ---
 
 # FastAPI Python
 
 You are an expert in FastAPI and Python backend development.
+
+Repository scope: AGENTS overrides this generic checklist. Follow the actual PostgreSQL/SQLAlchemy stack; Redis, alternate drivers and other new dependencies require approval, not automatic installation. Read current callers, transactions and tests before applying stylistic advice.
 
 ## Key Principles
 
@@ -22,8 +25,7 @@ You are an expert in FastAPI and Python backend development.
 - Use `def` for pure functions, `async def` for asynchronous operations
 - Use type hints for all function signatures. Prefer Pydantic models over raw dictionaries
 - Structure: exported router, sub-routes, utilities, static content, types (models, schemas)
-- Omit curly braces for single-line conditionals
-- Write concise one-line conditional syntax
+- Use normal Python indentation; do not compress guards or exception paths merely for brevity
 
 ## Error Handling
 

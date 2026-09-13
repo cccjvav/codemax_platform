@@ -445,10 +445,12 @@ def test_workflow_distribution_matches_the_editable_source():
 
 
 def test_current_skill_command_blocks_do_not_restore_obsolete_delivery_commands():
-    for name in ('codemax-workflow', 'pre-commit-review', 'finish-subitem'):
-        text = (bds.ROOT / f'.claude/skills/{name}/SKILL.md').read_text(encoding='utf-8')
+    for path in (bds.ROOT / '.claude/skills').glob('*/SKILL.md'):
+        text = path.read_text(encoding='utf-8')
         blocks = re.findall(r'```(?:bash|cmd)\n(.*?)```', text, re.S)
         for block in blocks:
             assert 'git add -A' not in block
             assert 'arena/01a0599b-codemax-platform' not in block
             assert 'gh pr merge' not in block
+            assert not re.search(r'\b\d+ passed\b', block)
+            assert not re.search(r'HANDOVER\.md.*§\d+', block)
