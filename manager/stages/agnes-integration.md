@@ -13,7 +13,8 @@
 
 - Arena：DNS 与公共 Google DNS 均为 104.18.18.62 / 104.18.19.62；TCP 443 成功，发出 TLS ClientHello 后断开。curl SSL_ERROR_SYSCALL/35，Python connectivity 为 ConnectError，没有 HTTP 响应。
 - 同环境 api.github.com 返回 HTTP/2 200；Agnes 的 wiki/platform 域名也无法通过此运行时 curl 建立 HTTPS。不是模型字段或业务数据库导致，尚未定位实际断开的网关/出口设备。
-- GitHub runner 对照：待本次独立工作流运行后，以 HTTP 状态步骤和精确 SHA 查询结果。
+- GitHub runner 对照已执行：[run 34767857601](https://github.com/cccjvav/codemax_platform/actions/runs/34767857601)，代码提交 `4b221ebfa9c528531a3b834029449cd3ec1ead19`。curl 得到 HTTP=401、curl_exit=0，随后同一提交/锁定依赖的 Python connectivity 步骤 success；无 key、保留 TLS 校验。`live-chat` 为 skipped，不能算已鉴权。
+- 结论：已获得可用的远端诊断/后续测试路径，问题收敛到 Arena 直连环境的 TLS/网络路径差异，不是项目 JSON 或默认模型引起这次握手断开；还没定位具体网关策略，也未修复 Arena 直连。
 - 鉴权与真实模型：恢复后的沙箱没有保存原 key。不会伪造已验证状态，也不要求换 key；读取仓库 Secret 元数据返回 HTTP 403 Resource not accessible by integration，不能确认它是否已配置；这不是 GitHub 登录失效或 Agnes 拒绝 key 的证据。由用户在私有设置确认/保存原 key 后，可手动运行两次小请求。
 - FAQ 向量/标定：提供方公开文档尚未确认，默认禁用，不作为聊天不可用的理由。
 
@@ -29,4 +30,4 @@
 
 ## 元复盘与后续
 
-本轮教训：网页通道可达不等于运行时 TLS 可达；应把网络诊断和鉴权调用分开，并用手动私有 secret 入口解决凭据无法跨环境恢复的问题，而不是将 key 写进仓库。既有工作流已要求分层证据，此次无需再为此升级 Skill 版本。当前下一步是执行分环境对照、确认可用运行路径，再用原 key 做真实聊天/Mermaid；向量增强待官方支持证据。
+本轮教训：网页通道可达不等于运行时 TLS 可达；应把网络诊断和鉴权调用分开，并用手动私有 secret 入口解决凭据无法跨环境恢复的问题，而不是将 key 写进仓库。既有工作流已要求分层证据，此次无需再为此升级 Skill 版本。分环境对照已确认 GitHub runner 可达；下一步是通过私有 Secret 提供原 key，在该可达路径做真实聊天/Mermaid；向量增强待官方支持证据。
