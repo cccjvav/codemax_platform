@@ -2,7 +2,7 @@
 //
 // ## 为什么没有 Vue/React（TD-224 / TD-226）
 // 曾经预装过 @vitejs/plugin-vue，但 2026-09-08 用户确认放弃框架方案：
-// 前端体量（约 800 行）低于框架回本线，且 CI 测试 job 不装 node_modules，
+// 前端体量低于框架回本线，且 CI 测试 job 不装 node_modules，
 // 框架组件挂不上真 DOM、没法在 CI 里测。若将来真要加，先读 TD-226。
 //
 // ## 这个工具链的定位（TD-221）
@@ -12,14 +12,13 @@
 //
 // ## 为什么是多入口而不是一个大 bundle
 //
-// 单 bundle 会把 d3（压缩后约 90KB）塞进每一个页面，包括完全用不到它的 shop /
+// 单 bundle 会把 D3 依赖塞进每一个页面，包括完全用不到它的 shop /
 // oauth 同意页。按页拆入口，每页只加载自己要的那份。
 //
-// ## 为什么关掉文件名 hash
-//
-// 产物要提交进 Git，并在 CI 里做「产物是否与源码同步」的漂移检查（见
-// .github/workflows/ci.yml）。带 hash 的文件名每次构建都变，diff 全是噪音，
-// 模板里的 <script src> 也得跟着改。改用固定文件名 + 中间件的 Cache-Control。
+// ## 入口与分块的命名边界
+// 模板引用的入口固定名；部分拆分模块的逻辑 name 本身包含打包器生成的 hash，
+// 不是“所有文件名都没有 hash”。emptyOutDir 清理旧产物，CI 重建核对漂移。
+// 固定名入口可变，不能为全部 JS 盲目加 immutable 长缓存。
 import { defineConfig } from "vite";
 
 export default defineConfig({
@@ -47,7 +46,7 @@ export default defineConfig({
         "shop-page": "app/frontend/shop-page.js",
       },
       output: {
-        // 固定文件名（见上面「为什么关掉 hash」）
+        // 入口固定；分块 name 可能已包含打包器 hash（见上面的边界）
         entryFileNames: "[name].js",
         chunkFileNames: "[name].js",
         assetFileNames: "[name][extname]",

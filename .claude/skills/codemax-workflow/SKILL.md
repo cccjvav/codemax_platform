@@ -1,12 +1,12 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.1
+version: 2.2
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.1，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.2，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
@@ -24,6 +24,7 @@ version: 2.1
 - 外部服务依次区分：运行时 TLS/HTTP → 鉴权/模型列表 → 实际聊天 → Mermaid 前缀与浏览器渲染 → embedding → FAQ 标定。前置受阻就记录未执行，不推断 key 无效、不把网页打开等同于运行时连通。
 - 小额/低量真实请求需用户授权；密钥只在私有忽略配置或临时进程中使用，不写管理文件，不以“隐私文档”名义集中收集，不关 TLS 验证。
 - 先更新讲解语义和连续段界，再更新当前源码 SHA/README 指纹；新增 Markdown 注册文档站，新增源码补分段解释。
+- Linux 批处理先用 `set -euo pipefail`，或显式保存并检查每个命令退出码；pytest 输出经管道/重定向时不能让末尾 tail 的成功掩盖测试失败。后台验证必须等退出码，看到启动不算通过。此语法不复制到 Windows CMD。
 - Ruff、相关/全量测试、必要真 PG、文档与前端漂移逐项验；Vite 与文档构建串行。进程/浏览器/Word/外部商户/生产等边界分别报告。
 - 提交按 pre-commit-review/finish-subitem 清单：选择性暂存、`git commit -F`、立即推送固定分支、核对远端 tip、查询最终 SHA 的全部 CI jobs。
 

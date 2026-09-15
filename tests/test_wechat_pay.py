@@ -267,8 +267,10 @@ async def test_paid_order_does_not_block_next_purchase(client, pay_configured):
     assert len(pay_configured) == 2
 
 
-async def test_wechat_failure_returns_502_and_leaves_no_order(client, pay_configured, monkeypatch):
+async def test_wechat_failure_preserves_pending_order_for_same_number_retry(client, pay_configured, monkeypatch):
+    attempts = []
     async def boom(cfg, **kw):
+        attempts.append(kw["out_trade_no"])
         raise WeChatPayError("微信支付下单失败：HTTP 400 参数错误")
 
     monkeypatch.setattr(shop, "native_prepay", boom)
@@ -276,4 +278,8 @@ async def test_wechat_failure_returns_502_and_leaves_no_order(client, pay_config
     r = await client.post("/shop/orders", headers=h)
     assert r.status_code == 502
     assert "微信支付下单失败" in r.json()["detail"]
-    assert await orders_in_db() == [], "微信下单失败不该留下待支付订单"
+    rows = await orders_in_db()
+    assert len(rows) == 1 and rows[0].status == "pending" and rows[0].code_url is None
+    assert (await client.post("/shop/orders", headers=h)).status_code == 502
+    assert attempts == [rows[0].order_no, rows[0].order_no]
+    assert len(await orders_in_db()) == 1, "未知服务商结果必须保留稳定本地订单，不能重试制造孤儿单"

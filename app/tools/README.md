@@ -87,11 +87,11 @@
 | [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
 | [`app/tools/crawler.py`](crawler.py) | `d90c8f402324` | L1–L285 |
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
-| [`app/tools/faq.py`](faq.py) | `02f79e9ef5b7` | L1–L395 |
+| [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `cefd84c87b86` | L1–L162 |
 | [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
-| [`app/tools/sql_ddl.py`](sql_ddl.py) | `0919561c4417` | L1–L336 |
+| [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
 
@@ -109,3 +109,7 @@
 
 算法变更优先纯函数测试，协议变更用 MockTransport，异常映射另跑 HTTP 测试。重点文件：`test_sql_ddl.py`、`test_word_export.py`、`test_crawler.py`、`test_extract.py`、`test_faq_semantic.py`、`test_support.py`、`test_second_review_regressions.py`。
 从仓库根执行 `python -m pytest tests/test_admin_ingest.py tests/test_second_review_regressions.py -q` 验证入口边界；真实模型、支付和浏览器联调不能用 mock 通过来替代。
+
+## 2026-09-15 交叉审查增量
+
+SQL解析只覆盖子集：新增临时/UNLOGGED表、dollar string与嵌套注释屏蔽、引号逗号键、常见多词/数组/限定类型及括号DEFAULT。ALTER外键、隐式引用、大小写折叠等仍未完整处理，输出须复核，不声称只影响显示。FAQ 0.55为待标定值，不推广其他模型经验。

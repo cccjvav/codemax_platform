@@ -26,7 +26,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `efbbecbc14c4` | L1–L88 |
-| [`.github/workflows/ci.yml`](ci.yml) | `38969a98f87b` | L1–L306 |
+| [`.github/workflows/ci.yml`](ci.yml) | `166d3d484eb4` | L1–L331 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -46,3 +46,7 @@ checkout 的源码 → 安装锁定依赖 → 检查/构建/测试 → 对应提
 本次用户确认 Secret 后，授权 job 还会读取一次模型列表、对已知 Agnes 2.5 Flash 做一次 embedding 兼容性探索；仅该子进程暂开增强，不改变应用默认。各退出码用 notice 分别记录，chat/Mermaid 为 job 成功条件；列表或探索失败不会伪装成通过。
 
 远端日志下载受限时，run_probe 把现有探测脚本已脱敏的摘要/模型 ID 转为有界、转义后的 notice，保留 HTTP 错误分类供 API 取证；不发布提供方原始正文，也不改变检查的退出码。
+
+## 2026-09-15 交叉审查增量
+
+2026-09-15：frontend现在实际执行 npm audit --audit-level=high 和手写JS的 node --check；六job各设20分钟超时，checkout不保留Git凭据。full_init连续执行仅证明可重复重建，绝不是无损迁移幂等。当前仍有PR评论写权限/可变action版本等待办，见审查台账。

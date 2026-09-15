@@ -58,8 +58,6 @@ async def _execute_cpu(fn, *args):
     ex = _get_executor()
     if ex is None:
         return await run_in_threadpool(fn, *args)
-    import asyncio
-
     loop = asyncio.get_running_loop()
     try:
         return await loop.run_in_executor(ex, fn, *args)

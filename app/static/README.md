@@ -63,9 +63,9 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `bd9b31ce6bed` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `aa8b75627d07` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `24213b835fd8` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `fe009ae1f41a` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `2fdef19157c2` | 生成物，见模块构建说明 |
-| [`app/static/js/er-page.js`](js/er-page.js) | `02e92ef138f2` | 生成物，见模块构建说明 |
+| [`app/static/js/er-page.js`](js/er-page.js) | `d65856526a04` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `1e225335524d` | 生成物，见模块构建说明 |
 | [`app/static/js/eventmodeling-NTZA5JFV.js`](js/eventmodeling-NTZA5JFV.js) | `6d880858817b` | 生成物，见模块构建说明 |
 | [`app/static/js/flowDiagram-HODETNUW.js`](js/flowDiagram-HODETNUW.js) | `d7d9dae9f4bc` | 生成物，见模块构建说明 |
@@ -102,12 +102,12 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/rough.esm.js`](js/rough.esm.js) | `ef405c5eaa33` | 生成物，见模块构建说明 |
 | [`app/static/js/sankeyDiagram-P5KCCOFB.js`](js/sankeyDiagram-P5KCCOFB.js) | `85d173a4a0d0` | 生成物，见模块构建说明 |
 | [`app/static/js/sequenceDiagram-WJ2MYXX4.js`](js/sequenceDiagram-WJ2MYXX4.js) | `1b5c908c5705` | 生成物，见模块构建说明 |
-| [`app/static/js/shop-page.js`](js/shop-page.js) | `37d4a76abef4` | 生成物，见模块构建说明 |
+| [`app/static/js/shop-page.js`](js/shop-page.js) | `71d59ed8edf2` | 生成物，见模块构建说明 |
 | [`app/static/js/sizeCapture-INFHLROL.js`](js/sizeCapture-INFHLROL.js) | `1686f2a8163c` | 生成物，见模块构建说明 |
 | [`app/static/js/src.js`](js/src.js) | `150172a4838f` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `28780fcb0898` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `0b7e352156f4` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `3f626a807042` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `c415c8fc7f1f` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `c2ceefb41216` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `b74e03e6b933` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `32c8e2e90cc3` | 生成物，见模块构建说明 |
@@ -134,3 +134,7 @@ app/static/js/ 是生成目录，归本 README 管理，不逐个解释第三方
 不得手改压缩 JS；从 app/frontend 修改后 npm run build，检查产物漂移。
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
+
+## 2026-09-15 交叉审查增量
+
+本批重新构建对应的shop/support/drawio/er入口；取消轮询、UUID降级/管理员会话、乱序列表及延迟Blob释放在手写源码维护。只改源后构建，不手改生成JS。

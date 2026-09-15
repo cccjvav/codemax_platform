@@ -23,12 +23,12 @@
 | auth.refresh、onChange | GET 当前用户并发布用户快照；用顺序号拒绝旧响应；订阅返回退订函数。open/close/setMode 只操作登录界面，不授权 API |
 | drawio.validXml、exportXml | 导入只接收有界 mxfile/mxGraphModel；exportXml 返回 Promise，关联当前 iframe 导出事件，10 秒无响应拒绝。不能用 autosave 缓存替代显式导出 |
 | drawio.resetEditor、syncAuth | 文档/账号切换作废旧上下文并替换 iframe；清除旧账号数据。loading 阻止云文件未返回时提前装载临时内容 |
-| drawio.api、save、refreshList、manage | API 处理错误及 204；save 串行取得实时 XML，用 ETag 更新；412 保留编辑内容。管理列表提供软删/恢复/明确确认后永久删 |
-| shop.render、poll、stop | 根据订单状态显示界面；pollBusy 防请求重叠，stop 清计时器；状态查询不能偷偷下新单或领链接 |
+| drawio.api、save、refreshList、manage | API 处理错误、无效 JSON 及 204；save 串行取得实时 XML，用 ETag 更新；412 保留编辑内容。管理列表用独立序号拒绝旧响应，提供软删/恢复/明确确认后永久删 |
+| shop.render、poll、stop | 根据订单状态显示界面；pollBusy 防请求重叠，stop 清计时器，取消按钮另外递增 buySeq 并清订单/补单订阅；状态查询不能偷偷下新单或领链接 |
 | shop.buy、doBuy、loadHistory | 主动下单才 POST；buySeq/登录订阅处理旧响应和退订；历史分页读取不等于新订单；失败时给用户可重试路径 |
 | support.endpoint、onUser、reset | 由当前用户和管理员选择决定会话 endpoint；账号/会话切换递增 epoch、abort 请求、清除列表和输入，不靠 DOM 隐藏保护数据 |
-| support.render、poll、inbox | 使用 textContent 渲染，按消息 ID 去重；维护 oldest/newest，轮询在上次完成后再排 4 秒定时；inbox 游标与消息游标分开 |
-| support 表单提交 | 一次发送保留 client_nonce，响应丢失可重试；成功也不直接把读取游标跳到 POST ID，否则会漏掉中间管理员回复 |
+| support.render、poll、inbox | 使用 textContent 渲染，按消息 ID 去重；维护 oldest/newest，轮询在上次完成后再排 4 秒定时；inbox 游标与消息游标分开，并用请求序号拒绝乱序结果 |
+| support 表单提交 | 管理员未选客户不能发送；UUID 优先 crypto，HTTP旧环境降级仅用于幂等而非凭据；一次发送保留 client_nonce，响应丢失可重试；成功也不直接把读取游标跳到 POST ID，否则会漏掉中间管理员回复 |
 | er-layout.nodeHeight、layoutEr | 图数据 → 排版位置；无 DOM/网络。页面脚本负责 D3 渲染、错误提示和 Word 附件请求 |
 | mermaid-page / mock-pay-page 事件处理 | 前者调用同源生成 API 并捕获渲染错误；后者只是开发模拟付款确认，不证明真实收款 |
 
@@ -47,14 +47,14 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/frontend/auth.js`](auth.js) | `056b278cd0ad` | L1–L156 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `36e5912c3c54` | L1–L179 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `439de924e889` | L1–L180 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
-| [`app/frontend/er-page.js`](er-page.js) | `401d4bc2f910` | L1–L164 |
+| [`app/frontend/er-page.js`](er-page.js) | `8d3fcd84b285` | L1–L164 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `5b953a5c278b` | L1–L232 |
-| [`app/frontend/support-page.js`](support-page.js) | `23385e160502` | L1–L113 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `e595c6742dfe` | L1–L234 |
+| [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

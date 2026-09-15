@@ -8,7 +8,7 @@
   const authStatus = document.getElementById("auth-status");
   const name = document.getElementById("diagram-name");
   const list = document.getElementById("diagram-list");
-  let currentId = null, xml = BLANK, etag = null, epoch = 0, sequence = 0, listSeq = 0;
+  let currentId = null, xml = BLANK, etag = null, epoch = 0, sequence = 0, listSeq = 0, manageSeq = 0;
   let identity, loggedIn = false, ready = false, saving = false, pending = null, loading = false;
 
   function send(message) { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
@@ -42,7 +42,8 @@
   async function api(url, method = "GET", body, headers = {}) {
     const response = await fetch(url, { method, credentials: "same-origin",
       headers: { "Content-Type": "application/json", ...headers }, body: body ? JSON.stringify(body) : undefined });
-    const data = response.status === 204 ? null : await response.json();
+    const data = response.status === 204 ? null : await response.json().catch(() => null);
+    if (response.ok && response.status !== 204 && data === null) throw new Error("服务响应格式无效，请稍后重试");
     if (!response.ok) {
       if (response.status === 412) throw new Error("云端已有新版本，本次未覆盖。请重新打开或先下载本地副本");
       throw new Error(CodeMaxAuth.errorText?.(data, response.status) || `请求失败（${response.status}）`);
@@ -142,10 +143,10 @@
   }
   async function manage() {
     if (!loggedIn) { CodeMaxAuth.open("login"); return; }
-    const stamp = epoch;
+    const stamp = epoch, serial = ++manageSeq;
     try {
       const [live, trash] = await Promise.all([api("/diagrams"), api("/diagrams?deleted=true")]);
-      if (stamp !== epoch) return;
+      if (stamp !== epoch || serial !== manageSeq) return;
       const box = document.getElementById("diagram-manage"); box.innerHTML = "";
       for (const [rows, deleted] of [[live.data, false], [trash.data, true]]) {
         for (const row of rows) {

@@ -2,16 +2,13 @@
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
-> 2026-09-12：第二批修复、站内人工客服和文档门禁已实现。先读 [当前验收与迁移](docs/SECOND_REPAIR_ACCEPTANCE.md)、[文档方案比较](docs/DOCUMENTATION_POLICY.md)。存量库需要 0007/0008；旧会话重新登录。管理员和客户均从 `/support/center` 进入站内会话。历史测试数字不是本批结果。
+> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金、第三方 OAuth、生产初始化/迁移仍有发布阻断；不是“全部已审完、可以直接上线”。
 
-
-> **审查修复进行中（2026-09-11）**：进度、交叉验证、未解决风险及需要决策的事项见 [修复台账](docs/REVIEW_CROSSCHECK.md)。本批不代表全项目已修完或可直接上线。
-
-毕设服务平台 (codemax.top)：免费工具平台 + 商业平台（双平台），统一认证（SSO）、支付闭环、云存储安全下载、AI 内容解析与智能客服。
+学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与人工收款接口、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，也没有完整支付对账/退款/不可变商品权益闭环。
 
 ## 从零理解代码
 
-先读 [代码复盘入口](docs/CODE_READING_GUIDE.md)：术语与身份、客服、订单/支付、OAuth、图形工具、采集/模型及运维完整链路。文档站“精读覆盖与缺口”提供全部 136 个非空非生成源码文件的分段说明与原代码并排阅读；新增漏项会阻止构建。人工功能契约与 AST 语句导读明确区分，门禁不认证语义。生成物讲来源、空文件讲作用，历史报告不冒充现行教程。
+先读 [代码复盘入口](docs/CODE_READING_GUIDE.md)：术语与身份、客服、订单/支付、OAuth、图形工具、采集/模型及运维完整链路。文档站“精读覆盖与缺口”提供全部纳入范围的非空非生成源码文件的分段说明与原代码并排阅读；新增漏项会阻止构建。人工功能契约与 AST 语句导读明确区分，门禁不认证语义。生成物讲来源、空文件讲作用，历史报告不冒充现行教程。
 
 ## 技术栈
 
@@ -19,7 +16,9 @@
 - 数据库：PostgreSQL
 - 认证：JWT（python-jose）+ bcrypt（passlib）
 
-## 快速开始
+## 快速开始（仅隔离的本地演示）
+
+初始化包含公开演示管理员和 OAuth 客户端，不能直接暴露给不可信网络。生产不仅要换签名密钥，还须处理已存在的演示身份、商户/存储/备份及迁移问题，见[发布阻断](review/README.md)。
 
 ```bash
 # 1. 安装依赖
@@ -125,11 +124,14 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | `codemax-workflow` | **项目专属工作流**：代码尽量简洁、写完必须测试、不过则迭代（硬性要求） |
 | `fastapi-python` | FastAPI 开发规范（异步、Pydantic、函数式简洁写法） |
 | `python-testing` | pytest 测试规范（TDD、fixtures、mock、覆盖率） |
+| `finish-subitem` | 子项关闭、交接与证据核对 |
+| `pre-commit-review` | 提交前差异及全量检查 |
+| `new-tool-page` | 页面、源码与构建产物协作 |
+| `schema-sync` | ORM/SQL/增量迁移一致性约束 |
 
 ## 文档
 
-> 仓库里共 **21 份文档 / 约 10 000 行**。下面按「我想干什么」给入口 —— 
-> 不知道从哪看起，就先开 **[总览.md](./总览.md)**。
+> 文档数量由构建输出计算。按下方任务入口阅读；不知道从哪看起，先开 [总览](总览.md)。
 
 ### 🖥️ 想直接看网页版（推荐）
 
@@ -155,7 +157,7 @@ start docs\site\index.html
 | 查某个**目录/文件/函数**的行级说明 | 见下方「模块说明书」表 |
 | 看**接口清单** | 本文下方「当前 API」一节，或起服务后开 `/docs` |
 | 了解**开发硬约束**（AI 助手与新成员都该先读） | [AGENTS.md](./AGENTS.md) |
-| 了解**实现取舍与上线阻塞项**（176 个 TD 台账，编号至 TD-228） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
+| 了解**实现取舍与上线阻塞项**（历史取舍与现行边界） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
 | 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
 | **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
 | 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) |
@@ -163,22 +165,21 @@ start docs\site\index.html
 
 ### 📂 模块说明书（逐文件、带行号）
 
-每个含代码的目录内部都有一份 `README.md`，逐文件说明职责、类/函数清单、
-核心逻辑的行级拆解（`Lxx-Lyy`）与执行流程。**行号会腐烂**，所以每份都在文首
-钉了「行号基准 commit」，文末给了复核命令。
+每个含代码的目录有 README，说明职责、入口、函数契约和修改影响。文件指纹由门禁核对，人工精读绑定完整 SHA；行号来自当前源码生成页，不再手写“行号基准 commit”或总行数。
 
 | 目录 | 说明书 | 内容 |
 | --- | --- | --- |
-| `app/tools/` | [README](./app/tools/README.md) | 业务逻辑层（10 个模块 / 1625 行） |
-| `app/routers/` | [README](./app/routers/README.md) | HTTP 接口层（9 个 router / 1132 行） |
-| `app/` 根 | [README](./app/README.md) | 根级基础设施（16 个文件 / 1328 行） |
-| `database init/` | [README](<./database init/README.md>) | 建库建表 + 5 个迁移脚本 |
-| `app/templates/` | [README](./app/templates/README.md) | 前端模板（7 个 Jinja2 模板） |
-| `app/static/` | [README](./app/static/README.md) | 前端脚本（`er.js`） |
-| `.github/workflows/` | [README](./.github/workflows/README.md) | CI 流水线（`ci.yml`） |
-| 根目录 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) | `main.py` 与 5 个构建/配置文件 |
-| `tests/` | [README](./tests/README.md) | 测试策略与分组（36 个测试文件 / 565 个用例） |
-| `scripts/` | [README](./scripts/README.md) | 建表脚本深度体检（WASM 版真 PostgreSQL） |
+| `app/tools/` | [README](app/tools/README.md) | 解析、采集、模型、FAQ 与内容检索 |
+| `app/routers/` | [README](app/routers/README.md) | HTTP、权限和事务编排 |
+| `app/` 根 | [README](app/README.md) | 配置、认证、数据、限流、存储与状态机 |
+| `database init/` | [README](<database init/README.md>) | 破坏性空库初始化与增量迁移；不是自动升级器 |
+| `app/templates/` | [README](app/templates/README.md) | 页面模板与 DOM 合同 |
+| `app/frontend/` | [README](app/frontend/README.md) | 手写浏览器源码 |
+| `app/static/` | [README](app/static/README.md) | Vite 产物、样式和收款图片 |
+| `.github/workflows/` | [README](.github/workflows/README.md) | 六项 CI 与独立 Agnes 探测 |
+| 根目录 | [根文件指南](docs/ROOT_FILES.md) | 应用入口及构建/配置文件 |
+| `tests/` | [README](tests/README.md) | 测试分组、环境边界与回归策略 |
+| `scripts/` | [README](scripts/README.md) | 文档契约/精读/站点、模型诊断与可选架构检查 |
 
 > 上面这些说明书在**文档站**里都有网页版（带目录、可跳转）：
 > `python scripts\build_docs_site.py` 之后打开 `docs\site\index.html`。
@@ -213,15 +214,15 @@ start docs\site\index.html
 | [`.env.example`](.env.example) | `5c76558c963e` | L1–L108 |
 | [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
-| [`Dockerfile`](Dockerfile) | `b702a9693af9` | L1–L42 |
+| [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
 | [`main.py`](main.py) | `a57b8f8a067a` | L1–L71 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
-| [`requirements.txt`](requirements.txt) | `56bb140d8218` | L1–L65 |
+| [`requirements.txt`](requirements.txt) | `d4c24e34109d` | L1–L65 |
 | [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
-| [`vite.config.mjs`](vite.config.mjs) | `dad8237ecce1` | L1–L57 |
+| [`vite.config.mjs`](vite.config.mjs) | `a3fb20944f28` | L1–L56 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

@@ -54,7 +54,7 @@ class Settings(BaseSettings):
     #   manual = 展示静态收款码 + 管理员人工确认收款（S5-04）
     # mock 只用于本地开发与答辩演示，**开着就等于免费发货**，见 TECH_DECISIONS.md TD-124
     # manual 与 mock 的区别：mock 任何人都能点「确认支付」，manual 只有管理员能确认（TD-205）
-    SHOP_PAY_MODE: str = "wechat"
+    SHOP_PAY_MODE: Literal["wechat", "mock", "manual"] = "wechat"
 
     # manual 模式展示的收款码图片路径。**换成自己的收款码即可**，代码不用动。
     # 刻意指向 static 下的一个文件而不是把图片塞进配置：图片是二进制，

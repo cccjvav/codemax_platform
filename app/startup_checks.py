@@ -8,6 +8,7 @@
 from __future__ import annotations
 
 import logging
+from urllib.parse import urlsplit
 
 from .config import settings
 
@@ -61,14 +62,24 @@ def check_production_settings() -> list[str]:
         problems.append(
             "DB_PASSWORD 为空：生产库必须设密码，或显式给出带凭证的 DATABASE_URL"
         )
-    # A-12：SITE_BASE_URL 空或明文 http。预签名下载链接、HSTS、OAuth 回跳都拿它当
+    # A-12：SITE_BASE_URL 必须是 HTTPS origin。预签名下载链接与站点公开地址以它为
     # 基准，配错的表现是「站点跑得起来但链接全指向错的主机」。
     # ⚠️ 刻意**不**查「是否等于默认值」：默认值 https://codemax.top 就是真实生产
     # 域名，照 review 那样写会把真正的生产部署也判成不合规。
-    if not settings.SITE_BASE_URL or not settings.SITE_BASE_URL.startswith("https://"):
+    try:
+        origin = urlsplit(settings.SITE_BASE_URL)
+        _ = origin.port
+        valid_origin = (origin.scheme == "https" and bool(origin.hostname)
+                        and origin.username is None and origin.password is None
+                        and "?" not in settings.SITE_BASE_URL and "#" not in settings.SITE_BASE_URL and origin.path in ("", "/")
+                        and all(c.isalnum() or c in ".-:" for c in origin.hostname)
+                        and not any(c.isspace() or ord(c) < 32 for c in settings.SITE_BASE_URL))
+    except ValueError:
+        valid_origin = False
+    if not valid_origin:
         problems.append(
-            f"SITE_BASE_URL={settings.SITE_BASE_URL!r} 必须是以 https:// 开头的完整地址："
-            "预签名下载链接、HSTS 与 OAuth 回跳都以它为基准"
+            f"SITE_BASE_URL={settings.SITE_BASE_URL!r} 必须是有效 HTTPS origin，不能含凭据、路径、查询或片段："
+            "预签名下载链接以它为基准；HSTS 另按可信请求协议判断"
         )
     return problems
 

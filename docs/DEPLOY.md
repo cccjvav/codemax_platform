@@ -7,6 +7,14 @@
 
 Windows/conda 开发运行、备份演练和自动化测试见 [本机指南](WINDOWS_CONDA.md)；浏览器与真实外部服务的签收标准见 [验收手册](ACCEPTANCE_GUIDE.md)。本机 mock 成功不等于生产商户联调通过。
 
+## 发布阻断与日志边界（2026-09-15）
+
+本指南不是生产验收证明。公开演示种子、迁移账本、支付对账/商品权益、第三方 OAuth 范围、备份恢复仍未结项，见[当前台账](../review/README.md)。不要把默认 development 示例或新建两遍 full_init 当作安全上线/无损升级。
+
+Docker 已传 `--no-access-log`，保留应用的有界、不含查询参数的访问日志。用其他命令启动 Uvicorn 时也应设置 `--no-access-log`；Nginx/LB 必须使用不含 `$request`/`$request_uri`/`$args` 的日志格式（可用 `$request_method $uri $status`），避免把短时下载 signature 写进日志。关闭应用一层不能证明代理/CDN已脱敏；需真实链路检查。普通日志不是持久财务审计账本。
+
+生产绝对链接使用校验过的 `SITE_BASE_URL`（仅 HTTPS origin）；开发仍按请求地址生成。本批未新增 Host allowlist，代理仍应拒绝未知 Host，并核对直连 peer 与可信 CIDR。
+
 ## 1. 生产环境必须配好的 .env
 
 `ENV=production` 会在**启动时**做自检，不合规直接拒绝启动（`app/startup_checks.py`）。
@@ -21,7 +29,7 @@ Windows/conda 开发运行、备份演练和自动化测试见 [本机指南](WI
 | `TRUST_PROXY_HEADERS` | `true`（在反向代理之后） | 所有用户被当成同一个 IP，限流形同虚设（TD-142） |
 | `DB_PASSWORD` | 真实密码 | 连不上库，`/readyz` 返回 503 |
 
-启动失败时会一次性列出**全部**问题，不是报一个改一个。
+启动失败时会一次性列出**现有检查覆盖到的**问题（未覆盖商户真实可用性、商品完整性及架构版本等全部就绪条件），不是报一个改一个。
 
 ---
 

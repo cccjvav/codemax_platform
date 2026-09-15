@@ -4,7 +4,17 @@
   const el = (id) => document.getElementById(`support-${id}`);
   let epoch = 0, timer, controller = new AbortController(), currentUser = null;
   let target = null, newest = 0, oldest = null, inboxCursor = null, pending = null;
-  let polling = false, sending = false;
+  let polling = false, sending = false, inboxSeq = 0;
+  function newNonce() {
+    if (globalThis.crypto?.randomUUID) return globalThis.crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (globalThis.crypto?.getRandomValues) globalThis.crypto.getRandomValues(bytes);
+    else for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    // Idempotency identifier, NOT an authentication secret. Older HTTP contexts lack randomUUID.
+    bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0,8)}-${hex.slice(8,12)}-${hex.slice(12,16)}-${hex.slice(16,20)}-${hex.slice(20)}`;
+  }
   const seen = new Set();
 
   function errorText(data, status) {
@@ -59,16 +69,16 @@
   }
   async function inbox(more = false) {
     if (currentUser?.role !== 1) return;
-    const stamp = epoch;
+    const stamp = epoch, serial = ++inboxSeq;
     try {
       const rows = await request("/support/conversations" + (more && inboxCursor ? `?before=${inboxCursor}` : ""));
-      if (stamp !== epoch) return;
+      if (stamp !== epoch || serial !== inboxSeq) return;
       if (!more) el("inbox").replaceChildren();
       for (const row of rows) {
         const button = document.createElement("button");
         button.type = "button"; button.textContent = `${row.username} · ${row.awaiting_admin ? "待回复" : "已回复"}`;
         button.onclick = () => {
-          reset(); target = row.customer_id; el("title").textContent = `与 ${row.username} 的会话`; poll();
+          reset(); target = row.customer_id; el("send").disabled = false; el("title").textContent = `与 ${row.username} 的会话`; poll();
         };
         el("inbox").append(button);
       }
@@ -88,10 +98,13 @@
     e.preventDefault();
     if (!currentUser) return auth.open();
     if (sending) return;
+    if (currentUser.role === 1 && target === null) {
+      el("error").textContent = "请先选择要回复的客户会话"; return;
+    }
     const body = el("body").value.trim(); if (!body) return;
-    if (!pending || pending.body !== body) pending = { body, client_nonce: crypto.randomUUID() };
     const stamp = epoch; sending = true; el("send").disabled = true;
     try {
+      if (!pending || pending.body !== body) pending = { body, client_nonce: newNonce() };
       await request(endpoint(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(pending) });
       if (stamp !== epoch) return;
       // Do not advance the read cursor to this POST's id: intervening admin replies must not be skipped.
@@ -104,6 +117,7 @@
   function onUser(user) {
     reset(); currentUser = user; target = null; inboxCursor = null;
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
+    el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;
     el("inbox-panel").hidden = user?.role !== 1; el("title").textContent = "我的留言";
     if (user) { poll(); inbox(); }

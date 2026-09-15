@@ -175,7 +175,7 @@ async def db():
 # ---------------------------------------------------------------- 共享 fixture
 #
 # 商品文件桩。**放在 conftest 而不是 test_download.py**：S2-02-2 的
-# test_shop_page.py 也要用它（测「轮询订单状态不会烧掉一次性下载」时，
+# test_shop_page.py 也要用它（测「轮询订单状态不会申请下载链接」时，
 # 必须真能发出下载链接才测得出来）。
 # 跨模块 `from tests.test_download import product` 再当形参会撞 ruff F811
 # （形参名遮蔽导入名），而共享 fixture 的正确位置本来就是 conftest。

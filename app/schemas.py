@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 _USERNAME_RE = re.compile(r"^[\w-]+$", re.UNICODE)
 
 # 保留名（比较时统一转小写）。种子管理员就叫 `admin`
-# （`database init/full_init.sql` 第 68 行），而登录是精确匹配、
+# （`database init/full_init.sql` 的用户种子段），而登录是精确匹配、
 # PostgreSQL 的 VARCHAR `=` 区分大小写 ⇒ `Admin` 是个独立账号却能注册，
 # 唯一用途就是在界面上冒充管理员。
 _RESERVED_USERNAMES = frozenset({"admin", "administrator", "root", "system"})
@@ -128,6 +128,14 @@ class SupportIn(BaseModel):
 class DiagramIn(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     content: str = Field(min_length=1, max_length=500000)  # drawio XML 可能较大
+
+    @field_validator("name", "content")
+    @classmethod
+    def _database_text(cls, value: str) -> str:
+        """Reject NUL before reaching PostgreSQL; SQLite accepting it is not compatibility."""
+        if "\x00" in value:
+            raise ValueError("名称和内容不能包含空字符")
+        return value
 
 
 class DiagramSummary(BaseModel):

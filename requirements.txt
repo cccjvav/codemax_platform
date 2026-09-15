@@ -46,7 +46,7 @@ httpx==0.25.2          # **运行时依赖，不只是测试用**。此前这行
 # ---- 测试依赖 ----
 pytest==9.0.3                     # 7.4.4 有 PYSEC-2026-1845；9.x 跨两个大版本，
                                   # 用途是测试，但当前 Dockerfile 安装整份 requirements，因此也进入镜像（
-                                  # 但生产 CMD 不跑 pytest）。升级后全量 624 passed 不变。
+                                  # 但生产 CMD 不跑 pytest）。依赖升级历史证据见 TD-213，当前测试以 CI 为准。
 pytest-asyncio==1.4.0             # 配套 pytest 9（1.4.0 要求 pytest<10,>=8.4）。
                                   # asyncio_mode=auto 与 loop_scope="session" 用法不变。
 aiosqlite==0.19.0      # 测试用内存 SQLite（验证逻辑，生产用 PostgreSQL）

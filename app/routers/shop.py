@@ -51,8 +51,8 @@ def _qr_svg(text: str) -> str:
 
     ## 为什么服务端画，而不是前端引 JS 库
 
-    - 前端方案要引 CDN 脚本，而 `script-src` 白名单里唯一的 `cdn.jsdelivr.net`
-      在沙箱与部分网络下实测 HTTP=000 不可达 —— 开发时二维码画不出来，很难查。
+    - 业务 CSP 只允许 self 脚本；服务端画码不引入额外前端库/CDN，
+      避免为二维码拓宽脚本来源（开发 API 文档的 CDN 例外不适用于业务页）。
     - 服务端方案零外部依赖：实测 `segno` 1.6.6 是**纯 Python、零依赖、0.07 MB**。
       对比 `qrcode[pil]`：qrcode 本身 0.04 MB，但画 PNG 要拖 **Pillow 6.61 MB 二进制**，
       差约 95 倍，而 Pillow 在 Windows 上还多一层二进制轮子的麻烦。
@@ -82,7 +82,8 @@ async def create_order(
     """下单（S3-01-1）：建订单 → 取 code_url → 前端画二维码。
 
     已有未支付订单时复用同一单（S3-01-1-4），避免连点几下刷出一堆待支付单。
-    订单先落库再去下单：微信那边付了、我们这边没单，比反过来难收拾得多。
+    微信预支付前先 commit 本地订单；提交失败不调用提供方，失败重试复用持久订单号。
+    这不等于完整支付尝试账本/查单对账；服务商结果未知的恢复仍是收款发布阻断项。
 
     `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
     """
@@ -126,7 +127,7 @@ async def create_order(
         # （真 PostgreSQL 上实测炸过，SQLite 单连接下反而看不出来）。
         user_id = user.id
         try:
-            await db.flush()  # 先拿到 id，后面 commit 才不会因为下单失败而丢单
+            await db.flush()  # 仅取 id；事务失败仍会回滚，不能当作已经持久化
         except IntegrityError:
             # 撞上了 uq_sys_order_user_pending（TD-199）：并发下别人先插成功了。
             # 回滚本次插入，改用**已经存在的那张**单 —— 对客户端来说语义不变
@@ -157,16 +158,19 @@ async def create_order(
         base = public_base_url(request)
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
     else:
+        # A flush is not durable. Persist before crossing the external payment boundary.
+        await db.commit()
         try:
             order.code_url = await native_prepay(
                 cfg,
                 out_trade_no=order.order_no,
-                description=settings.SHOP_PRODUCT_NAME,
-                total=settings.SHOP_PRODUCT_AMOUNT,
+                description=order.product_name,
+                total=order.amount,
             )
         except WeChatPayError as e:
             raise HTTPException(502, str(e)) from e
     await db.commit()
+    await db.refresh(order)  # A callback may have changed status while prepay was in flight.
     return _payload(order, reused=False, pay_mode=mode)
 
 
@@ -410,7 +414,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     这个端点**不走登录鉴权**：调用方是微信支付，身份靠平台证书验签确认（TD-115）。
 
     应答格式是微信规定的，不能用 `HTTPException`（那会返回 `{"detail": ...}`）：
-    验签通过 → 200/204 无包体；失败 → 4XX/5XX + `{"code": "FAIL", "message": "..."}`。
+    已验证且处理/忽略成功 → 200 SUCCESS JSON；失败 → 4XX/5XX + `{"code": "FAIL", "message": "..."}`。
     **4XX/5XX 会被微信重推**，所以"重试也没用"的情况（非支付成功通知、已处理过）
     必须回 200，否则会被无限重推。
     """
@@ -418,7 +422,15 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     if not cfg.notify_ready:
         return _fail(503, "未配置 WX_API_V3_KEY / WX_PLATFORM_CERT，无法处理回调")
 
-    body = (await request.body()).decode("utf-8")  # 原始报文主体，验签必须用它
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 65536:
+            return _fail(413, "回调报文过大")
+        raw.extend(chunk)
+    try:
+        body = raw.decode("utf-8")  # Preserve exact signed text; never decode with replacement.
+    except UnicodeDecodeError:
+        return _fail(400, "回调报文必须为 UTF-8")
     h = request.headers
     try:
         # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
@@ -439,7 +451,11 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     except json.JSONDecodeError as e:
         return _fail(400, f"回调报文不是合法 JSON：{e}")
 
-    resource = notify.get("resource") or {}
+    if not isinstance(notify, dict) or not isinstance(notify.get("resource"), dict):
+        return _fail(400, "回调结构无效")
+    resource = notify["resource"]
+    if any(not isinstance(resource.get(k), str) for k in ("ciphertext", "nonce")) or not isinstance(resource.get("associated_data", ""), str):
+        return _fail(400, "回调加密字段无效")
     try:
         data = decrypt_resource(
             cfg.api_v3_key,
@@ -450,13 +466,22 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     except WeChatPayError as e:
         return _fail(400, str(e))
 
+    if not isinstance(data, dict):
+        return _fail(400, "回调业务数据必须为对象")
     if notify.get("event_type") != "TRANSACTION.SUCCESS" or data.get("trade_state") != "SUCCESS":
         return _ok()  # 退款 / 未支付等通知本阶段不处理，但要确认收到，否则会被重推
 
-    order = await db.scalar(select(Order).where(Order.order_no == data.get("out_trade_no")))
+    order_no, transaction_id = data.get("out_trade_no"), data.get("transaction_id")
+    if any(not isinstance(value, str) or not value or "\x00" in value or len(value) > size
+           for value, size in ((order_no, 32), (transaction_id, 64))):
+        return _fail(400, "回调订单标识无效")
+    amount = data.get("amount")
+    if not isinstance(amount, dict) or type(amount.get("total")) is not int:
+        return _fail(400, "回调金额结构无效")
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None:
         return _fail(404, f"订单不存在：{data.get('out_trade_no')}")
-    total = (data.get("amount") or {}).get("total")
+    total = amount["total"]
     if total != order.amount:
         return _fail(400, f"金额不符：回调 {total} 分，订单 {order.amount} 分")
 

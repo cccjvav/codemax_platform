@@ -47,12 +47,12 @@
 
 | 函数 / 接口 | 请求与返回 | 状态与权限 |
 | --- | --- | --- |
-| `create_order` POST `/shop/orders` | 登录用户下单 → 订单与支付展示数据 | 复用有效 pending；过期关闭后重建；部分唯一索引挡并发重复；wechat 配置缺失 503、下单失败 502；金额来自服务器配置 |
+| `create_order` POST `/shop/orders` | 登录用户下单 → 订单与支付展示数据 | 复用有效 pending；过期关闭后重建；部分唯一索引挡并发重复；wechat 配置缺失 503、下单失败 502且保留pending；建单时保存配置金额，预支付先commit再使用订单快照 |
 | `order_status` GET `/shop/orders/{order_no}` | 自己的订单当前状态、expired | 只读 no-store；不会自动关单、领取链接或发起新订单 |
 | `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目 |
 | `download_url` POST `/shop/download/{order_no}` | 自己的已付订单 → 短时 download_url | paid/downloaded 均可领取；先查对象并生成 URL，再记录发放；pending/closed 403。不是“只能领一次” |
 | `serve_download` GET `/shop/dl` | key、expires、signature → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
-| `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；新鲜度、验签、解密后核对商户、订单和金额；原子确认，重复通知幂等 |
+| `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；尚缺完整商户/币种/serial绑定；原子确认，重复通知幂等 |
 | `mock_pay_page` / `mock_pay_confirm` | 模拟收银台／自己的订单确认 | 仅 mock 模式，其他模式 404；真实 production 配置拒绝开启 mock |
 | `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅 manual；服务器不知道个人收款码是否到账；必须本人核账。记录日志，不是独立不可篡改审计表 |
 | `_payload` / `_qr_svg` / `_storage` / `_ok` / `_fail` | 展示字段、服务端二维码、存储错误映射、微信响应封装 | 不把扫码/二维码加载当付款凭证；用户侧和平台回调的响应格式不同 |
@@ -93,12 +93,12 @@
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/routers/admin.py`](admin.py) | `34c9d1f92085` | L1–L83 |
-| [`app/routers/auth.py`](auth.py) | `4edd21d2c8b4` | L1–L131 |
-| [`app/routers/diagrams.py`](diagrams.py) | `5cfbcce46a49` | L1–L227 |
+| [`app/routers/auth.py`](auth.py) | `8ff33a812506` | L1–L134 |
+| [`app/routers/diagrams.py`](diagrams.py) | `1bd6d4225cb1` | L1–L234 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `3c6513870ae7` | L1–L254 |
-| [`app/routers/shop.py`](shop.py) | `336f2c0f7409` | L1–L470 |
+| [`app/routers/shop.py`](shop.py) | `ae3edbb3fc6a` | L1–L495 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -117,3 +117,7 @@
 
 接口变更同时核对 schema、前端调用、鉴权、事务提交、空/失败响应。优先运行对应 HTTP 测试；数据库竞争必须在真实 PostgreSQL 下另验，不以 SQLite 顺序结果代替。
 新增路由会受到文档站与运行时路由集合对比测试约束。手写说明不固定总路由数；当前数量取构建数据与对应提交测试结果。
+
+## 2026-09-15 交叉审查增量
+
+本次审查修订：微信预支付前提交本地订单，失败保留单号/金额/名称用于重试；不是完整支付对账。回调限制64KiB并验证UTF-8、对象形状、标识长度和金额类型。图表If-Match为有界单版本，列表只取摘要列；登录NUL用户名走统一失败而不查库。发布阻断见 [交叉台账](../../review/README.md)。

@@ -214,8 +214,8 @@ def semantic_threshold() -> float:
     1. 标定结果只需改 `.env`，不用改代码、不用重新发版；
     2. 测试能 monkeypatch —— 常量在 import 时就被 support.py 绑走，改不动。
 
-    ⚠️ 默认 0.55 **尚未实测标定**（沙箱里没有 embedding API key），是按
-    text-embedding-3-small 的经验值：同义问句通常 0.6+，不相关问句 0.3 左右。
+    ⚠️ 默认 0.55 是尚未实测标定的保留值，不属于任何现行模型的质量保证。
+    Agnes 向量增强默认关闭；换模型、维度或查询预处理后必须重新标定。
     上线前必须跑 `calibrate_semantic_threshold` 重新量，见 TD-206。
     """
     return settings.LLM_SEMANTIC_THRESHOLD

@@ -47,11 +47,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/conftest.py`](conftest.py) | `c70cb44c495d` | L1–L212 |
+| [`tests/conftest.py`](conftest.py) | `da9a8172bb0f` | L1–L212 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
+| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `c587d185b7e8` | L1–L298 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
-| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `173f70aa70a9` | L1–L327 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `196782c94858` | L1–L327 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
@@ -61,15 +62,15 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `70ed5605ff67` | L1–L456 |
-| [`tests/test_download.py`](test_download.py) | `0a05c879945a` | L1–L247 |
+| [`tests/test_download.py`](test_download.py) | `5357854f08d3` | L1–L247 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
-| [`tests/test_e2e.py`](test_e2e.py) | `c31229ccb07d` | L1–L532 |
+| [`tests/test_e2e.py`](test_e2e.py) | `d85a358879ed` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `85003015e498` | L1–L176 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
-| [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `5238ce5719c4` | L1–L207 |
+| [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `6fbd35d188c3` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `de4540b98674` | L1–L323 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
@@ -87,7 +88,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
-| [`tests/test_shop_page.py`](test_shop_page.py) | `0a36d6860d03` | L1–L455 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `0ec36117319f` | L1–L455 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `76a98525c2db` | L1–L179 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `d22443181e2b` | L1–L254 |
@@ -97,7 +98,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `4bc1bbdf4524` | L1–L452 |
-| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `51a720468300` | L1–L279 |
+| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `aebfa78bfbc6` | L1–L285 |
 | [`tests/test_word_export.py`](test_word_export.py) | `d7c7c66103db` | L1–L92 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -132,3 +133,7 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-15 交叉审查增量
+
+新增 test_audit_20260915.py：有界限流、NUL/ETag/摘要投影、日志CR与长ID、回调畸形输入、预支付前持久化/失败同号重试、SQL词法与类型、生产origin、真实源码与bundle异步取消/客服UUID/管理列表乱序。旧预支付测试改为持久pending和稳定单号，并新增提交失败时提供方零调用的反例，不再要求危险的“外部失败本地无单”。

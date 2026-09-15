@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import ipaddress
 import logging
+import re
 import time
 import uuid
 
@@ -63,10 +64,14 @@ def trusted_proxy(scope: dict) -> bool:
 
 
 def public_base_url(request) -> str:
-    """生成浏览器可用的请求基址；默认 request.base_url，不主动访问网络。
+    """生产链接固定使用启动时校验的 SITE_BASE_URL；开发默认 request.base_url，不主动访问网络。
 
     仅当 TRUST_PROXY_HEADERS 开启且直接对端匹配可信 CIDR 时采信转发头。
     scheme 只接受 http/https；代理必须清理来源头并正确设置 Host，不能把该 helper 当成任意 Host 的验证器。"""
+    from .config import settings
+
+    if settings.ENV == "production":
+        return settings.SITE_BASE_URL.rstrip("/")
     base = str(request.base_url).rstrip("/")
     if not trusted_proxy(request.scope):
         return base
@@ -130,7 +135,7 @@ class SecurityHeadersMiddleware:
 
 
 class RequestLoggingMiddleware:
-    """每个请求一行结构化日志，并把 request id 回写给客户端。
+    """每个请求一行有界文本日志（不是持久审计账本），并把 request id 回写给客户端。
 
     request id 的意义：用户报障时让他把响应头里的 `X-Request-ID` 报上来，
     就能在日志里精确定位那一次请求 —— 没有它，线上排障只能靠时间戳猜。
@@ -144,9 +149,11 @@ class RequestLoggingMiddleware:
             await self.app(scope, receive, send)
             return
 
-        request_id = _header(scope, b"x-request-id") or uuid.uuid4().hex[:16]
-        method = scope.get("method", "-")
-        path = scope.get("path", "-")
+        supplied_id = _header(scope, b"x-request-id")
+        request_id = supplied_id if re.fullmatch(r"[A-Za-z0-9._-]{1,128}", supplied_id) else uuid.uuid4().hex
+        # ascii escapes CR/LF/control characters; never log query-string capabilities.
+        method = ascii(scope.get("method", "-")[:16])[1:-1]
+        path = ascii(scope.get("path", "-")[:1024])[1:-1]
         start = time.perf_counter()
         status = 500  # 若应用抛异常没走到 response.start，就按 500 记
 

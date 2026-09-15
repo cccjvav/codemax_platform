@@ -16,11 +16,12 @@
 
 以上每条都有回归测试（tests/test_sql_ddl.py）。
 
-已知简化（只影响显示精度，不影响结构正确性）：
-    - 多词类型只取首词：DOUBLE PRECISION → DOUBLE、CHARACTER VARYING(50) → CHARACTER
-    - DEFAULT / COMMENT 只认单引号字面量（PostgreSQL 里双引号是标识符，不能当字符串）
-    - 不支持 PostgreSQL 美元引用字符串（$$ ... $$）
-    - 未闭合的字符串/块注释视为一直延续到结尾
+语法子集，不是 MySQL/PostgreSQL 的完整解析器：
+    - 支持常见 CREATE（含临时/UNLOGGED）、列/表内外键、PG COMMENT ON。
+    - 保留常见多词/数组/限定类型及括号 DEFAULT；识别 dollar string 与嵌套注释。
+    - ALTER 外键、隐式引用主键、大小写折叠、表级 MySQL COMMENT 等仍有限制。
+    - 未闭合字符串/注释延续到结尾；部分合法 DDL 仍可能遗漏结构，输出需人工复核。
+不能再把这些限制概括为“只影响显示，不影响结构”；完整方言解析属于后续工作。
 """
 from __future__ import annotations
 
@@ -30,8 +31,9 @@ _QUOTES = "'\"`"
 _IDENT_PART = r'(?:"(?:[^"\n]|"")*"|`(?:[^`\n]|``)*`|[\w$]+)'
 _IDENT = rf"{_IDENT_PART}(?:\s*\.\s*{_IDENT_PART})*"
 
-_CREATE_TABLE = re.compile(r"CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", re.IGNORECASE)
-_TYPE = re.compile(r"^([A-Za-z_]\w*(?:\s*\([^)]*\))?)")
+_DOLLAR_QUOTE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
+_CREATE_TABLE = re.compile(r"CREATE\s+(?:(?:TEMP|TEMPORARY|UNLOGGED)\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", re.IGNORECASE)
+_TYPE = re.compile(rf"^({_IDENT}(?:\s+(?:PRECISION|VARYING))?(?:\s*\([^)]*\))?(?:\s+(?:WITH|WITHOUT)\s+TIME\s+ZONE)?(?:\s*\[\s*\])*)", re.IGNORECASE)
 # 单引号字面量：允许 MySQL 反斜杠转义（\' \\）与 SQL 标准的 '' 双写
 _QUOTED = r"'(?:\\.|''|[^'\\])*'"
 _CONSTRAINT_HEADS = {"PRIMARY", "FOREIGN", "UNIQUE", "KEY", "INDEX", "CONSTRAINT", "CHECK", "EXCLUDE"}
@@ -93,6 +95,15 @@ def _scan(s: str):
             yield i, ch, True
             i += 1
             continue
+        dollar = _DOLLAR_QUOTE.match(s, i) if ch == "$" else None
+        if dollar:
+            delimiter = dollar.group()
+            end = s.find(delimiter, i + len(delimiter))
+            end = n if end < 0 else end + len(delimiter)
+            for pos in range(i, end):
+                yield pos, s[pos], True
+            i = end
+            continue
         if ch in _QUOTES:
             quote = ch
             yield i, ch, True
@@ -106,8 +117,17 @@ def _scan(s: str):
             continue
         if s.startswith("/*", i):
             start = i
-            end = s.find("*/", i + 2)
-            i = n if end == -1 else end + 2  # 未闭合的块注释吃掉剩余全部
+            depth = 1
+            i += 2
+            while i < n and depth:
+                if s.startswith("/*", i):
+                    depth += 1
+                    i += 2
+                elif s.startswith("*/", i):
+                    depth -= 1
+                    i += 2
+                else:
+                    i += 1
             yield start, " ", False
             continue
         yield i, ch, False
@@ -214,15 +234,24 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
     default_m = outside(
         rf"\bDEFAULT\s+({_QUOTED}|[+-]?[\w.]+(?:\s*\(\s*\))?)"
     )
+    default_value = _unquote(default_m.group(1)) if default_m else None
+    expression = outside(r"\bDEFAULT\s*(?=\()")
+    if expression:
+        balanced = _read_balanced(rest[expression.end():])
+        if balanced:
+            default_value = "(" + balanced[0] + ")"
     comment_m = outside(rf"\bCOMMENT\s+({_QUOTED})")
     primary_key = bool(re.search(r"\bPRIMARY\s+KEY\b", upper))
 
+    type_text = re.sub(r"\s+", " ", type_m.group(1)).upper()
+    type_text = re.sub(r"\s*([(),\[\]])", r"\1", type_text)
+    type_text = re.sub(r"([(\[,])\s*", r"\1", type_text)
     col = {
         "name": name,
-        "type": re.sub(r"\s+", "", type_m.group(1)).upper(),
+        "type": type_text,
         "primary_key": primary_key,
         "nullable": not primary_key and not re.search(r"\bNOT\s+NULL\b", upper),
-        "default": _unquote(default_m.group(1)) if default_m else None,
+        "default": default_value,
         "comment": _unquote(comment_m.group(1)) if comment_m else None,
     }
 
@@ -249,8 +278,8 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
     if not fk:
         return
     to_table = tuple(_identifier_parts(fk.group(2)))
-    sources = [c.strip() for c in fk.group(1).split(",") if c.strip()]
-    targets = [c.strip() for c in fk.group(3).split(",") if c.strip()]
+    sources = [c.strip() for c in _split_top_level(fk.group(1)) if c.strip()]
+    targets = [c.strip() for c in _split_top_level(fk.group(3)) if c.strip()]
     # strict=False：用户 DDL 写错列数时按短的一边配对，尽力出图而不是抛错
     for src, dst in zip(sources, targets, strict=False):
         edges.append({
@@ -292,7 +321,7 @@ def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None) -
 def _paren_list(m: re.Match | None) -> list[str]:
     if not m:
         return []
-    return [c.strip() for c in (_unquote(x) for x in m.group(1).split(",")) if c]
+    return [c.strip() for c in (_unquote(x) for x in _split_top_level(m.group(1))) if c]
 
 
 def _unquote(s: str) -> str:

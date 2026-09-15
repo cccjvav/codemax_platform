@@ -101,8 +101,8 @@ async def backdate(order_no: str, minutes: int):
 
 
 @pytest.mark.asyncio
-async def test_full_chain_register_to_single_download(client, mock_mode, product_zip):
-    """正常支付完整链路：注册 → 登录 → 下单 → 支付 → 领链接 → 下到真文件 → 再领被拒。"""
+async def test_full_chain_register_to_recoverable_download(client, mock_mode, product_zip):
+    """模拟支付集成链路：注册 → 登录 → 下单 → 确认 → 领链接 → 下到真实ZIP → 可重领。"""
     h = await signup(client)
 
     order_no = await place_order(client, h)
@@ -122,7 +122,7 @@ async def test_full_chain_register_to_single_download(client, mock_mode, product
     with zipfile.ZipFile(io.BytesIO(got.content)) as z:  # 链尾真的拿到了可用文件
         assert len(z.namelist()) == 3
 
-    # 一次性：同一单第二次领链接必须被拒
+    # 可恢复：同一单已付款用户可重新领取短时链接
     r2 = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r2.status_code == 200
     assert r2.json()["download_url"]

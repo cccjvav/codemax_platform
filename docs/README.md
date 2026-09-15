@@ -17,7 +17,7 @@
 - 仅这个 JSON 本身列为 `note_data`：文件不能在自身存入自己的有效 SHA。格式、来源、维护规则由本节和[指南第 10 节](CODE_READING_GUIDE.md#10-讲解数据的格式来源与维护)解释；本目录自动表和外部 code-manifest 仍记录其真实指纹。其他 JSON 无此例外。
 - `scripts/code_reading.py` 校验并在源码旁转义渲染；构建要求全部非空非生成源码有解释，新增漏项/过期摘要/坏范围会失败，不自动刷新 notes 摘要。
 
-当前 136 文件 / 1446 段；覆盖表还单列 99 生成物、4 空文件、1 数据文件。它不认证任意历史 Markdown 的业务含义，也不认证讲解正确性。
+当前计数由构建输出及覆盖页生成；生成物、空包文件和讲解数据单列。它不认证任意历史 Markdown 的业务含义，也不认证讲解正确性。
 
 ## 现行指南与历史材料
 
@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `f7322ba92c25` | L1–L8414 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `b5c5116c8167` | L1–L8541 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

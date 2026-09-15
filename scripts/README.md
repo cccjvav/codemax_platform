@@ -62,7 +62,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `c7cae4aa8f1c` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `17dd60a2b100` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
@@ -91,3 +91,7 @@ python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_
 同一工作区先完成 `npm run build` 再构建文档，不要两者并行：Vite 会清空并重建静态目录，文档扫描可能碰到暂时缺失的 chunk。CI 各 job 使用独立工作区，不存在共享目录竞态。
 
 源码变动且已复核解释后才执行 `python scripts/check_docs_contract.py --write`。新增 Markdown 同时登记 DOC_GROUPS；变更排版要检查窄屏、长签名、表格横向滚动及键盘焦点。
+
+## 2026-09-15 交叉审查增量
+
+本轮DOC_GROUPS新增review当前台账和两份原文，旧报告明确分组为历史快照；已经整合的两份文档方案不再生成独立页面，取舍保存在文档执行契约及Git历史。

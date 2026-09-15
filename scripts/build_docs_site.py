@@ -283,8 +283,8 @@ def _doc_for(rel: str) -> str | None:
 # 分组顺序即侧边栏顺序
 DOC_GROUPS = [
     ("入口", ["Windows新手逐步验收.md", "总览.md", "DOCUMENTATION_SUMMARY.md", "docs/site/README.md", "docs/README.md", "docs/DOCUMENTATION_POLICY.md"]),
-    ("方案原稿", ["代码级文档方案新.md", "代码级文档方案旧.md"]),
-    ("审查记录", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md", "docs/DOCUMENTATION_QUALITY_REVIEW.md"]),
+    ("当前交叉审查", ["review/README.md", "review/01a08bf5-review-report.md", "review/CodeMax_Platform_全面只读审计_01a08bf5_2026-09-15.md"]),
+    ("历史审查与验收快照", ["CONSOLIDATED_ERROR_SUMMARY.md", "docs/REVIEW_CROSSCHECK.md", "docs/SECOND_REPAIR_ACCEPTANCE.md", "docs/DOCUMENTATION_QUALITY_REVIEW.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
     ("项目管理", ["manager/README.md", "manager/SKILL.md", "manager/experience.md", "manager/stages/README.md", "manager/stages/windows-acceptance.md", "manager/stages/agnes-integration.md"]),
     ("架构讲解", ["docs/AGNES_AI.md", "docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/CODE_READING_GUIDE.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/WINDOWS_CONDA.md", "docs/ACCEPTANCE_GUIDE.md", "docs/ROOT_FILES.md"]),

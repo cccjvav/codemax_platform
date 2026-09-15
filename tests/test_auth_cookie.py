@@ -313,7 +313,7 @@ def test_authed_get_routes_are_read_only():
 
 
 def test_download_is_post_not_get():
-    """一次性下载会烧掉额度（paid→downloaded），有副作用的接口不能是 GET。"""
+    """一次性下载会错误消耗已购权益（paid→downloaded），有副作用的接口不能是 GET。"""
     from fastapi.routing import APIRoute
 
     route = next(

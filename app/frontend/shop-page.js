@@ -24,7 +24,6 @@ function show(name) {
   if (name !== "pending" && timer) { clearInterval(timer); timer = null; }
 }
 
-const yuan = (fen) => `¥${(fen / 100).toFixed(2)}`;
 
 // 按订单状态切页面。
 // 状态渲染不调用 POST /shop/download/{no}：读取订单和申请文件链接是两件事。
@@ -175,7 +174,10 @@ async function doBuy() {
 
 document.getElementById("btn-buy").onclick = buy;
 document.getElementById("btn-rebuy").onclick = buy;
-document.getElementById("btn-cancel").onclick = () => { stop(); show("landing"); };
+document.getElementById("btn-cancel").onclick = () => {
+  ++buySeq; currentNo = null; stop(); show("landing");
+  if (offBuy) { offBuy(); offBuy = null; }
+};
 
 // 下载：**只有用户主动点击才调**。成功后立刻打开链接。
 document.getElementById("btn-download").onclick = async () => {

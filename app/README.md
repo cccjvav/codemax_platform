@@ -32,7 +32,7 @@ Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_EN
 | `OAuthClient` / `OAuthCode` | 客户端密钥存哈希；注册回调精确匹配；授权码有 used、过期时间、用户和凭据版本 |
 | `SupportMessage` | customer_id 定义会话；sender_id 与 sender_role 记录发送方；(sender_id, client_nonce) 唯一，用于丢失响应后的重试 |
 | `SysConfig` | 持久配置表；不能因此推断应用已经把所有 Settings 从此表热加载 |
-| `schemas.py` | RegisterIn、PasswordChangeIn 校验密码 UTF-8 字节上限与空字符；用户名全匹配；DDL、文本、XML 有长度约束；DiagramSummary 不返回正文，DiagramOut 返回正文 |
+| `schemas.py` | RegisterIn、PasswordChangeIn 校验密码 UTF-8 字节上限与空字符；用户名全匹配；DDL、文本、XML 有长度约束，DiagramIn 额外拒绝 PostgreSQL 不允许的 NUL；DiagramSummary 不返回正文，DiagramOut 返回正文 |
 
 ### 密码与凭据
 
@@ -87,11 +87,11 @@ pending → closed → paid
 | --- | --- |
 | `run_cpu_bound(fn, *args)` | 返回任务结果；最多 2 个在途任务，响应等待 30 秒。满额或超时抛 CPUQueueFull；取消/超时不杀掉实际任务，完成前继续占槽 |
 | `_get_executor` / `_execute_cpu` / `shutdown` | 懒建单 worker 进程池；基础设施故障才回落线程池；普通任务错误向外传播；shutdown(wait=False) 不意味着已强杀运行中的任务 |
-| `Limiter.allow` / `prune` / `reset` | 滑动窗口返回 (是否允许, Retry-After秒数)；prune 清理过期 key，不是硬性内存上限；reset 用于测试隔离 |
+| `Limiter.allow` / `prune` / `reset` | 滑动窗口返回 (是否允许, Retry-After秒数)；请求最多维护32键，默认16384桶上限，满时拒绝新键；prune为显式全扫描维护，reset清理全部状态 |
 | `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；依赖按 scope + IP 限流，超额 429。内存状态不跨进程共享 |
-| `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；链接基址与 https 判断使用同一规则。应用端口仍须阻止绕过代理访问 |
+| `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；生产链接固定为已校验 SITE_BASE_URL，开发链接可按可信头派生。应用端口仍须阻止绕过代理访问 |
 | `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
-| `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；这不是独立防篡改审计存储 |
+| `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；ID 只接受安全128字符格式，路径转义限长、不含查询；这不是独立防篡改审计存储 |
 | `check_production_settings` / `check_production_warnings` | 分别返回阻断问题／告警列表；配置检查不进行实际商户、文件或模型连通性验收 |
 | `enforce_production_settings` | 记录告警，有硬错误抛 ProductionConfigError；由 main 在导入装配阶段调用 |
 | `Tool` / `page_title` / `page_context` | 统一页面元数据与模板上下文；auth_ui 控制登录界面是否装配，不授予 API 权限 |
@@ -101,18 +101,18 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `e730621e66ef` | L1–L135 |
-| [`app/cpu_pool.py`](cpu_pool.py) | `9817d188d978` | L1–L105 |
+| [`app/config.py`](config.py) | `83098a2ebb0d` | L1–L135 |
+| [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |
-| [`app/middleware.py`](middleware.py) | `340636eff781` | L1–L173 |
+| [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
 | [`app/models.py`](models.py) | `5bb6102d1c98` | L1–L178 |
 | [`app/order_state.py`](order_state.py) | `604b20f29766` | L1–L113 |
-| [`app/ratelimit.py`](ratelimit.py) | `2c63fe6203fb` | L1–L110 |
-| [`app/schemas.py`](schemas.py) | `a9d494d3283a` | L1–L145 |
+| [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
+| [`app/schemas.py`](schemas.py) | `7f6548b534b9` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
-| [`app/startup_checks.py`](startup_checks.py) | `ea62e48e0819` | L1–L102 |
+| [`app/startup_checks.py`](startup_checks.py) | `eaba6a8a8c2f` | L1–L113 |
 | [`app/storage.py`](storage.py) | `118b3e72ed68` | L1–L119 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
 | [`app/wechat_pay.py`](wechat_pay.py) | `f821d3a7dfce` | L1–L242 |

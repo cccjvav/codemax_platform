@@ -1,6 +1,6 @@
 # tests/test_frontend_supply_chain.py
 #
-# 前端第三方依赖的供应链风险（2026-09-06 全仓体检的 A-3 / A-4；报告已归档，见 HANDOVER.md「历次 code review 报告的处置与归档」）。
+# 前端第三方依赖的供应链风险（2026-09-06 全仓体检的 A-3 / A-4；历史输入与当前结论见review/README.md）。
 #
 # 两条问题：
 #
@@ -12,7 +12,7 @@
 # **A-4 `securityLevel: "loose"` 配 LLM 输出。** mermaid 的 loose 模式允许图里
 # 带 HTML 标签与点击回调。而本站的 mermaid 文本是**LLM 生成的**（`/tools/mermaid`），
 # 也就是把一段不可信输入交给一个「允许内嵌 HTML」的渲染器。
-"""A-3 / A-4：CDN 依赖必须钉死版本，mermaid 不许用 loose。"""
+"""A-3 / A-4：业务页不加载CDN脚本，构建依赖锁定，mermaid禁用loose。"""
 
 from __future__ import annotations
 
@@ -77,7 +77,7 @@ def test_no_template_loads_third_party_js_from_a_cdn():
     这个清单**必须保持只减不增**：任何新增 CDN 依赖都要在这里显式登记，
     从而逼出一次「为什么不能像 d3 一样打进产物」的讨论。
     """
-    allowed = ()  # TD-222 后续项：mermaid 仍走 CDN
+    allowed = ()  # TD-222 后续项：业务脚本均已自托管
 
     found = []
     for f in sorted(TEMPLATES.glob("*.html")):

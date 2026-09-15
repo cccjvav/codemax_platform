@@ -141,7 +141,7 @@ document.getElementById("er-word").onclick = async () => {
     a.href = url;
     a.download = "data_dictionary.docx";
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) {
     fail(`导出失败：${e.message}`);
   }

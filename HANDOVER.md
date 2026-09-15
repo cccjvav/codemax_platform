@@ -6,6 +6,8 @@ Windows 本机先按 [新手逐步验收](Windows新手逐步验收.md) 一路�
 
 ## 当前入口
 
+- 当前任务：[2026-09-15 交叉审查、第一批修复和未结项](review/README.md)。两份输入原文在 review；不能以本批通过等同完整生产签收。
+
 - 当前 Agnes 真实聊天已通过；embedding 未确认，免费候选尚未接入：[阶段记录](manager/stages/agnes-integration.md)，[接入说明](docs/AGNES_AI.md)。
 - 已交付的本地验收/外部模型任务：[阶段证据与下一步](manager/stages/windows-acceptance.md)；[管理约定与经验](manager/README.md)
 

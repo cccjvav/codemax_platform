@@ -3,11 +3,13 @@
 流程图是用户私有资产，与 ER/Mermaid 那类公开引流工具语义不同：**全部端点需鉴权**，
 且只能读写自己的记录。
 """
+import re
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Response, status
 from sqlalchemy import LargeBinary, cast, delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import load_only
 
 from ..config import settings
 from ..database import get_db, lock_user
@@ -50,10 +52,13 @@ def _parse_if_match(raw: str | None) -> int:
             "缺少 If-Match 头：保存流程图必须带上你手上那一版的版本号（GET 响应的 ETag），"
             "否则并发编辑会互相覆盖",
         )
-    tag = raw.strip().strip('"').strip()
-    if not tag.isdigit():
-        raise HTTPException(status.HTTP_400_BAD_REQUEST, f'If-Match 的值无法解析：{raw}')
-    return int(tag)
+    # This API accepts one decimal version, optionally strongly quoted; not lists/weak tags.
+    if len(raw) > 32 or not re.fullmatch(r'(?:[0-9]{1,10}|"[0-9]{1,10}")', raw.strip()):
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "If-Match 必须是单个有效版本号")
+    version = int(raw.strip().strip('"'))
+    if not 1 <= version <= 2147483647:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "If-Match 版本号超出范围")
+    return version
 
 
 async def _live_count(db: AsyncSession, user: User) -> int:
@@ -81,7 +86,9 @@ async def list_diagrams(
 
     用查询参数而不是 `/diagrams/trash` 子路径：后者会被先注册的 `/{diagram_id}` 吃掉。
     """
-    stmt = select(SysDiagram).where(SysDiagram.user_id == user.id)
+    stmt = select(SysDiagram).options(load_only(
+        SysDiagram.id, SysDiagram.name, SysDiagram.update_time, SysDiagram.version,
+    )).where(SysDiagram.user_id == user.id)
     stmt = stmt.where(SysDiagram.deleted_at.is_not(None) if deleted else _alive())
     rows = await db.scalars(stmt.order_by(SysDiagram.update_time.desc()))
     return rows.all()

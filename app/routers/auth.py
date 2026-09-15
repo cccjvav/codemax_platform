@@ -65,7 +65,10 @@ async def login(
     同时给两种客户端用：浏览器吃 Set-Cookie（HttpOnly，脚本读不到），
     API 客户端 / Swagger 吃响应体里的 access_token 走 Bearer 头。
     """
-    user = await db.scalar(select(User).where(User.username == form.username))
+    # Invalid database text must never reach asyncpg. Keep the normal unknown-user response.
+    user = None
+    if "\x00" not in form.username and len(form.username) <= 50:
+        user = await db.scalar(select(User).where(User.username == form.username))
     if user is None:
         # **不能短路**：直接返回会让「用户不存在」比「密码错」快 58 倍
         # （实测 4.6 ms vs 263 ms），响应时间就成了用户名枚举侧信道。

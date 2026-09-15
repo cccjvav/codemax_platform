@@ -25,7 +25,7 @@ from fastapi import HTTPException, Request
 from .config import settings
 from .middleware import trusted_proxy
 
-_PRUNE_THRESHOLD = 1024  # key 多到这个数就顺手清一次，避免字典随 IP 无限增长
+_PRUNE_BATCH = 32  # 每次最多检查这些键；不在请求路径全表扫描
 
 
 @dataclass
@@ -38,20 +38,34 @@ class Limiter:
 
     clock: Callable[[], float] = time.monotonic
     _hits: dict[str, deque] = field(default_factory=dict)
+    max_keys: int = 16384
+    _keys: deque = field(default_factory=deque)
+    _expires: dict[str, float] = field(default_factory=dict)
 
     def allow(self, key: str, *, limit: int, window: float) -> tuple[bool, int]:
         """返回 (是否放行, 建议重试秒数)。"""
         now = self.clock()
+        # Round-robin maintenance has a fixed work budget and one slot per key.
+        # Never evict a live bucket to admit a new identity: that would bypass limits.
+        for _ in range(min(_PRUNE_BATCH, len(self._keys))):
+            old = self._keys.popleft()
+            if self._expires[old] <= now:
+                self._hits.pop(old)
+                self._expires.pop(old)
+            else:
+                self._keys.append(old)
         hits = self._hits.get(key)
         if hits is None:
+            if len(self._hits) >= self.max_keys:
+                return False, 1
             hits = self._hits[key] = deque()
+            self._keys.append(key)
         while hits and now - hits[0] >= window:
             hits.popleft()
         if len(hits) >= limit:
             return False, max(1, int(window - (now - hits[0])) + 1)
         hits.append(now)
-        if len(self._hits) > _PRUNE_THRESHOLD:
-            self.prune(window)
+        self._expires[key] = now + window
         return True, 0
 
     def prune(self, window: float) -> None:
@@ -63,9 +77,13 @@ class Limiter:
         now = self.clock()
         for key in [k for k, dq in self._hits.items() if not dq or now - dq[-1] >= window]:
             self._hits.pop(key, None)
+            self._expires.pop(key, None)
+        self._keys = deque(self._hits)
 
     def reset(self) -> None:
         self._hits.clear()
+        self._keys.clear()
+        self._expires.clear()
 
 
 limiter = Limiter()

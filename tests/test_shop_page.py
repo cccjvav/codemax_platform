@@ -4,10 +4,10 @@
 #
 # 这组测试的重点不是"页面能打开"，而是钉住三条容易在后续改动中被破坏的不变式：
 #
-# 1. **轮询订单状态绝不能烧掉一次性下载。** `POST /shop/download/{order_no}` 成功后
-#    订单永久变 `downloaded`，同一单不能再下载（后端 CAS，见 shop.py 的 `won`）。
+# 1. **轮询订单状态绝不能烧掉可恢复下载权益。** `POST /shop/download/{order_no}` 成功后
+#    状态可记为 `downloaded`，但同一已付款订单仍可重领链接；不证明传输已完成。
 #    下单页每 3 秒轮询一次 `GET /shop/orders/{no}`，谁要是图省事拿 download 当状态查询，
-#    用户的货就没了 —— 而且现象是"付了钱下载不了"，极难排查。
+#    会把只读轮询变成写操作。领取与查询必须分离，轮询不能改变购买权益。
 # 2. **同意页零脚本。** base.html 现在带了全站登录模块，但 OAuth 同意页必须一个脚本都没有
 #    （`auth_ui=False`）。这条在 test_oauth_consent.py 里，这里只补它的对偶：
 #    其它页面确实拿到了登录入口。
@@ -53,7 +53,7 @@ async def test_shop_page_renders_product(client):
 
 
 async def test_shop_page_explains_recoverable_download(client):
-    """一次性下载是会让用户丢货的约束，必须在页面上说清楚。"""
+    """页面必须说清过期或中断可重领，不能让用户误以为再次下载会丢失权益。"""
     text = (await client.get("/shop")).text
     assert "过期或中断可重新领取" in text
     assert "一次性有效" not in text
@@ -141,7 +141,7 @@ async def test_order_status_unknown_order_is_404(client):
     assert (await client.get("/shop/orders/CM00000000XX", headers=h)).status_code == 404
 
 
-async def test_status_polling_does_not_burn_the_one_time_download(client, product, mock_mode):
+async def test_status_polling_preserves_download_entitlement(client, product, mock_mode):
     """**这组测试里最重要的一条。**
 
     下单页每 3 秒轮询状态。如果轮询走的是 `POST /shop/download`（它会把订单
@@ -160,7 +160,7 @@ async def test_status_polling_does_not_burn_the_one_time_download(client, produc
 
     dl = await client.post(f"/shop/download/{no}", headers=h)
     assert dl.status_code == 200, (
-        "轮询之后下载失败了 —— 说明轮询路径把一次性下载额度烧掉了。"
+        "轮询之后下载失败了 —— 说明轮询路径错误改变了下载资格。"
         f"响应：{dl.text}"
     )
     assert "download_url" in dl.json()
