@@ -23,7 +23,7 @@ Authorization 头：
    中途任何一次重新序列化（键顺序、空格、中文转义）都会让验签失败。
 2. **参与签名的 URL 不含域名**，只有路径与查询串。
 3. **回调验签要用"原始报文主体"**，不能先反序列化再重新序列化 —— 与第 1 条同理，
-   所以路由里用 `await request.body()` 取原文。
+   所以路由里用 `request.stream()` 取原文。
 
 沙箱里没有商户号、API 证书与公网回调地址，真实下单与真实回调在此跑不通。
 能真正验证的是签名/验签算法（自签密钥 + 自签证书 + 公钥验签）、AES-GCM 解密
@@ -32,18 +32,20 @@ Authorization 头：
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from urllib.parse import urlsplit
 
 import httpx
 from cryptography import x509
 from cryptography.exceptions import InvalidSignature, InvalidTag
 from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import padding
+from cryptography.hazmat.primitives.asymmetric import padding, rsa
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 from .config import settings
@@ -70,6 +72,8 @@ class PayConfig:
     notify_url: str
     platform_cert: str = ""  # 微信支付平台证书（或微信支付公钥）的 PEM 文本，回调验签用
 
+    platform_key_id: str = ""  # Explicit ID for raw public-key mode, never merchant serial_no.
+
     @property
     def configured(self) -> bool:
         """下单所需六项缺一不可。没配齐就直接拒绝下单，不要发出注定失败的请求。"""
@@ -77,8 +81,9 @@ class PayConfig:
 
     @property
     def notify_ready(self) -> bool:
-        """回调只需解密用的 APIv3 密钥与验签用的平台证书。"""
-        return bool(self.api_v3_key and self.platform_cert)
+        """回调绑定商户/app、解密密钥及可信平台证书或显式ID公钥。"""
+        return bool(self.appid and self.mchid and self.api_v3_key and self.platform_cert
+                    and ("BEGIN CERTIFICATE" in self.platform_cert or self.platform_key_id))
 
 
 def pay_config() -> PayConfig:
@@ -91,6 +96,7 @@ def pay_config() -> PayConfig:
         api_v3_key=settings.WX_API_V3_KEY,
         notify_url=settings.WX_NOTIFY_URL,
         platform_cert=settings.WX_PLATFORM_CERT,
+        platform_key_id=settings.WX_PLATFORM_KEY_ID,
     )
 
 
@@ -149,19 +155,39 @@ async def native_prepay(
         separators=(",", ":"),
     )
     raw = body.encode("utf-8")
-    headers = {
-        "Authorization": auth_header(cfg, "POST", NATIVE_PATH, body),
-        "Content-Type": "application/json",
-        "Accept": "application/json",
-        "User-Agent": "codemax-platform/1.0",
-    }
-    async with httpx.AsyncClient(base_url=BASE_URL, transport=transport, timeout=TIMEOUT) as c:
-        r = await c.post(NATIVE_PATH, content=raw, headers=headers)
-    if r.status_code != 200:
-        raise WeChatPayError(f"微信支付下单失败：HTTP {r.status_code} {r.text[:200]}")
-    code_url = r.json().get("code_url")
-    if not code_url:
-        raise WeChatPayError(f"微信支付下单响应缺少 code_url：{r.text[:200]}")
+    try:
+        authorization = auth_header(cfg, "POST", NATIVE_PATH, body)
+    except (ValueError, TypeError):
+        raise WeChatPayError("微信支付签名配置无效") from None
+    headers = {"Authorization": authorization, "Content-Type": "application/json", "Accept": "application/json"}
+    response_body = bytearray()
+    try:
+        async with (
+            asyncio.timeout(TIMEOUT * 2),
+            httpx.AsyncClient(base_url=BASE_URL, transport=transport, timeout=TIMEOUT) as c,
+            c.stream("POST", NATIVE_PATH, content=raw, headers=headers) as r,
+        ):
+            if r.status_code != 200:
+                raise WeChatPayError(f"微信支付下单失败：HTTP {r.status_code}")
+            async for chunk in r.aiter_bytes():
+                if len(response_body) + len(chunk) > 65536:
+                    raise WeChatPayError("微信支付下单响应过大")
+                response_body.extend(chunk)
+    except (httpx.HTTPError, TimeoutError):
+        raise WeChatPayError("微信支付网络请求失败；结果未知，请保留原订单重试") from None
+    try:
+        data = json.loads(response_body)
+    except (ValueError, UnicodeError, RecursionError):
+        raise WeChatPayError("微信支付下单响应不是有效JSON") from None
+    code_url = data.get("code_url") if isinstance(data, dict) else None
+    if not isinstance(code_url, str) or not 1 <= len(code_url) <= 512 or any(ord(ch) < 33 for ch in code_url):
+        raise WeChatPayError("微信支付下单响应缺少有效code_url")
+    try:
+        valid = urlsplit(code_url).scheme == "weixin"
+    except ValueError:
+        valid = False
+    if not valid:
+        raise WeChatPayError("微信支付二维码协议无效")
     return code_url
 
 
@@ -198,7 +224,7 @@ def assert_notify_fresh(timestamp: str, *, now: int | None = None) -> None:
     ref = int(time.time()) if now is None else now
     if not timestamp.isascii() or not timestamp.isdigit() or len(timestamp) > 12:
         # 头是可以随便伪造的，不能假设它格式正确（空串 / 带小数 / 带空格都要挡）
-        raise WeChatPayError(f"Wechatpay-Timestamp 不是合法整数：{timestamp!r}")
+        raise WeChatPayError("Wechatpay-Timestamp 不是有界合法整数")
     skew = int(timestamp) - ref
     if abs(skew) > NOTIFY_MAX_SKEW_SECONDS:
         raise WeChatPayError(
@@ -213,7 +239,7 @@ def verify_notify_signature(
     """用平台证书公钥验回调签名，不通过抛 WeChatPayError。
 
     验签串只有三行：`应答时间戳\\n 应答随机串\\n 应答报文主体\\n`。
-    `body` 必须是**原始报文主体**（路由里用 `await request.body()` 取原文），
+    `body` 必须是**原始报文主体**（路由里用 `request.stream()` 取原文），
     反序列化后再重新序列化会让验签必然失败。
     """
     message = f"{timestamp}\n{nonce}\n{body}\n".encode()
@@ -238,5 +264,42 @@ def decrypt_resource(api_v3_key: str, *, ciphertext: str, nonce: str, associated
         raise WeChatPayError(f"回调报文解密失败：{e}") from e
     try:
         return json.loads(plaintext)
-    except json.JSONDecodeError as e:
-        raise WeChatPayError(f"回调报文不是合法 JSON：{e}") from e
+    except (ValueError, UnicodeError, RecursionError):
+        raise WeChatPayError("回调报文不是合法 UTF-8 JSON") from None
+
+
+def assert_notify_identity(cfg: PayConfig, serial: str, *, now: datetime | None = None) -> None:
+    """Bind the header to a locally trusted RSA key; certificate mode also enforces validity.
+
+    This does not fetch keys from a callback URL or validate a public CA chain: the
+    operator must provision the real WeChat key/certificate through trusted channels.
+    """
+    if not serial or len(serial) > 128 or not serial.isascii():
+        raise WeChatPayError("平台证书/公钥标识无效")
+    try:
+        key = _public_key(cfg.platform_cert)
+        if not isinstance(key, rsa.RSAPublicKey) or key.key_size < 2048:
+            raise ValueError('RSA key required')
+        if 'BEGIN CERTIFICATE' in cfg.platform_cert:
+            cert = x509.load_pem_x509_certificate(cfg.platform_cert.encode())
+            moment = now or datetime.now(timezone.utc)
+            valid = (serial.upper() == format(cert.serial_number, 'X')
+                     and cert.not_valid_before_utc <= moment <= cert.not_valid_after_utc)
+        else:
+            valid = bool(cfg.platform_key_id) and serial == cfg.platform_key_id
+    except (ValueError, TypeError):
+        raise WeChatPayError("平台验签凭据配置无效") from None
+    if not valid:
+        raise WeChatPayError("平台证书/公钥标识不匹配或证书不在有效期")
+
+
+def assert_notify_configuration(cfg: PayConfig) -> None:
+    """Before charging, require locally usable callback credentials, not merely a private signing key."""
+    if not cfg.notify_ready or len(cfg.api_v3_key.encode()) != 32:
+        raise WeChatPayError("回调配置不完整或APIv3密钥不是32字节")
+    try:
+        serial = (format(x509.load_pem_x509_certificate(cfg.platform_cert.encode()).serial_number, 'X')
+                  if 'BEGIN CERTIFICATE' in cfg.platform_cert else cfg.platform_key_id)
+    except (ValueError, TypeError):
+        raise WeChatPayError("平台回调证书配置无效") from None
+    assert_notify_identity(cfg, serial)

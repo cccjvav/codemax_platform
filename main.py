@@ -10,7 +10,7 @@ from app.config import settings
 from app.database import engine
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers import admin, auth, diagrams, health, messages, oauth, shop, site, support, tools
-from app.startup_checks import enforce_production_settings
+from app.startup_checks import enforce_database_safety, enforce_production_settings
 from app.tools.faq import warm_semantic_index
 
 # 依赖模块导入后、应用实例装配前配置 logging；uvicorn 也会配置日志，这里只设级别与格式，
@@ -25,19 +25,17 @@ enforce_production_settings()
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # 可选语义 FAQ 预热：LLM_EMBED_ENABLED 默认 false，关闭时不发网络请求。
-    # **best-effort** —— 没配 LLM_API_KEY、网络不通、模型不支持中文，任何一条都只
-    # 意味着退回词袋检索，绝不让启动失败。
-    #
-    # 刻意 await 而不是丢后台任务：后台任务可能晚于第一个请求才写完全局变量，
-    # 那样同一个问题会出现「有时走语义、有时走词袋」的随机行为，极难排查。
-    await warm_semantic_index()
-    yield
-    cpu_pool.shutdown()  # 回收进程池子进程，否则会留下孤儿进程
-    # 干净归还数据库连接。少了这一句，进程被 SIGTERM 时池里的连接是**硬断开**的 ——
-    # PostgreSQL 那边会留下一堆悬挂连接直到超时才回收。滚动发布频繁时，
-    # 这些连接会把 max_connections 吃满，新副本反而起不来。
-    await engine.dispose()
+    try:
+        # Production checks DB/journal/known demo identities before accepting requests; no auto-migration.
+        await enforce_database_safety()
+        # Embedding remains optional and off by default; warm-up is not a production readiness proof.
+        await warm_semantic_index()
+        yield
+    finally:
+        # Also clean up if startup fails before yield.
+        cpu_pool.shutdown()
+        await engine.dispose()
+
 
 
 app = FastAPI(

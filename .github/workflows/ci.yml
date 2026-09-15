@@ -7,7 +7,7 @@
 #   frontend      —— npm 构建与提交产物的漂移检查
 #   docs          —— 构建文档站（scripts/build_docs_site.py），核对路由数与页数
 #   test-sqlite   —— 默认后端，全量 pytest
-#   test-postgres —— postgres:16 service 容器，另建库把建表脚本连跑两遍验证可重复执行（会清库，不是存量迁移幂等）
+#   test-postgres —— postgres:16 service 容器，另建空库验证初始化CLI、账本与拒绝覆盖；pytest另验迁移/并发
 #
 # 历史：2f3223a 由仓库管理员从 docs/github-actions-ci.yml 纯重命名激活；
 # aa87c52 把 actions 升到 v7（消 Node 20 弃用告警，TD-144）；
@@ -294,15 +294,19 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      # tests/test_schema_sync.py 只比表/列集合及部分时区约束，不是完整DDL等价性；
-      # 这里验证full_init在独立PostgreSQL库可重复重建，会清库，不是存量升级。
-      - name: 在独立 PostgreSQL 库重复重建 full_init（破坏性）
+      # 空库初始化必须无种子；第二次必须拒绝而不是清库。实际数据保留/回滚另由pytest真库验证。
+      - name: 初始化CLI与拒绝覆盖检查（独立空库）
         run: |
-          psql -d postgres -c "CREATE DATABASE codemax_ddl"
-          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
-          psql -d codemax_ddl -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
-          echo "public schema 表数："
-          psql -d codemax_ddl -tAc "select count(*) from pg_tables where schemaname='public'"
+          set -euo pipefail
+          psql -d postgres -v ON_ERROR_STOP=1 -c "CREATE DATABASE codemax_ddl"
+          export DATABASE_URL='postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/codemax_ddl'
+          python "database init/db_init.py" init --confirm-database codemax_ddl
+          python "database init/db_init.py" status --confirm-database codemax_ddl
+          if python "database init/db_init.py" init --confirm-database codemax_ddl; then
+            echo 'ERROR: initialization unexpectedly accepted a nonempty database'
+            exit 1
+          fi
+          psql -d codemax_ddl -v ON_ERROR_STOP=1 -tAc "select count(*) from schema_migration"
 
       - name: pytest
         run: |

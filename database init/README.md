@@ -2,50 +2,63 @@
 
 ## 模块职责
 
-本目录包含**破坏性新库初始化**与**保留数据的增量迁移**，两者绝不能混用。
-应用不会在启动时自动运行这些 SQL，也不会凭 ORM 定义自动把存量库升到新版本。
+本目录现在提供**空库初始化、显式旧库接入、带账本的增量升级**。不自动创建/删除数据库，也不在 Web 启动时执行迁移。历史版本的 full_init 曾含 DROP，不能回退到旧脚本“修环境”。
+
+大白话：初始化是往空房间放家具，迁移是在保留家具的前提下改造房间。`schema_migration` 是签收本，记录版本及 SQL 校验和；事务锁保证同一时间只有一组维护工人操作，失败时改造和签收一起回滚。
 
 ## 文件与入口
 
-### db_init.py 与 full_init.sql
+### 维护 CLI
 
-`db_init.py` 从执行目录的 `../.env` 读取 DB_HOST/PORT/NAME/USER/PASSWORD，不复用 app.Settings，也不使用 DATABASE_URL。因此按下面方式从本目录运行：
+在项目根目录、已安装依赖的 Python 环境运行（Windows 用 Conda＋CMD）。Settings 固定读取仓库根 `.env`，环境变量优先，`DATABASE_URL` 非空优先于 DB_*；不再从当前工作目录的 `../.env` 猜配置。口令不作为命令行参数。
 
-```bash
-cd "database init"
-python db_init.py
+先用 PostgreSQL 管理工具创建一个**专用空库**并授予维护角色必要权限，填写私有配置。以下 `codemax_db` 必须换成实际确认的目标名；确认参数与实际连接库名不符时拒绝。
+
+```text
+python "database init/db_init.py" init --confirm-database codemax_db
+python "database init/db_init.py" bootstrap-admin --username owner --confirm-database codemax_db
+python "database init/db_init.py" status --confirm-database codemax_db
 ```
 
-**只对新建或可丢弃数据库运行。** 目标库已存在时，脚本只跳过 CREATE DATABASE，仍会继续执行会 DROP TABLE 的 full_init，不是“已有库就安全跳过”。
+`bootstrap-admin` 两次不回显输入新口令，至少12字符且最多72 UTF-8字节；用户名沿用注册校验，不使用保留名 admin。只允许创建第一个启用管理员，不覆盖密码、不提升已存在普通用户。若用户名已被占用，另选新的管理身份，不把该用户直接提权。没有默认管理员/客户端；生产启动要求已有非演示管理员。
 
-| 函数 | 输入与返回 | 副作用/失败 |
-| --- | --- | --- |
-| `database_exists(conn, db_name)` | 维护库连接与库名 → bool | 查询 pg_database，值参数化 |
-| `create_database(conn, db_name)` | 维护库连接与库名 → None | 使用 Identifier 处理库名；CREATE DATABASE 需 autocommit，不能放事务块 |
-| `main` | 环境配置 → 初始化目标库 | 先连 postgres 维护库，再连目标库；建表成功提交，失败回滚；连接最终关闭；调用者必须有相应权限 |
+| 命令 / 文件 | 输入、结果与失败边界 |
+| --- | --- |
+| `db_init.py main` | 解析显式命令/确认库名后才连接；无参数退出2并显示帮助；可理解的维护拒绝消息不含凭据，驱动/验证错误脱敏并退出1，最终关闭连接 |
+| `init` / `full_init.sql` | public 中有任何用户表、视图或序列则拒绝；不含 DROP 或身份 INSERT。建表和当前基线账本在同一事务提交。直接执行 SQL 不会生成完整账本，正常入口只能用 CLI |
+| `adopt-legacy-0008` | 操作者确认已完成0008结构；检查表列与关键索引、拒绝覆盖已有账本；登记0001–0008历史基线，再在同一事务执行0009。它不是完整DDL等价或所有旧版本自动升级器 |
+| `migrate` | 仅执行账本中缺失的0009及后续迁移；拒绝校验和变化、版本缺口、未知更高版本或旧事务包装脚本；DDL/DML和账本一起提交/回滚 |
+| `status` | 只读核对校验和并列待执行版本；不自动初始化/迁移。返回none表示账本当前，不证明外部商户或备份已验收 |
+| `seed-demo` / `seed_demo.sql` | 仅development下显式调用且用户/客户端表都空时允许。包含公开演示身份，禁止公网使用；生产检查会拒绝启用的演示凭据。不会覆盖已有账号 |
+| `migrate_0009_retire_demo.sql` | 停用仍具有原始公开哈希的管理员/客户端，递增该用户凭据版本并清理已停用身份的授权码；保留订单/消息/图表。重新哈希过的相同弱密码由生产启动检查另外拦截 |
 
-full_init 重建 User、Order、Article、SysConfig、SysDiagram、OAuthClient、OAuthCode、SupportMessage 对应表、约束与种子数据。重复执行会成功，但会再次删除原数据；“可重复运行”不等于“无损升级”。
-演示管理员/客户端只为开发初始化；生产更换或停用默认身份与凭据，不能仅修改网页文案。
+`app/db_admin.py` 是可测试实现：`migration_manifest/verify_ledger` 验证连续历史与 SHA-256；`connect_target` 校验确认库名、复用应用配置；`maintenance_lock` 固定 public search_path，事务级 PG advisory lock，锁等待10秒、单语句120秒；`_record/_migrate` 在同一连接写变更和账本；其他函数分别实现表中命令，调用者负责关闭连接。数据库角色必须有对应权限，工具不绕过 PostgreSQL 授权；生产应区分维护与应用角色，本地示例不是最小权限部署证明。
 
-### 存量升级清单
+### 已有库：停写、备份后操作
 
-| SQL | 结构目的 | 特别注意 |
-| --- | --- | --- |
-| 0001 timestamptz | 历史时间字段转换为时区时间 | 先明确旧值以什么时区解释，不靠迁移猜测 |
-| 0002 password_changed_at | 增加改密时间 | 与用户凭据验证一起部署 |
-| 0003 diagram_deleted_at | 增加回收站时间 | 旧行按未删除处理 |
-| 0004 diagram_version | 增加编辑版本 | 客户端需使用 ETag/If-Match |
-| 0005 user_role | 增加角色 | 不自动把任意老用户提为管理员；由维护者核准 |
-| 0006 order_single_pending | 核准清理重复 pending 后加部分唯一索引 | 清理 SQL 只是注释示例，不自动执行；先备份并人工核准旧订单 |
-| 0007 support_messages | 新增持久会话消息表及去重约束 | 依赖已有用户表；客户/管理员权限由 API 另行检查 |
-| 0008 credential_revision | 增加用户和授权码 credential_version | 清除尚未兑换的授权码；无 ver 的旧 JWT 失效；重复运行仍清码，不能称为零副作用 |
+1. 先验证备份可恢复，停止旧应用写入。不要把业务库传给 pytest。
+2. 已有0008结构但无账本：运行 `adopt-legacy-0008`，不是 `init`。若结构检查失败，先调查旧版本；工具不猜测旧时间字段时区、不自动关闭重复pending单。
+3. 已有账本：先 `status`，确认部署版本匹配，再 `migrate`。不得删账本或修改历史SQL来消除错误。
+4. 若公开种子被停用且无其他启用管理员，再 `bootstrap-admin` 创建新身份。原数据不删除；停用身份需重新治理，不自动把旧客户数据转给新身份。
+5. 用新版本启动应用。production先检查账本、已知弱管理员/演示客户端和管理员存在性；失败拒绝启动，绝不边接流量边迁移。
+
+```text
+python "database init/db_init.py" adopt-legacy-0008 --confirm-database codemax_db
+python "database init/db_init.py" status --confirm-database codemax_db
+```
+
+同一 SHA 文件内容须稳定，`.gitattributes` 为SQL强制LF，避免Windows换行导致校验和漂移。已登记迁移只新增、不编辑；若恢复旧备份，应配套恢复相应应用版本，并明确核对其账本，不能拿新应用强行越过版本检查。
+
+### 历史升级参考（不是批量重跑列表）
+
+0001时区、0002改密时间、0003软删、0004版本、0005角色、0006单pending、0007消息、0008凭据版本。早于0008的库必须逐项核对缺失结构与每份旧SQL头部要求；0008重跑仍会清授权码。新工具故意不盲目重放这些带BEGIN/COMMIT或业务副作用的旧脚本。
 
 <!-- doc-contract:files:start -->
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`database init/db_init.py`](db_init.py) | `deb20fa1d930` | L1–L95 |
-| [`database init/full_init.sql`](full_init.sql) | `3e52a5321c6f` | L1–L141 |
+| [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
+| [`database init/full_init.sql`](full_init.sql) | `59ae53bbdd66` | L1–L131 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -54,6 +67,8 @@ full_init 重建 User、Order、Article、SysConfig、SysDiagram、OAuthClient�
 | [`database init/migrate_0006_order_single_pending.sql`](migrate_0006_order_single_pending.sql) | `eba74f798bbd` | L1–L22 |
 | [`database init/migrate_0007_support_messages.sql`](migrate_0007_support_messages.sql) | `312f75458084` | L1–L14 |
 | [`database init/migrate_0008_credential_revision.sql`](migrate_0008_credential_revision.sql) | `ad4f7d2d7903` | L1–L6 |
+| [`database init/migrate_0009_retire_demo.sql`](migrate_0009_retire_demo.sql) | `0e673c162089` | L1–L11 |
+| [`database init/seed_demo.sql`](seed_demo.sql) | `1efd73f0a51b` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -62,11 +77,8 @@ full_init 重建 User、Order、Article、SysConfig、SysDiagram、OAuthClient�
 
 ## 数据流与约束
 
-升级前备份并确认可恢复 → 停写/停止旧进程 → 核对已有迁移基线 → 按顺序执行缺失迁移 → 部署匹配版本 → 重新登录并验证。
-已处于 0006 结构的用户本次只执行 0007/0008。不要在旧认证进程仍接流量时单独换表，再让新旧协议混跑。
-用户会话、订单和消息是持久业务数据；本地测试库能重建不说明生产数据可丢弃。
+专用目标确认 → 维护锁 → 基线/校验和检查 → SQL与账本单事务 → 提交 → 应用只读启动检查。默认不再有用户名/密码种子；开发演示需显式选择，不能由Compose或普通init暗中执行。
 
 ## 变更与验证
 
-模型结构变化同步修改 models.py、新库 SQL 和增量 SQL，不能只改一处。test_schema_sync 比较结构，真实 PostgreSQL 测试验证脚本执行与并发，旧库迁移回归验证数据保留；三者解决不同问题。
-SQL 在专门测试库重复执行，不在生产库“验证幂等”。生产操作见 [部署指南](../docs/DEPLOY.md)；本轮结果见 [验收记录](../docs/SECOND_REPAIR_ACCEPTANCE.md)。
+模型、新库SQL与增量迁移同步。`tests/test_db_admin.py` 自建一次性PG并使用非超级用户，覆盖拒绝覆盖、并发、事务锁、升级保留数据、失败回滚、校验和及管理员bootstrap；不连接传入的业务DSN。`tests/test_schema_sync.py` 仍只做部分结构对照，不是完整catalog等价证明。当前证据及剩余阻断见 [第二批交付](../review/RELEASE_BLOCKERS_PHASE2.md)。

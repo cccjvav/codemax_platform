@@ -1,12 +1,12 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.2
+version: 2.3
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.2，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.3，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
@@ -19,7 +19,7 @@ version: 2.2
 
 - 开始先核对分支、HEAD、工作树和阶段下一步；中断后续做，不重跑历史临时修复器，不强制清理用户文件。
 - 阅读源码、调用方、测试与目录 README，选最小修复，给异常路径补测试；新增依赖/schema/业务范围/生产操作依 AGENTS 确认。
-- 自动测试只用无真实 key 的干净环境及专用可丢弃库；full_init/db_init 都可能删表，绝不将业务库传给测试 fixture。
+- 自动测试只用无真实 key 的干净环境及专用可丢弃库；当前init拒绝非空库且无种子，历史full_init曾含DROP；绝不将业务库传给测试fixture，已有库只走核准基线/校验和迁移。
 - 给 Windows 新手使用根目录 `Windows新手逐步验收.md`：VS Code CMD、Conda Python、系统 Node；不要复制 Linux venv/shell 命令冒充本机配方。
 - 外部服务依次区分：运行时 TLS/HTTP → 鉴权/模型列表 → 实际聊天 → Mermaid 前缀与浏览器渲染 → embedding → FAQ 标定。前置受阻就记录未执行，不推断 key 无效、不把网页打开等同于运行时连通。
 - 小额/低量真实请求需用户授权；密钥只在私有忽略配置或临时进程中使用，不写管理文件，不以“隐私文档”名义集中收集，不关 TLS 验证。

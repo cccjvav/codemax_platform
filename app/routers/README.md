@@ -18,7 +18,9 @@
 | `me` GET `/auth/me` | 当前公开 UserOut | 401 表示会话无效；前端权限显示以此为依据，但授权仍由后端决定 |
 | `_set_auth_cookie` | token → Cookie 属性 | HttpOnly、SameSite=Lax；production 下 Secure。代理/TLS 与 ENV 必须一致配置 |
 
-### oauth.py：授权码流程
+### oauth.py：受信自有站点授权码流程
+
+production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默认拒绝所有客户端；回跳必须HTTPS。当前JWT是完整站点凭据，不能交给不可信第三方冒充scope授权。_check_client_policy同时拒绝无效客户端标识，兑换前授权码NUL/超长受控失败。
 
 | 入口 | 契约与边界 |
 | --- | --- |
@@ -52,7 +54,7 @@
 | `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目 |
 | `download_url` POST `/shop/download/{order_no}` | 自己的已付订单 → 短时 download_url | paid/downloaded 均可领取；先查对象并生成 URL，再记录发放；pending/closed 403。不是“只能领一次” |
 | `serve_download` GET `/shop/dl` | key、expires、signature → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
-| `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；尚缺完整商户/币种/serial绑定；原子确认，重复通知幂等 |
+| `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；匹配mchid/appid、CNY/NATIVE、资源类型及固定平台serial/公钥ID；仍无完整对账账本；原子确认，重复通知幂等 |
 | `mock_pay_page` / `mock_pay_confirm` | 模拟收银台／自己的订单确认 | 仅 mock 模式，其他模式 404；真实 production 配置拒绝开启 mock |
 | `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅 manual；服务器不知道个人收款码是否到账；必须本人核账。记录日志，不是独立不可篡改审计表 |
 | `_payload` / `_qr_svg` / `_storage` / `_ok` / `_fail` | 展示字段、服务端二维码、存储错误映射、微信响应封装 | 不把扫码/二维码加载当付款凭证；用户侧和平台回调的响应格式不同 |
@@ -97,8 +99,8 @@
 | [`app/routers/diagrams.py`](diagrams.py) | `1bd6d4225cb1` | L1–L234 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
-| [`app/routers/oauth.py`](oauth.py) | `3c6513870ae7` | L1–L254 |
-| [`app/routers/shop.py`](shop.py) | `ae3edbb3fc6a` | L1–L495 |
+| [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
+| [`app/routers/shop.py`](shop.py) | `a95b8c622fd1` | L1–L508 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |

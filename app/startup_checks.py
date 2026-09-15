@@ -111,3 +111,43 @@ def enforce_production_settings() -> None:
         raise ProductionConfigError(
             "生产环境配置检查未通过（ENV=production）：\n  - " + "\n  - ".join(problems)
         )
+
+
+async def enforce_database_safety(session_factory=None) -> None:
+    """Production only: require current ledger, no active demo credentials, and an administrator.
+
+    Read-only and timeout-bounded; never migrates or rewrites business identities at startup.
+    Unknown/missing schema refuses service with a redacted error, not a partial startup.
+    """
+    if settings.ENV != "production":
+        return
+    import asyncio
+
+    from sqlalchemy import or_, select
+
+    from .database import SessionLocal
+    from .db_admin import migration_manifest, verify_ledger
+    from .models import OAuthClient, SchemaMigration, User
+    from .security import averify_password
+
+    try:
+        async with asyncio.timeout(10), (session_factory or SessionLocal)() as db:
+            rows = (await db.execute(select(SchemaMigration.version, SchemaMigration.checksum))).all()
+            verify_ledger(rows, migration_manifest(), complete=True)
+            admins = await db.stream_scalars(select(User).where(
+                User.status == 1, or_(User.username == 'admin', User.role == 1)).execution_options(yield_per=16))
+            async for admin in admins:
+                if await averify_password('123456', admin.password):
+                    raise ProductionConfigError('Known demo administrator password is still active')
+            clients = (await db.scalars(select(OAuthClient).where(
+                OAuthClient.client_id.in_(['tools', 'shop']), OAuthClient.status == 1))).all()
+            for client in clients:
+                for secret in ('codemax-tools-secret', 'codemax-shop-secret'):
+                    if await averify_password(secret, client.client_secret_hash):
+                        raise ProductionConfigError('Known demo OAuth credential is still active')
+            if await db.scalar(select(User.id).where(User.role == 1, User.status == 1).limit(1)) is None:
+                raise ProductionConfigError('Bootstrap a non-demo administrator before production startup')
+    except ProductionConfigError:
+        raise
+    except Exception:
+        raise ProductionConfigError('Database safety check failed: verify connectivity and migration ledger offline') from None

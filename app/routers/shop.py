@@ -33,7 +33,9 @@ from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
     WeChatPayError,
+    assert_notify_configuration,
     assert_notify_fresh,
+    assert_notify_identity,
     decrypt_resource,
     native_prepay,
     new_order_no,
@@ -91,9 +93,13 @@ async def create_order(
     if mode not in ("wechat", "mock", "manual"):
         raise HTTPException(500, f"SHOP_PAY_MODE 只能是 wechat / mock / manual，当前是 {mode!r}")
     cfg = pay_config()
-    if mode == "wechat" and not cfg.configured:
-        raise HTTPException(503, "支付未配置：请在 .env 填齐 WX_APPID/WX_MCHID/WX_SERIAL_NO/"
-                                 "WX_PRIVATE_KEY/WX_API_V3_KEY/WX_NOTIFY_URL 六项")
+    if mode == "wechat":
+        try:
+            if not cfg.configured:
+                raise WeChatPayError("下单配置不完整")
+            assert_notify_configuration(cfg)
+        except WeChatPayError:
+            raise HTTPException(503, "支付未配置：请核对 WX_* 商户下单及平台回调凭据、证书有效期") from None
 
     pending = await db.scalar(
         select(Order)
@@ -420,7 +426,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     """
     cfg = pay_config()
     if not cfg.notify_ready:
-        return _fail(503, "未配置 WX_API_V3_KEY / WX_PLATFORM_CERT，无法处理回调")
+        return _fail(503, "回调商户、应用或平台验签配置不完整")
 
     raw = bytearray()
     async for chunk in request.stream():
@@ -435,7 +441,10 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     try:
         # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
         # 只有时间戳能暴露它 —— 放在验签之前还能省掉一次 RSA 运算。
+        if len(h.get("Wechatpay-Nonce", "")) > 128 or len(h.get("Wechatpay-Signature", "")) > 1024:
+            raise WeChatPayError("回调签名头过长")
         assert_notify_fresh(h.get("Wechatpay-Timestamp", ""))
+        assert_notify_identity(cfg, h.get("Wechatpay-Serial", ""))
         verify_notify_signature(
             cfg.platform_cert,
             timestamp=h.get("Wechatpay-Timestamp", ""),
@@ -448,8 +457,8 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
 
     try:
         notify = json.loads(body)
-    except json.JSONDecodeError as e:
-        return _fail(400, f"回调报文不是合法 JSON：{e}")
+    except (ValueError, RecursionError):
+        return _fail(400, "回调报文不是合法有界JSON")
 
     if not isinstance(notify, dict) or not isinstance(notify.get("resource"), dict):
         return _fail(400, "回调结构无效")
@@ -471,12 +480,16 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     if notify.get("event_type") != "TRANSACTION.SUCCESS" or data.get("trade_state") != "SUCCESS":
         return _ok()  # 退款 / 未支付等通知本阶段不处理，但要确认收到，否则会被重推
 
+    if (data.get("appid") != cfg.appid or data.get("mchid") != cfg.mchid
+            or data.get("trade_type") != "NATIVE" or resource.get("algorithm") != "AEAD_AES_256_GCM"
+            or resource.get("original_type") != "transaction" or notify.get("resource_type") != "encrypt-resource"):
+        return _fail(400, "回调商户、应用或交易类型不匹配")
     order_no, transaction_id = data.get("out_trade_no"), data.get("transaction_id")
     if any(not isinstance(value, str) or not value or "\x00" in value or len(value) > size
            for value, size in ((order_no, 32), (transaction_id, 64))):
         return _fail(400, "回调订单标识无效")
     amount = data.get("amount")
-    if not isinstance(amount, dict) or type(amount.get("total")) is not int:
+    if not isinstance(amount, dict) or type(amount.get("total")) is not int or amount.get("currency") != "CNY":
         return _fail(400, "回调金额结构无效")
     order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None:

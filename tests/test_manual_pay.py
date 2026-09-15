@@ -22,7 +22,7 @@ from app.config import settings
 from app.models import Order, User
 from tests.conftest import TestSession
 
-FULL_INIT_SQL = "database init/full_init.sql"
+SEED_DEMO_SQL = "database init/seed_demo.sql"
 
 
 @pytest.fixture
@@ -241,10 +241,10 @@ async def test_shop_page_renders_the_manual_qr_branch(client, manual_mode):
     assert "由客服核对到账并确认" in js, "manual 模式要告诉用户为什么不会自动到账"
 
 
-# ------------------------------------------------- full_init.sql 种子账号
+# ------------------------------------------------- 显式开发种子（普通初始化不创建身份）
 
 
-def test_full_init_sql_grants_admin_role_to_the_seeded_account():
+def test_explicit_demo_seed_grants_admin_role_to_the_seeded_account():
     """回归：**曾经真实存在过**的坑。
 
     `full_init.sql` 的 INSERT 漏写 `role` 列，而该列 DDL 默认 0、
@@ -252,12 +252,12 @@ def test_full_init_sql_grants_admin_role_to_the_seeded_account():
     都是 403。测试一直发现不了，因为 test_admin_ingest.py 每个用例都显式
     `_set_role(..., 1)`，从来没依赖过种子数据。
 
-    这里直接钉住 SQL 文本：测试库用 create_all 建表、不走这个文件，
-    所以只有这一条能守住它。
+    这里直接钉住seed_demo.sql的角色；另有test_db_admin在真PG验证初始化无默认身份、
+    显式开发种子和安全bootstrap，不能把创建管理员当普通init的副作用。
     """
     from pathlib import Path
 
-    sql = Path(FULL_INIT_SQL).read_text(encoding="utf-8")
+    sql = Path(SEED_DEMO_SQL).read_text(encoding="utf-8")
     inserts = [
         line
         for line in sql.splitlines()

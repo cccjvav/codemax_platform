@@ -16,7 +16,7 @@
 | `frontend` | npm ci、构建、检查提交产物是否漂移、npm audit | 必须提交全部分块；不改上游模板字符串去消掉行尾空白；不是视觉 E2E |
 | `docs` | 构建离线站并校验数据/页面规模 | 构建入口执行 README 契约和本地链接检查；人工语义不能自动验收 |
 | `test-sqlite` | 全量 pytest 默认后端 | 有 PostgreSQL 专用 skip，不能据此证明数据库并发 |
-| `test-postgres` | PostgreSQL 16 服务、专门初始化检查库、全量测试库 | full_init 两遍只在可丢弃库执行；迁移保留数据另有回归 |
+| `test-postgres` | PostgreSQL 16 服务、专门初始化检查库、全量测试库 | 独立空库运行init/status，第二次init必须拒绝；另验维护锁、账本回滚与旧数据保留 |
 
 pytest 管道启用 pipefail，避免 tee 成功掩盖测试失败。失败评论是辅助取证；日志不可下载或无 PR 可评论时，仍以实际 job 状态为准。
 contents:read 用于 checkout；pull-requests:write 用于失败评论。权限可用性和网络条件是环境事实，不把过去某次连接成功当成永久保证。
@@ -26,7 +26,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `efbbecbc14c4` | L1–L88 |
-| [`.github/workflows/ci.yml`](ci.yml) | `166d3d484eb4` | L1–L331 |
+| [`.github/workflows/ci.yml`](ci.yml) | `25aad36faa22` | L1–L335 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -49,4 +49,6 @@ checkout 的源码 → 安装锁定依赖 → 检查/构建/测试 → 对应提
 
 ## 2026-09-15 交叉审查增量
 
-2026-09-15：frontend现在实际执行 npm audit --audit-level=high 和手写JS的 node --check；六job各设20分钟超时，checkout不保留Git凭据。full_init连续执行仅证明可重复重建，绝不是无损迁移幂等。当前仍有PR评论写权限/可变action版本等待办，见审查台账。
+第一批历史（f7e1cdc）：frontend开始执行 npm audit --audit-level=high 和手写JS的 node --check；六job各设20分钟超时，checkout不保留Git凭据。full_init连续执行仅证明可重复重建，绝不是无损迁移幂等。当前仍有PR评论写权限/可变action版本等待办，见审查台账。
+
+第二批：PG job不再重复执行破坏性SQL，改测维护CLI和拒绝覆盖；tests/test_db_admin另外自建非超级用户的一次性PG，不使用业务DSN。真实商户、浏览器与Docker启动仍不由这六job证明。

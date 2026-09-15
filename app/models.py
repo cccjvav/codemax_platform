@@ -131,7 +131,7 @@ class SysDiagram(Base):
 
 
 class OAuthClient(Base):
-    """OAuth2 客户端（接入 SSO 的第三方应用/平台）。"""
+    """SSO客户端；生产额外限制为显式信任的自有站点，不是第三方最小权限授权。"""
 
     __tablename__ = "oauth_client"
 
@@ -176,3 +176,13 @@ class SupportMessage(Base):
         UniqueConstraint("sender_id", "client_nonce", name="uq_support_sender_nonce"),
         Index("idx_support_customer_id", "customer_id", "id"),
     )
+
+
+class SchemaMigration(Base):
+    """Applied SQL checksum ledger; only the offline maintenance CLI writes this table."""
+
+    __tablename__ = "schema_migration"
+
+    version: Mapped[str] = mapped_column(String(4), primary_key=True)
+    checksum: Mapped[str] = mapped_column(String(64))
+    applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

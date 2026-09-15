@@ -1,2 +1,5 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Migration checksums must be stable across Windows and Linux checkouts.
+*.sql text eol=lf

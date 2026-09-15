@@ -9,7 +9,7 @@
 
 ## 文件与入口
 
-Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_ENABLED=false、向量模型为空，0.55 仅是启用前待标定阈值。环境/.env 仍可显式覆盖，不自动改写用户私有配置。详细迁移见 [Agnes 接入](../docs/AGNES_AI.md)。
+Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_ENABLED=false、向量模型为空，0.55 仅是启用前待标定阈值。Settings固定读取仓库根.env，环境变量仍可显式覆盖，不自动改写用户私有配置。详细迁移见 [Agnes 接入](../docs/AGNES_AI.md)。
 
 ### 配置与会话
 
@@ -31,6 +31,7 @@ Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_EN
 | `SysDiagram` | 用户所有权、XML 正文、version 乐观锁、deleted_at 回收站标记；删除不等于释放全部存储预算 |
 | `OAuthClient` / `OAuthCode` | 客户端密钥存哈希；注册回调精确匹配；授权码有 used、过期时间、用户和凭据版本 |
 | `SupportMessage` | customer_id 定义会话；sender_id 与 sender_role 记录发送方；(sender_id, client_nonce) 唯一，用于丢失响应后的重试 |
+| `SchemaMigration` | 四位版本主键、SQL校验和与应用时间；仅离线CLI写入，Web启动只读核对 |
 | `SysConfig` | 持久配置表；不能因此推断应用已经把所有 Settings 从此表热加载 |
 | `schemas.py` | RegisterIn、PasswordChangeIn 校验密码 UTF-8 字节上限与空字符；用户名全匹配；DDL、文本、XML 有长度约束，DiagramIn 额外拒绝 PostgreSQL 不允许的 NUL；DiagramSummary 不返回正文，DiagramOut 返回正文 |
 
@@ -78,8 +79,8 @@ pending → closed → paid
 | `PayConfig.configured` / `notify_ready`、`pay_config` | 配置快照 → 是否具备下单/回调所需字段 | 字段齐全不证明密钥可用或商户已联调；pay_config 每次调用读取 settings |
 | `new_order_no` | 可选当前时间 → 订单号 | 不含用户身份；数据库唯一约束仍是最终兜底 |
 | `canonical_string` / `sign` / `auth_header` | 请求方法、路径、时间、nonce、原始 body → 签名材料 / RSA 签名 / Authorization | body 序列化必须和实际发出的字节一致；不要用解码重排后的 JSON 验签 |
-| `native_prepay` | 商户配置、订单号、描述、分金额 → code_url | 发出外部请求；配置、响应或网络错误为 WeChatPayError；不写本地订单 |
-| `assert_notify_fresh` / `verify_notify_signature` / `decrypt_resource` | 回调头、原始正文与密文 → 校验或解密对象 | 新鲜度、签名与 AES-GCM 是不同步骤；解密成功仍须由路由核对商户、订单、金额和支付状态 |
+| `native_prepay` | 商户配置、订单号、描述、分金额 → code_url | 发出外部请求；总deadline20秒、响应64KiB上限；配置/协议/网络错误为WeChatPayError且不透传正文；不写本地订单 |
+| `assert_notify_identity` / `assert_notify_fresh` / `verify_notify_signature` / `decrypt_resource` | 回调头、原始正文与密文 → 校验或解密对象 | 本地固定平台证书/公钥ID与证书有效期、新鲜度、签名、AES-GCM是不同检查；解密成功仍须由路由核对商户、订单、金额和支付状态 |
 
 ### 运行时与站点
 
@@ -93,6 +94,7 @@ pending → closed → paid
 | `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
 | `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；ID 只接受安全128字符格式，路径转义限长、不含查询；这不是独立防篡改审计存储 |
 | `check_production_settings` / `check_production_warnings` | 分别返回阻断问题／告警列表；配置检查不进行实际商户、文件或模型连通性验收 |
+| `enforce_database_safety` | production在lifespan中10秒内只读校验迁移账本、已知演示凭据与管理员；失败不接流量、不自动改库 |
 | `enforce_production_settings` | 记录告警，有硬错误抛 ProductionConfigError；由 main 在导入装配阶段调用 |
 | `Tool` / `page_title` / `page_context` | 统一页面元数据与模板上下文；auth_ui 控制登录界面是否装配，不授予 API 权限 |
 
@@ -101,21 +103,22 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `83098a2ebb0d` | L1–L135 |
+| [`app/config.py`](config.py) | `1e150dc23bfd` | L1–L138 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
+| [`app/db_admin.py`](db_admin.py) | `eeff55719389` | L1–L174 |
 | [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `5bb6102d1c98` | L1–L178 |
+| [`app/models.py`](models.py) | `c97949b4ba95` | L1–L188 |
 | [`app/order_state.py`](order_state.py) | `604b20f29766` | L1–L113 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
-| [`app/schemas.py`](schemas.py) | `7f6548b534b9` | L1–L153 |
+| [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
-| [`app/startup_checks.py`](startup_checks.py) | `eaba6a8a8c2f` | L1–L113 |
+| [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
 | [`app/storage.py`](storage.py) | `118b3e72ed68` | L1–L119 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `f821d3a7dfce` | L1–L242 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `c8f7c1c087c9` | L1–L305 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -132,3 +135,8 @@ HTTP 输入先由 schema 校验，再进入身份依赖与业务处理。状态�
 修改模型同步审查建表和迁移；修改 token 同步 auth、OAuth 和 deps；修改状态机检查 shop 的幂等与提交边界。
 重点测试：`test_auth_cookie.py`、`test_oauth.py`、`test_download.py`、`test_ops.py`、`test_review_regressions.py`、`test_second_review_regressions.py`。路径均位于 tests；完整执行方法见 [测试指南](../tests/README.md)。
 源码变动后先更新本说明，再从仓库根运行 `python scripts/check_docs_contract.py --write`；普通检查不刷新指纹。
+
+
+## 离线数据库维护
+
+`db_admin`不是Web路由，所有写入由显式CLI触发：`migration_manifest/verify_ledger`检查连续版本及文件摘要；`connect_target`复用配置并核对确认库名；`maintenance_lock`设固定search_path和超时、持事务级PG锁；`initialize`只接受空库；`adopt_legacy`检查已声明的0008结构后登记并执行新迁移；`_record/_migrate/migrate`让SQL和账本原子提交；`status`只读；`seed_demo`开发显式且不覆盖；`bootstrap_admin`只创建首个启用管理员，不提权既有账号。连接由调用者关闭，错误不携带DSN。详见[数据库指南](../database%20init/README.md)，它不是完整DDL等价或生产角色授权工具。

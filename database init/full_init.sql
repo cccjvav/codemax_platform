@@ -1,21 +1,19 @@
 -- ============================================================
 -- codemax_db 数据库初始化（PostgreSQL）
--- 本文件由 db_init.py 自动执行（数据库本身由 db_init.py 自动创建）
+-- 只初始化已预建的空库；使用 db_init.py init，拒绝覆盖任何已有表。
 -- 如需手动创建数据库：
 --   psql -U postgres -c "CREATE DATABASE codemax_db;"
---   psql -U postgres -d codemax_db -f full_init.sql
+--   python "database init/db_init.py" init --confirm-database codemax_db
 -- 注意：表结构需与 app/models.py 保持一致
 -- ============================================================
 
--- 1. 删除已存在的表（如果存在，便于重复执行）
-DROP TABLE IF EXISTS support_message CASCADE;
-DROP TABLE IF EXISTS sys_article CASCADE;
-DROP TABLE IF EXISTS sys_diagram CASCADE;
-DROP TABLE IF EXISTS oauth_code CASCADE;
-DROP TABLE IF EXISTS oauth_client CASCADE;
-DROP TABLE IF EXISTS sys_order CASCADE;
-DROP TABLE IF EXISTS sys_config CASCADE;
-DROP TABLE IF EXISTS sys_user CASCADE;
+-- 1. 空库保护；没有任何 DROP。正常入口是 db_init.py init，并由其持锁/事务包裹。
+DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace
+               WHERE n.nspname='public' AND c.relkind IN ('r','p','v','m','S','f')) THEN
+        RAISE EXCEPTION 'Initialization requires an empty public schema; use migrations for existing data';
+    END IF;
+END $$;
 
 -- 2. 用户表
 CREATE TABLE sys_user (
@@ -61,14 +59,6 @@ CREATE TABLE sys_config (
     remark       VARCHAR(255)
 );
 
--- 5. 插入测试账号 (密码为 123456，此处填入 bcrypt(rounds=12) 加密后的哈希)
---    role 必须**显式写 1**：该列默认是 0（普通用户），而 app/deps.py 的
---    require_admin 要求 role == 1。漏写这一列的后果是「昵称叫管理员的账号
---    进不了任何管理端点，一律 403」—— 而测试发现不了，因为
---    tests/test_admin_ingest.py 每个用例都显式调用 _set_role(..., 1)。
-INSERT INTO sys_user (username, password, nickname, role)
-VALUES ('admin', '$2b$12$toA/MNcYjF.wehRbK3g9IuWPOWO.7IGreBqiEMFabdxbiTecJTI3a', '管理员', 1);
-
 -- 6. OAuth2 客户端表（SSO 接入方：工具平台 / 商业平台）
 CREATE TABLE oauth_client (
     id                 SERIAL PRIMARY KEY,
@@ -91,13 +81,6 @@ CREATE TABLE oauth_code (
     used         BOOLEAN DEFAULT FALSE,
     create_time  TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
-
--- 8. 种子客户端（演示用；明文密钥仅存于本注释与 README，库内只存 bcrypt 哈希）
---    tools: client_secret = codemax-tools-secret
---    shop:  client_secret = codemax-shop-secret
-INSERT INTO oauth_client (client_id, client_secret_hash, name, redirect_uri) VALUES
-('tools', '$2b$12$YRBHm2yQf9N6Yfq56wg/MeCUl0iPCYEkqAxtD815g/WrKP05s6nuS', '工具平台', 'https://tools.codemax.top/callback'),
-('shop',  '$2b$12$GUioADBiOgOS7Akgme1/5e/r6B5BIxZ/PmVlBSNRVi8LG4cfSlmQK', '商业平台', 'https://shop.codemax.top/callback');
 
 -- 9. Drawio 流程图表（S2-01-3，用户私有资产；需与 app/models.py 的 SysDiagram 保持一致）
 CREATE TABLE sys_diagram (
@@ -139,3 +122,10 @@ CREATE TABLE IF NOT EXISTS support_message (
     CONSTRAINT uq_support_sender_nonce UNIQUE (sender_id, client_nonce)
 );
 CREATE INDEX IF NOT EXISTS idx_support_customer_id ON support_message(customer_id, id);
+
+-- 迁移账本由CLI在同一事务内记录。原始SQL不伪造已经执行的迁移记录。
+CREATE TABLE schema_migration (
+    version VARCHAR(4) PRIMARY KEY,
+    checksum VARCHAR(64) NOT NULL,
+    applied_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

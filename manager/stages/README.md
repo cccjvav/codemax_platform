@@ -1,5 +1,6 @@
 # 阶段记录目录
 
+- [第二批发布边界](../../review/RELEASE_BLOCKERS_PHASE2.md)：无种子初始化、迁移账本/锁、支付信任与第一方SSO；证据与未结项不复制。
 - [2026-09-15 交叉审查与第一批修复](../../review/README.md)：本次范围、验证、资料整合、发布阻断及下一步集中在review，不另复制竞争台账。
 - [Agnes 适配与网络诊断](agnes-integration.md)：当前提供方选择、协议/开关修正与分环境连通性证据。
 - [Windows 新手验收与管理适配](windows-acceptance.md)：本轮任务证据、外部模型阻塞与下一步。

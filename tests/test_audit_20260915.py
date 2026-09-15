@@ -21,6 +21,7 @@ from tests.conftest import engine
 from tests.test_download import auth_headers
 from tests.test_second_frontend_regressions import HARNESS
 from tests.test_shop_polling import _EXPIRY_HARNESS
+from tests.test_wechat_pay import CFG
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -111,8 +112,9 @@ async def test_log_fields_are_bounded_and_control_characters_escaped(client, cap
 
 @pytest.fixture
 def callback_stub(monkeypatch):
-    monkeypatch.setattr(shop, 'pay_config', lambda: SimpleNamespace(notify_ready=True, platform_cert='test', api_v3_key='test'))
+    monkeypatch.setattr(shop, 'pay_config', lambda: SimpleNamespace(notify_ready=True, platform_cert='test', api_v3_key='test', appid='test', mchid='test'))
     monkeypatch.setattr(shop, 'assert_notify_fresh', lambda value: None)
+    monkeypatch.setattr(shop, 'assert_notify_identity', lambda *args: None)
     monkeypatch.setattr(shop, 'verify_notify_signature', lambda *args, **kw: None)
     monkeypatch.setattr(shop, 'decrypt_resource', lambda *args, **kw: {})
 
@@ -201,7 +203,7 @@ async def test_prepay_only_after_durable_local_order(client, monkeypatch):
 
     headers = await auth_headers(client)
     seen = []
-    monkeypatch.setattr(shop, 'pay_config', lambda: SimpleNamespace(configured=True))
+    monkeypatch.setattr(shop, 'pay_config', lambda: CFG)
 
     async def provider(cfg, **kwargs):
         async with TestSession() as db:
@@ -220,7 +222,7 @@ async def test_commit_failure_never_reaches_payment_provider(client, monkeypatch
     from sqlalchemy.ext.asyncio import AsyncSession
 
     headers = await auth_headers(client)
-    monkeypatch.setattr(shop, 'pay_config', lambda: SimpleNamespace(configured=True))
+    monkeypatch.setattr(shop, 'pay_config', lambda: CFG)
     calls = []
 
     async def provider(*args, **kwargs):

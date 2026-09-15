@@ -1,3 +1,4 @@
+from pathlib import Path
 from typing import Literal
 from urllib.parse import quote
 
@@ -33,13 +34,14 @@ class Settings(BaseSettings):
     # 站点对外地址（S2-02-1）：sitemap / robots / canonical 用，必须是绝对 URL
     SITE_BASE_URL: str = "https://codemax.top"
 
-    # 微信支付 APIv3（S3-01）：六项缺一不可，没配齐下单接口直接 503
+    # 微信支付 APIv3（S3-01）：下单六项及平台回调凭据均须校验，不合格下单接口直接 503
     WX_APPID: str = ""
     WX_MCHID: str = ""  # 商户号
     WX_SERIAL_NO: str = ""  # 商户 API 证书序列号
     WX_PRIVATE_KEY: str = ""  # apiclient_key.pem 的内容（PEM 文本）
     WX_API_V3_KEY: str = ""  # APIv3 密钥（32 字节），回调报文 AES-GCM 解密用
     WX_NOTIFY_URL: str = ""  # 支付结果回调地址，必须公网可达的 https
+    WX_PLATFORM_KEY_ID: str = ""  # 公钥模式必填PUB_KEY_ID；证书模式从X509取serial
     WX_PLATFORM_CERT: str = ""  # 微信支付平台证书或微信支付公钥（PEM 文本），回调验签用
 
     # 商品：阶段三只有一个 SKU，金额单位是分
@@ -95,13 +97,14 @@ class Settings(BaseSettings):
     # 都是 `ENV == "production"` 精确比对，写成 "Production"/"prod" 时四项生产硬检查
     # 会**全部静默跳过**、Cookie 同时丢掉 Secure —— 实测过，且没有任何报错。
     # 这是「配置暴露给 .env 就必须约束取值」里最要紧的一条（TD-212 的同类问题）。
+    OAUTH_TRUSTED_CLIENT_IDS: tuple[str, ...] = ()  # production仅显式信任的自有SSO客户端
     ENV: Literal["development", "production"] = "development"
     LOG_LEVEL: str = "INFO"
     # HSTS 的 max-age（秒），默认一年。只在请求确实是 https 时才下发 ——
     # 在 http 上下发没有意义，还会把仍在用 http 的本地环境锁死一年。
     HSTS_MAX_AGE: int = Field(31536000, ge=0)  # 0 表示不下发 HSTS，是合法配置
 
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(env_file=Path(__file__).resolve().parents[1] / ".env", extra="ignore")
 
     @property
     def sqlalchemy_url(self) -> str:

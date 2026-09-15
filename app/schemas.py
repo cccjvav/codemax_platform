@@ -9,7 +9,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 _USERNAME_RE = re.compile(r"^[\w-]+$", re.UNICODE)
 
 # 保留名（比较时统一转小写）。种子管理员就叫 `admin`
-# （`database init/full_init.sql` 的用户种子段），而登录是精确匹配、
+# （`database init/seed_demo.sql` 的用户种子段），而登录是精确匹配、
 # PostgreSQL 的 VARCHAR `=` 区分大小写 ⇒ `Admin` 是个独立账号却能注册，
 # 唯一用途就是在界面上冒充管理员。
 _RESERVED_USERNAMES = frozenset({"admin", "administrator", "root", "system"})
@@ -29,7 +29,7 @@ def _check_password_bytes(v: str) -> str:
     而「密码前缀」恰恰是最容易被猜到的部分。
 
     为什么不在 bcrypt 之前先做 SHA-256 预哈希（那样就没有长度上限了）：
-    那会改变哈希格式，库里已有的哈希（含 `full_init.sql` 的种子管理员）全部失效。
+    那会改变哈希格式，库里已有的哈希（含 `seed_demo.sql` 的演示管理员）全部失效。
     而拒绝的代价很小 —— 只影响「24 个汉字以上」的密码，正常使用碰不到，
     而且 `max_length=64` 本来就已经设了字符上限。
     """

@@ -36,17 +36,28 @@ def _oauth_error(error: str, description: str = "") -> HTTPException:
     return HTTPException(400, {"error": error, "error_description": description})
 
 
+def _check_client_policy(client_id: str) -> None:
+    """Production shared-login tokens are full account credentials, only explicit first-party clients."""
+    if not client_id or len(client_id) > 64 or "\x00" in client_id:
+        raise _oauth_error("invalid_client")
+    if settings.ENV == "production" and client_id not in settings.OAUTH_TRUSTED_CLIENT_IDS:
+        raise _oauth_error("invalid_client", "未配置为受信自有站点客户端")
+
+
 async def _active_client(db: AsyncSession, client_id: str, redirect_uri: str) -> OAuthClient:
     """取一个启用中、且回调地址与登记值完全一致的客户端。同意页与签发码共用这套校验，
     免得两边校验强度不一致 —— 校验弱的那一边就是漏洞。"""
+    _check_client_policy(client_id)
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if not client or client.status != 1:
         raise _oauth_error("invalid_client")
     try:
         parts = urlsplit(redirect_uri)
         _ = parts.port
-        valid = parts.scheme in ("http", "https") and parts.hostname and not parts.fragment and not parts.username
+        valid = parts.scheme in ("http", "https") and parts.hostname and "#" not in redirect_uri and parts.username is None and parts.password is None
     except ValueError:
+        valid = False
+    if valid and settings.ENV == "production" and parts.scheme != "https":
         valid = False
     if not valid or client.redirect_uri != redirect_uri:
         raise _oauth_error("invalid_redirect_uri")
@@ -206,6 +217,7 @@ async def token(
     """令牌端点：客户端用授权码 + 客户端凭证换取 access_token（授权码一次性、短时有效）。"""
     if grant_type != "authorization_code":
         raise _oauth_error("unsupported_grant_type")
+    _check_client_policy(client_id)
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if client is None or client.status != 1:
         # 与登录端点同理：不跑 bcrypt 就返回，「未知 client_id」会比「密钥错」快几十倍，
@@ -215,6 +227,8 @@ async def token(
     if not await averify_password(client_secret, client.client_secret_hash):
         raise _oauth_error("invalid_client", "客户端凭证无效")
 
+    if not code or len(code) > 64 or "\x00" in code:
+        raise _oauth_error("invalid_grant")
     oauth_code = await db.scalar(select(OAuthCode).where(OAuthCode.code == code))
     if (
         not oauth_code

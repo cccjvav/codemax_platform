@@ -4,7 +4,7 @@
 - **签名算法本身**：用自签 RSA 密钥签名，再用公钥按官方签名串格式验签；
 - **发出的字节就是签名的字节**：用 `httpx.MockTransport` 截下真实请求，
   拿请求体原文复算验签 —— 这条一旦红，线上必然验签失败；
-- **下单接口的业务规则**：未配置 503、订单落库、未支付单复用、失败不留单。
+- **下单接口的业务规则**：未配置 503、订单落库、未支付单复用、失败保留同号pending。
 """
 import base64
 import json
@@ -32,6 +32,7 @@ from app.wechat_pay import (
     sign,
 )
 from tests.conftest import TestSession
+from tests.test_wechat_notify import CERT_PEM
 
 # 自签密钥：只为验证签名算法，与微信无关
 _KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -47,6 +48,7 @@ CFG = PayConfig(
     private_key=PRIVATE_PEM,
     api_v3_key="0" * 32,
     notify_url="https://codemax.top/shop/pay/notify",
+    platform_cert=CERT_PEM,
 )
 
 _ENV = {
@@ -56,6 +58,7 @@ _ENV = {
     "WX_PRIVATE_KEY": PRIVATE_PEM,
     "WX_API_V3_KEY": "0" * 32,
     "WX_NOTIFY_URL": "https://codemax.top/shop/pay/notify",
+    "WX_PLATFORM_CERT": CERT_PEM,
 }
 
 _AUTH_RE = re.compile(
@@ -76,7 +79,7 @@ def verify(signature_b64: str, method: str, url_path: str, timestamp: str, nonce
 
 @pytest.fixture
 def pay_configured(monkeypatch):
-    """配齐六项，并把 native_prepay 换成可控替身；返回调用记录。"""
+    """配齐六项及合成平台证书，并把 native_prepay 换成可控替身；返回调用记录。"""
     for k, v in _ENV.items():
         monkeypatch.setattr(settings, k, v)
     calls: list[dict] = []

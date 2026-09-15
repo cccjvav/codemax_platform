@@ -130,15 +130,21 @@ psql -h 127.0.0.1 -U postgres -d postgres -c "select version();"
 
 ### 3.2 只有新开发库才初始化
 
-**`full_init.sql` 会删表。已有数据库不能为了“修环境”重跑初始化。** `db_init.py` 使用 DB 字段读取 `../.env`，不使用 DATABASE_URL；务必从下面的目录运行：
+当前初始化不含DROP、没有默认管理员，但必须显式确认目标。先创建全新的专用库，确保第3.1节.env的DB_NAME为codemax_dev（已有库不能用于下面的新库步骤）：
 
 ```cmd
-cd "database init"
-python db_init.py
-cd ..
+createdb -h 127.0.0.1 -U postgres -W codemax_dev
 ```
 
-看到建库/建表成功还应确认操作的是 `codemax_dev`。只有具备建库权限的本地维护账号才能创建新库。存量升级先备份与停写，再按已具备的结构执行缺失迁移；已有 0006 的库只补 0007/0008，详见 [数据库指南](../database%20init/README.md)。Conda 重建不会替你升级数据库。
+只有成功且退出码为0才继续。仍在项目根目录：
+
+```cmd
+python "database init/db_init.py" init --confirm-database codemax_dev
+python "database init/db_init.py" bootstrap-admin --username owner --confirm-database codemax_dev
+python "database init/db_init.py" status --confirm-database codemax_dev
+```
+
+逐条执行，每条后用echo %ERRORLEVEL%确认0；bootstrap两次不回显输入至少12字符口令。CLI与应用共用固定根目录.env和DATABASE_URL优先级，不再切到子目录读取../.env。已有0008且无账本的库先备份停写，再按[数据库指南](../database%20init/README.md)接入；有账本运行migrate，历史旧版full_init曾会删表，不得回退执行。Conda重建不会替你升级数据库。
 
 ## 4. 每天运行与停止
 

@@ -128,7 +128,7 @@ def build_notify(
     message = f"{ts}\n{SIG_NONCE}\n{body}\n".encode()
     sig = base64.b64encode(sign_key.sign(message, padding.PKCS1v15(), hashes.SHA256())).decode()
     headers = {
-        "Wechatpay-Serial": "PLATFORMSERIAL0001",
+        "Wechatpay-Serial": format(x509.load_pem_x509_certificate(CERT_PEM.encode()).serial_number, "X"),
         "Wechatpay-Signature": sig,
         "Wechatpay-Timestamp": ts,
         "Wechatpay-Nonce": SIG_NONCE,
@@ -138,6 +138,8 @@ def build_notify(
 
 @pytest.fixture
 def notify_ready(monkeypatch):
+    monkeypatch.setattr(settings, "WX_APPID", "wxAPPID")
+    monkeypatch.setattr(settings, "WX_MCHID", "1900000109")
     monkeypatch.setattr(settings, "WX_API_V3_KEY", API_V3_KEY)
     monkeypatch.setattr(settings, "WX_PLATFORM_CERT", CERT_PEM)
 

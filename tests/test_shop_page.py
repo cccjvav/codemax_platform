@@ -22,7 +22,6 @@ import re
 import shutil
 import subprocess
 from pathlib import Path
-from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import select
@@ -34,6 +33,7 @@ from tests.conftest import TestSession, iter_app_routes
 
 # product fixture 在 conftest 里（pytest 自动发现），这里只需要这三个 helper
 from tests.test_download import auth_headers, make_order, status_of
+from tests.test_wechat_pay import CFG
 
 _seq = 0
 
@@ -213,8 +213,8 @@ async def test_wechat_mode_returns_inline_qr_svg(client, monkeypatch):
     """真实微信模式下 code_url 是 `weixin://` 串，必须给出二维码。"""
     monkeypatch.setattr(settings, "SHOP_PAY_MODE", "wechat")
     # 沙箱没有商户号，`pay_config().configured` 是 False，下单会先撞 503 门禁
-    # （`WX_APPID` 等六项没填）。这里把配置桩成"已配置"，才能真正走到 native_prepay。
-    monkeypatch.setattr(shop, "pay_config", lambda: SimpleNamespace(configured=True))
+    # 使用完整合成CFG，通过下单与本地回调配置检查；只替换实际商户网络调用。
+    monkeypatch.setattr(shop, "pay_config", lambda: CFG)
 
     async def fake_prepay(cfg, **kw):
         return "weixin://wxpay/bizpayurl?pr=AbCdEfGh"

@@ -47,16 +47,17 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/conftest.py`](conftest.py) | `da9a8172bb0f` | L1–L212 |
+| [`tests/conftest.py`](conftest.py) | `6f6b37ad991f` | L1–L212 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
-| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `c587d185b7e8` | L1–L298 |
+| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `5bd0fc5338bd` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `196782c94858` | L1–L327 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
+| [`tests/test_db_admin.py`](test_db_admin.py) | `b3c8a1c1a163` | L1–L211 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
@@ -72,7 +73,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `6fbd35d188c3` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
-| [`tests/test_manual_pay.py`](test_manual_pay.py) | `de4540b98674` | L1–L323 |
+| [`tests/test_manual_pay.py`](test_manual_pay.py) | `a290a7829d12` | L1–L323 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `96bc978f5dc2` | L1–L157 |
 | [`tests/test_oauth.py`](test_oauth.py) | `b17f166c15be` | L1–L248 |
@@ -84,11 +85,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
+| [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `c58bfd7a0ce9` | L1–L194 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `344be2cad4cf` | L1–L124 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
-| [`tests/test_shop_page.py`](test_shop_page.py) | `0ec36117319f` | L1–L455 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `41a0a9a1815e` | L1–L455 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `76a98525c2db` | L1–L179 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `d22443181e2b` | L1–L254 |
@@ -97,8 +99,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
-| [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `4bc1bbdf4524` | L1–L452 |
-| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `aebfa78bfbc6` | L1–L285 |
+| [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `5aca3179653f` | L1–L454 |
+| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `b16f746ec60c` | L1–L288 |
 | [`tests/test_word_export.py`](test_word_export.py) | `d7c7c66103db` | L1–L92 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -137,3 +139,8 @@ coverage report
 ## 2026-09-15 交叉审查增量
 
 新增 test_audit_20260915.py：有界限流、NUL/ETag/摘要投影、日志CR与长ID、回调畸形输入、预支付前持久化/失败同号重试、SQL词法与类型、生产origin、真实源码与bundle异步取消/客服UUID/管理列表乱序。旧预支付测试改为持久pending和稳定单号，并新增提交失败时提供方零调用的反例，不再要求危险的“外部失败本地无单”。
+
+
+## 第二批发布边界回归
+
+`test_db_admin.py` 自建并清理一次性PG，用非超级用户验证无种子init、拒绝覆盖、跨连接锁/并发、旧0008接入保留订单、失败回滚/不重放、校验和、bootstrap和显式开发种子；不使用环境中的业务库DSN。`test_release_boundaries.py` 检验生产账本/管理员/重新哈希弱凭据拒绝、第一方SSO名单、真实签名但错商户/serial回调、证书有效期/公钥ID、预支付字节/总deadline及容器配置入口。既有微信RSA/AES断言保留，只有测试serial改为证书的实际编号；旧强制full_init种子的测试迁移到显式seed_demo，并由真库测试额外保护普通init无身份。

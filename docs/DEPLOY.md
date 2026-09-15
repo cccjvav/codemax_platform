@@ -9,7 +9,7 @@ Windows/conda 开发运行、备份演练和自动化测试见 [本机指南](WI
 
 ## 发布阻断与日志边界（2026-09-15）
 
-本指南不是生产验收证明。公开演示种子、迁移账本、支付对账/商品权益、第三方 OAuth 范围、备份恢复仍未结项，见[当前台账](../review/README.md)。不要把默认 development 示例或新建两遍 full_init 当作安全上线/无损升级。
+本指南不是生产验收证明。默认种子已分离、迁移账本已落地；支付对账/商品权益、第三方 OAuth 范围、备份恢复仍未结项，见[当前台账](../review/README.md)。不要把默认 development 示例或新建两遍 full_init 当作安全上线/无损升级。
 
 Docker 已传 `--no-access-log`，保留应用的有界、不含查询参数的访问日志。用其他命令启动 Uvicorn 时也应设置 `--no-access-log`；Nginx/LB 必须使用不含 `$request`/`$request_uri`/`$args` 的日志格式（可用 `$request_method $uri $status`），避免把短时下载 signature 写进日志。关闭应用一层不能证明代理/CDN已脱敏；需真实链路检查。普通日志不是持久财务审计账本。
 
@@ -33,49 +33,28 @@ Docker 已传 `--no-access-log`，保留应用的有界、不含查询参数的�
 
 ---
 
-## 2. 用 Docker 起（推荐）
+## 2. Docker隔离单机示例（不是完整生产方案）
+
+Compose现在**只创建数据库服务，不自动挂SQL建表**。示例强制应用使用db容器的codemax_db，清空DATABASE_URL覆盖，避免误连.env中的外部库；这是本地例子，不支持借此配置任意生产数据库。
+
+新建、已确认无数据的卷/空库按顺序运行，任何一步失败就停止：
 
 ```bash
-docker compose up -d --build
+docker compose build app
+docker compose up -d db
+docker compose run --rm app python "database init/db_init.py" init --confirm-database codemax_db
+docker compose run --rm app python "database init/db_init.py" bootstrap-admin --username owner --confirm-database codemax_db
+docker compose run --rm app python "database init/db_init.py" status --confirm-database codemax_db
+docker compose up -d app
 ```
 
-`docker-compose.yml` 会：
-- 起一个 PostgreSQL 16，**首次启动**自动执行 `database init/full_init.sql` 建表
-  （挂到 `/docker-entrypoint-initdb.d/`；已存在的库不会重复初始化）
+bootstrap交互输入新口令，不放命令行。应用启动前要具备当前迁移账本与非演示管理员；production会只读检查，不会偷偷升级。新库不创建任何OAuth客户端，production还须显式配置OAUTH_TRUSTED_CLIENT_IDS才能使用受信自有站点SSO。
 
-> **已有数据的库不会自动升级。** `full_init.sql` 开头是 `DROP TABLE ... CASCADE`，
-> 对已有库跑它等于清库。升级请用增量脚本，核对当前基线后按编号顺序执行（重复运行不代表没有业务副作用）：
->
-> 迁移脚本没有挂进容器（compose 只挂了 `full_init.sql`），所以从宿主机用管道喂进去；
-> `-T` 是关掉伪终端，少了它 stdin 重定向不生效：
->
-> ```
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0001_timestamptz.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0002_password_changed_at.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0003_diagram_deleted_at.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0004_diagram_version.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0005_user_role.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0006_order_single_pending.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0007_support_messages.sql"
-> docker compose exec -T db psql -U postgres -d codemax_db -v ON_ERROR_STOP=1 < "database init/migrate_0008_credential_revision.sql"
-> ```
->
-> 0001 = 时间列统一 `TIMESTAMPTZ`（TD-146）；0002 = `sys_user.password_changed_at`（TD-70）；
-> 0003 = `sys_diagram.deleted_at` + 索引升级（TD-64）；0004 = `sys_diagram.version` 乐观锁列（TD-65）；
-> 0005 = `sys_user.role` 管理员角色列（TD-138/188）；
-> 0006 = pending 部分唯一索引；0007 = 站内消息；0008 = 凭据版本并清未兑换授权码，旧 JWT 重新登录。
-> 上述重定向示例适用于 Bash/cmd，不是 PowerShell；用户名和库名须按实际配置替换。
->
-> ⚠️ **0006 执行前必须先清存量重复**：同一用户若已有 ≥2 张 pending 单，建唯一索引会失败。
-> 脚本头部给了排查与批量关单的 SQL，先跑排查那条确认再决定。
-> 全新部署只需 `full_init.sql`，不用跑这些。
-- 等数据库健康检查通过后再起应用
-- 给应用注入 `DB_HOST=db`、`TRUST_PROXY_HEADERS=true`
+**已有卷不能运行init作为升级。** 先停app、验证备份恢复；已明确为0008且没有账本时，把上面的init换成 `adopt-legacy-0008`；已有账本时换成 `migrate`。管理员已存在则不要重跑bootstrap。早于0008的库先按[数据库指南](../database%20init/README.md)核实历史前置条件；不得盲目重放0001–0008（0008会清授权码）。
 
-`.dockerignore` 已排除 `.env`、`.venv`、`.git`、`storage`，密钥不会进镜像
-（忽略规则只覆盖列明路径，不能保证任意新增秘密文件都不会被复制）。
+`.dockerignore`继续排除.env、环境目录、Git、storage与测试，但**必须保留database init内的维护程序和迁移SQL**，运行时要核对其SHA。这是COPY数据用途，不是自动执行SQL。镜像/Compose实际启动、备份恢复及生产角色最小权限仍待独立环境验收。
 
-⚠️ compose 里**没有**反向代理和 SSL。生产上必须在前面加一层 nginx 或云负载均衡。
+Compose无反向代理和SSL，应用端口默认仅发布到127.0.0.1；不要把postgres超级用户示例当生产权限设计，不要使用docker compose down -v处理故障。
 
 ---
 
@@ -172,10 +151,17 @@ server {
 Compose 默认 `${APP_BIND_HOST:-127.0.0.1}:8000:8000`，禁止无意公开后端绕过入口代理。`APP_BIND_HOST` 是 Compose 配置；需要暴露时显式修改并设置防火墙。
 Docker 启动关闭 Uvicorn 的代理头重写，由应用根据直接对端和 `TRUSTED_PROXY_CIDRS` 统一判断。宿主反向代理通过 Docker 网关连接时，对端可能是网关 IP 而不是 127.0.0.1：确认实际对端后只加入该地址的精确 CIDR，不要直接信任全部私网。
 
-存量库：备份 → 停写/停止旧应用 → 顺序执行 0007、0008 → 部署后端和全部静态分块 → 重新登录 → 客户/管理员互发消息、查看历史订单并重领文件。full_init 会 DROP TABLE，不能用于升级。详细步骤见 [当前验收](SECOND_REPAIR_ACCEPTANCE.md)。
+存量库：备份并验证可恢复 → 停写 → 核准基线 → 接入/验证迁移账本并运行缺失迁移 → 部署匹配版本 → 核查角色与重登录 → 验证原订单/消息。详细步骤见[数据库指南](../database%20init/README.md)，旧验收记录只作为历史证据。
 
 生产关闭 OpenAPI/Swagger/Redoc；开发环境才允许专门的 CDN CSP。Mermaid 已本地构建。Chromium 直接出网已停用，安装浏览器不能解除限制；必须先实现隔离渲染服务。真实支付/对象存储联调与模型阈值标定由对应启用功能决定，不冒充已部署验收。
 
 ## 当前模型提供方
 
 默认 Agnes AI，已有 `.env` 应按 [Agnes 接入](AGNES_AI.md) 更新基址/模型并重启进程；环境变量优先级不变。不要把“免费”理解为无限 RPM/生产 SLA，也不把网络诊断成功当商户或模型验收。默认关闭 embedding，外部可用性不纳入普通单元测试。
+
+
+## 第二批上线边界
+
+下单前也会校验本地平台证书/公钥与32字节APIv3密钥，不可用返回503且不请求商户；须另外实测回调可达性与控制台登记值。微信回调要求WX_APPID/WX_MCHID与交易一致，币种CNY、类型NATIVE。WX_PLATFORM_CERT若为X509证书，Wechatpay-Serial必须匹配且证书在有效期；若是裸RSA公钥，另填WX_PLATFORM_KEY_ID，不要填成商户WX_SERIAL_NO。必须从可信商户渠道配置真实平台凭据；不是随回调动态下载证书，也未实现自动轮换/预支付响应验签。
+
+OAUTH_TRUSTED_CLIENT_IDS使用JSON数组，例如自有站点确认后设为["tools"]。它们会拿到完整站点JWT，具有对应用户权限，不是第三方scope隔离；production回跳仅HTTPS。默认空数组拒绝生产SSO，不能因接入方便把不可信应用加入名单。

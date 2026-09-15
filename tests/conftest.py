@@ -77,7 +77,7 @@ def iter_app_routes(routes):
             yield r
 
 
-# 测试种子：两个 SSO 接入平台（与 database init/full_init.sql 一致）
+# 测试种子：两个 SSO 接入平台（对应显式seed_demo.sql；生产init不包含这些身份）
 # 注意：必须每次调用新建实例，否则 ORM 对象跨测试复用会泄漏状态
 def seed_clients() -> list[OAuthClient]:
     return [

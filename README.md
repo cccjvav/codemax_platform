@@ -2,7 +2,7 @@
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
-> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金、第三方 OAuth、生产初始化/迁移仍有发布阻断；不是“全部已审完、可以直接上线”。
+> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环和第三方 OAuth 等仍有发布阻断；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
 
 学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与人工收款接口、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，也没有完整支付对账/退款/不可变商品权益闭环。
 
@@ -18,7 +18,7 @@
 
 ## 快速开始（仅隔离的本地演示）
 
-初始化包含公开演示管理员和 OAuth 客户端，不能直接暴露给不可信网络。生产不仅要换签名密钥，还须处理已存在的演示身份、商户/存储/备份及迁移问题，见[发布阻断](review/README.md)。
+默认初始化不再创建演示管理员/客户端，也不会删除已有表；需显式创建管理员。生产仍须处理商户/存储/备份及已有库升级问题，见[发布阻断](review/README.md)。
 
 ```bash
 # 1. 安装依赖
@@ -27,9 +27,10 @@ pip install -r requirements.txt
 # 2. 复制 .env.example 为 .env 并填入实际配置
 cp .env.example .env
 
-# 3. 初始化数据库（自动建库建表；测试账号 admin/123456）
-#    ⚠️ 只对**空库**安全：full_init.sql 开头是 DROP TABLE ... CASCADE，对已有数据的库跑它会清库
-cd "database init" && python db_init.py && cd ..
+# 3. 先用PostgreSQL管理工具创建专用空库codemax_db，填好.env，再显式初始化
+python "database init/db_init.py" init --confirm-database codemax_db
+# 创建新管理员owner（交互输入至少12字符口令，无默认密码）
+python "database init/db_init.py" bootstrap-admin --username owner --confirm-database codemax_db
 
 # 4. 启动服务
 uvicorn main:app --reload   # http://localhost:8000/docs
@@ -110,6 +111,8 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 
 ### 演示客户端（种子数据，仅演示用）
 
+仅显式执行development的`seed-demo`后才存在，普通init不创建它们。生产不得用下面的公开秘密；SSO只允许在`OAUTH_TRUSTED_CLIENT_IDS`内的受控第一方，仍发完整用户JWT，不是第三方最小权限授权。
+
 | client_id | client_secret | 回调地址 |
 | --- | --- | --- |
 | `tools` | `codemax-tools-secret` | `https://tools.codemax.top/callback` |
@@ -172,7 +175,7 @@ start docs\site\index.html
 | `app/tools/` | [README](app/tools/README.md) | 解析、采集、模型、FAQ 与内容检索 |
 | `app/routers/` | [README](app/routers/README.md) | HTTP、权限和事务编排 |
 | `app/` 根 | [README](app/README.md) | 配置、认证、数据、限流、存储与状态机 |
-| `database init/` | [README](<database init/README.md>) | 破坏性空库初始化与增量迁移；不是自动升级器 |
+| `database init/` | [README](<database init/README.md>) | 拒绝覆盖的空库初始化、迁移账本与管理员bootstrap |
 | `app/templates/` | [README](app/templates/README.md) | 页面模板与 DOM 合同 |
 | `app/frontend/` | [README](app/frontend/README.md) | 手写浏览器源码 |
 | `app/static/` | [README](app/static/README.md) | Vite 产物、样式和收款图片 |
@@ -210,13 +213,13 @@ start docs\site\index.html
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
-| [`.dockerignore`](.dockerignore) | `9fe29d4eff0a` | L1–L25 |
-| [`.env.example`](.env.example) | `5c76558c963e` | L1–L108 |
-| [`.gitattributes`](.gitattributes) | `1a1dbe176bc2` | L1–L2 |
+| [`.dockerignore`](.dockerignore) | `57d5af08af42` | L1–L25 |
+| [`.env.example`](.env.example) | `be7c57469ee6` | L1–L112 |
+| [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
-| [`docker-compose.yml`](docker-compose.yml) | `1e5b48cf8873` | L1–L37 |
-| [`main.py`](main.py) | `a57b8f8a067a` | L1–L71 |
+| [`docker-compose.yml`](docker-compose.yml) | `ae5824d81626` | L1–L39 |
+| [`main.py`](main.py) | `7fbbdb228940` | L1–L69 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

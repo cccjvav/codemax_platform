@@ -1,3 +1,5 @@
+> 第二批初始化/迁移与支付信任进展见[本批台账](review/RELEASE_BLOCKERS_PHASE2.md)。资金闭环、完整第三方OAuth及实机验收仍待后续。
+
 > 当前审查状态以 [2026-09-15 台账](review/README.md) 为准；下方阶段勾选是历史记录，尤其监控建议、跨域 SSO 合成测试、支付接口实现不等于真实生产闭环。
 
 > 当前模型默认改为 Agnes 2.5 Flash；embedding 默认关闭。真实聊天/图前缀已通过，向量探测 HTTP 500 不证明能力不存在；免费候选与实测边界见[当前阶段](manager/stages/agnes-integration.md)，历史模型/测试记录不作替换。

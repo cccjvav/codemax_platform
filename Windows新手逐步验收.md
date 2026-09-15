@@ -229,21 +229,9 @@ createdb -h 127.0.0.1 -p 5432 -U postgres -W codemax_walkthrough
 echo %ERRORLEVEL%
 ```
 
-**只有这次创建退出码为 0，才允许执行下一条。** 若报 already exists，停下核对旧库用途，不删除它、不继续跑下面的 full_init；可以另选一个从未用过的库名，并同步替换本节和第 8 节。
+**只有这次创建退出码为 0，才允许执行下一条。** 若报 already exists，停下核对旧库用途，不删除它、不继续执行本指南的新库init步骤；可以另选一个从未用过的库名，并同步替换本节和第 8 节。
 
-仍在项目根目录：
-
-```cmd
-psql -h 127.0.0.1 -p 5432 -U postgres -d codemax_walkthrough -W -v ON_ERROR_STOP=1 -f "database init/full_init.sql"
-```
-
-**警告：full_init 内有 DROP TABLE，会删除目标库原表。这里只因上一步刚创建了空库才可运行。** 失败不通过重新创建业务库解决。检查退出码 0，再核对：
-
-```cmd
-psql -h 127.0.0.1 -p 5432 -U postgres -d codemax_walkthrough -W -c "SELECT username, role FROM sys_user;"
-```
-
-应看到演示 `admin`，角色 1。本地专用演示库由 postgres 初始化只是新手运行路径，不是生产最小权限部署方案。
+空数据库创建到这里即可。**先完成下一节私有配置，再使用维护CLI建表**；不再直接运行full_init.sql，不预置admin/123456。
 
 ## 8. 配置私有 .env 和测试商品
 
@@ -291,6 +279,31 @@ git ls-files -- .env
 ```
 
 第一条应输出 `.env`，第二条应没有输出；若被跟踪，先停下处理，不提交它。系统/Conda 的同名环境变量优先于文件，不用 `set` 打印整份环境来排查密钥。
+
+现在仍在项目根目录、Conda环境中，显式初始化刚才的空库：
+
+```cmd
+python "database init/db_init.py" init --confirm-database codemax_walkthrough
+echo %ERRORLEVEL%
+```
+
+必须为0才继续；失败先停下核对，不清库、不改跑历史脚本。初始化拒绝任何已有表，旧版full_init曾会删表，不能退回旧版执行。
+
+创建管理员，记住自己设置的口令（两次输入不回显，至少12字符；不要发到聊天）：
+
+```cmd
+python "database init/db_init.py" bootstrap-admin --username owner --confirm-database codemax_walkthrough
+echo %ERRORLEVEL%
+```
+
+再次必须为0。`owner`若已被占用不能直接提权，先核对库是否是刚才新建的专用库。最后验证迁移状态：
+
+```cmd
+python "database init/db_init.py" status --confirm-database codemax_walkthrough
+echo %ERRORLEVEL%
+```
+
+应显示Pending versions: none且退出0。已有0008旧库走[数据库指南](database%20init/README.md)的接入路径，本节不用于升级旧库。
 
 再创建一个很小的测试 ZIP（不会覆盖已有同名文件）：
 
@@ -412,7 +425,7 @@ CREATE TABLE purchase (
 
 ### 11.2 管理员首次登录与改密
 
-在 Chrome 打开首页，用**刚新建演示库**中的 `admin` / `123456` 登录，仅用于这次本地演示。随后：
+在 Chrome 打开首页，用第8步创建的 `owner` 和你设置的口令登录，仅操作这次本地专用库。随后：
 
 1. 同一 Chrome 窗口打开 `http://127.0.0.1:8000/docs`。
 2. 找 `POST /auth/password`，展开 → `Try it out`。

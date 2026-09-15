@@ -9,8 +9,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:?必须在 .env 里设置 DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
-      # 首次启动自动建表；已存在的库不会被重复初始化
-      - ./database init/full_init.sql:/docker-entrypoint-initdb.d/01_init.sql:ro
+      # 不再自动执行SQL；先显式运行维护CLI，避免无账本/默认身份初始化。
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d codemax_db"]
       interval: 5s
@@ -26,6 +25,9 @@ services:
     environment:
       DB_HOST: db
       DB_PORT: "5432"
+      DB_NAME: codemax_db
+      DB_USER: postgres
+      DATABASE_URL: ""  # 本地示例固定使用上面的db容器，不能误连.env中的外部业务库
       TRUST_PROXY_HEADERS: "true"
     ports:
       - "${APP_BIND_HOST:-127.0.0.1}:8000:8000"
