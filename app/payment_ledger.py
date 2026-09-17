@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Order, PaymentReceipt, User
+from .models import Order, PaymentEvent, PaymentReceipt, User
 
 
 class PaymentConflict(ValueError):
@@ -30,6 +30,7 @@ async def settle(
     db: AsyncSession, order: Order, *, source: str, transaction_id: str,
     merchant_id: str | None = None, app_id: str | None = None, amount: int | None = None,
     actor: User | None = None, evidence: str | None = None, paid_at: datetime | None = None,
+    audit_event: PaymentEvent | None = None,
 ) -> bool:
     """Record one receipt and paid state atomically; exact repeats are no-ops, conflicts fail closed.
 
@@ -39,6 +40,10 @@ async def settle(
     actor_id, actor_name = (actor.id, actor.username) if actor else (None, None)
     try:
         await lock_order(db, order)
+        if audit_event is not None:
+            if audit_event.order_id != order.id:
+                raise PaymentConflict('核查事件不属于此订单')
+            db.add(audit_event)
         if source not in ('wechat', 'manual', 'mock') or order.payment_mode != source:
             raise PaymentConflict('订单支付渠道未核准或不匹配，不能按当前配置猜测历史订单')
         if (order.merchant_id, order.app_id) != (merchant_id, app_id):

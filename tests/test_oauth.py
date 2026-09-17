@@ -183,7 +183,7 @@ async def test_code_consumption_is_atomic(client):
 
 @pytest.mark.skipif(
     TEST_DATABASE_URL.startswith("sqlite"),
-    reason="需要真数据库：SQLite 用 StaticPool 共享单连接，两个请求排不成真正的并发",
+    reason="本项指定PostgreSQL验证并发授权码消费；SQLite独立连接不能替代PG隔离验收",
 )
 async def test_code_single_use_under_real_concurrency(client):
     """真并发下同一授权码只能被消费一次。

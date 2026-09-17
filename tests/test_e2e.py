@@ -506,8 +506,8 @@ async def test_only_one_pending_order_per_user_at_db_level(client):  # noqa: ARG
 @pytest.mark.asyncio
 @pytest.mark.skipif(
     TEST_DATABASE_URL.startswith("sqlite"),
-    reason="需要真数据库：SQLite 用 StaticPool 共享单连接，一个请求的 rollback 会把"
-           "别人的插入一起回滚，测不出真实的并发冲突",
+    reason="本项指定PostgreSQL验证真实事务及部分唯一索引竞争；"
+           "SQLite已使用独立连接，但不能替代PG隔离验收",
 )
 async def test_concurrent_orders_create_only_one_pending(client, mock_mode):
     """并发下单**只能**落出一张活跃 pending 单（TD-199，真库）。

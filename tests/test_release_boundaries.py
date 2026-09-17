@@ -24,7 +24,7 @@ from tests.test_wechat_notify import (
     txn,
 )
 from tests.test_wechat_notify import notify_ready as notify_ready
-from tests.test_wechat_pay import CFG
+from tests.test_wechat_pay import CFG, signed_response
 
 
 @pytest.fixture
@@ -116,7 +116,7 @@ def test_certificate_validity_and_raw_public_key_id():
 
 @pytest.mark.parametrize('body', [b'[]', b'null', b'\xff', b'x'*65537, b'{"code_url":true}', b'{"code_url":"https://foreign.invalid"}'])
 async def test_malformed_prepay_response_fails_without_body_leak(body):
-    transport = httpx.MockTransport(lambda request: httpx.Response(200, content=body))
+    transport = httpx.MockTransport(lambda request: signed_response(body))
     with pytest.raises(WeChatPayError) as error:
         await native_prepay(CFG, out_trade_no='test', description='test', total=1, transport=transport)
     assert len(str(error.value)) < 150 and 'foreign.invalid' not in str(error.value)

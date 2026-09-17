@@ -9,10 +9,12 @@
 import base64
 import json
 import re
+import time
 from datetime import datetime, timezone
 
 import httpx
 import pytest
+from cryptography import x509
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import padding, rsa
@@ -32,6 +34,7 @@ from app.wechat_pay import (
     sign,
 )
 from tests.conftest import TestSession
+from tests.test_wechat_notify import _KEY as PLATFORM_KEY
 from tests.test_wechat_notify import CERT_PEM
 
 # 自签密钥：只为验证签名算法，与微信无关
@@ -50,6 +53,20 @@ CFG = PayConfig(
     notify_url="https://codemax.top/shop/pay/notify",
     platform_cert=CERT_PEM,
 )
+
+
+def signed_response(body, status=200, *, timestamp=None, serial=None, key=PLATFORM_KEY):
+    """Synthetic platform signature over exact response bytes, never an unsigned success shortcut."""
+    raw = body if isinstance(body, bytes) else json.dumps(body, ensure_ascii=False).encode('utf-8')
+    ts, nonce = timestamp or str(int(time.time())), 'API_RESPONSE_TEST'
+    signature = key.sign(ts.encode() + b'\n' + nonce.encode() + b'\n' + raw + b'\n',
+                         padding.PKCS1v15(), hashes.SHA256())
+    return httpx.Response(status, content=raw, headers={
+        'Wechatpay-Timestamp': ts, 'Wechatpay-Nonce': nonce,
+        'Wechatpay-Serial': serial or format(x509.load_pem_x509_certificate(CERT_PEM.encode()).serial_number, 'X'),
+        'Wechatpay-Signature': base64.b64encode(signature).decode(),
+    })
+
 
 _ENV = {
     "WX_APPID": "wxAPPID",
@@ -162,7 +179,7 @@ async def test_native_prepay_sends_request_whose_bytes_match_the_signature():
 
     def handler(request: httpx.Request) -> httpx.Response:
         captured["req"] = request
-        return httpx.Response(200, json={"code_url": "weixin://wxpay/bizpayurl?pr=ABC"})
+        return signed_response({"code_url": "weixin://wxpay/bizpayurl?pr=ABC"})
 
     code_url = await native_prepay(
         CFG,
@@ -194,7 +211,7 @@ async def test_native_prepay_sends_request_whose_bytes_match_the_signature():
 
 async def test_native_prepay_raises_on_http_error():
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(400, json={"code": "PARAM_ERROR", "message": "参数错误"})
+        return signed_response({"code": "PARAM_ERROR", "message": "参数错误"}, 400)
 
     with pytest.raises(WeChatPayError) as e:
         await native_prepay(CFG, out_trade_no="X", description="d", total=1, transport=httpx.MockTransport(handler))
@@ -203,7 +220,7 @@ async def test_native_prepay_raises_on_http_error():
 
 async def test_native_prepay_raises_when_code_url_missing():
     def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(200, json={"unexpected": True})
+        return signed_response({"unexpected": True})
 
     with pytest.raises(WeChatPayError):
         await native_prepay(CFG, out_trade_no="X", description="d", total=1, transport=httpx.MockTransport(handler))

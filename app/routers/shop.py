@@ -17,7 +17,7 @@ from starlette.concurrency import run_in_threadpool
 from ..config import settings
 from ..database import get_db, lock_user
 from ..delivery import snapshot_product, verify_snapshot
-from ..deps import get_current_user, require_admin
+from ..deps import get_current_user, require_admin, require_finance_origin
 from ..middleware import public_base_url
 from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..order_state import (
@@ -294,7 +294,7 @@ class ManualReceiptIn(EvidenceIn):
     evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
 
 
-@router.post("/orders/{order_no}/confirm")
+@router.post("/orders/{order_no}/confirm", dependencies=[Depends(require_finance_origin)])
 async def confirm_paid_manually(
     order_no: str,
     proof: ManualReceiptIn,
@@ -585,7 +585,7 @@ class LegacyBindingIn(EvidenceIn):
     evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
 
 
-@router.post('/orders/{order_no}/legacy-binding')
+@router.post('/orders/{order_no}/legacy-binding', dependencies=[Depends(require_finance_origin)])
 async def bind_legacy_order(order_no: str, proof: LegacyBindingIn, request: Request,
                             db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
     """Operator-reviewed one-time binding, not a guessed backfill or a new receipt for past money."""
@@ -631,6 +631,12 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
         query = query.where(PaymentEvent.id < before)
     events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
     return {'order_no': order.order_no,
+            'order': {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
+                      'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
+                      'merchant_id': order.merchant_id, 'app_id': order.app_id,
+                      'delivery_key': order.delivery_key, 'delivery_digest': order.delivery_digest,
+                      'delivery_size': order.delivery_size},
+            'actions': {'manual': settings.SHOP_PAY_MODE == 'manual', 'mock_binding': settings.ENV == 'development'},
             'receipt': ({'source': receipt.source, 'reference': receipt.transaction_id,
                          'amount': receipt.amount, 'currency': receipt.currency,
                          'actor': receipt.actor_name, 'evidence': receipt.evidence,

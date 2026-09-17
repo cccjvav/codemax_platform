@@ -277,6 +277,7 @@ def _uses_auth(dependant) -> bool:
 # 所以这张表里的每一项都必须是无副作用的读操作；新增一项就会让测试失败，
 # 逼作者在这里写清楚它为什么没有副作用。
 READ_ONLY_AUTHED_GET = {
+    "/shop/admin/orders": "管理员只读分页库存，无网络或写库",
     "/shop/admin/orders/{order_no}/ledger": "管理员只读凭证/事件，no-store，不隐式核账或改变订单",
     "/support/messages": "只读自己的留言",
     "/support/conversations": "管理员只读会话列表",

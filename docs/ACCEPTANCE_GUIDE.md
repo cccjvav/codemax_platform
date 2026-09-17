@@ -148,7 +148,7 @@ python -c "from pathlib import Path; from zipfile import ZipFile; p=Path('storag
 
 manual 模式需要真实核账流程：展示的是个人收款码，平台不会自动知道是否到账。先在测试数据验证管理员操作与普通用户权限；真实确认只能在管理员核对独立支付记录、金额和订单后进行。
 
-当前确认API `POST /shop/orders/{order_no}/confirm`必须带JSON：`{"reference":"TEST-BANK-0001","amount":19900,"evidence":"隔离测试核账依据"}`（真实使用必须换成实际唯一参考号和精确金额）。订单渠道必须manual，凭证与状态同事务；管理员ledger接口查看首次确认人及依据，不再只看日志。不是完整财务管理页面；开发 `/docs` 可用于测试接口，生产 API 文档关闭，不能为操作方便打开全站生产文档。正式使用前确定受控管理方式、日志保留和争议处理；未确定则不要开放该收款通道。
+当前确认API `POST /shop/orders/{order_no}/confirm`必须带JSON：`{"reference":"TEST-BANK-0001","amount":19900,"evidence":"隔离测试核账依据"}`（真实使用必须换成实际唯一参考号和精确金额）。订单渠道必须manual，凭证与状态同事务；管理员ledger接口查看首次确认人及依据，不再只看日志。现有 `/admin/payments` 页面可执行受控人工核账、历史绑定与主动微信查单，步骤见[工作台手册](PAYMENTS_ADMIN_GUIDE.md)；不是完整会计/退款系统。开发 `/docs` 仍可用于测试接口，生产 API 文档关闭，不能为操作方便打开全站生产文档。正式使用前确定受控管理方式、日志保留和争议处理；未确定则不要开放该收款通道。
 
 ### 6.3 微信商户模式
 
@@ -199,3 +199,9 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise S
 下单前准备小于等于512MiB的本地真实文件。付款后覆盖原文件或改STORAGE_PRODUCT_KEY，重领链接仍须得到原字节。不要删`.snapshots`；模拟损坏只对独立测试快照操作，期望拒绝并保留权益，恢复相同字节再成功。旧库先0010迁移，历史未绑定订单不能自动取当前商品；管理员核实旧合同后绑定一次，过程见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。
 
 SQLite自动测试采用临时文件/独立连接，不再共享单连接来模拟并发。PG测试还运行实际SQL约束与触发器；独立数据库和storage的恢复、浏览器及真实商户仍需另验。
+
+## 第四批：管理页与可信查单
+
+按[管理页步骤](PAYMENTS_ADMIN_GUIDE.md)在隔离测试库分别用普通用户/管理员打开页面；普通用户无数据，切换账号后无前账号迟到信息，确认弹窗写明当前订单与金额。人工/绑定操作只对可丢弃测试订单填写明确TEST依据。Node源码/bundle检查不等于这项浏览器签收。
+
+真实微信只能另行授权并在真实渠道后台交叉核对：响应头验签、原单SUCCESS补记、回调先到的精确重复、网络结果未知后的原单再查、REFUND观察不冒充已退款。没有真实凭据时保持未执行，不能以合成签名替代；生产不得运行pytest或为操作管理页开启/docs。

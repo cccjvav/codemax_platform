@@ -53,3 +53,36 @@ async def require_admin(user: User = Depends(get_current_user)) -> User:
     if user.role != 1:
         raise HTTPException(status.HTTP_403_FORBIDDEN, "需要管理员权限")
     return user
+
+
+def require_finance_origin(request: Request, token: str | None = Depends(oauth2_scheme)) -> None:
+    """Reject foreign browser-origin financial writes, in addition to Lax cookies and JSON bodies.
+
+    Explicit Bearer clients retain their API channel. Headerless non-browser cookie clients
+    remain supported; this is origin/fetch-metadata defense, not a synchronizer-token system.
+    Proxy canonical origin follows the same trusted configuration as generated public links.
+    """
+    from urllib.parse import urlsplit
+
+    from .middleware import public_base_url
+
+    if token:
+        return  # get_current_user must still validate this exact token before the operation
+    origins = request.headers.getlist('origin')
+    site = request.headers.get('sec-fetch-site')
+    if site is not None and site != 'same-origin':
+        raise HTTPException(403, '财务操作必须从本站页面发起')
+    if not origins:
+        return
+    def key(value):
+        parsed = urlsplit(value)
+        if (parsed.scheme not in ('http', 'https') or not parsed.hostname or parsed.username is not None
+                or parsed.password is not None or parsed.path not in ('', '/') or parsed.query or parsed.fragment):
+            raise ValueError('origin')
+        return parsed.scheme, parsed.hostname.lower(), parsed.port or (443 if parsed.scheme == 'https' else 80)
+    try:
+        valid = len(origins) == 1 and key(origins[0]) == key(public_base_url(request))
+    except ValueError:
+        valid = False
+    if not valid:
+        raise HTTPException(403, '财务操作来源不匹配，请从本站管理页面重试')

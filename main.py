@@ -9,7 +9,7 @@ from app import cpu_pool
 from app.config import settings
 from app.database import engine
 from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
-from app.routers import admin, auth, diagrams, health, messages, oauth, shop, site, support, tools
+from app.routers import admin, auth, diagrams, health, messages, oauth, payments_admin, shop, site, support, tools
 from app.startup_checks import enforce_database_safety, enforce_production_settings
 from app.tools.faq import warm_semantic_index
 
@@ -56,6 +56,7 @@ app.include_router(oauth.router)
 app.include_router(tools.router)
 app.include_router(diagrams.router)  # S2-01-3：Drawio 流程图存取（需鉴权）
 app.include_router(shop.router)
+app.include_router(payments_admin.router)
 app.include_router(site.router)  # S2-02-1：页面 SSR + sitemap + robots
 app.include_router(messages.router)
 app.include_router(support.router)  # S4-02：智能客服三层

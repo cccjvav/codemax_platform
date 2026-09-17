@@ -63,6 +63,7 @@
       <nav>{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
       <div class="actions">
         <a href="/support/center">站内客服</a>
+        <a href="/admin/payments">订单管理（管理员）</a>
         <a class="cta-link" href="{{ shop_path }}">{{ product_name }}</a>
         {# auth_ui 为假的页面（OAuth 同意页）不渲染登录控件也不加载脚本 ——
            那页必须零脚本，见 tests/test_oauth_consent.py #}

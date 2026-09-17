@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block content %}
+<style>
+  .finance [hidden] { display:none !important; }
+  .finance { max-width: 1180px; margin: 0 auto; padding: 22px; }
+  .finance-grid { display:grid; grid-template-columns:minmax(240px,1fr) minmax(320px,2fr); gap:24px; }
+  .finance section { border:1px solid #cbd5e1; padding:18px; border-radius:10px; min-width:0; }
+  .finance label { display:block; margin:10px 0; }
+  .finance input,.finance select,.finance textarea { width:100%; padding:8px; }
+  .finance button { margin:4px; padding:8px 12px; cursor:pointer; }
+  .finance li { margin:10px 0; overflow-wrap:anywhere; }
+  .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+  .finance .warning { padding:12px; background:#fffbeb; border-left:4px solid #d97706; }
+  #finance-list { list-style:none; padding:0; }
+  #finance-list button { text-align:left; width:100%; }
+  @media(max-width:760px) { .finance-grid { grid-template-columns:1fr; } }
+</style>
+<div class="finance">
+<h1>订单与收款管理</h1>
+<p>核对原订单，再采取操作。仅管理员可读取数据；本页不发起真实扣款、关单或退款。</p>
+<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；退款处理、异常结案和定制服务里程碑仍未实现。站内客服可由你本人接待。</p>
+<p id="finance-access" role="status">正在确认登录权限…</p>
+<button id="finance-login" type="button">管理员登录</button>
+<p id="finance-message" role="status" aria-live="polite"></p>
+<div id="finance-workspace" class="finance-grid" hidden>
+<section>
+<h2>查找订单</h2>
+<form id="finance-search">
+<label>范围<select id="finance-bucket"><option value="all">所有订单</option><option value="manual">人工收款待核账</option><option value="wechat">微信未结算（含结果未知）</option><option value="legacy">历史合同待绑定</option><option value="issues">有历史异常记录（不代表尚未解决）</option></select></label>
+<label>精确订单号（可空）<input id="finance-order-no" maxlength="32" pattern="[A-Za-z0-9_\-]+" autocomplete="off"></label>
+<button type="submit">查询 / 刷新</button>
+</form>
+<ul id="finance-list"></ul>
+<button id="finance-next" type="button" hidden>下一页订单</button>
+</section>
+<section>
+<h2 id="finance-title">请选择订单</h2>
+<pre id="finance-contract"></pre>
+<p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
+<button id="finance-refresh" type="button" disabled>刷新此单记录</button>
+<h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
+<div id="finance-operations" hidden>
+<label>手动输入本次操作的完整订单号<input id="finance-confirm-no" maxlength="32" autocomplete="off"></label>
+<label>核查依据 / 原因（3–500字，不含换行；不要填写密钥或完整银行卡号）<input id="finance-evidence" minlength="3" maxlength="500" autocomplete="off"></label>
+<form id="finance-manual" hidden>
+<h3>人工核账后确认到账</h3>
+<p>必须先在真实收款记录中核实。输入实际收到的整数“分”，不能用客户截图代替到账核对。</p>
+<label>真实收款流水号<input id="finance-reference" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._:\/\-]*" autocomplete="off"></label>
+<label>实际到账金额（分）<input id="finance-amount" required type="number" min="1" step="1"></label>
+<button id="finance-manual-submit" type="submit">确认已核实到账</button>
+</form>
+<form id="finance-query" hidden>
+<h3>微信主动查单</h3><p>向已配置商户发起只读查询；仅经验证的 SUCCESS 才补记收款。超时请先刷新记录，不要重新创建订单。</p>
+<button id="finance-query-submit" type="submit">核查这个原订单</button>
+</form>
+<form id="finance-binding" hidden>
+<h3>一次性绑定历史合同</h3><p>只填写经你核实的原交付文件，不可猜用当前商品。绑定后不可改写；已付历史单不新增收入凭证。</p>
+<label>历史支付渠道<select id="finance-mode"><option value="manual">人工收款</option><option value="wechat">微信支付（当前凭据必须属于原商户）</option></select></label>
+<label>原文件的存储相对路径<input id="finance-source" required maxlength="500" autocomplete="off"></label>
+<button id="finance-binding-submit" type="submit">核准并永久绑定</button>
+</form>
+</div>
+<h3>操作 / 尝试记录（每页最多50条，最新在前）</h3>
+<p>started 没有后续结果表示进程可能中断，仍需核查；有异常记录不是异常已结案。</p>
+<ul id="finance-events"></ul><button id="finance-older" type="button" hidden>更早的记录</button>
+</section>
+</div>
+</div>
+<script src="/static/js/payments-admin.js" defer></script>
+{% endblock %}

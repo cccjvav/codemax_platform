@@ -6,6 +6,7 @@ Jinja 只负责 HTML 外壳、表单、语义结构与站点上下文；真实�
 - `er.html` / `mermaid.html`：工具表单和结果容器；本地构建的 ES module 包含第三方依赖。
 - `drawio.html`：第三方编辑器、云端文件与回收站管理、本地导入/下载。保存前通过 export 协议请求新 XML。
 - `shop.html`：固定数字商品、支付状态、历史订单和链接重领。定制需求引导至站内客服，不混作数字商品下单。
+- `payments-admin.html`：管理员订单登录壳、筛选、合同/凭证/事件、人工确认/主动查单/历史绑定表单；hidden强制隐藏避免grid样式覆盖，所有数据另经鉴权API。
 - `support-center.html`：公开的登录提示外壳；私人消息、会话列表及管理员操作都由鉴权 API 提供。
 - `oauth_consent.html`：无脚本同意表单；签名绑定用户与凭证版本，回调 query 保留。
 - `mock_pay.html`：开发用模拟支付，生产启动检查禁止启用。
@@ -24,13 +25,14 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `aedb758f9637` | L1–L123 |
+| [`app/templates/base.html`](base.html) | `d6b4935d2d68` | L1–L124 |
 | [`app/templates/drawio.html`](drawio.html) | `485d6c82ffba` | L1–L44 |
 | [`app/templates/er.html`](er.html) | `8a0d4678bbeb` | L1–L25 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `d9fde5672c9d` | L1–L70 |
 | [`app/templates/shop.html`](shop.html) | `ca1a76b058bb` | L1–L106 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 

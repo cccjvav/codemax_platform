@@ -32,6 +32,7 @@ export default defineConfig({
     sourcemap: false,
     rollupOptions: {
       input: {
+        "payments-admin": "app/frontend/payments-admin.js",
         "support-page": "app/frontend/support-page.js",
         // base.html 全站加载：登录态。
         auth: "app/frontend/auth.js",

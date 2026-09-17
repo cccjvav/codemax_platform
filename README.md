@@ -1,3 +1,5 @@
+> 当前第四批：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
+
 # codemax_platform
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
@@ -6,7 +8,7 @@
 
 > 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环和第三方 OAuth 等仍有发布阻断；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
 
-学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与人工收款接口、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，也没有完整支付对账/退款/不可变商品权益闭环。
+学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，但没有完整支付日账对账、关单/退款和定制服务生命周期。
 
 ## 从零理解代码
 
@@ -221,13 +223,13 @@ start docs\site\index.html
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `ae5824d81626` | L1–L39 |
-| [`main.py`](main.py) | `7fbbdb228940` | L1–L69 |
+| [`main.py`](main.py) | `9c2c07c1a34d` | L1–L70 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
 | [`requirements.txt`](requirements.txt) | `d4c24e34109d` | L1–L65 |
 | [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
-| [`vite.config.mjs`](vite.config.mjs) | `a3fb20944f28` | L1–L56 |
+| [`vite.config.mjs`](vite.config.mjs) | `b822ef8586a3` | L1–L57 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -243,3 +245,5 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 运行 pytest、ruff、npm run build 与文档构建；新增环境项同步 .env.example。
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
+
+管理员页面：`/admin/payments`；[操作、失败处理和验收](docs/PAYMENTS_ADMIN_GUIDE.md)。只读订单发现/凭证历史，显式人工核账、旧单绑定与验签查单；不是扣款/退款入口。

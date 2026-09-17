@@ -1,3 +1,5 @@
+> 第四批：[可信查单与管理台](review/RELEASE_BLOCKERS_PHASE4.md)，不包含远程退款、异常结案或完整定制服务生命周期。
+
 > 当前第三批见[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)，自动对账/退款及实机验收仍待后续。
 
 > 第二批初始化/迁移与支付信任进展见[本批台账](review/RELEASE_BLOCKERS_PHASE2.md)。资金闭环、完整第三方OAuth及实机验收仍待后续。

@@ -35,11 +35,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import re
 import secrets
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
 from cryptography import x509
@@ -118,6 +119,8 @@ def canonical_string(method: str, url_path: str, timestamp: str, nonce: str, bod
 def sign(method: str, url_path: str, body: str, private_key_pem: str, *, timestamp: str, nonce: str) -> str:
     """SHA256withRSA 签名，结果 Base64。"""
     key = serialization.load_pem_private_key(private_key_pem.encode(), password=None)
+    if not isinstance(key, rsa.RSAPrivateKey) or key.key_size < 2048:
+        raise ValueError("Merchant signing key must be RSA >= 2048 bits")
     message = canonical_string(method, url_path, timestamp, nonce, body).encode()
     return base64.b64encode(key.sign(message, padding.PKCS1v15(), hashes.SHA256())).decode()
 
@@ -154,31 +157,7 @@ async def native_prepay(
         ensure_ascii=False,
         separators=(",", ":"),
     )
-    raw = body.encode("utf-8")
-    try:
-        authorization = auth_header(cfg, "POST", NATIVE_PATH, body)
-    except (ValueError, TypeError):
-        raise WeChatPayError("微信支付签名配置无效") from None
-    headers = {"Authorization": authorization, "Content-Type": "application/json", "Accept": "application/json"}
-    response_body = bytearray()
-    try:
-        async with (
-            asyncio.timeout(TIMEOUT * 2),
-            httpx.AsyncClient(base_url=BASE_URL, transport=transport, timeout=TIMEOUT) as c,
-            c.stream("POST", NATIVE_PATH, content=raw, headers=headers) as r,
-        ):
-            if r.status_code != 200:
-                raise WeChatPayError(f"微信支付下单失败：HTTP {r.status_code}")
-            async for chunk in r.aiter_bytes():
-                if len(response_body) + len(chunk) > 65536:
-                    raise WeChatPayError("微信支付下单响应过大")
-                response_body.extend(chunk)
-    except (httpx.HTTPError, TimeoutError):
-        raise WeChatPayError("微信支付网络请求失败；结果未知，请保留原订单重试") from None
-    try:
-        data = json.loads(response_body)
-    except (ValueError, UnicodeError, RecursionError):
-        raise WeChatPayError("微信支付下单响应不是有效JSON") from None
+    data = await _request_json(cfg, "POST", NATIVE_PATH, body, transport=transport)
     code_url = data.get("code_url") if isinstance(data, dict) else None
     if not isinstance(code_url, str) or not 1 <= len(code_url) <= 512 or any(ord(ch) < 33 for ch in code_url):
         raise WeChatPayError("微信支付下单响应缺少有效code_url")
@@ -303,3 +282,111 @@ def assert_notify_configuration(cfg: PayConfig) -> None:
     except (ValueError, TypeError):
         raise WeChatPayError("平台回调证书配置无效") from None
     assert_notify_identity(cfg, serial)
+
+
+async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", *, transport=None) -> dict:
+    """Bounded APIv3 exchange: exact request bytes, no redirects/compression, authenticated response.
+
+    Every response, including HTTP errors, must pass platform identity/time/signature checks.
+    An unverified error is not proof that no payment exists. Never expose provider raw bodies.
+    """
+    assert_notify_configuration(cfg)
+    try:
+        authorization = auth_header(cfg, method, path, body)
+    except (ValueError, TypeError):
+        raise WeChatPayError("微信支付签名配置无效") from None
+    headers = {"Authorization": authorization, "Content-Type": "application/json",
+               "Accept": "application/json", "Accept-Encoding": "identity"}
+    response_body = bytearray()
+    try:
+        async with (
+            asyncio.timeout(TIMEOUT * 2),
+            httpx.AsyncClient(base_url=BASE_URL, transport=transport, timeout=TIMEOUT, follow_redirects=False) as client,
+            client.stream(method, path, content=body.encode('utf-8'), headers=headers) as response,
+        ):
+            if response.headers.get('Content-Encoding', 'identity').lower() != 'identity':
+                raise WeChatPayError('微信支付应答编码不支持')
+            async for chunk in response.aiter_bytes():
+                if len(response_body) + len(chunk) > 65536:
+                    raise WeChatPayError('微信支付应答过大')
+                response_body.extend(chunk)
+            assert_response_signature(cfg, response.headers, bytes(response_body), response.status_code)
+            if response.status_code != 200:
+                raise WeChatPayError(f'微信支付请求失败：HTTP {response.status_code}；不得推断未付款')
+    except (httpx.HTTPError, TimeoutError, UnicodeError):
+        raise WeChatPayError('微信支付网络请求失败；结果未知，请核查原订单') from None
+    try:
+        data = json.loads(response_body)
+    except (ValueError, UnicodeError, RecursionError):
+        raise WeChatPayError('微信支付应答不是有效JSON') from None
+    if not isinstance(data, dict):
+        raise WeChatPayError('微信支付应答必须为对象')
+    return data
+
+
+def assert_response_signature(cfg: PayConfig, headers: httpx.Headers, raw: bytes, status: int) -> None:
+    """Verify raw UTF-8 response with exactly one bounded value for each authentication header."""
+    try:
+        values = {}
+        for name, limit in [('Wechatpay-Serial', 128), ('Wechatpay-Timestamp', 12),
+                            ('Wechatpay-Nonce', 128), ('Wechatpay-Signature', 1024)]:
+            candidates = headers.get_list(name)
+            if len(candidates) != 1 or not 1 <= len(candidates[0]) <= limit:
+                raise WeChatPayError('Missing, duplicate or oversized signature header')
+            values[name] = candidates[0]
+        assert_notify_fresh(values['Wechatpay-Timestamp'])
+        assert_notify_identity(cfg, values['Wechatpay-Serial'])
+        verify_notify_signature(cfg.platform_cert, timestamp=values['Wechatpay-Timestamp'],
+                                nonce=values['Wechatpay-Nonce'], body=raw.decode('utf-8'),
+                                signature=values['Wechatpay-Signature'])
+    except (WeChatPayError, UnicodeError):
+        raise WeChatPayError(f'微信支付应答验签失败（HTTP {status}）；结果不可信') from None
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    state: str
+    transaction_id: str | None = None
+    paid_at: datetime | None = None
+
+
+async def query_order(cfg: PayConfig, *, out_trade_no: str, total: int, transport=None) -> QueryResult:
+    """Read one Native order at the fixed merchant API; bind even unpaid observations to its identity.
+
+    Only SUCCESS can grant a receipt. REFUND is an observation requiring a separate refund
+    workflow; NOTPAY/CLOSED never withdraw an existing paid entitlement.
+    """
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', out_trade_no):
+        raise WeChatPayError('查单的商户订单号格式无效')
+    path = '/v3/pay/transactions/out-trade-no/' + quote(out_trade_no, safe='')
+    path += '?' + urlencode({'mchid': cfg.mchid})
+    data = await _request_json(cfg, 'GET', path, transport=transport)
+    if (data.get('out_trade_no') != out_trade_no or data.get('appid') != cfg.appid
+            or data.get('mchid') != cfg.mchid):
+        raise WeChatPayError('查单应答与目标订单/商户/应用不一致')
+    state = data.get('trade_state')
+    if state not in ('SUCCESS', 'NOTPAY', 'CLOSED', 'REFUND'):
+        raise WeChatPayError('此Native查单状态尚不支持自动处理')
+    if data.get('trade_type') not in (None, 'NATIVE'):
+        raise WeChatPayError('查单交易类型不一致')
+    amount = data.get('amount')
+    # Unpaid query fields may be omitted by the provider; when present they must match.
+    if amount is not None and (not isinstance(amount, dict)
+            or type(amount.get('total')) is not int or amount['total'] != total or amount.get('currency') != 'CNY'):
+        raise WeChatPayError('查单金额或币种不一致')
+    if state != 'SUCCESS':
+        return QueryResult(state)
+    transaction_id, success_time = data.get('transaction_id'), data.get('success_time')
+    if (data.get('trade_type') != 'NATIVE' or amount is None
+            or not isinstance(transaction_id, str) or not 1 <= len(transaction_id) <= 64
+            or any(ord(c) < 33 for c in transaction_id)):
+        raise WeChatPayError('成功查单缺少完整交易凭证')
+    try:
+        if not isinstance(success_time, str) or len(success_time) > 40:
+            raise ValueError('time')
+        paid_at = datetime.fromisoformat(success_time)
+        if paid_at.tzinfo is None:
+            raise ValueError('timezone')
+    except ValueError:
+        raise WeChatPayError('成功查单时间无效') from None
+    return QueryResult(state, transaction_id, paid_at)

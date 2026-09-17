@@ -108,11 +108,11 @@ pending → closed → paid
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `aff882f475eb` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
-| [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |
+| [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
 | [`app/models.py`](models.py) | `ccd8d213c81e` | L1–L248 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
-| [`app/payment_ledger.py`](payment_ledger.py) | `98ff2d7d0deb` | L1–L78 |
+| [`app/payment_ledger.py`](payment_ledger.py) | `94135a287c59` | L1–L83 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -120,7 +120,7 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
 | [`app/storage.py`](storage.py) | `edc0b127e612` | L1–L119 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `c8f7c1c087c9` | L1–L305 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `0fcc1c54d35c` | L1–L392 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -145,8 +145,14 @@ HTTP 输入先由 schema 校验，再进入身份依赖与业务处理。状态�
 
 ## 第三批：收款证据与固定文件权益
 
-`payment_ledger.py`把“钱属于哪张单”与paid状态一起提交：lock_order用无副作用UPDATE持写锁并刷新，settle校验渠道/商户/金额并写一条PaymentReceipt，精确重复不再写，唯一冲突或提交失败全部回滚。不是外部查单/退款，也不是日志代替数据库。
+`payment_ledger.py`把“钱属于哪张单”与paid状态一起提交：lock_order用无副作用UPDATE持写锁并刷新，settle校验渠道/商户/金额并写一条PaymentReceipt，精确重复不再写收款凭证，但可提交本次核查事件；唯一冲突或提交失败全部回滚。不是外部查单/退款，也不是日志代替数据库。
 
 `delivery.py`的Snapshot保存key/hash/size；snapshot_product在两个复制槽位、512MiB/30秒约束下分块复制、校验源变化、无覆盖发布，调用方卸载线程。file_digest分块校验，verify_snapshot绑定内容寻址key和实际字节。POSIX同步发布目录，Windows实际硬链接/恢复未验收。LocalStorage.put不能覆盖快照；主机管理员仍是可信边界。
 
 Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提供方支付时间/本地收到时间与人工依据，PaymentEvent记录尝试或历史绑定。0010和full_init安装PG不可覆盖合同/只追加证据触发器；ORM create_all不安装这些触发器，不能拿普通ORM测试当SQL触发器证据。完整范围、历史绑定和未结项见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。
+
+## 第四批：可信应答与主动核查
+
+`wechat_pay._request_json`统一Native POST/查单GET：精确签名和发送字节、固定域名、禁止跳转/压缩、64KiB及20秒总预算。`assert_response_signature`检查单值有界四头、平台身份/有效期、5分钟窗口及原文签名，不能先反序列化再验；非200即便可信也不当未付。`QueryResult`只暴露受验证状态/流水/时间，不存payer原文；`query_order`绑定订单号、商户/app和提供的金额，SUCCESS强制CNY/NATIVE/完整带时区凭证。未付可缺官方可选金额，REFUND仅观察。sign要求RSA至少2048位。
+
+`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`只服务三种财务写操作：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。

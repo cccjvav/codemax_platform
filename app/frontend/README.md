@@ -53,6 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `773f15b7b7e5` | L1–L149 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `e595c6742dfe` | L1–L234 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -70,3 +71,7 @@ Jinja 模板加载 app/static/js 中的构建产物；浏览器请求使用同�
 修改后运行 npm run build 并提交对应产物；异步操作需要处理退出登录、换账号和过期响应。
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
+
+## payments-admin.js：管理员收款工作台
+
+reset/clearDetail递增会话与详情序号，清私人数据/输入、abort旧请求；request携带同源Cookie/no-store，只有当前会话401/403才能清屏，旧账号错误不能清掉新账号。list用独立序号和50条替换分页，detail用详情序号和独立事件游标，textContent呈现原合同、凭证和事件；不拼HTML、不写浏览器存储。operate先校验手输单号/依据，人工分数和参考流水，或核查/原文件绑定，再确认弹窗、禁止重叠操作。结果丢失先刷新凭证，不自动重试写操作；旧账号已提交的服务端操作不保证取消，但迟到结果不会回填新账号。按钮/字段与payments-admin.html同步，构建入口在vite.config.mjs；来源和构建产物都执行Node回归，仍需真实浏览器验收。
