@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `d9fde5672c9d` | L1–L70 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `e4251fbf6039` | L1–L76 |
 | [`app/templates/shop.html`](shop.html) | `ca1a76b058bb` | L1–L106 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -50,3 +50,5 @@ site.py 提供页面上下文；HTML 自动转义，不信任模型、消息和�
 页面 ID 变更要同步脚本和模板测试；新增承诺必须与实际支付、交付和人工服务能力一致。
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
+
+payments-admin增加复核状态、三种处理进度及两个投影筛选。保留真实到账/永久绑定各自的确认文案；完成本轮复核不是退款成功，没有伪造退款按钮。

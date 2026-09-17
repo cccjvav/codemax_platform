@@ -31,6 +31,7 @@ from ..order_state import (
     mark_downloaded,
 )
 from ..payment_ledger import PaymentConflict, lock_order, settle
+from ..payment_review import review_states
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -630,7 +631,8 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
     if before is not None:
         query = query.where(PaymentEvent.id < before)
     events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
-    return {'order_no': order.order_no,
+    review = (await review_states(db, [order]))[order.id]
+    return {'order_no': order.order_no, 'review': review,
             'order': {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
                       'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
                       'merchant_id': order.merchant_id, 'app_id': order.app_id,

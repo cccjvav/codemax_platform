@@ -1163,128 +1163,128 @@
     },
     {
       "path": "app/routers/shop.py",
-      "sha256": "ee3eb975533a37ceafca19be3d51b60c468f6cfa8d6356eb9ebfe6844ce50798",
+      "sha256": "4d3efb6594fe5326e5d1ef29095dfb83d6bc6e3d066e1d4bcf1e587a1f126600",
       "method": "manual",
       "blocks": [
         {
-          "end": 53,
+          "end": 54,
           "title": "模块装配与边界",
           "explanation": "新增原子结算/快照/线程执行、金额及依据schema；结构化日志仅辅助。所有HTTP路径保持原身份/管理员依赖，不自动接入真实退款或模型。"
         },
         {
-          "end": 76,
+          "end": 77,
           "title": "_qr_svg",
           "explanation": "只把本站订单code_url用segno转内联SVG，不提供任意用户字符串画码接口。业务script-src只允许self，服务端画码无需额外CDN；开发文档CDN例外不能用于业务页。不把画码成功等同商户成功。"
         },
         {
-          "end": 82,
+          "end": 83,
           "title": "ping",
           "explanation": "功能契约：需登录的商业平台连通性示例，不检测支付商户可用性。\n\n登记/装饰：router.get('/ping')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：_: User=Depends(get_current_user)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL75 结束当前函数，返回 {'platform': 'shop', 'message': 'pong'}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 204,
+          "end": 205,
           "title": "create_order",
           "explanation": "输入当前登录用户与服务端商品配置；验证金额范围/mock只开发/微信本地凭据。过期pending关闭后可另建；未过期单必须匹配自身渠道和商户才能复用。新单先在线程复制内容寻址快照，再保存固定价格/渠道/商户/交付hash；并发唯一冲突回滚重读并再次验证渠道。微信先commit订单与started事件才触网，失败记unknown，成功记ready并提交二维码，最后刷新避免盖掉回调状态。外部未知结果并非失败，无自动查单/退款。 复制前以数据库用户锁串行同一用户下单，避免5次连点把重复复制挤进两槽而出现伪繁忙；外部预支付前commit释放锁。"
         },
         {
-          "end": 225,
+          "end": 226,
           "title": "order_status",
           "explanation": "功能契约：按订单号查并核对 user_id，其他用户统一 404；计算 expired 标志但不在轮询里自动重下单，响应 no-store。\n\n登记/装饰：router.get('/orders/{order_no}')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：order_no: str, db: AsyncSession=Depends(get_db), user: User=Depends(get_current_user)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL181 计算右侧并赋给 `order`：await 调用 db.scalar(select(Order).where(Order.order_no == order_no))：执行查询并取一个标量/对象；等待期间可让出事件循环，恢复后才执行下一句。\nL182 判断 `order is None or order.user_id != user.id`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL183 抛出 HTTPException(404, '订单不存在')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL184 计算右侧并赋给 `payload`：调用 _payload(order, reused=False, pay_mode=settings.SHOP_PAY_MODE)。\nL185 计算右侧并赋给 `payload['expired']`：调用 is_expired(order, settings.ORDER_EXPIRE_MINUTES)。\nL186 结束当前函数，返回 调用 JSONResponse(payload, headers={'Cache-Control': 'no-store'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 229,
+          "end": 230,
           "title": "MockPayIn",
           "explanation": "功能契约：模拟确认请求的Pydantic形状，只提供订单号；不能通过JSON自报金额/买家绕过查库。\n\n结构事实：定义类 MockPayIn，基类 BaseModel；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL195 声明字段 `order_no` 的类型 str；仅类型标注，不执行数据库写入。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 245,
+          "end": 246,
           "title": "mock_pay_page",
           "explanation": "功能契约：只在 mock 模式返回开发模板，否则 404；显示页面不是收款操作。\n\n登记/装饰：router.get('/mock-pay', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：request: Request, order_no: str=''；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL201 判断 `settings.SHOP_PAY_MODE != 'mock'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL202 抛出 HTTPException(404, '模拟支付通道未开启（SHOP_PAY_MODE != mock）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL207 结束当前函数，返回 调用 templates.TemplateResponse(request, 'mock_pay.html', page_context(request, title='模拟收银台', order_no=order_no))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 279,
+          "end": 280,
           "title": "mock_pay_confirm",
           "explanation": "仅development与mock配置，且只对本人mock订单调用原子settle。使用MOCK单号作为模拟流水并与真实wechat命名空间隔离；跨渠道409，完整重复成功，不再用状态函数绕过凭证。"
         },
         {
-          "end": 290,
+          "end": 291,
           "title": "EvidenceIn",
           "explanation": "共享依据字段3–500字符，拒绝ASCII控制字符；meaningful_evidence去掉两侧空白后至少3字符。不要存完整银行资料/秘密，字段校验不验证真实性。"
         },
         {
-          "end": 296,
+          "end": 297,
           "title": "ManualReceiptIn",
           "explanation": "继承依据合同，amount必须严格整数且正；reference为最多64位ASCII字母数字和指定标点，不再自动生成虚假MANUAL流水。实际金额在settle持锁后与订单比较。"
         },
         {
-          "end": 350,
+          "end": 351,
           "title": "confirm_paid_manually",
           "explanation": "管理员依赖、require_finance_origin来源检查和当前manual配置均通过后读取原单；原渠道须manual，实际分数/参考流水/依据通过schema和settle检查。锁内将凭证和paid原子提交；精确重试不覆盖首次人，冲突409。该函数不查询银行，管理员须独立核实实际到账。"
         },
         {
-          "end": 361,
+          "end": 362,
           "title": "order_history",
           "explanation": "功能契约：用户自己的 id 倒序列表，最多 50，before 向前翻页。只查历史，不创建订单，不领链接。\n\n登记/装饰：router.get('/orders')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：before: int | None=Query(None, gt=0), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL303 计算右侧并赋给 `stmt`：调用 select(Order).where(Order.user_id == user.id)。\nL304 判断 `before is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL305 计算右侧并赋给 `stmt`：调用 stmt.where(Order.id < before)。\nL306 计算右侧并赋给 `rows`：调用 list((await db.scalars(stmt.order_by(Order.id.desc()).limit(50))).all())。\nL307 结束当前函数，返回 {'orders': [_payload(r, reused=True, pay_mode=settings.SHOP_PAY_MODE) for r in rows], 'next_cursor': rows[-1].id if len(rows) == 50 else None}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 393,
+          "end": 394,
           "title": "download_url",
           "explanation": "先检查本人paid/downloaded；使用订单key/hash/size，历史未核准409、文件缺失404、字节损坏409，权利不删除。在线程校验快照，签短时URL后幂等mark_downloaded；可再次领取且不使用当前商品配置。"
         },
         {
-          "end": 426,
+          "end": 427,
           "title": "serve_download",
           "explanation": "校验HMAC/过期及本地路径，缺文件404；内容寻址快照再次在线程验hash，失败409。FileResponse分块输出保留文件名。旧签名普通key在TTL内仍可使用，所有新单链接指向快照；主机管理员/签名密钥是信任边界。"
         },
         {
-          "end": 435,
+          "end": 436,
           "title": "_storage",
           "explanation": "功能契约：用可信入口规则得到基址，StorageError 转 503；不是静默换后端。\n\n输入签名：request: Request；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL369 执行try体；捕获 StorageError。\nL372 结束当前函数，返回 调用 build_storage(public_base_url(request))；不会自动commit未提交事务。\nL374 抛出 HTTPException(503, str(e))，显式保留原因 e；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 439,
+          "end": 440,
           "title": "_ok",
           "explanation": "功能契约：返回商户协议 SUCCESS JSON；用于已处理和可忽略通知，不表示每种通知都改了订单。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL378 结束当前函数，返回 调用 JSONResponse({'code': 'SUCCESS', 'message': '成功'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 444,
+          "end": 445,
           "title": "_fail",
           "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL383 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 465,
+          "end": 466,
           "title": "_payload",
           "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。"
         },
         {
-          "end": 568,
+          "end": 569,
           "title": "pay_notify",
           "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。"
         },
         {
-          "end": 575,
+          "end": 576,
           "title": "_snapshot",
           "explanation": "使用请求安全基址构建本地存储并卸载snapshot_product到线程；StorageError转503，不先收款，不把文件复制堵在事件循环。"
         },
         {
-          "end": 581,
+          "end": 582,
           "title": "_check_order_channel",
           "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。"
         },
         {
-          "end": 587,
+          "end": 588,
           "title": "LegacyBindingIn",
           "explanation": "继承必须有内容的依据；只允许manual/wechat/mock，以及有界无控制字符原文件key。它是管理员声明待核实旧合同，不是面向用户任选文件的入口。"
         },
         {
-          "end": 619,
+          "end": 620,
           "title": "bind_legacy_order",
           "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。"
         },
         {
-          "end": 646,
+          "end": 648,
           "title": "payment_ledger",
-          "explanation": "管理员只读GET，以order_no找原单，查单一凭证及最多50条倒序事件；before是独立事件游标，返回next_cursor。返回冻结合同与manual操作标记供管理页决定显示，但不授权前端；不读当日商品替换交付key，不查微信、不取锁/改状态。凭证展示来源/参考号/金额/首次发起人/依据与时间；没有凭证不能推定未付款。"
+          "explanation": "管理员只读GET，以order_no找原单，查单一凭证及最多50条倒序事件；before是独立事件游标，返回next_cursor。返回冻结合同与manual操作标记供管理页决定显示，但不授权前端；不读当日商品替换交付key，不查微信、不取锁/改状态。凭证展示来源/参考号/金额/首次发起人/依据与时间；没有凭证不能推定未付款。 附带review_states实时投影，与当前事件翻页游标独立，读取不创建复核记录；新资料、孤立开始到龄、到账可能使旧close过期。"
         }
       ]
     },
@@ -2914,7 +2914,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "9817ff29f2dbd6a4259beb20d9abb491dd94a078b91dfb5175a7bf0822ea056a",
+      "sha256": "dcaa2f0795027a1dbee90909a0db5036cb14732ab100ca7011f4a67075c4ca46",
       "method": "manual",
       "blocks": [
         {
@@ -2965,7 +2965,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，未知根文件回退ROOT_FILES；DOC_GROUPS新增第二批发布阻断交付页，保留总台账/两份原文及历史分组。文档导航事实源与反向登记门禁一致，不复制第二套状态。 DOC_GROUPS登记第四批报告和管理员手册，随后构建会验证文件/链接；这不是自动认证其业务结论。"
+          "explanation": "按路径映射源码说明书，未知根文件回退ROOT_FILES；DOC_GROUPS新增第二批发布阻断交付页，保留总台账/两份原文及历史分组。文档导航事实源与反向登记门禁一致，不复制第二套状态。 DOC_GROUPS登记第四批报告和管理员手册，随后构建会验证文件/链接；这不是自动认证其业务结论。 本批再登记第五批报告，旧报告结果不自动升级为本批证据。"
         },
         {
           "end": 338,
@@ -4335,7 +4335,7 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "6f42028361e17ea11f7255a7558df6126f07c138dadcf307982c87443b1e9802",
+      "sha256": "dd6de29b3444a4cd8f0bbe9c02b7ee081bdb5d3dce2e164b25c688e259b90900",
       "method": "guided",
       "blocks": [
         {
@@ -4346,7 +4346,7 @@
         {
           "end": 67,
           "title": "test_route_count_matches_runtime_app",
-          "explanation": "把离线AST提取的(method,path)集合与真正FastAPI展开路由比较，必须完全相等；增加管理登录壳、订单列表与POST查单后为52条，不用旧49条冒充当前。差异报告多/少路径，避免只比数量错过路径变化。"
+          "explanation": "离线AST与实际FastAPI路由集合必须完全一致；新增显式POST复核后为53条，不用旧数量替代当前。差异列出多/少路径，防止只是数量相等但路径不对。"
         },
         {
           "end": 86,
@@ -4356,7 +4356,7 @@
         {
           "end": 97,
           "title": "test_auth_and_ratelimit_counts",
-          "explanation": "按当前提取数据统计：29条鉴权、13条限流；新管理员GET和POST各需鉴权，查单使用独立限流桶。计数是结构变化金丝雀，不证明每条权限逻辑正确；相关HTTP测试另核对拒绝路径。"
+          "explanation": "新增复核操作后为30条鉴权、14条限流入口。这是结构金丝雀，不代表行为自动正确，权限/来源/并发由HTTP测试核验。"
         },
         {
           "end": 118,
@@ -9048,41 +9048,41 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "773f15b7b7e504256bb827e7a113f8ea85ebed8215f892a68a5b1b517e7d97e5",
+      "sha256": "722f5f6697d888fb06a259cec271ed07e84da6231b6be804d83c2b35a12b3d89",
       "method": "manual",
       "blocks": [
         {
-          "end": 13,
+          "end": 14,
           "title": "状态与身份标签",
-          "explanation": "IIFE持有auth、DOM选择器、会话/列表/详情序号、AbortController及订单/游标/busy，数据只驻内存。money显示整数分与元，alive核对会话或详情，ledgerURL编码单号。"
+          "explanation": "IIFE持有auth、DOM选择器、会话/列表/详情序号、AbortController及订单/游标/busy，数据只驻内存。money显示整数分与元，alive核对会话或详情，ledgerURL编码单号。 新增listFilter把游标绑定筛选参数，review保存当前资料版本，pendingReview保留未确认请求。"
         },
         {
-          "end": 31,
+          "end": 33,
           "title": "清屏与旧会话隔离",
-          "explanation": "clearDetail清当前合同/凭证/事件与核账输入，递增详情序号；reset另递增会话/列表序号并abort、清列表/筛选/角色。只role1保留管理工作区，hidden和清值都需要，不能只藏DOM保留旧账号私密数据。"
+          "explanation": "clearDetail清当前合同/凭证/事件与核账输入，递增详情序号；reset另递增会话/列表序号并abort、清列表/筛选/角色。只role1保留管理工作区，hidden和清值都需要，不能只藏DOM保留旧账号私密数据。 也清复核进度/待重试正文和动作选择，不能把上个账号的复核重试交给新账号。"
         },
         {
-          "end": 44,
+          "end": 46,
           "title": "HTTP与错误归属",
-          "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。"
+          "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。"
         },
         {
-          "end": 69,
+          "end": 72,
           "title": "订单发现",
-          "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。"
+          "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。"
         },
         {
-          "end": 96,
+          "end": 103,
           "title": "冻结合同与收款历史",
-          "explanation": "detail捕获并递增视图序号；先隐藏写表单，GET当前原单ledger，只有同视图返回才能展示合同/文件摘要/凭证。操作是否可见由合同与manual标记决定但授权仍后端负责；事件分页替换文本，刷新失败不自动写，finally只恢复当前视图刷新按钮。"
+          "explanation": "detail捕获并递增视图序号；先隐藏写表单，GET当前原单ledger，只有同视图返回才能展示合同/文件摘要/凭证。操作是否可见由合同与manual标记决定但授权仍后端负责；事件分页替换文本，刷新失败不自动写，finally只恢复当前视图刷新按钮。 展示复核状态、异常/孤立数、发起人和原说明；读到本次request_id证明已保存，可清待重试正文。复核表单不依赖是否有收款凭证，不替代真实到账流程。"
         },
         {
-          "end": 140,
+          "end": 162,
           "title": "显式确认与不可取消的服务端边界",
-          "explanation": "operate守住管理员/选单/已加载合同/busy/可见表单；手输单号、原因、真实分数和流水验证，按manual/query/binding构造既有或新POST。window.confirm列明订单/客户/危险动作后才发送。结果未知保留输入并先读ledger；切账号后不显示旧结果，不自动重试变更。abort不保证撤销已提交操作，按钮busy仅限制此页面重叠。"
+          "explanation": "operate守住管理员/选单/已加载合同/busy/可见表单；手输单号、原因、真实分数和流水验证，按manual/query/binding构造既有或新POST。window.confirm列明订单/客户/危险动作后才发送。结果未知保留输入并先读ledger；切账号后不显示旧结果，不自动重试变更。abort不保证撤销已提交操作，按钮busy仅限制此页面重叠。 review分支限制160字，带动作/摘要/版本和幂等ID；nonce优先crypto UUID，旧开发环境随机降级只是去重非鉴权。未确认时保留原载荷，修改说明/动作先被阻止；网络/5xx保持，4xx明确拒绝后清理。成功不改资金，提示刷新左侧清单。"
         },
         {
-          "end": 149,
+          "end": 171,
           "title": "事件入口",
           "explanation": "登录按钮打开共享auth；查询/翻页/刷新绑定只读函数，三表单绑定operate。onChange重置所有上下文再按新管理员读取，初次也从auth.user初始化；没有轮询自动核账。"
         }
@@ -9090,44 +9090,54 @@
     },
     {
       "path": "app/routers/payments_admin.py",
-      "sha256": "7400f3336187f9f5effa946387c40b955956516f6f46fe395be2e60810deca6e",
+      "sha256": "d266c8253debcc979a08472c7b37d08dff1bfcaac2a4eb76def4bbadf0f6b9fe",
       "method": "manual",
       "blocks": [
         {
-          "end": 27,
+          "end": 30,
           "title": "装配与验证边界",
           "explanation": "导入本模块实际使用的路由/数据库/签名或测试工具，定义常量/闭包环境。测试仅用隔离数据库、合成凭据与替身HTTP；模块导入不应执行真实金融操作。"
         },
         {
-          "end": 35,
+          "end": 38,
           "title": "payments_page",
           "explanation": "Jinja共享上下文渲染payments-admin登录外壳；不查询客户数据，不在PAGES/sitemap，no-store/noindex/no-follow。公开壳是为了能登录，所有数据入口另有管理员依赖。"
         },
         {
-          "end": 44,
+          "end": 47,
           "title": "order_summary",
           "explanation": "从订单冻结列构建管理员摘要：客户ID/商品/分数/币种/状态/原渠道和商户/文件绑定标记/时间；不读取当日商品价格或猜历史渠道。用户名由orders按用户ID联接补充。"
         },
         {
-          "end": 69,
+          "end": 95,
           "title": "orders",
-          "explanation": "管理员只读GET，允许all/manual/wechat/legacy/issues五种筛选。子查询检查是否有凭证或异常事件；微信/人工未结算含pending/closed无凭证，并非保证未付。按id倒序与before键集最多50条，精确单号限制安全ASCII，不OFFSET扫任意页。不调用provider或commit，next_cursor满页可指向空末页。"
+          "explanation": "管理员只读GET保留原五种筛选，新增needs_review/reviewed。先用SQL找候选，每批最多50单调用只读review_states，最多检查200候选、返回50结果。游标只推进到最后实际检查的单号ID；空结果仍可能有续页。中途已有结束记录而投影为none的候选不会混入待办。只限制候选量，不宣称历史聚合恒定开销；不隐式写任务或调渠道。"
         },
         {
-          "end": 73,
+          "end": 99,
           "title": "ReconcileIn",
           "explanation": "继承EvidenceIn去空白/长度/控制字符核账原因规则，增加必须输入的安全ASCII确认单号；路由与目标单号再次比较，不靠页面隐藏按钮。"
         },
         {
-          "end": 140,
+          "end": 168,
           "title": "reconcile",
           "explanation": "管理员+来源+独立限流依赖后校验确认单号、原单渠道/商户/app及本地支付配置，开始事件captured actor/amount/attempt先commit。query_order网络不持锁，失败记unknown且502。回来用无更新时间副作用的用户UPDATE持锁重读角色/状态/版本；变更记aborted并403。SUCCESS传同单audit给settle，原子收款；冲突rollback后以捕获值记冲突，不读过期ORM。其他状态锁订单只记观察，已付遇到NOTPAY/CLOSED记冲突。返回观察、原状态、是否补记和警告，不发送关单/退款。内部observation固定归属/发起人，避免异步途中身份或ORM状态改变。"
+        },
+        {
+          "end": 177,
+          "title": "ReviewIn",
+          "explanation": "复核正文复用有内容EvidenceIn，收紧为160字；动作固定followup/close/reopen，64位SHA和32位请求ID为小写十六进制；版本是非负StrictInt且有整数上限，确认单号安全ASCII。请求ID不是凭据，不能绕过管理员授权。"
+        },
+        {
+          "end": 224,
+          "title": "review_order",
+          "explanation": "管理员/来源/独立限流后先检查确认单号，锁用户且重查启用/角色/凭据版本，再找并锁订单。编码v1有界载荷；已有请求ID仅在同单、同发起人、同内容时无新增返回，否则409。新请求须匹配资料摘要与上次复核版本，无待办不能直接完成；只追加带操作者的operator_review并提交，唯一竞争回滚409。其他错误由会话退出回滚，不改收款/交付也不发网络；后续资料会让完成标记过期。"
         }
       ]
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "d9fde5672c9dce03d1ec587a40f975a2006fb44153c1dd83b2c462fc5008ea3f",
+      "sha256": "e4251fbf6039b157fbb7ed6e1390adfcf5eaadb8035dfe85da3a0779dd0fde49",
       "method": "manual",
       "blocks": [
         {
@@ -9138,7 +9148,7 @@
         {
           "end": 32,
           "title": "公开壳与订单筛选",
-          "explanation": "说明只读发现、无扣款关单退款，以及退款不自动撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。"
+          "explanation": "说明只读发现、无扣款关单退款，以及退款不自动撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。"
         },
         {
           "end": 41,
@@ -9146,17 +9156,17 @@
           "explanation": "完整订单号可为空做筛选，列表/下一页由JS填写；详情显示当前单标题、合同、客服链接和刷新按钮，未加载前不可刷新。客服只引导人工联系，不承诺自动派单。 HTML pattern按现代浏览器v标志解释，字面连字符和斜线必须转义；不能把普通JS正则写法直接照搬，另有Node Unicode Sets构造回归。"
         },
         {
-          "end": 51,
+          "end": 57,
           "title": "财务写的共同确认与人工核账",
-          "explanation": "空凭证展示后是默认隐藏operations，要求手动单号和单行核账依据。manual表单另要求真实参考流水、实际整数分；required/pattern只帮助浏览器，后端仍严格验证，不自动填金额冒充到账。"
+          "explanation": "空凭证展示后是默认隐藏operations，要求手动单号和单行核账依据。manual表单另要求真实参考流水、实际整数分；required/pattern只帮助浏览器，后端仍严格验证，不自动填金额冒充到账。 复核进度pre和followup/close/reopen表单复用共同单号/依据，说明限制160字，并反复提示不代表退款/到账。"
         },
         {
-          "end": 59,
+          "end": 65,
           "title": "主动查单与历史原件",
           "explanation": "query表单说明可信成功可能补记，超时应查原单；binding表单强调永久核准原合同，不用今日商品替换。渠道仅manual/wechat，无生产mock；文件填写存储相对路径，后端限制到存储根并冻结。"
         },
         {
-          "end": 70,
+          "end": 76,
           "title": "事件历史与构建入口",
           "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。"
         }
@@ -9328,28 +9338,187 @@
     },
     {
       "path": "tests/test_payments_frontend.py",
-      "sha256": "186534a21092c24f85610384502b6b7556c893e920cf5e27d49e3d3f940d995c",
+      "sha256": "5a90e79d0d56b1b42b2e018db8d225c2c4d875c1d561fb5a731c6bab02fedcb7",
       "method": "manual",
       "blocks": [
         {
-          "end": 81,
+          "end": 105,
           "title": "装配与验证边界",
-          "explanation": "导入本模块实际使用的路由/数据库/签名或测试工具，定义常量/闭包环境。测试仅用隔离数据库、合成凭据与替身HTTP；模块导入不应执行真实金融操作。 HARNESS定义内存DOM、可控fetch/确认弹窗和各异步场景，再由测试函数执行；它不模拟CSS引擎或真实浏览器安全策略。"
+          "explanation": "导入本模块实际使用的路由/数据库/签名或测试工具，定义常量/闭包环境。测试仅用隔离数据库、合成凭据与替身HTTP；模块导入不应执行真实金融操作。 HARNESS定义内存DOM、可控fetch/确认弹窗和各异步场景，再由测试函数执行；它不模拟CSS引擎或真实浏览器安全策略。 HARNESS另控制review元数据及四个新场景：丢响应复用同一正文、409后刷新版本/换ID、退出清屏、筛选变化不用旧游标。"
         },
         {
-          "end": 114,
+          "end": 154,
           "title": "test_workbench_browser_logic",
-          "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。"
+          "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。"
         },
         {
-          "end": 121,
+          "end": 161,
           "title": "test_hidden_css_and_no_html_interpolation",
           "explanation": "静态补充检查强制hidden样式避免grid覆盖UA隐藏，并禁止管理脚本innerHTML和localStorage。主要行为仍由上方VM执行，不只做源码字符串存在性检查。"
         },
         {
-          "end": 132,
+          "end": 172,
           "title": "test_html_patterns_use_browser_unicode_sets",
           "explanation": "提取管理HTML的两个pattern，Node以浏览器使用的v标志真正构造完整匹配正则，再验证安全订单号和BANK斜线/连字符参考号能匹配、点路径与空格不匹配。旧普通JS字符类会SyntaxError，不能靠pattern字符串存在或VM不模拟表单校验而漏掉。未安装Node时明确skip，不声称浏览器通过。"
+        }
+      ]
+    },
+    {
+      "path": "app/payment_review.py",
+      "sha256": "589649ad9cede3a3b4fdcb6ed1d78c7163f901ace4a335049222d29e69bb3f10",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 23,
+          "title": "装配与范围",
+          "explanation": "本模块通过现有模型和事务/HTTP测试工具处理人工复核。导入不执行真实支付，常量区分异常类型、复核事件版本和60秒孤立窗口；测试只用合成数据与可丢弃数据库，不冒充退款验收。"
+        },
+        {
+          "end": 32,
+          "title": "review_payload",
+          "explanation": "按固定v1结构编码动作、资料SHA摘要、前次版本和说明，ensure_ascii=False保留中文，sort_keys固定重试字节。整体不得超过500字符；调用方schema限制说明160字并拒绝控制字符，不能直接用任意长JSON撑爆既有证据列。"
+        },
+        {
+          "end": 52,
+          "title": "decode_review",
+          "explanation": "没有事件/发起人/说明、超长或坏JSON、未知版本/动作、非法摘要/版本/说明都返回None，绝不能默认为已完成。历史操作者仍按保存的ID/name展示，不要求他现在仍是管理员；这是历史事实，不是再次授权。"
+        },
+        {
+          "end": 64,
+          "title": "overdue_start",
+          "explanation": "构造SQL条件，不执行查询。prepay/query开始须超过60秒，且同订单同attempt没有对应协议的终态；query_success不能吞掉prepay_started。时间采用传入UTC，避免测试等待真实一分钟。超时只是未知，不是未付款。"
+        },
+        {
+          "end": 70,
+          "title": "review_candidates",
+          "explanation": "以异常种类、既有复核或到龄孤立开始作SQL存在性预筛；条件可能随并发变化，路由还须用实际投影状态筛选，不能把none塞进待办。"
+        },
+        {
+          "end": 111,
+          "title": "review_states",
+          "explanation": "只收最多50单，空输入不查库。四次批量SQL读非复核事件数量/最大ID/异常数、孤立开始数、最新复核、凭证ID。摘要包括orderId/状态/流水/凭证/count/max/孤立数；数量挡编号小却晚提交的事实。有效最新close只有摘要仍匹配才是reviewed；新资料/坏记录重开，followup保留待办，没候选为none。返回版本、幂等ID、说明、发起人、时间给界面，不改钱/文件。多次读取不是全局瞬时快照，后续可见事实使旧标记过期。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_payment_review.py",
+      "sha256": "873ff3bbbb6595c8ed0a78b693d13a72506d7c5fe99f8b95dedccc07032533ed",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 18,
+          "title": "装配与范围",
+          "explanation": "本模块通过现有模型和事务/HTTP测试工具处理人工复核。导入不执行真实支付，常量区分异常类型、复核事件版本和60秒孤立窗口；测试只用合成数据与可丢弃数据库，不冒充退款验收。"
+        },
+        {
+          "end": 31,
+          "title": "add_event",
+          "explanation": "在独立TestSession追加合成事件，可固定ID/attempt/时间以造乱序和到龄边界；提交后才返回，不操作真实商户或业务库。"
+        },
+        {
+          "end": 37,
+          "title": "state",
+          "explanation": "实际管理员ledger GET，先断言200再取review投影，不直接替身算法。"
+        },
+        {
+          "end": 43,
+          "title": "payload",
+          "explanation": "先读取当下资料SHA和复核版本，构造独立请求ID/确认单号/说明；action默认close，调用者可选跟进。"
+        },
+        {
+          "end": 47,
+          "title": "write_review",
+          "explanation": "通过ASGI客户端POST真实复核路由，经过权限/来源/输入/事务边界，不直接调用服务函数冒充HTTP验收。"
+        },
+        {
+          "end": 54,
+          "title": "review_case",
+          "explanation": "fixture创建测试管理员和原微信单，再持久一条未知事件作为待复核资料。角色只在隔离库提权，不暴露业务提权API。"
+        },
+        {
+          "end": 69,
+          "title": "test_followup_close_reopen_history_never_changes_money",
+          "explanation": "依次跟进、完成、重开，每次读取当前版本提交；断言状态/发起人和三条追加历史，不改pending、更新时间、流水或凭证。"
+        },
+        {
+          "end": 81,
+          "title": "test_new_visible_lower_id_event_invalidates_close_even_when_max_is_unchanged",
+          "explanation": "先持久高编号资料并完成复核，再提交更小但未出现过的ID；最大资料ID不变也必须重开并更换摘要。人工固定ID模拟序列先分配后提交，不声称SQLite具备PG写入并行。"
+        },
+        {
+          "end": 91,
+          "title": "test_new_facts_reject_stale_submission_and_retry_can_refresh",
+          "explanation": "读取后新增退款观察，旧摘要POST409且无复核记录；刷新后可完成资料核对，但原单仍pending/无收款凭证，绝不把REFUND当已退款。"
+        },
+        {
+          "end": 100,
+          "title": "test_same_facts_competing_reviewers_cannot_overwrite",
+          "explanation": "两位管理员拿同一资料/版本并发POST，不同动作必须只有一个200另一个409、一条复核。此例财务资料未变，专门验证复核版本和订单锁。"
+        },
+        {
+          "end": 116,
+          "title": "test_exact_retry_retains_actor_and_cannot_change_payload_or_owner",
+          "explanation": "首次保存后来了新资料，原请求仍可无新增重放且保持原ID，当前状态重新open；改说明、换操作者或换订单而借用请求ID都409。"
+        },
+        {
+          "end": 136,
+          "title": "test_orphan_grace_and_matching_terminal_records",
+          "explanation": "注入时钟在59/61秒比较孤立数与摘要，错误协议结束记录不算完成，匹配prepay_ready才消除孤立；不是sleep或只比较源码常量。"
+        },
+        {
+          "end": 153,
+          "title": "test_orphan_discovered_by_queue_without_writing_a_scan_cursor",
+          "explanation": "造老query_started无结果，实际队列可发现；捕获SQL只允许SELECT，确认no-store、孤立数1且仍只有原事件，没有隐式扫描游标写入。"
+        },
+        {
+          "end": 164,
+          "title": "test_new_payment_reopens_review_without_revoking_rights",
+          "explanation": "完成资料复核后通过真实settle写微信凭证但不加支付事件，状态仍应重开；凭证一条、paid保留，证明摘要覆盖到账事实不靠过程事件充数。"
+        },
+        {
+          "end": 175,
+          "title": "test_review_input_rejected_without_journal_entry",
+          "explanation": "参数化空白/超长/控制字符、坏SHA/请求ID、bool/负版本、退款动作和路径注入；全部422且不追加事件，不以表单限制代替服务器验证。"
+        },
+        {
+          "end": 187,
+          "title": "test_only_admin_and_same_origin_can_review",
+          "explanation": "管理员Cookie的foreign Origin403，普通用户403，清Cookie后匿名401；各层拒绝均不记录复核。"
+        },
+        {
+          "end": 200,
+          "title": "test_failed_commit_does_not_complete_review",
+          "explanation": "替换commit为先flush后故障，真实HTTP调用必须抛；独立读取仍open且只有原未知事件，证明flush不是持久完成。"
+        },
+        {
+          "end": 211,
+          "title": "test_malformed_review_never_hides_a_case",
+          "explanation": "注入非JSON、数组、未知版本或缺字段的operator_review，必须open/new_facts且不展示假说明。历史坏原文仍在事件表，没有静默修写。"
+        },
+        {
+          "end": 235,
+          "title": "test_bounded_filtered_pages_can_be_empty_with_a_continuation",
+          "explanation": "构造205张历史closed已复核单，避开同客户单pending唯一约束；第一段筛200候选空但有游标，继续才看到原未处理单，完成筛选最多50。测试有界筛选不是假造几行后声称分页正确。"
+        },
+        {
+          "end": 243,
+          "title": "test_manual_followup_can_open_an_order_without_a_provider_exception",
+          "explanation": "无异常原单投影none不能直接完成，可先主动登记跟进，再在待办范围发现；不需要伪造渠道失败来建立客服跟进。"
+        },
+        {
+          "end": 248,
+          "title": "test_review_envelope_handles_escaped_notes_without_overflow",
+          "explanation": "用160字引号/反斜线与最大版本编码，确认JSON字符数仍在500内且往返说明不变，不能只测简单中文长度。"
+        },
+        {
+          "end": 260,
+          "title": "test_review_without_attribution_cannot_hide_a_case",
+          "explanation": "即使v1格式/摘要有效，缺原操作者也不能作为完成复核；投影保持open/new_facts，防坏记录隐藏待办。"
+        },
+        {
+          "end": 271,
+          "title": "test_candidate_completed_between_reads_is_not_returned_as_pending",
+          "explanation": "在SQL候选读取之后、聚合之前用独立连接追加匹配结束事件，再执行真实投影；已变none的候选应被过滤为空，不因预筛选命中过就误列待办。"
         }
       ]
     }

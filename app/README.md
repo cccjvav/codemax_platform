@@ -113,6 +113,7 @@ pending → closed → paid
 | [`app/models.py`](models.py) | `ccd8d213c81e` | L1–L248 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `94135a287c59` | L1–L83 |
+| [`app/payment_review.py`](payment_review.py) | `589649ad9ced` | L1–L111 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -155,4 +156,8 @@ Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提
 
 `wechat_pay._request_json`统一Native POST/查单GET：精确签名和发送字节、固定域名、禁止跳转/压缩、64KiB及20秒总预算。`assert_response_signature`检查单值有界四头、平台身份/有效期、5分钟窗口及原文签名，不能先反序列化再验；非200即便可信也不当未付。`QueryResult`只暴露受验证状态/流水/时间，不存payer原文；`query_order`绑定订单号、商户/app和提供的金额，SUCCESS强制CNY/NATIVE/完整带时区凭证。未付可缺官方可选金额，REFUND仅观察。sign要求RSA至少2048位。
 
-`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`只服务三种财务写操作：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
+`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`只服务四种财务写操作（含复核记录）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
+
+## 第五批：payment_review.py的只读复核投影
+
+review_payload把动作/资料摘要/上轮版本/最多160字说明编码为500字符内的v1 JSON，decode_review检查格式与原发起人，坏记录不当完成。overdue_start严格按同单同attempt对应预付/查单结束种类并等待60秒；review_candidates只是SQL候选条件，不是最终状态。review_states对最多50单做四次批量读取：非复核事件count/max/异常数、孤立开始数、最新复核、凭证ID，再计算包含订单状态/流水的SHA256摘要。count不可省，序列号不是提交顺序；旧close只有匹配当前资料才呈现reviewed，其他新进展重新待办。它不写库、调渠道或改变收入/权益，也不是资金问题结案。

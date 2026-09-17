@@ -723,3 +723,13 @@ python -m pytest -q tests/test_payment_queries.py tests/test_payments_admin.py t
 5. manual/历史绑定的隔离试验、真实微信查单步骤见[工作台手册](docs/PAYMENTS_ADMIN_GUIDE.md)。没有真实凭据不测真实收款，不拿假流水去确认真实订单；本批没有退款按钮或自动撤销下载权。
 
 本机浏览器和真实商户步骤未由沙箱代办验收；请实际操作后在自己的验收记录标记结果。管理页不要求生产开启/docs。
+
+## 第五批补充：复核工作进度，不测试真实退款
+
+继续用VS Code集成CMD、Conda和系统Node。在隔离验收环境执行：
+
+```cmd
+python -m pytest -q tests/test_payment_review.py tests/test_payments_frontend.py
+```
+
+浏览器管理员打开订单管理，选测试订单、输入完整单号和3–160字说明，再记录跟进、完成本轮、重新跟进。每次确认资金和已购下载权没有改变。切换范围后应从新范围开始；空列表若仍有下一页请继续查。不同管理员旧页面竞争、断网后原请求重试和换账号清屏需真实浏览器留证；这些步骤不表示已验收微信退款。更多边界见工作台手册第五批补充。

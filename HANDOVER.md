@@ -6,6 +6,8 @@ Windows 本机先按 [新手逐步验收](Windows新手逐步验收.md) 一路�
 
 ## 当前入口
 
+- 第五批：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)。无新schema/依赖，复核完成不等于资金问题解决；本批证据和后续集中该报告。
+
 - 第四批：[可信查单与管理员工作台](review/RELEASE_BLOCKERS_PHASE4.md)，操作见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)。本地双后端与反例已通过，最终六项CI绑定本批交付SHA，不继承第三批CI；外部商户/退款/实机仍未签收。
 
 - 第三批：[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)。本地双后端全量、36项新回归及10种受控反例已核对，最终六项CI绑定交付SHA。0010迁移与storage快照需一起备份，人工确认和旧单绑定有新合同；尚不是真实收款上线签收。

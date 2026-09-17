@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `773f15b7b7e5` | L1–L149 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `722f5f6697d8` | L1–L171 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `e595c6742dfe` | L1–L234 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -75,3 +75,7 @@ Jinja 模板加载 app/static/js 中的构建产物；浏览器请求使用同�
 ## payments-admin.js：管理员收款工作台
 
 reset/clearDetail递增会话与详情序号，清私人数据/输入、abort旧请求；request携带同源Cookie/no-store，只有当前会话401/403才能清屏，旧账号错误不能清掉新账号。list用独立序号和50条替换分页，detail用详情序号和独立事件游标，textContent呈现原合同、凭证和事件；不拼HTML、不写浏览器存储。operate先校验手输单号/依据，人工分数和参考流水，或核查/原文件绑定，再确认弹窗、禁止重叠操作。结果丢失先刷新凭证，不自动重试写操作；旧账号已提交的服务端操作不保证取消，但迟到结果不会回填新账号。按钮/字段与payments-admin.html同步，构建入口在vite.config.mjs；来源和构建产物都执行Node回归，仍需真实浏览器验收。
+
+## 第五批：复核与游标上下文
+
+payments-admin.detail显示复核状态/操作人/说明，按新资料重新待办；operate的review分支要求共同手输单号和160字内说明，带资料摘要/版本/稳定请求ID。5xx或丢响应保留原请求，4xx或读到本请求已提交则允许重新核对，旧账号响应仍丢弃。nonce只是幂等标识，不是认证秘密，现代crypto.randomUUID优先，旧开发上下文使用随机降级并由数据库唯一约束兜底。list的游标绑定筛选参数，改变范围不复用旧游标；空页有游标显示继续提示。没有自动复核/后台轮询；保存后需刷新左侧清单。

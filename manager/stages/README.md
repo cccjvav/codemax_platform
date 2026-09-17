@@ -10,3 +10,5 @@
 当前第三批：[资金与交付权益](../../review/RELEASE_BLOCKERS_PHASE3.md)，从f37bb8d继续，不重做第一/二批。
 
 第四批资金管理实施与验收采用[统一报告](../../review/RELEASE_BLOCKERS_PHASE4.md)，不新建竞争状态页。
+
+第五批复核的范围、证据和未结项统一见[报告](../../review/RELEASE_BLOCKERS_PHASE5.md)，不另建竞争状态页。

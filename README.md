@@ -1,4 +1,6 @@
-> 当前第四批：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
+> 第五批当前进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
+
+> 已交付第四批：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
 
 # codemax_platform
 

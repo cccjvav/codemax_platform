@@ -22,6 +22,7 @@ const rows=(prefix='ORDER')=>({orders:[1,2].map(n=>({order_no:prefix+n,username:
 const ledger=(no)=>({order_no:no,order:{user_id:1,product_name:'<img src=x onerror=BAD>',amount:19900,currency:'CNY',
   status:paid?'paid':'pending',payment_mode:'manual',delivery_key:'ORIGINAL',delivery_digest:'HASH',delivery_size:3},
   actions:{manual:true},receipt:paid?{source:'manual',reference:'BANK-1',amount:19900,currency:'CNY',actor:'adminA',evidence:'<script>PROOF</script>'}:null,
+  review:{state:'open',version:7,snapshot:'a'.repeat(64),issues:1,orphans:0,note:'<script>NOTE</script>',actor:'A'},
   events:[{id:1,kind:'PRIVATE_'+no,actor:'A',evidence:'<script>EVENT</script>'}],next_cursor:null});
 let impl=async(url,opt)=>url.includes('/ledger')?ledger(url.split('/')[4]):rows();
 const context={document:{getElementById:get,createElement:make},AbortController,URLSearchParams,Number,
@@ -69,6 +70,29 @@ if(scenario==='permissions'){
  impl=async(url,opt)=>opt.method==='POST'?{observed_state:'REFUND',status:'pending',warning:'需人工处理'}:ledger('ORDER1');
  await el(scenario).onsubmit({preventDefault(){}});await tick();
  console.log(JSON.stringify({url:posts()[0].url,body:JSON.parse(posts()[0].options.body),confirmation:confirmations.at(-1)}));
+}else if(scenario==='review-filter'){
+ impl=async()=>({...rows(),next_cursor:100});start();await tick();el('bucket').value='reviewed';
+ await el('next').onclick();await tick();await el('next').onclick();await tick();
+ console.log(JSON.stringify({urls:requests.map(r=>r.url)}));
+}else if(scenario==='review-retry'||scenario==='review-stale'||scenario==='review-switch'){
+ start();await tick();await clickOrder();input();el('review-action').value='close';let tries=0,release;
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   ++tries;
+   if(scenario==='review-switch')return new Promise(r=>release=r);
+   if(tries===1){if(scenario==='review-stale')return {httpStatus:409};throw Error('lost response')}
+   return {saved:true};
+  }
+  const d=ledger('ORDER1');if(scenario==='review-stale'){d.review.version=8;d.review.snapshot='b'.repeat(64)}return d;
+ };
+ const first=el('review').onsubmit({preventDefault(){}});await tick();
+ if(scenario==='review-switch'){
+  await auth.listener(null);release({saved:true});await first;await tick();
+  console.log(JSON.stringify({hidden:el('workspace').hidden,note:el('review-status').textContent,evidence:el('evidence').value}));
+ }else{
+  await first;await el('review').onsubmit({preventDefault(){}});await tick();
+  console.log(JSON.stringify({bodies:posts().map(x=>JSON.parse(x.options.body)),url:posts()[0].url,text:el('review-status').textContent}));
+ }
 }else if(scenario==='lost-response'){
  start();await tick();await clickOrder();input();
  impl=async(url,opt)=>{if(opt.method==='POST'){paid=true;throw Error('response lost')}return ledger('ORDER1')};
@@ -82,7 +106,8 @@ if(scenario==='permissions'){
 @pytest.mark.skipif(shutil.which('node') is None, reason='Node VM execution requires system Node')
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
-                                     'mutation-account-race', 'lost-response', 'query', 'binding'])
+                                     'mutation-account-race', 'lost-response', 'query', 'binding',
+                                     'review-retry', 'review-stale', 'review-switch', 'review-filter'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
                             text=True, capture_output=True, check=True, timeout=20)
@@ -108,6 +133,21 @@ def test_workbench_browser_logic(folder, scenario):
         else:
             assert data['url'] == '/shop/orders/ORDER1/legacy-binding'
             assert data['body'] == {'evidence': '已在银行核对', 'payment_mode': 'wechat', 'source_key': 'original/paid.zip'}
+    elif scenario == 'review-filter':
+        assert 'bucket=reviewed' in data['urls'][1] and 'before=' not in data['urls'][1]
+        assert 'before=100' in data['urls'][2]
+    elif scenario.startswith('review-'):
+        if scenario == 'review-switch':
+            assert data == {'hidden': True, 'note': '', 'evidence': ''}
+        else:
+            first, second = data['bodies']
+            assert data['url'] == '/shop/admin/orders/ORDER1/review' and first['action'] == 'close'
+            assert '<script>NOTE</script>' in data['text'] and len(first['request_id']) == 32
+            if scenario == 'review-retry':
+                assert first == second
+            else:
+                assert first['request_id'] != second['request_id'] and second['expected_version'] == 8
+                assert second['snapshot'] == 'b'*64
     else:
         assert data['posts'] == 1 and data['hidden'] and data['reference'] == 'BANK-1' and 'BANK-1' in data['receipt']
 

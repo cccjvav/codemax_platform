@@ -4,7 +4,8 @@
   const el = (id) => document.getElementById(`finance-${id}`);
   let user = null, epoch = 0, listSeq = 0, viewSeq = 0;
   let controller = new AbortController(), selected = null, contract = null;
-  let listCursor = null, eventCursor = null, busy = false;
+  let listFilter = null;
+  let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
   const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
@@ -12,13 +13,14 @@
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
 
   function clearDetail() {
+    review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
     viewSeq++; selected = null; contract = null; busy = false; eventCursor = null;
     for (const id of inputs.filter((x) => x !== "order-no")) el(id).value = "";
     for (const id of ["contract", "receipt"]) el(id).textContent = "";
     el("title").textContent = "请选择订单"; el("events").replaceChildren();
     el("operations").hidden = true; el("older").hidden = true;
     el("refresh").disabled = true;
-    for (const id of ["manual", "query", "binding"]) el(`${id}-submit`).disabled = false;
+    for (const id of ["manual", "query", "binding", "review"]) el(`${id}-submit`).disabled = false;
   }
   function reset(next) {
     epoch++; listSeq++; controller.abort(); controller = new AbortController();
@@ -35,7 +37,7 @@
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       if (alive(stamp) && [401, 403].includes(res.status)) reset(null);
-      throw new Error(auth.errorText(data, res.status));
+      const error = new Error(auth.errorText(data, res.status)); error.status = res.status; throw error;
     }
     return data;
   }
@@ -47,7 +49,8 @@
     const stamp = epoch, serial = ++listSeq;
     const params = new URLSearchParams({bucket: el("bucket").value});
     if (el("order-no").value.trim()) params.set("order_no", el("order-no").value.trim());
-    if (more && listCursor) params.set("before", listCursor);
+    const filter = params.toString();
+    if (more && listCursor && filter === listFilter) params.set("before", listCursor);
     el("next").hidden = true;
     try {
       const data = await request(`/shop/admin/orders?${params}`);
@@ -63,8 +66,8 @@
         };
         li.append(button); el("list").append(li);
       }
-      if (!data.orders.length) el("list").textContent = "没有匹配订单";
-      listCursor = data.next_cursor; el("next").hidden = !listCursor;
+      if (!data.orders.length) el("list").textContent = data.next_cursor ? "本段候选暂无匹配，请点下一页继续（未到末页）" : "没有匹配订单";
+      listFilter = filter; listCursor = data.next_cursor; el("next").hidden = !listCursor;
     } catch (error) { if (serial === listSeq) report(error, stamp); }
   }
   async function detail(older = false) {
@@ -75,7 +78,11 @@
     try {
       const data = await request(ledgerURL(number) + (cursor ? `?before=${cursor}` : ""));
       if (!alive(stamp, view)) return;
-      contract = data.order;
+      contract = data.order; review = data.review || null;
+      if (pendingReview && review?.request_id === pendingReview.request_id) pendingReview = null;
+      const labels = {none: "暂无异常，可登记人工跟进", open: "需要复核", followup: "继续跟进", reviewed: "当前进展已复核（不是已退款）"};
+      el("review-status").textContent = review ? `${labels[review.state]}${review.new_facts ? "；有新进展或记录需重新核对" : ""}\n异常记录 ${review.issues}；超时无结果尝试 ${review.orphans}\n${review.actor || "尚无复核人"} · ${review.time || ""}\n${review.note || ""}` : "复核状态未加载";
+      el("review").hidden = !review;
       el("title").textContent = `订单 ${number}`;
       el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${contract.status} / ${contract.payment_mode}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;
       const receipt = data.receipt;
@@ -83,7 +90,7 @@
       el("manual").hidden = !(data.actions.manual && contract.payment_mode === "manual" && !receipt && ["pending", "closed"].includes(contract.status));
       el("query").hidden = contract.payment_mode !== "wechat";
       el("binding").hidden = contract.payment_mode !== "legacy";
-      el("operations").hidden = ["manual", "query", "binding"].every((x) => el(x).hidden);
+      el("operations").hidden = ["manual", "query", "binding", "review"].every((x) => el(x).hidden);
       el("events").replaceChildren();
       for (const event of data.events) {
         const li = document.createElement("li");
@@ -113,26 +120,41 @@
     } else if (kind === "query") {
       url = `/shop/admin/orders/${encodeURIComponent(number)}/reconcile`;
       body.confirm_order_no = number; summary = "向原商户查询；可信成功结果可能补记收款。是否继续？";
-    } else {
+    } else if (kind === "binding") {
       url = `/shop/orders/${encodeURIComponent(number)}/legacy-binding`;
       body.payment_mode = el("mode").value; body.source_key = el("source").value.trim();
       if (!body.source_key) { message("请核实并填写原交付文件路径。"); return; }
       summary = `永久绑定渠道 ${body.payment_mode} 与原文件 ${body.source_key}；不可改写。是否已核实？`;
     }
+    if (kind === "review") {
+      if (!review || evidence.length > 160) { message("复核说明须为3–160字，请先刷新进度。"); return; }
+      const action = el("review-action").value;
+      if (pendingReview && (pendingReview.action !== action || pendingReview.evidence !== evidence)) {
+        message("上次复核结果未确认，请先用原内容重试，或重新选单核对历史后再发起新操作。"); return;
+      }
+      const nonce = () => Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
+      body = pendingReview || {evidence, action, snapshot: review.snapshot, expected_version: review.version,
+        confirm_order_no: number, request_id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : nonce()};
+      url = `/shop/admin/orders/${encodeURIComponent(number)}/review`;
+      summary = `保存复核进度 ${action}；不代表到账或退款完成，也不改变下载权。是否继续？`;
+    }
     if (!window.confirm(`订单 ${number} / 客户ID ${contract.user_id}\n${summary}`)) return;
+    if (kind === "review") pendingReview = body;
     busy = true;
-    for (const name of ["manual", "query", "binding"]) el(`${name}-submit`).disabled = true;
+    for (const name of ["manual", "query", "binding", "review"]) el(`${name}-submit`).disabled = true;
     let resultText;
     try {
       const result = await request(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
       if (!alive(stamp, view)) return;
-      resultText = result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
+      if (kind === "review") pendingReview = null;
+      resultText = kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
     } catch (error) {
+      if (alive(stamp, view) && kind === "review" && error.status >= 400 && error.status < 500) pendingReview = null;
       if (alive(stamp, view)) resultText = `${error.message}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;
     } finally {
       if (alive(stamp, view)) {
         busy = false;
-        for (const name of ["manual", "query", "binding"]) el(`${name}-submit`).disabled = false;
+        for (const name of ["manual", "query", "binding", "review"]) el(`${name}-submit`).disabled = false;
         message(resultText || "请核对记录");
         await detail(); // preserves entered proof on failure; no automatic mutation retries
       }
@@ -143,7 +165,7 @@
   el("next").onclick = () => list(true);
   el("refresh").onclick = () => detail();
   el("older").onclick = () => detail(true);
-  for (const kind of ["manual", "query", "binding"]) el(kind).onsubmit = (event) => operate(kind, event);
+  for (const kind of ["manual", "query", "binding", "review"]) el(kind).onsubmit = (event) => operate(kind, event);
   auth.onChange((next) => { reset(next); if (user) list(); });
   reset(auth.user); if (user) list();
 })();

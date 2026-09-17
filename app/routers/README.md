@@ -100,8 +100,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `7400f3336187` | L1–L140 |
-| [`app/routers/shop.py`](shop.py) | `ee3eb975533a` | L1–L646 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `d266c8253deb` | L1–L224 |
+| [`app/routers/shop.py`](shop.py) | `4d3efb6594fe` | L1–L648 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -140,3 +140,9 @@ download_url使用订单key/hash/size，不再查当前STORAGE_PRODUCT_KEY；历
 `ReconcileIn`复用EvidenceIn并要求确认单号。`reconcile`要求管理员和财务来源检查、独立限流桶，校验绑定渠道/商户，先持久query_started再跨网络；回来锁住用户并重读权限/凭据。SUCCESS把query_success交给settle同事务写入；冲突回滚后单独记query_conflict。未知、权限改变及非成功观察另记事件，不自动关单/退款/撤权；已有paid遇到NOTPAY/CLOSED记冲突。嵌套observation用发起时捕获的ID/name，不在回滚后读取过期ORM对象。
 
 shop.payment_ledger现在同时给详情页返回原合同和manual操作可用标记，仍是管理员只读API。manual/legacy-binding/reconcile三种写操作共用deps.require_finance_origin；完整页面步骤、HTTP返回和外部边界见[管理手册](../../docs/PAYMENTS_ADMIN_GUIDE.md)。
+
+## 第五批：复核读写
+
+payments_admin.orders新增needs_review/reviewed投影筛选，原筛选不变；每批最多50单，最多扫描200候选，按最后实际检查的id返回游标，空页仍可能继续。候选读取后若已不需要复核，不误纳入待办。shop.payment_ledger附加实时review元数据，与50条事件分页独立，GET不写。
+
+ReviewIn限制动作、160字说明、SHA摘要、严格整数版本、32位十六进制请求ID和确认单号；review_order要求管理员/来源/独立限流，先锁用户复核权限再锁订单。相同请求只返回首次记录；内容/发起人/归属冲突409。首次写比对资料与版本、只追加operator_review；无待办不能直接完成，但可主动登记跟进。与资金结算完全分离，没有新增表。服务端提交失败不会留下完成标记；HTTP错误依赖会话退出回滚释放锁。

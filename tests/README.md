@@ -62,7 +62,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `6f42028361e1` | L1–L456 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `dd6de29b3444` | L1–L456 |
 | [`tests/test_download.py`](test_download.py) | `6d9f6184ad29` | L1–L252 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -82,8 +82,9 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `77f809d59252` | L1–L338 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
+| [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `186534a21092` | L1–L132 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `5a90e79d0d56` | L1–L172 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
@@ -160,3 +161,5 @@ client依赖product提供隔离小文件；缺文件测试明确删源或快照�
 test_payment_queries验证真正合成平台签名、GET查询串/空正文签名、证书/公钥ID、篡改/探测/重复头/时效、状态和完整合同、上限与总期限；原native happy path也改为真合成应答签名，不让其他格式测试被“未签名”提前短路。
 
 test_payments_admin用实际ASGI路由、独立session和签名HTTP替身验证管理员/来源/限流、50条键集只读查询、网络前开始可见、网络期间可独立写库、成功/幂等/冲突、UNKNOWN/退款不撤权、权限途中改变、commit故障后的三者原子回滚，以及回调先到的单凭证。test_payments_frontend同时执行源码和提交bundle，验证账号/详情乱序、普通用户零数据请求、确认校验、绑定/查单请求、丢响应后刷新凭证不重复确认。Node VM不验证真实布局、Cookie策略或商户行为。
+
+第五批test_payment_review验证跟进/完成/重开、不变收入权益及更新时间、count挡低编号晚提交、过期资料/竞争版本、请求重放归属、孤立开始协议/时限、只读SQL、到账后重开、恶意输入/权限/来源/提交故障、坏复核格式/缺发起人、200候选空页续页与查询中途完成。新增Node场景对源码/bundle分别执行原请求重试、409刷新版本、换账号清屏及新筛选不继承游标；不代替浏览器Cookie/CSS验收。

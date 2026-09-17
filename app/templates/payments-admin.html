@@ -18,7 +18,7 @@
 <div class="finance">
 <h1>订单与收款管理</h1>
 <p>核对原订单，再采取操作。仅管理员可读取数据；本页不发起真实扣款、关单或退款。</p>
-<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；退款处理、异常结案和定制服务里程碑仍未实现。站内客服可由你本人接待。</p>
+<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；退款处理和定制服务里程碑仍未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
 <p id="finance-access" role="status">正在确认登录权限…</p>
 <button id="finance-login" type="button">管理员登录</button>
 <p id="finance-message" role="status" aria-live="polite"></p>
@@ -26,7 +26,7 @@
 <section>
 <h2>查找订单</h2>
 <form id="finance-search">
-<label>范围<select id="finance-bucket"><option value="all">所有订单</option><option value="manual">人工收款待核账</option><option value="wechat">微信未结算（含结果未知）</option><option value="legacy">历史合同待绑定</option><option value="issues">有历史异常记录（不代表尚未解决）</option></select></label>
+<label>范围<select id="finance-bucket"><option value="all">所有订单</option><option value="needs_review">需要复核 / 继续跟进</option><option value="reviewed">当前进展已复核（非已退款）</option><option value="manual">人工收款待核账</option><option value="wechat">微信未结算（含结果未知）</option><option value="legacy">历史合同待绑定</option><option value="issues">有历史异常记录（不代表尚未解决）</option></select></label>
 <label>精确订单号（可空）<input id="finance-order-no" maxlength="32" pattern="[A-Za-z0-9_\-]+" autocomplete="off"></label>
 <button type="submit">查询 / 刷新</button>
 </form>
@@ -39,9 +39,15 @@
 <p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
 <h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
+<h3>人工复核进度（不改变资金和权益）</h3><pre id="finance-review-status"></pre>
 <div id="finance-operations" hidden>
 <label>手动输入本次操作的完整订单号<input id="finance-confirm-no" maxlength="32" autocomplete="off"></label>
 <label>核查依据 / 原因（3–500字，不含换行；不要填写密钥或完整银行卡号）<input id="finance-evidence" minlength="3" maxlength="500" autocomplete="off"></label>
+<form id="finance-review" hidden>
+<p>复核说明使用上方依据字段，3–160字。请核查记录、必要时联系客户后再填写；没有发生的退款不能写成已完成。新进展会重新进入待复核。</p>
+<label>处理进度<select id="finance-review-action"><option value="followup">记录跟进，保留待办</option><option value="close">完成本轮复核（不是退款/到账确认）</option><option value="reopen">重新跟进</option></select></label>
+<button id="finance-review-submit" type="submit">保存复核记录</button>
+</form>
 <form id="finance-manual" hidden>
 <h3>人工核账后确认到账</h3>
 <p>必须先在真实收款记录中核实。输入实际收到的整数“分”，不能用客户截图代替到账核对。</p>

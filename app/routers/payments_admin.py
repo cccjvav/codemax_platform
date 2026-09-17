@@ -6,17 +6,20 @@ not a scheduled accounting system. Existing receipt/snapshot contracts remain au
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import Field
+from pydantic import Field, StrictInt
 from sqlalchemy import exists, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db
 from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..payment_ledger import PaymentConflict, lock_order, settle
+from ..payment_review import REVIEW_KIND, review_candidates, review_payload, review_states
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_order
@@ -43,7 +46,7 @@ def order_summary(order: Order) -> dict:
 
 
 @router.get('/shop/admin/orders')
-async def orders(response: Response, bucket: Literal['all', 'manual', 'wechat', 'legacy', 'issues'] = 'all',
+async def orders(response: Response, bucket: Literal['all', 'manual', 'wechat', 'legacy', 'issues', 'needs_review', 'reviewed'] = 'all',
                  order_no: str | None = Query(None, min_length=1, max_length=32, pattern=r'^[A-Za-z0-9_-]+$'),
                  before: int | None = Query(None, gt=0),
                  db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
@@ -60,11 +63,34 @@ async def orders(response: Response, bucket: Literal['all', 'manual', 'wechat', 
                             PaymentEvent.kind.in_(('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund')))))
     if order_no is not None:
         query = query.where(Order.order_no == order_no)
-    if before is not None:
-        query = query.where(Order.id < before)
-    rows = (await db.execute(query.order_by(Order.id.desc()).limit(50))).all()
-    return {'orders': [{**order_summary(o), 'username': username} for o, username in rows],
-            'next_cursor': rows[-1][0].id if len(rows) == 50 else None}
+    if bucket not in ('needs_review', 'reviewed'):
+        if before is not None:
+            query = query.where(Order.id < before)
+        rows = (await db.execute(query.order_by(Order.id.desc()).limit(50))).all()
+        return {'orders': [{**order_summary(o), 'username': username} for o, username in rows],
+                'next_cursor': rows[-1][0].id if len(rows) == 50 else None}
+    # A projection filter may skip rows: bound work to 200 candidates, not an unbounded fill loop.
+    now = datetime.now(timezone.utc)
+    query = query.where(review_candidates(now))
+    output, scanned, cursor = [], 0, before
+    while scanned < 200:
+        page = query.where(Order.id < cursor) if cursor is not None else query
+        rows = (await db.execute(page.order_by(Order.id.desc()).limit(50))).all()
+        states = await review_states(db, [o for o, _ in rows], now=now)
+        for index, (order, username) in enumerate(rows):
+            scanned += 1
+            cursor = order.id
+            state = states[order.id]
+            matches = state['state'] == 'reviewed' if bucket == 'reviewed' else state['state'] in ('open', 'followup')
+            if matches:
+                output.append({**order_summary(order), 'username': username, 'review': state})
+            if len(output) == 50 or scanned == 200:
+                more = len(rows) == 50 or index < len(rows) - 1
+                return {'orders': output, 'next_cursor': cursor if more else None}
+        if len(rows) < 50:
+            return {'orders': output, 'next_cursor': None}
+    raise AssertionError('bounded review pagination must return')
+
 
 
 class ReconcileIn(EvidenceIn):
@@ -138,3 +164,61 @@ async def reconcile(order_no: str, proof: ReconcileIn, response: Response,
     return {'order_no': order_no, 'observed_state': result.state, 'status': order.status,
             'changed': changed, 'attempt_id': attempt,
             'warning': '查单不是退款；非成功结果不会撤销已有权益。退款、冲突和历史异常仍需人工跟进。'}
+
+
+class ReviewIn(EvidenceIn):
+    evidence: str = Field(min_length=3, max_length=160, pattern=r"^[^\x00-\x1f]+$")
+    action: Literal['followup', 'close', 'reopen']
+    snapshot: str = Field(pattern=r'^[0-9a-f]{64}$')
+    expected_version: StrictInt = Field(ge=0, le=9223372036854775807)
+    request_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    confirm_order_no: str = Field(min_length=1, max_length=32, pattern=r'^[A-Za-z0-9_-]+$')
+
+
+@router.post('/shop/admin/orders/{order_no}/review',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('payment-review', 'RATE_LIMIT_TOOLS'))])
+async def review_order(order_no: str, proof: ReviewIn, db: AsyncSession = Depends(get_db),
+                       admin: User = Depends(require_admin)):
+    """Append an operator assessment with optimistic facts/version and exact-request replay checks.
+
+    This records review only; no receipt, provider request or entitlement change. A later visible
+    event (even with a lower ID), aged orphan or receipt makes a prior close marker stale.
+    """
+    if order_no != proof.confirm_order_no:
+        raise HTTPException(409, '确认单号与目标不一致')
+    oid, revision = admin.id, admin.credential_version
+    await db.execute(update(User).where(User.id == oid)
+                     .values(credential_version=User.credential_version, update_time=User.update_time)
+                     .execution_options(synchronize_session=False))
+    await db.refresh(admin)
+    if admin.role != 1 or admin.status != 1 or admin.credential_version != revision:
+        raise HTTPException(403, '权限已变更，请重新登录')
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None:
+        raise HTTPException(404, '订单不存在')
+    await lock_order(db, order)
+    try:
+        payload = review_payload(proof.action, proof.snapshot, proof.expected_version, proof.evidence)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from None
+    previous = await db.scalar(select(PaymentEvent).where(PaymentEvent.attempt_id == proof.request_id,
+                                                         PaymentEvent.kind == REVIEW_KIND))
+    if previous is not None:
+        if previous.order_id != order.id or previous.actor_id != admin.id or previous.evidence != payload:
+            raise HTTPException(409, '复核请求标识已用于另一项操作，不可改写')
+        await db.commit()
+        return {'saved': True, 'review_id': previous.id, 'replayed': True}
+    state = (await review_states(db, [order]))[order.id]
+    if state['snapshot'] != proof.snapshot or state['version'] != proof.expected_version:
+        raise HTTPException(409, '订单进展或复核记录已变化，请刷新后重新核对')
+    if proof.action == 'close' and state['state'] == 'none':
+        raise HTTPException(409, '没有待复核事项；如需人工跟进，请先登记说明')
+    entry = PaymentEvent(order_id=order.id, attempt_id=proof.request_id, kind=REVIEW_KIND,
+                         actor_id=admin.id, actor_name=admin.username, evidence=payload)
+    db.add(entry)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(409, '复核请求标识发生竞争，请刷新核对记录') from None
+    return {'saved': True, 'review_id': entry.id, 'replayed': False}

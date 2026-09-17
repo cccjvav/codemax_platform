@@ -62,7 +62,7 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
     )
     # 36 → 38：S2-02-2 加了 GET /shop（落地页）与 GET /shop/orders/{order_no}（状态轮询）
     # 38 → 39：S5-04 加了 POST /shop/orders/{order_no}/confirm（人工确认收款，TD-205）
-    assert len(extracted) == 52, f"业务路由应为 52 条，实际 {len(extracted)}"
+    assert len(extracted) == 53, f"业务路由应为 53 条，实际 {len(extracted)}"
 
 
 def test_page_routes_are_extracted(client):  # noqa: ARG001
@@ -88,10 +88,10 @@ def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
     """鉴权/限流计数（docs/site/README.md 把它当断言写进了文档，必须对得上）。"""
     routes = bds.build_routes()
     # 17 → 18：人工确认收款端点走 require_admin（S5-04）
-    assert sum(1 for r in routes if r["auth"]) == 29
+    assert sum(1 for r in routes if r["auth"]) == 30
     # 8 → 9：/oauth/token 补挂 rate_limit("token", "RATE_LIMIT_AUTH")。
     # 它是密码交换端点，此前是全站唯一没有速率约束的敏感端点。
-    assert sum(1 for r in routes if r["rate_limit"]) == 13
+    assert sum(1 for r in routes if r["rate_limit"]) == 14
 
 
 # ---------------------------------------------------------------- 纯函数
