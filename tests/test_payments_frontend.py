@@ -38,7 +38,20 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario==='refund-manual' || scenario==='refund-query'){
+if(scenario==='refund-notice' || scenario==='refund-partial' || scenario==='refund-notice-race'){
+ paid=true;impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.receipt.source='wechat';d.order.payment_mode='wechat';d.refund_notice={notification_id:'NOTICE',refund_no:'REFUND1',refund_id:'500123',state:'SUCCESS',refund:19900,partial:scenario==='refund-partial'};return d};
+ start();await tick();await clickOrder();
+ const text=el('refund-notice').textContent,disabled=el('refund-prefill').disabled;
+ el('refund-prefill').onclick();
+ const filled=el('refund-no').value,confirmed=el('confirm-no').value,evidence=el('evidence').value;
+ let release;if(scenario==='refund-notice-race'){
+  const old=impl;impl=async(url)=>url.includes('/ledger')?new Promise(r=>release=r):rows('BOB');
+  const pending=el('refresh').onclick();await tick();auth.listener(null);auth.listener({username:'adminB',role:1});
+  release(await old('/ledger'));await pending;await tick();
+ }else{auth.listener(null);await tick()}
+ el('refund-prefill').onclick();
+ console.log(JSON.stringify({text,disabled,filled,confirmed,evidence,posts:posts().length,cleared:el('refund-notice').textContent===''&&el('refund-no').value==='',title:el('title').textContent}));
+}else if(scenario==='refund-manual' || scenario==='refund-query'){
  paid=true; const mode=scenario==='refund-query'?'wechat':'manual';
  impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.receipt.source=mode;d.order.payment_mode=mode;return d};
  start();await tick();await clickOrder();input();
@@ -203,3 +216,16 @@ def test_refund_controls_in_actual_source_and_bundle(file, scenario):
         else:
             assert data['body']['reference'] == 'BANK-REFUND' and data['body']['amount'] == 19900
             assert data['body']['completed_at'] == '2026-09-17T13:00:00+02:00'
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='Node VM execution requires system Node')
+@pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
+@pytest.mark.parametrize('scenario', ['refund-notice', 'refund-partial', 'refund-notice-race'])
+def test_refund_notice_only_refills_and_never_submits_or_leaks(folder, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
+                            text=True, capture_output=True, check=True, timeout=20)
+    data = json.loads(result.stdout)
+    assert '不是本地退款完成凭证' in data['text'] and 'SUCCESS' in data['text']
+    assert data['posts'] == 0 and data['confirmed'] == data['evidence'] == '' and data['cleared']
+    assert data['filled'] == ('' if scenario == 'refund-partial' else 'REFUND1')
+    assert data['disabled'] is (scenario == 'refund-partial') and data['title'] == '请选择订单'

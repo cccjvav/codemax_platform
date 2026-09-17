@@ -33,6 +33,7 @@ from ..order_state import (
 from ..payment_ledger import PaymentConflict, lock_order, settle
 from ..payment_review import review_states
 from ..ratelimit import rate_limit
+from ..refund_notifications import NOTICE_KIND, notice_view
 from ..refunds import refund_for
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -654,7 +655,9 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
     events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
     review = (await review_states(db, [order]))[order.id]
     refund = await refund_for(db, order.id)
-    return {'order_no': order.order_no, 'review': review,
+    notice = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order.id, PaymentEvent.kind == NOTICE_KIND)
+                             .order_by(PaymentEvent.id.desc()).limit(1))
+    return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
             'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
                         'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
                         'received_at': refund.received_at, 'actor': refund.actor_name, 'evidence': refund.evidence} if refund else None),

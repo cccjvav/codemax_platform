@@ -62,7 +62,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `504f56e7add8` | L1–L457 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `af816c9a0c2c` | L1–L457 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -84,12 +84,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `654a6b9f4525` | L1–L205 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `b27dd3d03604` | L1–L231 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
+| [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refunds.py`](test_refunds.py) | `928d79058be2` | L1–L445 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
@@ -164,3 +165,8 @@ test_payment_queries验证真正合成平台签名、GET查询串/空正文签�
 test_payments_admin用实际ASGI路由、独立session和签名HTTP替身验证管理员/来源/限流、50条键集只读查询、网络前开始可见、网络期间可独立写库、成功/幂等/冲突、UNKNOWN/退款不撤权、权限途中改变、commit故障后的三者原子回滚，以及回调先到的单凭证。test_payments_frontend同时执行源码和提交bundle，验证账号/详情乱序、普通用户零数据请求、确认校验、绑定/查单请求、丢响应后刷新凭证不重复确认。Node VM不验证真实布局、Cookie策略或商户行为。
 
 第五批test_payment_review验证跟进/完成/重开、不变收入权益及更新时间、count挡低编号晚提交、过期资料/竞争版本、请求重放归属、孤立开始协议/时限、只读SQL、到账后重开、恶意输入/权限/来源/提交故障、坏复核格式/缺发起人、200候选空页续页与查询中途完成。新增Node场景对源码/bundle分别执行原请求重试、409刷新版本、换账号清屏及新筛选不继承游标；不代替浏览器Cookie/CSS验收。
+
+
+## 第七批退款通知验证
+
+test_refund_notifications使用自己的refund/AES-GCM事件构造器，借现有合成平台RSA签真实最终字节，不把付款transaction信封冒充退款。覆盖签名/重复头/探测/时效/加密/内外状态、严格分数/原收款归属、提交前失败回滚、提交后丢ACK原ID恢复、超时、同单/跨单并发、重发不重开复核、部分/乱序不改权益、独立签名查询才撤权、分页不改变最新摘要与坏摘要不回退。所有外部请求均替身，绝不真实转账。test_payments_frontend新增通知填号不提交/不代填确认、部分通知禁用与换账号迟到响应清屏；两份JS都执行。全量另跑独立真PG，不以SQLite替代并发/生产数据库证据。

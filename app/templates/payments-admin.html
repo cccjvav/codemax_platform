@@ -39,6 +39,7 @@
 <p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
 <h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
+<h3>退款通知线索（需独立查询核验）</h3><pre id="finance-refund-notice"></pre>
 <h3>成功退款凭证（原收款保留）</h3><pre id="finance-refund-receipt"></pre>
 <h3>人工复核进度（不改变资金和权益）</h3><pre id="finance-review-status"></pre>
 <div id="finance-operations" hidden>
@@ -62,6 +63,7 @@
 </form>
 <form id="finance-refund-query" hidden>
 <h3>核验已办理的微信全额原路退款</h3><p>先在原渠道办理并取得商户退款单号，再在这里查询。依据使用上方字段，3–160字。仅发GET，不发送退款申请；PROCESSING/ABNORMAL/CLOSED不是退款成功。建议至少间隔一分钟查询，不自动轮询。</p>
+<button id="finance-refund-prefill" type="button" disabled>填入最新全额通知的商户退款号（不提交）</button>
 <label>原商户退款单号<input id="finance-refund-no" required maxlength="64" autocomplete="off"></label>
 <button id="finance-refund-query-submit" type="submit">查询并核验全额退款</button>
 </form>

@@ -1,4 +1,4 @@
-> 当前第六批：[退款凭证与订单下载权益](review/RELEASE_BLOCKERS_PHASE6.md)。后续开发、实机验收和可选扩展的优先级统一见[当前队列](review/README.md)，下方旧阶段勾选不作为现行验收。
+> 当前第七批：[退款通知线索与显式核验](review/RELEASE_BLOCKERS_PHASE7.md)。第六批全额退款凭证/订单下载门禁保留。后续开发、实机验收和可选扩展的优先级统一见[当前队列](review/README.md)，下方旧阶段勾选不作为现行验收。
 
 > 第五批历史进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
 

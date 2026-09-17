@@ -1,6 +1,6 @@
-> 第五批当前进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
+> 当前第七批：[退款通知线索与显式核验](review/RELEASE_BLOCKERS_PHASE7.md)。已有全额退款凭证/下载撤权；通知本身不代替成功凭证。后续以[当前队列](review/README.md)为准。
 
-> 已交付第四批：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
+> 第四批历史记录：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
 
 # codemax_platform
 
@@ -8,9 +8,9 @@
 
 > 第三批资金/文件权益进展见[实施记录](review/RELEASE_BLOCKERS_PHASE3.md)：人工确认参数和旧单交付流程已改变，真实收款仍未签收。
 
-> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环和第三方 OAuth 等仍有发布阻断；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
+> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环仍有发布阻断；开放第三方 OAuth 属条件扩展；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
 
-学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，但没有完整支付日账对账、关单/退款和定制服务生命周期。
+学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，但没有完整支付日账对账、远端关单/退款申请及定制服务生命周期。
 
 ## 从零理解代码
 
@@ -99,6 +99,7 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | DELETE | `/diagrams/{diagram_id}` | 软删除（进回收站，不物理删） |
 | POST | `/diagrams/{diagram_id}/restore` | 从回收站恢复（会重新检查配额） |
 | POST | `/shop/orders` | 建订单 → 微信 NATIVE 下单 → 返回 `code_url`（未配齐微信支付则 503） |
+| POST | `/shop/refunds/notify` | 微信退款通知：验签/解密、匹配原付款、持久留存线索后204；不直接撤权 |
 | POST | `/shop/pay/notify` | 微信支付回调：验签 → AES-GCM 解密 → 校验金额 → 幂等迁移状态 |
 | POST | `/shop/download/{order_no}` | 换取限时下载链接（POST 记录链接发放；paid/downloaded 均可重领） |
 | GET | `/shop/dl` | 本地存储后端的实际出文件口（校验 HMAC 签名后再吐） |
@@ -225,7 +226,7 @@ start docs\site\index.html
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `ae5824d81626` | L1–L39 |
-| [`main.py`](main.py) | `54426e16426b` | L1–L84 |
+| [`main.py`](main.py) | `6a59207cda6d` | L1–L86 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

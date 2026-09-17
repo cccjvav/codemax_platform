@@ -17,7 +17,7 @@ from .models import Order, PaymentEvent, PaymentReceipt, RefundReceipt
 
 REVIEW_KIND = 'operator_review'
 ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
-          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed')
+          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60
 

@@ -1168,128 +1168,128 @@
     },
     {
       "path": "app/routers/shop.py",
-      "sha256": "690085f3d6c008a08cd58d3f44568f82df0cf6df6a26a9dc97730ca125a11ab5",
+      "sha256": "c9845cb490f6e207b2bf8978a0870b66acdea5ed4bd11a1dd806c693b9d89cbb",
       "method": "manual",
       "blocks": [
         {
-          "end": 55,
+          "end": 56,
           "title": "模块装配与边界",
-          "explanation": "新增原子结算/快照/线程执行、金额及依据schema；结构化日志仅辅助。所有HTTP路径保持原身份/管理员依赖，不自动接入真实退款或模型。"
+          "explanation": "新增原子结算/快照/线程执行、金额及依据schema；结构化日志仅辅助。所有HTTP路径保持原身份/管理员依赖，不自动接入真实退款或模型。\n\n第七批复核：新增通知种类与只读摘要解析器导入，不在导入时处理回调。"
         },
         {
-          "end": 78,
+          "end": 79,
           "title": "_qr_svg",
           "explanation": "只把本站订单code_url用segno转内联SVG，不提供任意用户字符串画码接口。业务script-src只允许self，服务端画码无需额外CDN；开发文档CDN例外不能用于业务页。不把画码成功等同商户成功。"
         },
         {
-          "end": 84,
+          "end": 85,
           "title": "ping",
           "explanation": "功能契约：需登录的商业平台连通性示例，不检测支付商户可用性。\n\n登记/装饰：router.get('/ping')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：_: User=Depends(get_current_user)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL75 结束当前函数，返回 {'platform': 'shop', 'message': 'pong'}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 206,
+          "end": 207,
           "title": "create_order",
           "explanation": "输入当前登录用户与服务端商品配置；验证金额范围/mock只开发/微信本地凭据。过期pending关闭后可另建；未过期单必须匹配自身渠道和商户才能复用。新单先在线程复制内容寻址快照，再保存固定价格/渠道/商户/交付hash；并发唯一冲突回滚重读并再次验证渠道。微信先commit订单与started事件才触网，失败记unknown，成功记ready并提交二维码，最后刷新避免盖掉回调状态。外部未知结果并非失败，无自动查单/退款。 复制前以数据库用户锁串行同一用户下单，避免5次连点把重复复制挤进两槽而出现伪繁忙；外部预支付前commit释放锁。"
         },
         {
-          "end": 228,
+          "end": 229,
           "title": "order_status",
           "explanation": "按原订单号查并核对所有者，其他人/不存在同为404。_payload保留原支付状态，另SELECT退款凭证填refunded，并计算expired；JSON no-store。只读不关单、不领链，不把退款抹成未付。"
         },
         {
-          "end": 232,
+          "end": 233,
           "title": "MockPayIn",
           "explanation": "功能契约：模拟确认请求的Pydantic形状，只提供订单号；不能通过JSON自报金额/买家绕过查库。\n\n结构事实：定义类 MockPayIn，基类 BaseModel；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL195 声明字段 `order_no` 的类型 str；仅类型标注，不执行数据库写入。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 248,
+          "end": 249,
           "title": "mock_pay_page",
           "explanation": "功能契约：只在 mock 模式返回开发模板，否则 404；显示页面不是收款操作。\n\n登记/装饰：router.get('/mock-pay', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：request: Request, order_no: str=''；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL201 判断 `settings.SHOP_PAY_MODE != 'mock'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL202 抛出 HTTPException(404, '模拟支付通道未开启（SHOP_PAY_MODE != mock）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL207 结束当前函数，返回 调用 templates.TemplateResponse(request, 'mock_pay.html', page_context(request, title='模拟收银台', order_no=order_no))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 282,
+          "end": 283,
           "title": "mock_pay_confirm",
           "explanation": "仅development与mock配置，且只对本人mock订单调用原子settle。使用MOCK单号作为模拟流水并与真实wechat命名空间隔离；跨渠道409，完整重复成功，不再用状态函数绕过凭证。"
         },
         {
-          "end": 293,
+          "end": 294,
           "title": "EvidenceIn",
           "explanation": "共享依据字段3–500字符，拒绝ASCII控制字符；meaningful_evidence去掉两侧空白后至少3字符。不要存完整银行资料/秘密，字段校验不验证真实性。"
         },
         {
-          "end": 299,
+          "end": 300,
           "title": "ManualReceiptIn",
           "explanation": "继承依据合同，amount必须严格整数且正；reference为最多64位ASCII字母数字和指定标点，不再自动生成虚假MANUAL流水。实际金额在settle持锁后与订单比较。"
         },
         {
-          "end": 353,
+          "end": 354,
           "title": "confirm_paid_manually",
           "explanation": "管理员依赖、require_finance_origin来源检查和当前manual配置均通过后读取原单；原渠道须manual，实际分数/参考流水/依据通过schema和settle检查。锁内将凭证和paid原子提交；精确重试不覆盖首次人，冲突409。该函数不查询银行，管理员须独立核实实际到账。"
         },
         {
-          "end": 365,
+          "end": 366,
           "title": "order_history",
           "explanation": "按当前user_id和before倒序最多50单，再批量SELECT这些订单的退款ID集合，将refunded逐单加入_payload；两次有界查询，不逐行查数据库。不创建订单/链接，游标按实际订单ID推进。"
         },
         {
-          "end": 403,
+          "end": 404,
           "title": "download_url",
           "explanation": "所有者与paid/downloaded检查后先拒绝退款；读取冻结key/hash/size，缺失404/损坏409/历史未绑定409。在线程验快照后锁单并重查退款，才签带order_no的v2链接并mark_downloaded；原已downloaded时也显式commit释放锁。异常不消灭未退款权益；不能用当前商品替换旧交付。"
         },
         {
-          "end": 448,
+          "end": 449,
           "title": "serve_download",
           "explanation": "公开入口不要求登录，身份来自订单域HMAC短链；旧格式缺order_no统一403并提示重领。先验签/期限，再核订单paid/downloaded、冻结key和实时退款；安全路径缺失404，按冻结hash/size校验后再SELECT退款，最后FileResponse流式no-store。不能召回已接纳连接/副本，仍信任主机管理员和签名密钥。"
         },
         {
-          "end": 457,
+          "end": 458,
           "title": "_storage",
           "explanation": "功能契约：用可信入口规则得到基址，StorageError 转 503；不是静默换后端。\n\n输入签名：request: Request；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL369 执行try体；捕获 StorageError。\nL372 结束当前函数，返回 调用 build_storage(public_base_url(request))；不会自动commit未提交事务。\nL374 抛出 HTTPException(503, str(e))，显式保留原因 e；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 461,
+          "end": 462,
           "title": "_ok",
           "explanation": "功能契约：返回商户协议 SUCCESS JSON；用于已处理和可忽略通知，不表示每种通知都改了订单。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL378 结束当前函数，返回 调用 JSONResponse({'code': 'SUCCESS', 'message': '成功'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 466,
+          "end": 467,
           "title": "_fail",
           "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL383 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 487,
+          "end": 488,
           "title": "_payload",
           "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。"
         },
         {
-          "end": 590,
+          "end": 591,
           "title": "pay_notify",
           "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。"
         },
         {
-          "end": 597,
+          "end": 598,
           "title": "_snapshot",
           "explanation": "使用请求安全基址构建本地存储并卸载snapshot_product到线程；StorageError转503，不先收款，不把文件复制堵在事件循环。"
         },
         {
-          "end": 603,
+          "end": 604,
           "title": "_check_order_channel",
           "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。"
         },
         {
-          "end": 609,
+          "end": 610,
           "title": "LegacyBindingIn",
           "explanation": "继承必须有内容的依据；只允许manual/wechat/mock，以及有界无控制字符原文件key。它是管理员声明待核实旧合同，不是面向用户任选文件的入口。"
         },
         {
-          "end": 641,
+          "end": 642,
           "title": "bind_legacy_order",
           "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。"
         },
         {
-          "end": 673,
+          "end": 676,
           "title": "payment_ledger",
-          "explanation": "管理员只读GET核原单，独立读取收款与成功退款凭证，再分页读最多50条事件和当前复核投影。返回原冻结合同、两类凭证/首次人/证据/时间，翻历史页不会隐藏退款事实；actions只是显示提示，不替代后端授权。没有凭证不等于没有发生资金流，不发网络、不改状态。"
+          "explanation": "管理员只读GET核原单，独立读取收款与成功退款凭证，再分页读最多50条事件和当前复核投影。返回原冻结合同、两类凭证/首次人/证据/时间，翻历史页不会隐藏退款事实；actions只是显示提示，不替代后端授权。没有凭证不等于没有发生资金流，不发网络、不改状态。\n\n第七批复核：另按order_id/kind及本地id倒序取一条通知，notice_view验证后给refund_notice；与before分页独立，坏最新摘要返回None，不拿旧通知替代。仍只限管理员、GET不写/不查外部渠道。"
         }
       ]
     },
@@ -2815,40 +2815,40 @@
     },
     {
       "path": "main.py",
-      "sha256": "54426e16426bab578f15056d02419c0be0904b49a1af78538aa39ce33333924f",
+      "sha256": "6a59207cda6dabb946baca0e63d587d6fbd20ff2a5aa8de2899278ec4d7c75a9",
       "blocks": [
         {
-          "end": 27,
+          "end": 28,
           "title": "先装配依赖，不是先接请求",
-          "explanation": "导入各模块后设置日志与生产静态配置检查，再构建FastAPI；新增数据库安全入口只是导入，此处不会自动迁移。路由/模板装配规则不变。"
+          "explanation": "导入各模块后设置日志与生产静态配置检查，再构建FastAPI；新增数据库安全入口只是导入，此处不会自动迁移。路由/模板装配规则不变。\n\n第七批复核：增加refund_notify路由模块导入，它使用独立平台验签，不是管理员免鉴权写。"
         },
         {
-          "end": 37,
+          "end": 38,
           "title": "导入时的日志与生产自检",
           "explanation": "basicConfig 设置默认日志级别和格式；已有日志配置时不一定覆盖它。enforce_production_settings 在 app 创建前执行：生产配置硬错误直接阻止启动。它检查配置规则，不证明外部数据库/商户可连接。"
         },
         {
-          "end": 51,
+          "end": 52,
           "title": "lifespan：开店前与正常关店后",
           "explanation": "try内先await生产DB账本/已知演示凭据/管理员检查，通过才可选FAQ预热并yield接请求；finally无论正常退出或启动失败都关闭CPU池并dispose engine。DB检查有总时限且只读，不能拿自愈迁移冒充启动。"
         },
         {
-          "end": 59,
+          "end": 60,
           "title": "创建 ASGI 应用",
           "explanation": "FastAPI 接收生命周期函数和接口文档地址；production 把三个文档地址设成 None。关闭 Swagger 不是关闭业务路由，也不是权限校验。Uvicorn 的 main:app 指向这个变量。"
         },
         {
-          "end": 65,
+          "end": 66,
           "title": "中间件套在路由外面",
           "explanation": "后添加的请求日志中间件在外，安全头中间件在内；请求进入顺序与响应返回顺序相反。它们执行日志、头部与缓存策略，不能替代路由的所有权和角色检查。"
         },
         {
-          "end": 78,
+          "end": 80,
           "title": "把子路由接到应用",
-          "explanation": "把auth/oauth/shop/payments_admin等子路由挂到同一ASGI应用。payments_admin增加公开无数据登录壳和两个需管理员的数据/核查入口；site循环页仍单独注册。这里include_router是装配，不是当场发网络或查数据库。"
+          "explanation": "把auth/oauth/shop/payments_admin等子路由挂到同一ASGI应用。payments_admin增加公开无数据登录壳和两个需管理员的数据/核查入口；site循环页仍单独注册。这里include_router是装配，不是当场发网络或查数据库。\n\n第七批复核：新增refund_notify.router公开服务器回调，按原文RSA/AES与原付款认证；refunds_admin的两个受控写入口保持原依赖。"
         },
         {
-          "end": 84,
+          "end": 86,
           "title": "静态资源与模板页面分开",
           "explanation": "/static 映射到仓库 app/static 目录，Path(__file__) 让静态路径不依赖启动目录。HTML 页面主要由 Jinja 路由返回；CSS/构建后的 JS 再由浏览器请求。静态目录不是私有商品目录，商品下载另有鉴权和签名流程。"
         }
@@ -2929,7 +2929,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "ada556873cd4fdcbc715c1b17c55ed96a0fe06f2702189c4acffd7d40bb109f3",
+      "sha256": "b1a0424a258a58d8cea807992d1c12a889f14602eaedf2041df8ce016881bcd8",
       "method": "manual",
       "blocks": [
         {
@@ -2980,7 +2980,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，未知根文件回退ROOT_FILES；DOC_GROUPS新增第二批发布阻断交付页，保留总台账/两份原文及历史分组。文档导航事实源与反向登记门禁一致，不复制第二套状态。 DOC_GROUPS登记第四批报告和管理员手册，随后构建会验证文件/链接；这不是自动认证其业务结论。 本批再登记第五批报告，旧报告结果不自动升级为本批证据。"
+          "explanation": "按路径映射源码说明书，未知根文件回退ROOT_FILES；DOC_GROUPS新增第二批发布阻断交付页，保留总台账/两份原文及历史分组。文档导航事实源与反向登记门禁一致，不复制第二套状态。 DOC_GROUPS登记第四批报告和管理员手册，随后构建会验证文件/链接；这不是自动认证其业务结论。 本批再登记第五批报告，旧报告结果不自动升级为本批证据。\n\n第七批复核：DOC_GROUPS当前另外显式登记第七批通知实施报告，历史报告继续保留；不是自动扫描任意Markdown。"
         },
         {
           "end": 338,
@@ -4350,18 +4350,18 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "504f56e7add8c8f1b6495fc14e2f31445e7bd24c8fa93237d06537bcb7c2e4f3",
+      "sha256": "af816c9a0c2c0687b6db57d839dba7e2268e77c49c8fb0a27e4fc7bc09e3dd31",
       "method": "guided",
       "blocks": [
         {
           "end": 35,
           "title": "模块装配",
-          "explanation": "模块协作与边界：AST结构与运行时47路由核对、HTML锚点/子页链接/源码范围/离线检索；Node检查符号筛选，文档命令提取后编译/替身执行。只查非顶层import不能证明data-only零依赖，现加CLI缺Mistune执行级反例。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL17 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import sys；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL28 调用 sys.path.insert(0, str(ROOT / 'scripts'))。\nL30 导入 import build_docs_site as bds；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL32 计算右侧并赋给 `mistune`：调用 pytest.importorskip('mistune', reason='文档站渲染需要 mistune')：依赖缺失时跳过，不证明真实能力可用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：AST结构与运行时路由核对、HTML锚点/子页链接/源码范围/离线检索；Node检查符号筛选，文档命令提取后编译/替身执行。只查非顶层import不能证明data-only零依赖，现加CLI缺Mistune执行级反例。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL17 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import sys；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL28 调用 sys.path.insert(0, str(ROOT / 'scripts'))。\nL30 导入 import build_docs_site as bds；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL32 计算右侧并赋给 `mistune`：调用 pytest.importorskip('mistune', reason='文档站渲染需要 mistune')：依赖缺失时跳过，不证明真实能力可用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。\n\n第七批复核：当前新增退款通知路由，与运行时集合核对而非继承旧路由数。"
         },
         {
           "end": 68,
           "title": "test_route_count_matches_runtime_app",
-          "explanation": "与真实运行时路由集合比较，新增退款两个POST后固定计数55路由/32鉴权/16限流；继续精确断言，不通过减少保护端点放宽测试。生成统计不是调用外部商户的证明。"
+          "explanation": "与真实运行时路由集合比较，新增退款通知后固定计数56路由/32鉴权/16限流；继续精确断言，不通过减少保护端点放宽测试。生成统计不是调用外部商户的证明。\n\n第七批复核：第七批新增一条平台验签回调后总56；精确比集合，不降低原权限断言。"
         },
         {
           "end": 87,
@@ -4371,7 +4371,7 @@
         {
           "end": 98,
           "title": "test_auth_and_ratelimit_counts",
-          "explanation": "与真实运行时路由集合比较，新增退款两个POST后固定计数55路由/32鉴权/16限流；继续精确断言，不通过减少保护端点放宽测试。生成统计不是调用外部商户的证明。"
+          "explanation": "与真实运行时路由集合比较，新增退款通知后固定计数56路由/32鉴权/16限流；继续精确断言，不通过减少保护端点放宽测试。生成统计不是调用外部商户的证明。\n\n第七批复核：总56路由，但用户鉴权32/限流16保持不变，新的第三方回调采用平台密码学认证而非用户会话。"
         },
         {
           "end": 119,
@@ -9073,43 +9073,43 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "ffc056e648192418b7a7c6c68a9105ec28363737950ffe07e122f714fcfce0c9",
+      "sha256": "f7c03941b6c6701484bc6c9fcf89f6e2de3e4b764d99fe639a10218ff91c6c2e",
       "method": "manual",
       "blocks": [
         {
           "end": 14,
           "title": "状态与身份标签",
-          "explanation": "IIFE持有auth、DOM选择器、会话/列表/详情序号、AbortController及订单/游标/busy，数据只驻内存。money显示整数分与元，alive核对会话或详情，ledgerURL编码单号。 新增listFilter把游标绑定筛选参数，review保存当前资料版本，pendingReview保留未确认请求。"
+          "explanation": "IIFE持有auth、DOM选择器、会话/列表/详情序号、AbortController及订单/游标/busy，数据只驻内存。money显示整数分与元，alive核对会话或详情，ledgerURL编码单号。 新增listFilter把游标绑定筛选参数，review保存当前资料版本，pendingReview保留未确认请求。\n\n第七批复核：currentNotice仅在闭包内保留当前详情摘要，不存浏览器持久存储。"
         },
         {
-          "end": 33,
+          "end": 34,
           "title": "清屏与旧会话隔离",
-          "explanation": "clearDetail清复核/合同/收款/退款与全部输入，包括退款号/流水/分/时间；递增viewSeq防晚响应。reset另递增账号/list代次并abort网络、清列表游标；服务器已提交动作不被abort撤销。所有六类操作按钮随busy统一禁用/恢复。"
+          "explanation": "clearDetail清复核/合同/收款/退款与全部输入，包括退款号/流水/分/时间；递增viewSeq防晚响应。reset另递增账号/list代次并abort网络、清列表游标；服务器已提交动作不被abort撤销。所有六类操作按钮随busy统一禁用/恢复。\n\n第七批复核：清除currentNotice/通知文本并禁用填号按钮，退款号也随inputs清空。"
         },
         {
-          "end": 46,
+          "end": 47,
           "title": "HTTP与错误归属",
           "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。"
         },
         {
-          "end": 72,
+          "end": 73,
           "title": "订单发现",
           "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。"
         },
         {
-          "end": 107,
+          "end": 111,
           "title": "冻结合同与收款历史",
-          "explanation": "detail读取选单ledger后核账号和view代次；分别以textContent显示合同、原收款、成功退款与复核。无退款不意味着退款没有在渠道发生；按原receipt.source展示微信查询或人工登记，已有退款隐藏人工表单。独立事件分页不丢当前凭证；无自动金融POST。"
+          "explanation": "detail读取选单ledger后核账号和view代次；分别以textContent显示合同、原收款、成功退款与复核。无退款不意味着退款没有在渠道发生；按原receipt.source展示微信查询或人工登记，已有退款隐藏人工表单。独立事件分页不丢当前凭证；无自动金融POST。\n\n第七批复核：核对alive后才更新通知摘要，SUCCESS明确不是本地完成；部分只提示、禁用填号。最新是本地记录而非最终金融状态；成功凭证继续独立展示。"
         },
         {
-          "end": 186,
+          "end": 190,
           "title": "显式确认与不可取消的服务端边界",
           "explanation": "operate统一检查当前选单、来源可见性、busy、手填完整单号与单行依据，再构建六类显式POST。退款依据最多160字；查询填原商户退款号，人工填严格整数全额、真实退款流水、带时区时间，确认弹窗明确不转账且成功撤下载。后端仍独立验证；网络未知保留输入并刷新，用原事实重试。复核保持稳定request_id重试与快照版本CAS；账号/视图变化丢弃晚结果。"
         },
         {
-          "end": 195,
+          "end": 204,
           "title": "事件入口",
-          "explanation": "登录按钮打开共享auth；查询/翻页/刷新绑定只读函数，三表单绑定operate。onChange重置所有上下文再按新管理员读取，初次也从auth.user初始化；没有轮询自动核账。"
+          "explanation": "登录按钮打开共享auth；查询/翻页/刷新绑定只读函数，六表单绑定operate。onChange重置所有上下文再按新管理员读取，初次也从auth.user初始化；没有轮询自动核账。\n\n第七批复核：refund-prefill onclick只在管理员/当前全额通知/非busy/可见操作区时填refund-no，不填写手输单号与依据、不发送请求。六类表单绑定operate，旧账号响应不能回填。"
         }
       ]
     },
@@ -9162,7 +9162,7 @@
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "d8db18326512dee6ee2b1f3ccb2728213fc284584a69187b0e56750c8d58e2b3",
+      "sha256": "78bfe74973ad994a7f9c2cb9dcf5a10824a804909cea52167198b24e1a48207d",
       "method": "manual",
       "blocks": [
         {
@@ -9173,7 +9173,7 @@
         {
           "end": 32,
           "title": "公开壳与订单筛选",
-          "explanation": "说明只读发现、无扣款关单退款，以及退款不自动撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。"
+          "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。"
         },
         {
           "end": 41,
@@ -9181,17 +9181,17 @@
           "explanation": "完整订单号可为空做筛选，列表/下一页由JS填写；详情显示当前单标题、合同、客服链接和刷新按钮，未加载前不可刷新。客服只引导人工联系，不承诺自动派单。 HTML pattern按现代浏览器v标志解释，字面连字符和斜线必须转义；不能把普通JS正则写法直接照搬，另有Node Unicode Sets构造回归。"
         },
         {
-          "end": 58,
+          "end": 59,
           "title": "财务写的共同确认与人工核账",
-          "explanation": "空凭证展示后是默认隐藏operations，要求手动单号和单行核账依据。manual表单另要求真实参考流水、实际整数分；required/pattern只帮助浏览器，后端仍严格验证，不自动填金额冒充到账。 复核进度pre和followup/close/reopen表单复用共同单号/依据，说明限制160字，并反复提示不代表退款/到账。"
+          "explanation": "空凭证展示后是默认隐藏operations，要求手动单号和单行核账依据。manual表单另要求真实参考流水、实际整数分；required/pattern只帮助浏览器，后端仍严格验证，不自动填金额冒充到账。 复核进度pre和followup/close/reopen表单复用共同单号/依据，说明限制160字，并反复提示不代表退款/到账。\n\n第七批复核：新增finance-refund-notice独立线索区，与成功退款凭证分开；不把通知SUCCESS的展示当撤权授权。"
         },
         {
-          "end": 78,
+          "end": 80,
           "title": "主动查单与历史原件",
-          "explanation": "付款查单与退款查单是分开表单，后者仅核验渠道已办理的全额原路退款，展示分钟级间隔建议；人工退款独立填流水/金额/带时区时间，不是转账按钮。历史绑定仍独立且不可覆盖；共同完整单号/依据由脚本检查，后端再次授权。"
+          "explanation": "付款查单与退款查单是分开表单，后者仅核验渠道已办理的全额原路退款，展示分钟级间隔建议；人工退款独立填流水/金额/带时区时间，不是转账按钮。历史绑定仍独立且不可覆盖；共同完整单号/依据由脚本检查，后端再次授权。\n\n第七批复核：新增默认disabled、type=button的refund-prefill按钮，只填退款号；不能触发表单submit。"
         },
         {
-          "end": 89,
+          "end": 91,
           "title": "事件历史与构建入口",
           "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。"
         }
@@ -9363,45 +9363,50 @@
     },
     {
       "path": "tests/test_payments_frontend.py",
-      "sha256": "654a6b9f452524c8e48c5f8effe34bad32291f07c666ca60e20c98a4b2c32a38",
+      "sha256": "b27dd3d03604fbfb7afd6b1051637893b387f80f008b48b071852d84c90e1563",
       "method": "manual",
       "blocks": [
         {
-          "end": 118,
+          "end": 131,
           "title": "装配与验证边界",
-          "explanation": "导入本模块实际使用的路由/数据库/签名或测试工具，定义常量/闭包环境。测试仅用隔离数据库、合成凭据与替身HTTP；模块导入不应执行真实金融操作。 HARNESS定义内存DOM、可控fetch/确认弹窗和各异步场景，再由测试函数执行；它不模拟CSS引擎或真实浏览器安全策略。 HARNESS另控制review元数据及四个新场景：丢响应复用同一正文、409后刷新版本/换ID、退出清屏、筛选变化不用旧游标。"
+          "explanation": "导入本模块实际使用的路由/数据库/签名或测试工具，定义常量/闭包环境。测试仅用隔离数据库、合成凭据与替身HTTP；模块导入不应执行真实金融操作。 HARNESS定义内存DOM、可控fetch/确认弹窗和各异步场景，再由测试函数执行；它不模拟CSS引擎或真实浏览器安全策略。 HARNESS另控制review元数据及四个新场景：丢响应复用同一正文、409后刷新版本/换ID、退出清屏、筛选变化不用旧游标。\n\n第七批复核：HARNESS新增refund-notice/partial/race：平台通知只填退款号、确认/依据仍空，部分禁用，模拟换账号后旧详情释放仍清屏。每种场景记录POST次数必须零；源码和bundle同测。"
         },
         {
-          "end": 167,
+          "end": 180,
           "title": "test_workbench_browser_logic",
           "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。"
         },
         {
-          "end": 174,
+          "end": 187,
           "title": "test_hidden_css_and_no_html_interpolation",
           "explanation": "静态补充检查强制hidden样式避免grid覆盖UA隐藏，并禁止管理脚本innerHTML和localStorage。主要行为仍由上方VM执行，不只做源码字符串存在性检查。"
         },
         {
-          "end": 185,
+          "end": 198,
           "title": "test_html_patterns_use_browser_unicode_sets",
           "explanation": "提取管理HTML的两个pattern，Node以浏览器使用的v标志真正构造完整匹配正则，再验证安全订单号和BANK斜线/连字符参考号能匹配、点路径与空格不匹配。旧普通JS字符类会SyntaxError，不能靠pattern字符串存在或VM不模拟表单校验而漏掉。未安装Node时明确skip，不声称浏览器通过。"
         },
         {
-          "end": 205,
+          "end": 218,
           "title": "test_refund_controls_in_actual_source_and_bundle",
           "explanation": "源码/提交bundle各跑退款人工、查询、已退款展示三个Node VM场景，取消不发POST、字段映射准确、切账号清敏感字段，退款依据按文本显示，已退人工表单隐藏。不代表浏览器或商户验收。"
+        },
+        {
+          "end": 231,
+          "title": "test_refund_notice_only_refills_and_never_submits_or_leaks",
+          "explanation": "分别执行源码和bundle的全额通知/部分通知/迟到详情三种Node场景。断言展示明确非本地凭证、POST为零、确认号/依据未代填、账号切换后摘要和退款号清空；仅全额能填号，部分按钮禁用，标题回请选择订单。模拟DOM不验证CSS布局或真实商户。"
         }
       ]
     },
     {
       "path": "app/payment_review.py",
-      "sha256": "9161e75b4183519332a9cb1ae058858a0f9c8b2adc97d781a1d2726efc4ce0c8",
+      "sha256": "1f51d9d5f22b7630f37c9559647b1e78acb58e1b06668d88264f76ecbeb6db25",
       "method": "manual",
       "blocks": [
         {
           "end": 24,
           "title": "装配与范围",
-          "explanation": "本模块通过现有模型和事务/HTTP测试工具处理人工复核。导入不执行真实支付，常量区分异常类型、复核事件版本和60秒孤立窗口；测试只用合成数据与可丢弃数据库，不冒充退款验收。"
+          "explanation": "本模块通过现有模型和事务/HTTP测试工具处理人工复核。导入不执行真实支付，常量区分异常类型、复核事件版本和60秒孤立窗口；测试只用合成数据与可丢弃数据库，不冒充退款验收。\n\n第七批复核：ISSUES新增refund_notify_signal，使已验证的通知形成待复核线索；不是退款成功凭证，其他投影算法不变。"
         },
         {
           "end": 33,
@@ -9807,6 +9812,212 @@
           "end": 445,
           "title": "test_payment_and_refund_normalize_timezones_before_storage",
           "explanation": "manual/wechat各用原付款+08和退款+02表达相差两分钟的真实时刻；两次HTTP一变更一幂等，独立连接验证Order/PaymentReceipt/RefundReceipt均对应正确UTC瞬间。能识别仅保留aware偏移但未转换UTC的SQLite持久化错误。"
+        }
+      ]
+    },
+    {
+      "path": "app/refund_notifications.py",
+      "sha256": "744c462ad740516a6a90bafa69ba44e6cdc09a26881a66aca4fe92c1c08e8e0f",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 36,
+          "title": "装配与边界",
+          "explanation": "导入现有密码学/数据库/HTTP组件与既有原收款合同，不引入依赖或建表。常量区分入站线索和金融成功；测试文件仅用合成平台凭据、独立测试会话和ASGI替身，不访问真实商户。定义和导入不执行退款。"
+        },
+        {
+          "end": 53,
+          "title": "RefundNotice",
+          "explanation": "frozen dataclass逐项携带通知ID/创建时间、商户/原单/交易、两种退款号、三态、合同与payer分数和可选成功时间。均从已验证协议产生，不表示完整ORIGINAL/CNY退款证明；无actor字段，不造管理员。"
+        },
+        {
+          "end": 59,
+          "title": "_identifier",
+          "explanation": "只接受str及指定全匹配模式，拒绝空/控制字符/过长/错误类型，错误转WeChatPayError。不同标识调用使用各自上限，不把付款号和商户退款号混用。"
+        },
+        {
+          "end": 75,
+          "title": "_moment",
+          "explanation": "校验字符串上限和必带时区，fromisoformat解析、astimezone转UTC、拒绝超过当前5分钟；过去时间允许渠道重试。返回规范ISO字符串，使同一时刻+02/+08重试相同。无效/溢出统一受控错误，原付款时间关联由save_notice检查。"
+        },
+        {
+          "end": 130,
+          "title": "parse_notice",
+          "explanation": "先四头逐一getlist且必须单值有界，检查timestamp与可信serial/平台有效期，然后按raw.decode原文验RSA，之后才JSON。仅REFUND.SUCCESS/ABNORMAL/CLOSED且resource_type加密；resource必须refund/AEAD_AES_256_GCM与有界字符串，再解AES。内外三态和mchid必须一致；四种分数type严格int（bool不行），退款>0且不超合同，payer金额非负且不超对应范围。SUCCESS要求UTC可解析时间，其他态completed_at为None；最后分别校验ID并构造RefundNotice，不取账户显示、channel或currency，不查询渠道。路由负责raw大小与整个超时。"
+        },
+        {
+          "end": 143,
+          "title": "notice_evidence",
+          "explanation": "asdict的明确字段正规JSON排序/紧凑编码后SHA256。另保存v1显示字段、partial标记和两个时间，最多500字符；不保存完整正文/账号/密文/签名，指纹只用比较业务事实而不是可复验RSA证据。"
+        },
+        {
+          "end": 182,
+          "title": "save_notice",
+          "explanation": "独立事务先取原单、lock_order刷新后核冻结商户/app/CNY，再original_receipt核对真实微信原收款。金额/原交易/商户/成功不早于付款均匹配才计算用途域+商户+通知ID的SHA256前32位和业务摘要。按固定kind与attempt查现有；同归属/同摘要/无人工actor的精确重发commit但不新增，冲突拒绝。首次追加一个PaymentEvent后commit；不调用退款服务，不改订单状态或权益。唯一竞争IntegrityError rollback→PaymentConflict；包括任务取消在内的其他异常rollback再抛，不先ACK。调用方必须先parse_notice，不能给未验签对象。"
+        },
+        {
+          "end": 203,
+          "title": "notice_view",
+          "explanation": "只认指定kind、系统归属和500字符内v1 JSON；严格检查state/partial/refund及所有可展示标识/指纹。返回有限字段与本地收到时间，坏摘要返回None，不回退历史/不认金融完成，不执行其中字符串。"
+        }
+      ]
+    },
+    {
+      "path": "app/routers/refund_notify.py",
+      "sha256": "75d984ab71c8db65fcbf6bf42480d5842b3c8480e5d40bddeecd37188e91ca5b",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 17,
+          "title": "装配与边界",
+          "explanation": "导入现有密码学/数据库/HTTP组件与既有原收款合同，不引入依赖或建表。常量区分入站线索和金融成功；测试文件仅用合成平台凭据、独立测试会话和ASGI替身，不访问真实商户。定义和导入不执行退款。"
+        },
+        {
+          "end": 21,
+          "title": "failure",
+          "explanation": "创建固定code=FAIL/message的JSONResponse，HTTP状态与no-store随传入值；只由路由传固定脱敏文案，不回显入站数据。"
+        },
+        {
+          "end": 49,
+          "title": "refund_notify",
+          "explanation": "FastAPI公开POST使用数据库会话但无用户Cookie权限；认证来自parse_notice平台密码学和原收款。现取cfg，不满足notify_ready则503，非identity压缩415。asyncio.timeout四秒包住流式64KiB读取/解析/存储，必须save_notice返回（commit成功）才204空体。协议/Unicode400、付款冲突409、timeout/SQLAlchemy503；失败请求由渠道原ID重试。没有外网/后台任务，应用预算不是实际代理SLA。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_refund_notifications.py",
+      "sha256": "459ff21e98401ce383012005a2fc58fc7e799301e82eb64c776547af7d5063d5",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 28,
+          "title": "装配与边界",
+          "explanation": "导入现有密码学/数据库/HTTP组件与既有原收款合同，不引入依赖或建表。常量区分入站线索和金融成功；测试文件仅用合成平台凭据、独立测试会话和ASGI替身，不访问真实商户。定义和导入不执行退款。"
+        },
+        {
+          "end": 33,
+          "title": "configured",
+          "explanation": "autouse把路由pay_config替换为现有合成CFG；不读取真实商户密钥或调用真实渠道，测试完monkeypatch自动恢复。"
+        },
+        {
+          "end": 42,
+          "title": "plain",
+          "explanation": "独立TestSession读取原订单交易号，构造真实协议字段及合成账户显示、合同/payer分数，可用change覆盖用于反例。无channel/currency/appid，避免用不存在字段伪造完整证明。"
+        },
+        {
+          "end": 55,
+          "title": "packet",
+          "explanation": "每次生成新的12字节AES nonce、用合成APIv3密钥加密传入JSON，resource原始类型为refund。信封绑定通知ID/创建时间/REFUND状态，允许分别篡改resource/outer/AES key；最后signed_response用平台测试私钥签精确最终字节，可换坏签名参数。不是把支付transaction信封复用。"
+        },
+        {
+          "end": 60,
+          "title": "send",
+          "explanation": "packet构造最终字节/签名头后经真实ASGI client POST独立回调，不经过用户认证。返回原HTTP响应供用例断言。"
+        },
+        {
+          "end": 65,
+          "title": "notices",
+          "explanation": "新TestSession只SELECT固定kind所有PaymentEvent，独立连接验证已经提交的数量/内容；不从尚未提交的原session缓存取证。"
+        },
+        {
+          "end": 93,
+          "title": "test_durable_notice_only_signed_query_revokes_existing_and_new_links",
+          "explanation": "建立已付微信单和真实订单短链，替身禁止回调查询外网。发送SUCCESS得到204空/no-store但没有RefundReceipt，旧链接和重领仍200。核查issues加一、actor为空、账户不落摘要、管理员能读通知普通用户403。随后独立合成验签查询完成，旧链接/重领403、仅一张成功凭证。"
+        },
+        {
+          "end": 110,
+          "title": "test_reencrypted_exact_retry_preserves_first_record_and_closed_review",
+          "explanation": "首通知后完成本轮复核；重新加密且更换无关账户显示/summary的同事实重试204，首条ID/时间/摘要保留，复核仍reviewed。改为新通知ID才新增线索、重新open，防重复通知骚扰待办。"
+        },
+        {
+          "end": 121,
+          "title": "test_same_notification_id_changed_facts_conflict",
+          "explanation": "参数化改商户退款号/渠道ID/状态/成功时刻/部分金额，同通知ID不能覆盖第一条：409、仅一条线索且无成功凭证。每次输入仍走真实合成签名。"
+        },
+        {
+          "end": 131,
+          "title": "test_concurrent_notification_id_has_one_owner",
+          "explanation": "同单两次或跨两单同时发送同ID，独立连接并发。相同单都204、跨单一204一409；固定kind/唯一键与订单锁保证只一条归属，不产生退款。两个后端分别执行。"
+        },
+        {
+          "end": 143,
+          "title": "test_partial_notification_is_only_followup_signal",
+          "explanation": "三种合法状态分别发送部分合同额、不同payer现金额；204后管理员看到partial和相应状态，下载仍200、没有成功退款凭证。接受线索不等于支持部分退款金融结算。"
+        },
+        {
+          "end": 158,
+          "title": "test_late_closed_signal_neither_revokes_early_nor_restores_refunded_rights",
+          "explanation": "退款凭证前先按不同ID送SUCCESS/CLOSED/ABNORMAL，下载保持200；独立签名查询记成功后再乱序发送三态，下载仍403且只一张RefundReceipt。通知序列不能当状态机逆转。"
+        },
+        {
+          "end": 173,
+          "title": "test_invalid_signature_envelope_and_aes_are_not_acknowledged",
+          "explanation": "分别改变事件/内外状态/资源类型/ID/无时区/算法/nonce/AAD/密文，或AES key/RSA key/旧timestamp/陌生serial。外层仍按预定坏层构造，断言400 FAIL且线索和退款表为空，避免假ACK。"
+        },
+        {
+          "end": 183,
+          "title": "test_strict_money_types_and_bounds",
+          "explanation": "真实签名包含bool、零、超合同、字符串、负payer、超现金上限、浮点分数；必须400且不存线索，不能靠Python bool是int子类放过。 payer_refund=True与refund=19900.0均能通过数值界限，专门证明严格类型检查不能被其他金额条件意外遮住。"
+        },
+        {
+          "end": 196,
+          "title": "test_bad_identity_time_and_original_total",
+          "explanation": "参数化错商户/未知单/原交易、越界标识、空/无时区/远未来/早于付款的时间以及不同合同总额；按协议400或原单冲突409，两个证据表均无新增。"
+        },
+        {
+          "end": 204,
+          "title": "test_duplicate_signature_headers_fail_closed",
+          "explanation": "对四头各追加一次同名头，保留原签名最终字节；即使重复值相同也400，不接受Header.first掩盖歧义。"
+        },
+        {
+          "end": 215,
+          "title": "test_raw_tamper_size_compression_and_missing_configuration",
+          "explanation": "签完后追加空格导致验签失败400；超过65536得413，gzip标记415，清空appid配置503；全过程不存通知。"
+        },
+        {
+          "end": 224,
+          "title": "test_missing_original_receipt_is_not_reconstructed",
+          "explanation": "使用ORM测试库删原收款凭证（不是生产操作），有已付状态也不能认领通知，409并不补造收入/线索。"
+        },
+        {
+          "end": 234,
+          "title": "test_wrong_frozen_app_and_manual_source_reject",
+          "explanation": "保留原签名商户但切换配置appid使冻结绑定409；恢复配置再用人工收款订单，仍不能借微信通知绕过来源，通知为空。"
+        },
+        {
+          "end": 247,
+          "title": "test_commit_failure_not_acknowledged_and_retry_is_recoverable",
+          "explanation": "替换AsyncSession.commit为先flush再抛OperationalError，验证503且独立会话没有半条线索；恢复commit后原通知204且仅一条。"
+        },
+        {
+          "end": 267,
+          "title": "test_lost_commit_ack_replay_and_timeout_do_not_lose_signal",
+          "explanation": "commit替身先真提交后抛未知应答错误，503但独立连接看到一条；恢复后原ID重发204仍一条。再替commit为flush后阻塞，缩短应用budget，新ID超时503且回滚，旧一条不丢失。"
+        },
+        {
+          "end": 276,
+          "title": "test_raw_public_key_mode_and_utc_equivalent_replay",
+          "explanation": "以合成裸RSA公钥和显式PUB_KEY_ID验签；相同成功时刻从UTC改+08重发必须204且一条，验证规范化与平台ID模式。"
+        },
+        {
+          "end": 288,
+          "title": "test_summary_maximum_and_malformed_display",
+          "explanation": "构造各ID/整数/微秒时间上限，摘要不超过500且可展示；非对象/缺字段/超长/注入式退款号都返回None，不执行内容或展示为有效提示。"
+        },
+        {
+          "end": 304,
+          "title": "test_latest_notice_independent_of_event_pagination_and_malformed_no_fallback",
+          "explanation": "按两个不同ID写通知，管理员before=1取不到历史事件仍能得到最新退款号。再插一条仅用于测试的坏摘要，返回None而非旧通知，避免分页/解析失败选错最新。"
+        },
+        {
+          "end": 313,
+          "title": "test_oversized_and_signtest_headers",
+          "explanation": "分别替换SIGNTEST探测签名或超长nonce/timestamp/serial，原文不变，必须400且无事件。并非业务成功模拟器。"
+        },
+        {
+          "end": 319,
+          "title": "test_slow_body_is_bounded_without_false_ack",
+          "explanation": "异步请求体发一个字节再等待10秒，应用预算降到20毫秒，必须503且无事件，证明期限覆盖读取阶段而不只是数据库。"
         }
       ]
     }

@@ -19,7 +19,7 @@ Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_EN
 | `Base` / `SessionLocal` | ORM 元数据基类／异步会话工厂 | `expire_on_commit=False` 不等于自动刷新，写入后需要显式 refresh 或 populate_existing |
 | `get_db()` | 向 FastAPI 依赖注入一个 AsyncSession，退出上下文时关闭 | 不会代业务代码 commit；未提交事务随关闭回滚 |
 | `lock_user(db, user_id)` | 对用户执行无值变化 UPDATE，再返回刷新后的用户对象，找不到则 None | 调用者拥有 commit/rollback。PostgreSQL 是行级写锁，SQLite 写锁更粗；不是一个仅在 Python 内生效的锁 |
-| `as_utc(dt)` | 有时区值转为 UTC；无时区值按 UTC 解释 | 不做本地时区推断。主要统一 SQLite 测试与 PostgreSQL 时间读回行为 |
+| `as_utc(dt)` | 有时区值原样返回；无时区值按 UTC 解释 | 不做本地时区推断。主要统一 SQLite 测试与 PostgreSQL 时间读回行为 |
 
 ### 数据模型与输入模型
 
@@ -113,8 +113,9 @@ pending → closed → paid
 | [`app/models.py`](models.py) | `5f6865df0c6b` | L1–L277 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `9161e75b4183` | L1–L116 |
+| [`app/payment_review.py`](payment_review.py) | `1f51d9d5f22b` | L1–L116 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
+| [`app/refund_notifications.py`](refund_notifications.py) | `744c462ad740` | L1–L203 |
 | [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -157,7 +158,7 @@ Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提
 
 `wechat_pay._request_json`统一Native POST/查单GET：精确签名和发送字节、固定域名、禁止跳转/压缩、64KiB及20秒总预算。`assert_response_signature`检查单值有界四头、平台身份/有效期、5分钟窗口及原文签名，不能先反序列化再验；非200即便可信也不当未付。`QueryResult`只暴露受验证状态/流水/时间，不存payer原文；`query_order`绑定订单号、商户/app和提供的金额，SUCCESS强制CNY/NATIVE/完整带时区凭证。未付可缺官方可选金额，REFUND仅观察。sign要求RSA至少2048位。
 
-`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`只服务四种财务写操作（含复核记录）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
+`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`服务六种管理员财务写操作（含复核与两个退款核验）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
 
 ## 第五批：payment_review.py的只读复核投影
 
@@ -172,3 +173,12 @@ review_payload把动作/资料摘要/上轮版本/最多160字说明编码为500
 `query_full_refund`复用有界HTTPS/平台应答验签，只GET普通商户退款查询；绑定原商户配置、商户订单号、原交易号、商户退款号、ORIGINAL、CNY和整数全额；SUCCESS必须有带时区时间。RefundResult只是内部验证后的观察，非SUCCESS不生成退款凭证。详见[操作与边界](../docs/PAYMENTS_ADMIN_GUIDE.md)。
 
 付款/退款时间写入前统一UTC，避免SQLite丢失偏移后同一+02/+08证据重试冲突；PG亦保持一致。成功时间不早于已知原付款时间，最多容忍服务端当前时间之后五分钟的时钟偏差。已有SQLite错误偏移数据不能凭空推断原时区，需受控核账；生产目标是PostgreSQL。
+
+
+## 第七批：refund_notifications.py仅保存可信线索
+
+RefundNotice是不可变的已解析字段，不是RefundReceipt。parse_notice要求四头各恰一条、大小/新鲜度/可信平台身份/RSA原文验签，然后检查refund/AEAD_AES_256_GCM、AES解密、内外三态一致及商户；_identifier拒绝越界标识，_moment拒绝无时区/过远未来并归一UTC。金额严格整数，允许合同范围内部分通知；payer金额不保存为会计分录。输入上限由路由负责；调用方不可绕过parse_notice自行构造“可信”对象。
+
+notice_evidence把明确接收的业务字段正规JSON摘要化，保存用于显示的标识/状态/合同退款额/部分标记/时间与SHA256指纹，最多500字符。不保存完整正文、账号或签名包，指纹不是独立密码学证据。save_notice拥有事务：锁单后核对冻结商户/app/CNY和original_receipt，成功时间不早于原付款；商户+通知ID用途域SHA256前32位填既有attempt_id，固定refund_notify_signal，唯一约束与订单锁覆盖重复/跨单竞争。精确重发不追加；不同事实/归属冲突，不吞数据库失败；异常和取消rollback，commit后才让路由ACK。
+
+notice_view只读最新记录、验证版本/标识/金额/系统归属等显示合同，坏摘要返回None，不回退旧通知。payment_review把通知种类计入issues，新事件自动作废旧复核；幂等重发不动资料摘要。这里没有退款请求台账、自动查询消费者或权益变更；更完整请求工作流不能一直塞进任意JSON冒充金融账本。

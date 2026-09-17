@@ -7,10 +7,12 @@
 
 阶段文件只负责自己的范围；当前全局入口仍由 [HANDOVER](../../HANDOVER.md) 指向。不要在本目录再维护一份测试数量、全局 TODO 或路线图副本。新阶段按需创建并注册进文档站；保留旧阶段已发生的结果。
 
-当前第三批：[资金与交付权益](../../review/RELEASE_BLOCKERS_PHASE3.md)，从f37bb8d继续，不重做第一/二批。
+第三批历史：[资金与交付权益](../../review/RELEASE_BLOCKERS_PHASE3.md)，从f37bb8d继续，不重做第一/二批。
 
 第四批资金管理实施与验收采用[统一报告](../../review/RELEASE_BLOCKERS_PHASE4.md)，不新建竞争状态页。
 
 第五批复核的范围、证据和未结项统一见[报告](../../review/RELEASE_BLOCKERS_PHASE5.md)，不另建竞争状态页。
 
 - 第六批[退款证据与订单下载权益](../../review/RELEASE_BLOCKERS_PHASE6.md)：实施/验证/未决事项集中该报告，不另复制状态。
+
+- 第七批[退款通知线索与显式核验](../../review/RELEASE_BLOCKERS_PHASE7.md)：可靠入站与待核验衔接，不发起退款、不把通知当成功凭证，验证集中该报告。

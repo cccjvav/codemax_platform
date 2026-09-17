@@ -101,8 +101,9 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
 | [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
+| [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `f623cb35aa6b` | L1–L133 |
-| [`app/routers/shop.py`](shop.py) | `690085f3d6c0` | L1–L673 |
+| [`app/routers/shop.py`](shop.py) | `c9845cb490f6` | L1–L676 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -152,6 +153,13 @@ ReviewIn限制动作、160字说明、SHA摘要、严格整数版本、32位十�
 
 `RefundIn`限定确认单号及3–160字单行依据；`RefundQueryIn`加原商户退款号；`ManualRefundIn`加真实退款流水、严格整数分和AwareDatetime（必带时区）。`active_actor`按用户→订单锁序刷新权限/凭据；`target`先比确认号再取单。两个POST均有活跃管理员、财务来源防护、限流与no-store；manual入口按原凭证渠道，而不让当前SHOP_PAY_MODE覆盖旧渠道。
 
-`manual_refund`登记实际已经完成的人工全额退款，不代为转账；仅manual原凭证。`query_refund`只发GET：先持久化包含原退款单号的refund_query_started，再网络I/O，返回后重查管理员。成功调用record_refund原子写凭证与成功审计；未知/中止/冲突和非成功各写终态，不撤回或恢复权益。进程中断可能只剩started，60秒后进入未知待核查；无自动退款/轮询/退款回调。
+`manual_refund`登记实际已经完成的人工全额退款，不代为转账；仅manual原凭证。`query_refund`只发GET：先持久化包含原退款单号的refund_query_started，再网络I/O，返回后重查管理员。成功调用record_refund原子写凭证与成功审计；未知/中止/冲突和非成功各写终态，不撤回或恢复权益。进程中断可能只剩started，60秒后进入未知待核查；该查询入口不做自动退款/轮询；退款通知另外接入下节，仅留存线索。
 
 `download_url`在耗时快照校验前查退款，之后锁单再查，才签发绑定order_no的v2短链。`serve_download`拒绝旧格式，验签后核对订单状态、冻结key/hash/size及退款，文件校验后再查一次退款；响应no-store。链接仍是可转交的短时bearer；退款提交后新授权拒绝，但已接纳传输/已下载副本无法召回。order_status/order_history返回refunded而不篡改原支付status；ledger同时展示收款与退款，事件分页不影响独立退款凭证。
+
+
+## 第七批：refund_notify与管理员摘要读取
+
+POST `/shop/refunds/notify`是公开服务器回调，不使用用户Cookie/管理员来源鉴权，而以可信平台验签和原付款归属授权。refund_notify检查接收配置、压缩与流式64KiB/4秒预算，parse_notice后save_notice持久提交，成功204空体；failure只返回固定FAIL消息/no-store，不透传原文/密钥。400协议/签名、409业务冲突、413上限、415压缩、503配置/数据库/超时；未知提交结果必须原ID重试。应用预算不保证代理端到端5秒SLA，生产仍须网关限额/监测与实测。
+
+shop.payment_ledger在管理员权限下另读最新本地ID的通知摘要，不受事件before分页影响；仅返回notice_view通过的显示字段，普通客户无权读取。回调与管理GET均不调用退款服务/外网，不改变权益。完整配置与不自动补发历史通知的限制见管理手册第七批。

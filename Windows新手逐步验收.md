@@ -741,3 +741,15 @@ python -m pytest -q tests/test_payment_review.py tests/test_payments_frontend.py
 页面人工流程：在隔离的manual演示环境创建固定文件订单，管理员按演示证据确认收款，客户领链接并保留；用明确虚构的测试退款记录/带时区时间确认全额退款。刷新后，原收款仍在、客户显示已退款、旧链接与重领均403，另一已付单正常。不要在真实订单上填写演示凭证；这一步没有实际银行转账，也不是真实退款验收。微信入口须真实原商户配置/原付款凭证及已办理退款的商户退款号，本轮未替你执行真实操作。
 
 升级存量库先备份并停写，使用维护CLI迁移到0011，不重跑init。旧链接需要未退款客户从订单历史重领；不要回退到不识别退款表的旧下载服务。完整规则见[管理员操作手册](docs/PAYMENTS_ADMIN_GUIDE.md)。
+
+
+## 第七批增补：退款通知不是退款成功凭证
+
+继续使用VS Code集成CMD、已激活的Conda、系统Node和前文的独立测试数据库：
+
+```cmd
+python -m pytest -q tests/test_refund_notifications.py tests/test_payments_frontend.py
+npm run build
+```
+
+这些测试用合成RSA/AES通知，不需要、也不会使用真实商户转账。浏览器步骤见[管理手册第七批](docs/PAYMENTS_ADMIN_GUIDE.md)：通知和成功凭证分开显示，“填入商户退款号”只填号，不自动查询/退款，不代填确认单号和依据；部分通知只提示核账。换账号应清空通知与输入。沙箱Node通过不代表这些本机动作已通过；真实回调接入需专用HTTPS环境与另行授权，不在业务库跑pytest或填虚构退款证据。

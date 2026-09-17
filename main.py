@@ -17,6 +17,7 @@ from app.routers import (
     messages,
     oauth,
     payments_admin,
+    refund_notify,
     refunds_admin,
     shop,
     site,
@@ -71,6 +72,7 @@ app.include_router(diagrams.router)  # S2-01-3：Drawio 流程图存取（需鉴
 app.include_router(shop.router)
 app.include_router(payments_admin.router)
 app.include_router(refunds_admin.router)
+app.include_router(refund_notify.router)
 app.include_router(site.router)  # S2-02-1：页面 SSR + sitemap + robots
 app.include_router(messages.router)
 app.include_router(support.router)  # S4-02：智能客服三层

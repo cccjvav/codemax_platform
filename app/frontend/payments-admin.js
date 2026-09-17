@@ -4,7 +4,7 @@
   const el = (id) => document.getElementById(`finance-${id}`);
   let user = null, epoch = 0, listSeq = 0, viewSeq = 0;
   let controller = new AbortController(), selected = null, contract = null;
-  let listFilter = null;
+  let listFilter = null, currentNotice = null;
   let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
   const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
@@ -13,6 +13,7 @@
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
 
   function clearDetail() {
+    currentNotice = null; el("refund-prefill").disabled = true; el("refund-notice").textContent = "";
     review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
     viewSeq++; selected = null; contract = null; busy = false; eventCursor = null;
     for (const id of inputs.filter((x) => x !== "order-no")) el(id).value = "";
@@ -87,6 +88,9 @@
       el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${contract.status} / ${contract.payment_mode}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;
       const receipt = data.receipt;
       el("receipt").textContent = receipt ? `来源：${receipt.source}\n流水：${receipt.reference}\n金额：${money(receipt.amount)} ${receipt.currency}\n确认/核查发起人：${receipt.actor || "自动回调"}\n依据：${receipt.evidence || "渠道验签"}\n渠道付款时间：${receipt.paid_at || "未提供"}\n本地入账时间：${receipt.received_at}` : "没有收款凭证（不等于没有付款；已付历史单不得伪造收入）。";
+      currentNotice = data.refund_notice || null;
+      el("refund-notice").textContent = currentNotice ? `已接收并核验的渠道通知（不是本地退款完成凭证）\n通知ID：${currentNotice.notification_id}\n商户退款号：${currentNotice.refund_no}\n渠道退款ID：${currentNotice.refund_id}\n通知状态：${currentNotice.state}\n合同退款金额：${money(currentNotice.refund)}\n${currentNotice.partial ? "部分退款：当前全额核验入口不处理，请在原渠道核账；该通知本身不改变权益。" : "全额通知仍须独立查询原路退款；资金结论以成功退款凭证为准。"}` : "暂无可展示的退款通知摘要；完整历史见事件列表。";
+      el("refund-prefill").disabled = !currentNotice || currentNotice.partial;
       const refund = data.refund;
       el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录人：${refund.actor}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
       el("refund-query").hidden = !receipt || receipt.source !== "wechat";
@@ -184,6 +188,11 @@
       }
     }
   }
+  el("refund-prefill").onclick = () => {
+    if (!user || !currentNotice || currentNotice.partial || busy || el("operations").hidden || el("refund-query").hidden) return;
+    el("refund-no").value = currentNotice.refund_no;
+    message("仅填入商户退款号，未发起查询或退款。请核对并手动填写完整订单号和核验依据。");
+  };
   el("login").onclick = () => auth.open("login");
   el("search").onsubmit = (event) => { event.preventDefault(); list(); };
   el("next").onclick = () => list(true);
