@@ -1,8 +1,10 @@
-> 第五批当前进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
+> 当前第六批：[退款凭证与订单下载权益](review/RELEASE_BLOCKERS_PHASE6.md)。后续开发、实机验收和可选扩展的优先级统一见[当前队列](review/README.md)，下方旧阶段勾选不作为现行验收。
+
+> 第五批历史进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
 
 > 第四批：[可信查单与管理台](review/RELEASE_BLOCKERS_PHASE4.md)，不包含远程退款、异常结案或完整定制服务生命周期。
 
-> 当前第三批见[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)，自动对账/退款及实机验收仍待后续。
+> 第三批历史进展见[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)，自动对账/退款及实机验收仍待后续。
 
 > 第二批初始化/迁移与支付信任进展见[本批台账](review/RELEASE_BLOCKERS_PHASE2.md)。资金闭环、完整第三方OAuth及实机验收仍待后续。
 
@@ -41,12 +43,12 @@
 
 | 编号 | 难点 | 技术方案 |
 | --- | --- | --- |
-| 难点1 | 下载链接安全防护 | 阿里云 OSS / 腾讯云 COS；策略模式封装多云；预签名 URL；一次性下载双重校验 |
+| 难点1 | 下载链接安全防护 | 当前仅LocalStorage；冻结文件与订单域短链；未退款可重领，成功全额退款停止后续授权；云适配未实现 |
 | 难点2 | 支付闭环 | 微信支付 NATIVE 扫码；订单状态机（待支付→已支付→已下载）；回调验签 + AES-GCM 解密 + 幂等处理 |
-| 难点3 | 平台内容冷启动 | httpx + BeautifulSoup4；动态页面**已选 Playwright**（TD-03/191，可选依赖）；LLM 智能解析 DOM 结构并自动提取入库 |
+| 难点3 | 平台内容冷启动 | 静态httpx + BeautifulSoup4与LLM解析；动态Chromium停用，历史Playwright选型不表示当前开放 |
 | 难点4 | 智能客服 | 三层架构：BM25+余弦相似度 FAQ（<80ms）→ **规则意图路由**（原计划的 BERT **未做**，缺标注数据，见 TD-150 与本文 S4-02-2）→ 闲聊 LLM / 专业问题 RAG；低置信度转人工 |
 | 难点5 | 在线工具矩阵 | SQL DDL 解析 + D3.js（ER 图）；LLM→Mermaid；Drawio iframe 嵌入；python-docx 导出 Word |
-| 难点6 | 跨域单点登录 | OAuth2 授权码模式统一认证中心 + JWT 无状态 Token |
+| 难点6 | 跨域单点登录 | 受信第一方授权码SSO；JWT签名并查询账号状态/凭据版本，不是开放第三方授权服务 |
 
 ---
 
