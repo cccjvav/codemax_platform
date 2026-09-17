@@ -1,13 +1,9 @@
-"""订单状态机（S3-01-2）：待支付 → 已支付 → 已下载。
+"""订单状态与收款兼容入口。
 
-迁移边只在这里定义一处，支付回调 / 发货 / 下载三处都走同一套判断，
-不各自写 if —— 否则迟早出现"未支付也能下载"这类漏洞。
-
-两条设计约定（详见 TECH_DECISIONS.md 的 TD-100 ~ TD-102）：
-1. **幂等**：微信支付会重复通知，重复通知不能让回调失败，所以"已经是目标状态"
-   返回 False 而不是抛错。
-2. **原子**：迁移用 `UPDATE ... WHERE status=<期望值>` 做 CAS，避免并发回调
-   把同一单处理两次（与 /oauth/token 消费授权码同一个套路）。
+关闭/发放下载用UPDATE条件CAS；收款必须委托payment_ledger.settle，
+锁定订单后把唯一凭证和paid状态同事务提交。精确重复凭证幂等，
+不同流水不是正常重复，不能只因状态已paid就静默接受。
+已关闭订单仍可接收迟到成功；downloaded不消灭重领链接的购买权益。
 """
 from __future__ import annotations
 
@@ -17,6 +13,7 @@ from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Order
+from .payment_ledger import PaymentConflict, settle
 from .timeutil import as_utc
 
 PENDING = "pending"  # 待支付
@@ -48,29 +45,19 @@ def check_transition(current: str, target: str) -> None:
 
 
 async def mark_paid(
-    db: AsyncSession, order: Order, *, transaction_id: str | None = None, paid_at: datetime | None = None,
+    db: AsyncSession, order: Order, *, transaction_id: str,
+    paid_at: datetime | None = None,
 ) -> bool:
-    """待支付 → 已支付。返回本次是否真的发生了迁移。
+    """Compatibility entry for internal callers; cannot bypass settlement evidence or channel checks.
 
-    `CLOSED` 也要能收：订单被超时关闭不代表用户没付钱 —— 他完全可能已经扫了
-    旧二维码。钱到账就必须发货，否则是收钱不发货（TD-156）。这条边漏掉的后果
-    由 `test_late_payment_on_closed_order_still_delivers` 守着。
+    HTTP callbacks/admin confirmations use settle directly with independently verified identities.
+    Missing/unknown historical channels are rejected, not guessed from global settings.
     """
-    if order.status in (PENDING, CLOSED):
-        # 钱到账时，pending/closed 都是允许的起点，不能只匹配读到的旧快照。
-        # 元数据必须和状态一起写，避免 ORM autoflush 让竞争失败者覆盖首笔流水。
-        receipt = {}
-        if transaction_id is not None:
-            receipt["transaction_id"] = transaction_id
-        if paid_at is not None:
-            receipt["paid_at"] = paid_at
-        changed = await _cas(db, order, (PENDING, CLOSED), PAID, **receipt)
-        if order.status not in (PAID, DOWNLOADED):
-            raise IllegalTransition(f"支付后订单状态异常：{order.status!r}")
-        return changed
-    if order.status in (PAID, DOWNLOADED):
-        return False  # 重复通知：幂等，不报错
-    raise IllegalTransition(f"订单状态 {order.status!r} 无法标记为已支付")
+    try:
+        return await settle(db, order, source=order.payment_mode, transaction_id=transaction_id,
+                            merchant_id=order.merchant_id, app_id=order.app_id, paid_at=paid_at)
+    except PaymentConflict as e:
+        raise IllegalTransition(str(e)) from e
 
 
 def is_expired(order: Order, ttl_minutes: int, now: datetime | None = None) -> bool:

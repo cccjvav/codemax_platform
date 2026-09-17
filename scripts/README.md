@@ -62,7 +62,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `c93aec70c42c` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `ae3002db6efb` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |

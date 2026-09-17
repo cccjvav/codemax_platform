@@ -1,6 +1,7 @@
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
@@ -10,7 +11,7 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool, StaticPool
+from sqlalchemy.pool import NullPool
 
 from app.config import settings
 from app.database import Base, get_db
@@ -23,24 +24,15 @@ from main import app
 # 限流本身由 tests/test_ratelimit.py 显式打开后测试（见 HANDOVER 的坑）。
 settings.RATE_LIMIT_ENABLED = False
 
-# 测试库默认是内存 SQLite（StaticPool 保证所有连接共享同一内存库）。
-# 设 TEST_DATABASE_URL 就能整套跑在真 PostgreSQL 上，用来消掉「集成测试只跑 SQLite」
-# 这个上线阻塞项（TECH_DECISIONS.md TD-80）：
-#   TEST_DATABASE_URL="postgresql+asyncpg://postgres@/codemax_test?host=/tmp/pgdata" \
-#     .venv/bin/python -m pytest -q
-# 注意别指向正在用的业务库 —— fixture 每个用例都会 create_all / drop_all。
-TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", "sqlite+aiosqlite://")
-
-if TEST_DATABASE_URL.startswith("sqlite"):
-    engine = create_async_engine(
-        TEST_DATABASE_URL, poolclass=StaticPool, connect_args={"check_same_thread": False}
-    )
-else:
-    # 真库必须用 NullPool：asyncpg 的连接绑死在创建它的事件循环上，而 pytest-asyncio
-    # 每个用例开一个新 loop。用默认连接池会复用到上一个 loop 的连接，报
-    # "got Future attached to a different loop"。SQLite 那边因为是 StaticPool
-    # 单连接才没暴露这个问题。
-    engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
+# Default tests use a disposable SQLite file and independent connections. StaticPool's single
+# connection interleaves unrelated sessions/rollbacks and cannot validate settlement transactions.
+# Explicit TEST_DATABASE_URL is still reserved for disposable databases, never business data.
+_SQLITE_TEMP = tempfile.TemporaryDirectory(prefix='codemax-tests-')
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", f"sqlite+aiosqlite:///{_SQLITE_TEMP.name}/tests.db")
+engine = create_async_engine(
+    TEST_DATABASE_URL, poolclass=NullPool,
+    **({'connect_args': {'timeout': 30}} if TEST_DATABASE_URL.startswith('sqlite') else {}),
+)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
 
 def iter_app_routes(routes):
@@ -137,7 +129,7 @@ def sso_code(response) -> str:
     return parse_qs(urlsplit(response.headers["location"]).query)["code"][0]
 
 @pytest_asyncio.fixture
-async def client():
+async def client(product):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
 

@@ -110,13 +110,13 @@ async def test_confirm_is_unavailable_outside_manual_mode(client, monkeypatch):
     h = await _login(client)
     no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
 
-    r = await client.post(f"/shop/orders/{no}/confirm", headers=h)
+    r = await client.post(f"/shop/orders/{no}/confirm", headers=h, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 403, "非管理员先撞权限门"
     assert await _status(no) == "pending"
 
     admin = await _login(client, "boss9")
     await _promote("boss9")
-    r2 = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+    r2 = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r2.status_code == 404, "管理员才会看到「模式没开」"
     assert "manual" in r2.json()["detail"]
     assert await _status(no) == "pending", "两次尝试都不该改状态"
@@ -141,7 +141,7 @@ async def test_confirm_rejects_non_admin(client, manual_mode):
     """普通用户 403 而不是 404：端点存在与否不是秘密，真正的防线是权限本身。"""
     h = await _login(client)
     no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
-    r = await client.post(f"/shop/orders/{no}/confirm", headers=h)
+    r = await client.post(f"/shop/orders/{no}/confirm", headers=h, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 403
     assert "管理员" in r.json()["detail"]
     assert await _status(no) == "pending"
@@ -156,12 +156,12 @@ async def test_admin_confirm_marks_paid(client, manual_mode):
 
     admin = await _login(client, "boss")
     await _promote("boss")
-    r = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+    r = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "paid"
     assert body["pay_mode"] == "manual"
-    assert body["transaction_id"] == f"MANUAL-{no}"
+    assert body["transaction_id"] == "TEST-RECEIPT"
     assert body["confirmed_by"] == "boss", "要留下审计线索：谁确认的这笔款"
     assert await _status(no) == "paid"
 
@@ -173,8 +173,8 @@ async def test_admin_confirm_is_idempotent(client, manual_mode):
     admin = await _login(client, "boss2")
     await _promote("boss2")
 
-    first = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
-    second = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+    first = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
+    second = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert first.status_code == second.status_code == 200
     assert second.json()["status"] == "paid"
 
@@ -190,7 +190,7 @@ async def test_admin_confirm_delivers_on_closed_order(client, manual_mode):
 
     admin = await _login(client, "boss3")
     await _promote("boss3")
-    r = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+    r = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 200 and r.json()["status"] == "paid"
 
 
@@ -198,7 +198,7 @@ async def test_confirm_unknown_order_is_404(client, manual_mode):
     """对管理员**可以**明确说「不存在」：这是他需要的运维信息，不是要保密的东西。"""
     admin = await _login(client, "boss4")
     await _promote("boss4")
-    r = await client.post("/shop/orders/CM-NOT-EXIST/confirm", headers=admin)
+    r = await client.post("/shop/orders/CM-NOT-EXIST/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 404
 
 
@@ -212,7 +212,7 @@ async def test_download_works_after_manual_confirm(client, product, manual_mode)
 
     admin = await _login(client, "boss5")
     await _promote("boss5")
-    assert (await client.post(f"/shop/orders/{no}/confirm", headers=admin)).status_code == 200
+    assert (await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})).status_code == 200
 
     dl = await client.post(f"/shop/download/{no}", headers=buyer)
     assert dl.status_code == 200, f"确认后下载失败：{dl.text}"
@@ -275,15 +275,10 @@ def test_explicit_demo_seed_grants_admin_role_to_the_seeded_account():
 
 
 async def test_manual_confirm_leaves_an_audit_trail(client, manual_mode, caplog):
-    """人工确认收款必须留下「谁确认的」这条记录。
+    """旧日志回归继续保留：新凭证提交后，补充日志包含谁、哪单和金额。
 
-    这个端点是**人**替机器做了「钱到账了」的判断 —— manual 模式下服务端收不到
-    任何支付通知，钱到没到全凭管理员一句话。所以事后必须能回答
-    「这一单是谁放的货」。
-
-    之前只在响应体里回一个 `confirmed_by`，那等于没记录：调用方关掉页面
-    就什么都没了。`sys_order` 也没有能放备注的列（`remark` 属于 `SysConfig`，
-    不是 `Order` —— review 里那半条是看错了表），所以走结构化审计日志。
+    不再把日志当唯一财务证据；持久PaymentReceipt的原始确认人/依据/重复与回滚
+    由test_payment_ledger另行验证。这里不以caplog成功冒充银行核账或不可篡改审计。
     """
     h = await _login(client)
     no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
@@ -292,7 +287,7 @@ async def test_manual_confirm_leaves_an_audit_trail(client, manual_mode, caplog)
     await _promote("boss9")
 
     with caplog.at_level("INFO", logger="codemax.audit"):
-        r = await client.post(f"/shop/orders/{no}/confirm", headers=admin)
+        r = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})
     assert r.status_code == 200, r.text
 
     audit = [rec for rec in caplog.records if rec.name == "codemax.audit"]
@@ -315,7 +310,7 @@ async def test_rejected_confirm_writes_no_audit_record(client, manual_mode, capl
     no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
 
     with caplog.at_level("INFO", logger="codemax.audit"):
-        r = await client.post(f"/shop/orders/{no}/confirm", headers=h)  # 非管理员
+        r = await client.post(f"/shop/orders/{no}/confirm", headers=h, json={"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": "synthetic bank statement"})  # 非管理员
     assert r.status_code == 403
 
     assert [rec for rec in caplog.records if rec.name == "codemax.audit"] == [], (

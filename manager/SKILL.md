@@ -1,12 +1,12 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.3
+version: 2.4
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.3，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.4，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
@@ -55,3 +55,5 @@ version: 2.3
 https://github.com/cccjvav/web_agent/blob/4d518c1df1f1f2791235a8d49f64807b112af9fd/manager/SKILL.md
 
 保留其阶段关闭/已解决 P1 的元复盘、版本化源修改/副本同步/经验追踪。映射其 CONTEXT 职责到现有 HANDOVER，不引入该项目的业务、环境结果或隐私文件方案。此文件只是仓库可版本管理的工作约定，不宣称平台会自动加载或自动执行。
+
+资金与交付专项：使用独立数据库连接验证原子提交，不用共享单连接模拟隔离。旧基线列集合固定；新SQL函数体与顶层事务控制分别识别。验证真实迁移触发器、同单冲突/跨单唯一、坏快照恢复与历史核准，不用静默重绑或日志替代凭证来让测试通过。

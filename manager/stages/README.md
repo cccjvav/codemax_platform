@@ -6,3 +6,5 @@
 - [Windows 新手验收与管理适配](windows-acceptance.md)：本轮任务证据、外部模型阻塞与下一步。
 
 阶段文件只负责自己的范围；当前全局入口仍由 [HANDOVER](../../HANDOVER.md) 指向。不要在本目录再维护一份测试数量、全局 TODO 或路线图副本。新阶段按需创建并注册进文档站；保留旧阶段已发生的结果。
+
+当前第三批：[资金与交付权益](../../review/RELEASE_BLOCKERS_PHASE3.md)，从f37bb8d继续，不重做第一/二批。

@@ -36,10 +36,14 @@ async def make_order(status: str = PENDING) -> int:
         s.add(user)
         await s.flush()
         order = Order(
-            order_no=f"NO{_seq:06d}", user_id=user.id, product_name="毕设服务", amount=9900, status=status
+            order_no=f"NO{_seq:06d}", user_id=user.id, product_name="毕设服务", amount=9900, status=PENDING if status in (PAID, DOWNLOADED) else status, payment_mode="mock"
         )
         s.add(order)
         await s.commit()
+        if status in (PAID, DOWNLOADED):
+            await mark_paid(s, order, transaction_id=f"MOCK-{order.id}")
+            if status == DOWNLOADED:
+                await mark_downloaded(s, order)
         return order.id
 
 
@@ -70,7 +74,7 @@ def test_only_forward_transitions_allowed():
 async def test_mark_paid_from_pending():
     oid = await make_order()
     async with TestSession() as s:
-        assert await mark_paid(s, await s.get(Order, oid)) is True
+        assert await mark_paid(s, await s.get(Order, oid), transaction_id=f"MOCK-{oid}") is True
     assert await status_of(oid) == PAID
 
 
@@ -78,9 +82,9 @@ async def test_mark_paid_twice_is_idempotent():
     """重复通知：第二次返回 False，不报错、不改状态。"""
     oid = await make_order()
     async with TestSession() as s:
-        assert await mark_paid(s, await s.get(Order, oid)) is True
+        assert await mark_paid(s, await s.get(Order, oid), transaction_id=f"MOCK-{oid}") is True
     async with TestSession() as s:
-        assert await mark_paid(s, await s.get(Order, oid)) is False
+        assert await mark_paid(s, await s.get(Order, oid), transaction_id=f"MOCK-{oid}") is False
     assert await status_of(oid) == PAID
 
 
@@ -88,7 +92,7 @@ async def test_late_paid_notification_after_download_is_noop():
     """已下载之后才到的重复支付通知，不能把状态改回去。"""
     oid = await make_order(status=DOWNLOADED)
     async with TestSession() as s:
-        assert await mark_paid(s, await s.get(Order, oid)) is False
+        assert await mark_paid(s, await s.get(Order, oid), transaction_id=f"MOCK-{oid}") is False
     assert await status_of(oid) == DOWNLOADED
 
 
@@ -118,7 +122,7 @@ async def test_unknown_status_rejected():
     oid = await make_order(status="refunded")
     async with TestSession() as s:
         with pytest.raises(IllegalTransition):
-            await mark_paid(s, await s.get(Order, oid))
+            await mark_paid(s, await s.get(Order, oid), transaction_id=f"MOCK-{oid}")
     assert await status_of(oid) == "refunded"
 
 

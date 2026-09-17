@@ -165,3 +165,9 @@ Docker 启动关闭 Uvicorn 的代理头重写，由应用根据直接对端和 
 下单前也会校验本地平台证书/公钥与32字节APIv3密钥，不可用返回503且不请求商户；须另外实测回调可达性与控制台登记值。微信回调要求WX_APPID/WX_MCHID与交易一致，币种CNY、类型NATIVE。WX_PLATFORM_CERT若为X509证书，Wechatpay-Serial必须匹配且证书在有效期；若是裸RSA公钥，另填WX_PLATFORM_KEY_ID，不要填成商户WX_SERIAL_NO。必须从可信商户渠道配置真实平台凭据；不是随回调动态下载证书，也未实现自动轮换/预支付响应验签。
 
 OAUTH_TRUSTED_CLIENT_IDS使用JSON数组，例如自有站点确认后设为["tools"]。它们会拿到完整站点JWT，具有对应用户权限，不是第三方scope隔离；production回跳仅HTTPS。默认空数组拒绝生产SSO，不能因接入方便把不可信应用加入名单。
+
+## 第三批升级检查
+
+先停止写入，备份数据库及整个storage（含`.snapshots`），验证恢复后运行维护CLI的migrate，确认0010已登记。不要更改0001–0009或删账本。存储需支持同卷硬链接；文件复制512MiB/30秒、每进程两槽，失败即拒绝下单。更换STORAGE_LOCAL_ROOT时连同快照搬迁，不能只改环境变量。
+
+历史渠道/交付字段未绑定的订单需管理员按原合同核准一次；不要批量套用当前配置。人工确认现在必填参考号、金额和核账依据；查看持久ledger，不拿stdout当唯一凭证。退款/自动对账和真实商户仍阻断，接口与恢复边界见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。

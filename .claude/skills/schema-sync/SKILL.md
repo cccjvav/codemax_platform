@@ -1,7 +1,7 @@
 ---
 name: schema-sync
 description: ORM、全量建表、增量迁移与业务约束同步；只在专用可丢弃库验证破坏性脚本。
-version: 2.2
+version: 2.3
 ---
 
 # 数据结构同步
@@ -30,3 +30,5 @@ version: 2.2
 以上是 Linux 沙箱示例，数量以本次结果为准。真 PostgreSQL 必须再验，步骤与专用测试角色见 `docs/ACCEPTANCE_GUIDE.md`；Windows 的 CMD/Conda/密码交互方式见 `Windows新手逐步验收.md`。绝不将业务 DATABASE_URL 复制给 TEST_DATABASE_URL，不在 Skill 示例硬编码超级用户业务连接串。
 
 收尾按 codemax-workflow 与 finish-subitem，核对最终 SHA 全部 CI jobs。表结构变更需要的审批不因执行本 Skill 而自动获得。
+
+资金与交付专项：使用独立数据库连接验证原子提交，不用共享单连接模拟隔离。旧基线列集合固定；新SQL函数体与顶层事务控制分别识别。验证真实迁移触发器、同单冲突/跨单唯一、坏快照恢复与历史核准，不用静默重绑或日志替代凭证来让测试通过。

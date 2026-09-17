@@ -90,7 +90,7 @@ async def _order():
         user = User(username="review-buyer", password="unused")
         db.add(user)
         await db.flush()
-        order = Order(user_id=user.id, order_no="review-order", product_name="Test", amount=100)
+        order = Order(user_id=user.id, order_no="review-order", product_name="Test", amount=100, payment_mode="mock")
         db.add(order)
         await db.commit()
         return order.id
@@ -102,7 +102,7 @@ async def test_payment_accepts_an_order_closed_after_it_was_read(client):
         stale = await payment.get(Order, oid)
         await mark_closed(closing, await closing.get(Order, oid))
         assert stale.status != CLOSED
-        assert await mark_paid(payment, stale) is True
+        assert await mark_paid(payment, stale, transaction_id="FIRST") is True
         assert stale.status == PAID
 
 
@@ -118,7 +118,10 @@ async def test_competing_payment_preserves_first_receipt(client, download_first)
         assert await mark_paid(first, winning, transaction_id="FIRST", paid_at=first_time)
         if download_first:
             await mark_downloaded(first, winning)
-        assert not await mark_paid(second, old_snapshot, transaction_id="LATER", paid_at=datetime.now(timezone.utc))
+        from app.order_state import IllegalTransition
+        with pytest.raises(IllegalTransition):
+            await mark_paid(second, old_snapshot, transaction_id="LATER", paid_at=datetime.now(timezone.utc))
+        await second.refresh(old_snapshot)
         assert old_snapshot.status == (DOWNLOADED if download_first else PAID)
         assert old_snapshot.transaction_id == "FIRST"
         assert old_snapshot.paid_at.replace(tzinfo=timezone.utc) == first_time

@@ -56,7 +56,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | `serve_download` GET `/shop/dl` | key、expires、signature → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
 | `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；匹配mchid/appid、CNY/NATIVE、资源类型及固定平台serial/公钥ID；仍无完整对账账本；原子确认，重复通知幂等 |
 | `mock_pay_page` / `mock_pay_confirm` | 模拟收银台／自己的订单确认 | 仅 mock 模式，其他模式 404；真实 production 配置拒绝开启 mock |
-| `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅 manual；服务器不知道个人收款码是否到账；必须本人核账。记录日志，不是独立不可篡改审计表 |
+| `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅manual且订单渠道匹配；须提供reference、实际整数分amount和evidence。原子记录收款凭证及首次确认人，日志仅补充；不是银行自动核账 |
 | `_payload` / `_qr_svg` / `_storage` / `_ok` / `_fail` | 展示字段、服务端二维码、存储错误映射、微信响应封装 | 不把扫码/二维码加载当付款凭证；用户侧和平台回调的响应格式不同 |
 | `ping` | 登录态共享冒烟 | 只证明该受保护端点能响应，不验收支付能力 |
 
@@ -100,7 +100,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
-| [`app/routers/shop.py`](shop.py) | `a95b8c622fd1` | L1–L508 |
+| [`app/routers/shop.py`](shop.py) | `6322cda170e6` | L1–L640 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -123,3 +123,11 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 ## 2026-09-15 交叉审查增量
 
 本次审查修订：微信预支付前提交本地订单，失败保留单号/金额/名称用于重试；不是完整支付对账。回调限制64KiB并验证UTF-8、对象形状、标识长度和金额类型。图表If-Match为有界单版本，列表只取摘要列；登录NUL用户名走统一失败而不查库。发布阻断见 [交叉台账](../../review/README.md)。
+
+## 第三批订单事务与维护端点
+
+create_order先固定渠道/商户并准备内容寻址文件快照，再持久化订单及prepay_started，才调用微信；ready/unknown结果各留事件。相同pending不能随着当前配置切换渠道。mock仅development且只能确认mock订单；回调只结算wechat订单，精确重复200、冲突409，未接入事件422。
+
+ManualReceiptIn校验实际金额、参考号和有内容的依据；EvidenceIn共享边界。管理员GET `/shop/admin/orders/{order_no}/ledger`禁止缓存、最多50事件，返回原始确认人而不是最后重试者。POST `/shop/orders/{order_no}/legacy-binding`只允许历史未绑定订单，核实后复制指定原文件，写一次合同与审计；不能覆盖新订单、重记旧收入或在生产绑定mock。
+
+download_url使用订单key/hash/size，不再查当前STORAGE_PRODUCT_KEY；历史未绑定409，缺失404、损坏409，状态/购买权益保留；serve_download再次校验快照后流式响应。操作人恢复相同字节后可重领。不是运营UI、自动退款或定制服务完整工作流。

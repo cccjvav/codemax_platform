@@ -1,7 +1,9 @@
 from datetime import datetime
 
 from sqlalchemy import (
+    BigInteger,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -53,6 +55,14 @@ class Order(Base):
     user_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
     product_name: Mapped[str] = mapped_column(String(100))
     amount: Mapped[int] = mapped_column(Integer)  # 金额，单位：分
+    # NULL on historical orders: never infer their payment/delivery contract from today's settings.
+    payment_mode: Mapped[str | None] = mapped_column(String(16))
+    merchant_id: Mapped[str | None] = mapped_column(String(64))
+    app_id: Mapped[str | None] = mapped_column(String(64))
+    currency: Mapped[str] = mapped_column(String(3), default="CNY", server_default="CNY")
+    delivery_key: Mapped[str | None] = mapped_column(String(512))
+    delivery_digest: Mapped[str | None] = mapped_column(String(64))
+    delivery_size: Mapped[int | None] = mapped_column(BigInteger)
     status: Mapped[str] = mapped_column(String(20), default="pending")
     code_url: Mapped[str | None] = mapped_column(String(512))  # NATIVE 下单返回的二维码链接
     transaction_id: Mapped[str | None] = mapped_column(String(64))  # 微信支付订单号（回调解出）
@@ -186,3 +196,53 @@ class SchemaMigration(Base):
     version: Mapped[str] = mapped_column(String(4), primary_key=True)
     checksum: Mapped[str] = mapped_column(String(64))
     applied_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PaymentReceipt(Base):
+    """One accepted settlement per order; source + transaction reference has exactly one owner.
+
+    Application append-only, not a tamper-proof financial accounting system. Historical paid
+    orders are not retroactively asserted to have verified receipts by the migration.
+    """
+    __tablename__ = "payment_receipt"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("sys_order.id"), unique=True)
+    source: Mapped[str] = mapped_column(String(16))
+    transaction_id: Mapped[str] = mapped_column(String(64))
+    amount: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3))
+    merchant_id: Mapped[str | None] = mapped_column(String(64))
+    app_id: Mapped[str | None] = mapped_column(String(64))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("sys_user.id"))
+    actor_name: Mapped[str | None] = mapped_column(String(50))
+    evidence: Mapped[str | None] = mapped_column(String(500))
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint("source", "transaction_id", name="uq_payment_source_transaction"),
+        CheckConstraint("amount > 0 AND currency = 'CNY'", name="ck_receipt_amount_currency"),
+        CheckConstraint("source IN ('wechat', 'manual', 'mock')", name="ck_receipt_source"),
+        CheckConstraint("source != 'manual' OR (actor_id IS NOT NULL AND actor_name IS NOT NULL AND evidence IS NOT NULL)",
+                        name="ck_receipt_manual_evidence"),
+    )
+
+
+class PaymentEvent(Base):
+    """Append-only application journal: prepay started/ready/unknown and explicit legacy bindings.
+
+    No raw provider body, payer identifiers or secrets. A started attempt without a result is
+    unknown, not proof of failure. No external reconciliation/refund is implied by this journal.
+    """
+    __tablename__ = "payment_event"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("sys_order.id"))
+    attempt_id: Mapped[str] = mapped_column(String(32))
+    kind: Mapped[str] = mapped_column(String(32))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("sys_user.id"))
+    actor_name: Mapped[str | None] = mapped_column(String(50))
+    evidence: Mapped[str | None] = mapped_column(String(500))
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint("attempt_id", "kind", name="uq_payment_attempt_kind"),
+        Index("idx_payment_event_order", "order_id", "id"),
+    )

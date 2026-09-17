@@ -15,13 +15,70 @@ from sqlalchemy.engine import make_url
 from sqlalchemy.schema import CreateTable
 
 from .config import settings
-from .database import Base
 from .models import SchemaMigration
 from .schemas import RegisterIn
 from .security import hash_password
 
 SQL_ROOT = Path(__file__).resolve().parents[1] / 'database init'
 MAINTENANCE_LOCK = 71943208715602
+
+# Immutable historical contract: new ORM columns must not make old adoption impossible.
+LEGACY_0008_COLUMNS = {'sys_user': ['id',
+              'username',
+              'password',
+              'nickname',
+              'avatar',
+              'status',
+              'role',
+              'credential_version',
+              'password_changed_at',
+              'create_time',
+              'update_time'],
+ 'sys_order': ['id',
+               'order_no',
+               'user_id',
+               'product_name',
+               'amount',
+               'status',
+               'code_url',
+               'transaction_id',
+               'paid_at',
+               'create_time',
+               'update_time'],
+ 'sys_article': ['id',
+                 'url',
+                 'title',
+                 'author',
+                 'published_at',
+                 'content',
+                 'source_site',
+                 'create_time'],
+ 'sys_config': ['id', 'config_key', 'config_value', 'remark'],
+ 'sys_diagram': ['id',
+                 'user_id',
+                 'name',
+                 'content',
+                 'deleted_at',
+                 'version',
+                 'create_time',
+                 'update_time'],
+ 'oauth_client': ['id', 'client_id', 'client_secret_hash', 'name', 'redirect_uri', 'status'],
+ 'oauth_code': ['id',
+                'code',
+                'user_id',
+                'client_id',
+                'redirect_uri',
+                'expires_at',
+                'credential_version',
+                'used',
+                'create_time'],
+ 'support_message': ['id',
+                     'customer_id',
+                     'sender_id',
+                     'sender_role',
+                     'body',
+                     'client_nonce',
+                     'create_time']}
 
 
 class MaintenanceError(RuntimeError):
@@ -36,7 +93,7 @@ def migration_manifest(root: Path = SQL_ROOT) -> dict[str, tuple[Path, str]]:
         if not match or match[1] in result:
             raise MaintenanceError('Invalid or duplicate migration filename')
         result[match[1]] = (path, hashlib.sha256(path.read_bytes()).hexdigest())
-    if list(result) != [f'{n:04}' for n in range(1, len(result) + 1)] or len(result) < 9:
+    if list(result) != [f'{n:04}' for n in range(1, len(result) + 1)] or len(result) < 10:
         raise MaintenanceError('Missing migration history')
     return result
 
@@ -100,8 +157,8 @@ def adopt_legacy(conn) -> None:
             columns.setdefault(table, set()).add(column)
         if 'schema_migration' in columns:
             raise MaintenanceError('Ledger already exists; use migrate/status, never overwrite it')
-        for table in Base.metadata.sorted_tables:
-            if table.name != 'schema_migration' and set(table.columns.keys()) - columns.get(table.name, set()):
+        for table, required in LEGACY_0008_COLUMNS.items():
+            if set(required) - columns.get(table, set()):
                 raise MaintenanceError('Legacy schema is not at 0008; inspect historical upgrades first')
         cur.execute("SELECT indexname FROM pg_indexes WHERE schemaname='public'")
         indexes = {row[0] for row in cur.fetchall()}
@@ -119,7 +176,7 @@ def _migrate(cur, manifest) -> None:
     for version in list(manifest)[len(rows):]:
         text = manifest[version][0].read_text(encoding='utf-8')
         # 0001–0008 contain legacy transaction wrappers: never replay them through this runner.
-        if int(version) < 9 or re.search(r'^\s*(BEGIN|COMMIT|ROLLBACK)\b', text, re.M | re.I):
+        if int(version) < 9 or has_transaction_control(text):
             raise MaintenanceError('New migrations must not control the outer transaction')
         cur.execute(text)
         _record(cur, manifest, [version])
@@ -172,3 +229,60 @@ def bootstrap_admin(conn, username: str, password: str) -> None:
             raise MaintenanceError('Username already exists; bootstrap cannot promote an existing account')
         cur.execute('INSERT INTO sys_user(username,password,status,role,credential_version) VALUES (%s,%s,1,1,0)',
                     (username, digest))
+
+
+def has_transaction_control(sql: str) -> bool:
+    """Inspect top-level PG statements, excluding quoted function bodies/comments.
+
+    A repository migration is trusted code, not arbitrary user SQL. This narrow lexer guards
+    accidental transaction wrappers, including same-line COMMIT and START TRANSACTION. It is
+    not a SQL authorization sandbox and rejects unterminated quoted/comment regions.
+    """
+    plain, i = [], 0
+    while i < len(sql):
+        if sql.startswith('--', i):
+            end = sql.find('\n', i + 2)
+            i = len(sql) if end < 0 else end
+            plain.append(' ')
+        elif sql.startswith('/*', i):
+            depth, i = 1, i + 2
+            while i < len(sql) and depth:
+                if sql.startswith('/*', i):
+                    depth, i = depth + 1, i + 2
+                elif sql.startswith('*/', i):
+                    depth, i = depth - 1, i + 2
+                else:
+                    i += 1
+            if depth:
+                raise MaintenanceError('Unterminated migration comment')
+            plain.append(' ')
+        elif sql[i] in "'\"":
+            quote = sql[i]
+            escaped = quote == "'" and i > 0 and sql[i - 1] in 'eE' and (i < 2 or not sql[i - 2].isalnum())
+            i += 1
+            while i < len(sql):
+                if escaped and sql[i] == '\\':
+                    i += 2
+                elif sql[i] == quote:
+                    i += 1
+                    if i < len(sql) and sql[i] == quote:
+                        i += 1
+                    else:
+                        break
+                else:
+                    i += 1
+            else:
+                raise MaintenanceError('Unterminated migration quote')
+            plain.append(' quoted ')
+        elif sql[i] == '$' and (match := re.match(r'\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$', sql[i:])):
+            delimiter = match[0]
+            end = sql.find(delimiter, i + len(delimiter))
+            if end < 0:
+                raise MaintenanceError('Unterminated migration function body')
+            i = end + len(delimiter)
+            plain.append(' quoted ')
+        else:
+            plain.append(sql[i])
+            i += 1
+    return any(re.match(r'\s*(?:BEGIN|END|COMMIT|ROLLBACK|ABORT|SAVEPOINT|RELEASE|START\s+TRANSACTION|PREPARE\s+TRANSACTION)\b',
+                        statement, re.I) for statement in ''.join(plain).split(';'))

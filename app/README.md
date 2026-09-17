@@ -62,7 +62,7 @@ pending → closed → paid
 | --- | --- | --- |
 | `check_transition(current, target)` | 合法返回 None，非法抛 IllegalTransition | 纯检查，不写库 |
 | `is_expired(order, ttl_minutes, now)` | bool；仅 pending 且有 create_time 才判超时 | 纯计算，不顺手关闭订单；修改 TTL 会影响既有待支付单的判定 |
-| `mark_paid` | 本次发生迁移 True；已 paid/downloaded False | 接受 pending/closed，状态与可选收款元数据一起 CAS；防止重复通知覆盖已确认流水 |
+| `mark_paid` | 内部兼容入口，流水必填 | 委托payment_ledger.settle，不能绕过凭证/渠道；未知历史渠道拒绝。精确重复False，冲突抛IllegalTransition |
 | `mark_closed` | pending → closed；已 closed 返回 False | 非法起点报错；内部提交并刷新传入对象 |
 | `mark_downloaded` | paid → downloaded；已 downloaded 返回 False | 幂等发放记录，不提供一次性访问控制；内部提交 |
 | `_cas` | UPDATE 命中一行则 True | 自己 commit 和 refresh，不是可自由嵌套在更大原子事务里的无提交 helper |
@@ -106,17 +106,19 @@ pending → closed → paid
 | [`app/config.py`](config.py) | `1e150dc23bfd` | L1–L138 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `eeff55719389` | L1–L174 |
+| [`app/db_admin.py`](db_admin.py) | `aff882f475eb` | L1–L288 |
+| [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `358144652b38` | L1–L55 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `c97949b4ba95` | L1–L188 |
-| [`app/order_state.py`](order_state.py) | `604b20f29766` | L1–L113 |
+| [`app/models.py`](models.py) | `ccd8d213c81e` | L1–L248 |
+| [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
+| [`app/payment_ledger.py`](payment_ledger.py) | `98ff2d7d0deb` | L1–L78 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
-| [`app/storage.py`](storage.py) | `118b3e72ed68` | L1–L119 |
+| [`app/storage.py`](storage.py) | `edc0b127e612` | L1–L119 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
 | [`app/wechat_pay.py`](wechat_pay.py) | `c8f7c1c087c9` | L1–L305 |
 
@@ -140,3 +142,11 @@ HTTP 输入先由 schema 校验，再进入身份依赖与业务处理。状态�
 ## 离线数据库维护
 
 `db_admin`不是Web路由，所有写入由显式CLI触发：`migration_manifest/verify_ledger`检查连续版本及文件摘要；`connect_target`复用配置并核对确认库名；`maintenance_lock`设固定search_path和超时、持事务级PG锁；`initialize`只接受空库；`adopt_legacy`检查已声明的0008结构后登记并执行新迁移；`_record/_migrate/migrate`让SQL和账本原子提交；`status`只读；`seed_demo`开发显式且不覆盖；`bootstrap_admin`只创建首个启用管理员，不提权既有账号。连接由调用者关闭，错误不携带DSN。详见[数据库指南](../database%20init/README.md)，它不是完整DDL等价或生产角色授权工具。
+
+## 第三批：收款证据与固定文件权益
+
+`payment_ledger.py`把“钱属于哪张单”与paid状态一起提交：lock_order用无副作用UPDATE持写锁并刷新，settle校验渠道/商户/金额并写一条PaymentReceipt，精确重复不再写，唯一冲突或提交失败全部回滚。不是外部查单/退款，也不是日志代替数据库。
+
+`delivery.py`的Snapshot保存key/hash/size；snapshot_product在两个复制槽位、512MiB/30秒约束下分块复制、校验源变化、无覆盖发布，调用方卸载线程。file_digest分块校验，verify_snapshot绑定内容寻址key和实际字节。POSIX同步发布目录，Windows实际硬链接/恢复未验收。LocalStorage.put不能覆盖快照；主机管理员仍是可信边界。
+
+Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提供方支付时间/本地收到时间与人工依据，PaymentEvent记录尝试或历史绑定。0010和full_init安装PG不可覆盖合同/只追加证据触发器；ORM create_all不安装这些触发器，不能拿普通ORM测试当SQL触发器证据。完整范围、历史绑定和未结项见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。

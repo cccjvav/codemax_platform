@@ -1,12 +1,9 @@
-"""云存储策略（S3-02-2）+ 预签名下载 URL（S3-02-3）。
+"""本地对象存储与HMAC短时下载链接。
 
-策略接口只暴露两件事：**对象在不在**、**给一个带签名和过期时间的下载 URL**。
-换云厂商就是换一个实现，业务代码（`app/routers/shop.py` 的下载接口）一行不用改。
-
-目前只有 `LocalStorage` 能真正跑通。阿里云 OSS / 腾讯云 COS 需要密钥，而沙箱里没有
-（S3-02-1 未完成），写出来的云适配器**无法验证签名是否正确**，所以刻意不写（TD-128）。
-本地后端用的是与云厂商同构的机制 —— HMAC 签名 + 过期时间戳 —— 所以预签名、过期、
-篡改、越权换 key 这几件事都是真实可测的；将来换成云后端，业务逻辑与安全性质不变。
+仅LocalStorage已实现；delivery模块依赖本地分块复制、内容寻址与硬链接发布。
+未来云适配器必须另行实现版本固定和完整性/签名验证，不能只换凭据或宣称路由无需改动。
+源文件可由可信运营写入，快照路径（包括规范化别名）不允许put覆盖；
+主机文件管理员仍可信，本地目录不是WORM。短链接在有效期内仍可转交。
 """
 from __future__ import annotations
 
@@ -74,6 +71,9 @@ class LocalStorage:
     def put(self, key: str, data: bytes) -> None:
         """写入对象。生产由运营上传，测试用来造商品文件。"""
         p = self._path(key)
+        snapshots = self._path('.snapshots')
+        if p == snapshots or snapshots in p.parents:
+            raise StorageError('不能覆盖交付快照')
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_bytes(data)
 

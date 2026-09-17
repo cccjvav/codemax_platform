@@ -6,6 +6,8 @@ Windows 本机先按 [新手逐步验收](Windows新手逐步验收.md) 一路�
 
 ## 当前入口
 
+- 第三批：[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)。本地双后端全量、36项新回归及10种受控反例已核对，最终六项CI绑定交付SHA。0010迁移与storage快照需一起备份，人工确认和旧单绑定有新合同；尚不是真实收款上线签收。
+
 - 第二批：[剩余发布阻断的当前实施](review/RELEASE_BLOCKERS_PHASE2.md)。本地全量SQLite 933/6skip、一次性非超级用户PG 938/1skip，43项新回归和7种被拒绝反例；最终六项CI绑定交付SHA。初始化/迁移指令已改变，旧部署先读数据库指南，不重跑历史full_init。
 
 - 当前任务：[2026-09-15 交叉审查、第一批修复和未结项](review/README.md)。两份输入原文在 review；不能以本批通过等同完整生产签收。

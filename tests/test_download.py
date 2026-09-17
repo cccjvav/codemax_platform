@@ -14,6 +14,7 @@ import pytest
 from sqlalchemy import select
 
 from app.config import settings
+from app.delivery import snapshot_product
 from app.models import Order, User
 from app.storage import LocalStorage, StorageError, build_storage, sign_download, verify_download
 
@@ -38,11 +39,13 @@ async def make_order(status: str, username: str = "buyer") -> str:
             user = User(username=username, password="x")
             s.add(user)
             await s.flush()
+        snapshot = snapshot_product(LocalStorage(settings.STORAGE_LOCAL_ROOT, 'http://test', settings.SECRET_KEY), settings.STORAGE_PRODUCT_KEY)
         order = Order(
             order_no=f"CM20260901DL{_seq:04d}",
             user_id=user.id,
             product_name="毕设服务",
-            amount=19900,
+            amount=19900, payment_mode=settings.SHOP_PAY_MODE,
+            delivery_key=snapshot.key, delivery_digest=snapshot.digest, delivery_size=snapshot.size,
             status=status,
         )
         s.add(order)
@@ -110,7 +113,9 @@ async def test_other_users_order_not_found(client, product):
 async def test_missing_product_file_404(client, product):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
-    product.joinpath(PRODUCT_KEY).unlink()
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == order_no))
+        product.joinpath(order.delivery_key).unlink()
     r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 404
     assert await status_of(order_no) == "paid", "文件不在就不该把订单标记为已下载"

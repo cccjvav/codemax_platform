@@ -48,7 +48,7 @@ def test_init_has_no_default_identity_and_repeat_preserves_data(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
     assert rows(conn, 'SELECT * FROM sys_user') == rows(conn, 'SELECT * FROM oauth_client') == []
-    assert len(rows(conn, 'SELECT * FROM schema_migration')) == 9
+    assert len(rows(conn, 'SELECT * FROM schema_migration')) == len(db_admin.migration_manifest())
     rows(conn, "INSERT INTO sys_config(config_key, config_value) VALUES ('sentinel', 'keep')")
     with pytest.raises(psycopg2.Error):
         db_admin.initialize(conn)
@@ -78,7 +78,7 @@ def test_concurrent_init_cannot_reset_winner(maintenance_db):
             other.close()
     with concurrent.futures.ThreadPoolExecutor(2) as pool:
         assert sorted(pool.map(lambda _: run(), range(2))) == ['created', 'refused']
-    assert len(rows(conn, 'SELECT * FROM schema_migration')) == 9
+    assert len(rows(conn, 'SELECT * FROM schema_migration')) == len(db_admin.migration_manifest())
 
 
 def test_legacy_adoption_preserves_orders_and_retires_demo(maintenance_db):
@@ -86,7 +86,7 @@ def test_legacy_adoption_preserves_orders_and_retires_demo(maintenance_db):
     db_admin.initialize(conn)
     db_admin.seed_demo(conn)
     rows(conn, "INSERT INTO sys_order(order_no,user_id,product_name,amount) SELECT 'LEGACY',id,'kept',100 FROM sys_user")
-    rows(conn, 'DROP TABLE schema_migration')  # faithful 0008 shape with original demo identities
+    legacy_0008(conn)
     db_admin.adopt_legacy(conn)
     assert rows(conn, 'SELECT status,credential_version FROM sys_user') == [(0, 1)]
     assert rows(conn, 'SELECT status FROM oauth_client') == [(0,), (0,)]
@@ -101,7 +101,8 @@ def test_legacy_adoption_preserves_changed_admin_credentials(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
     db_admin.seed_demo(conn)
-    rows(conn, "UPDATE sys_user SET password='already-rotated-hash'; DROP TABLE schema_migration")
+    rows(conn, "UPDATE sys_user SET password='already-rotated-hash'")
+    legacy_0008(conn)
     db_admin.adopt_legacy(conn)
     assert rows(conn, 'SELECT status,credential_version,password FROM sys_user') == [(1, 0, 'already-rotated-hash')]
 
@@ -109,7 +110,8 @@ def test_legacy_adoption_preserves_changed_admin_credentials(maintenance_db):
 def test_adoption_refuses_incomplete_schema_without_ledger(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
-    rows(conn, 'DROP TABLE schema_migration; ALTER TABLE sys_user DROP COLUMN credential_version')
+    legacy_0008(conn)
+    rows(conn, 'ALTER TABLE sys_user DROP COLUMN credential_version')
     with pytest.raises(db_admin.MaintenanceError):
         db_admin.adopt_legacy(conn)
     assert rows(conn, "SELECT to_regclass('schema_migration')") == [(None,)]
@@ -121,12 +123,12 @@ def test_failed_migration_rolls_back_ddl_and_journal(maintenance_db, tmp_path, m
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / 'migrate_0010_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;')
+    (tmp_path / 'migrate_0011_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     with pytest.raises(psycopg2.Error):
         db_admin.migrate(conn)
     assert rows(conn, "SELECT to_regclass('should_rollback')") == [(None,)]
-    assert len(rows(conn, 'SELECT * FROM schema_migration')) == 9
+    assert len(rows(conn, 'SELECT * FROM schema_migration')) == len(original())
 
 
 def test_checksum_drift_refuses_upgrade(maintenance_db):
@@ -203,9 +205,18 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / 'migrate_0010_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);')
+    (tmp_path / 'migrate_0011_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     db_admin.migrate(conn)
     db_admin.migrate(conn)
     assert rows(conn, 'SELECT * FROM once_only') == [(1,)]
-    assert len(rows(conn, 'SELECT * FROM schema_migration')) == 10
+    assert len(rows(conn, 'SELECT * FROM schema_migration')) == len(original()) + 1
+
+
+def legacy_0008(conn):
+    """Remove post-0008 structures to exercise adoption against a real historical column set."""
+    rows(conn, 'DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
+               'DROP FUNCTION codemax_freeze_order_contract() CASCADE; '
+               'DROP FUNCTION codemax_append_only_evidence() CASCADE')
+    for column in ('payment_mode', 'merchant_id', 'app_id', 'currency', 'delivery_key', 'delivery_digest', 'delivery_size'):
+        rows(conn, f'ALTER TABLE sys_order DROP COLUMN {column}')

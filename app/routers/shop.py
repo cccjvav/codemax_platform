@@ -1,22 +1,25 @@
 import io
 import json
 import logging
+import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse, JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from ..config import settings
-from ..database import get_db
+from ..database import get_db, lock_user
+from ..delivery import snapshot_product, verify_snapshot
 from ..deps import get_current_user, require_admin
 from ..middleware import public_base_url
-from ..models import Order, User
+from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..order_state import (
     CLOSED,
     DOWNLOADED,
@@ -26,8 +29,8 @@ from ..order_state import (
     is_expired,
     mark_closed,
     mark_downloaded,
-    mark_paid,
 )
+from ..payment_ledger import PaymentConflict, lock_order, settle
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -85,11 +88,15 @@ async def create_order(
 
     已有未支付订单时复用同一单（S3-01-1-4），避免连点几下刷出一堆待支付单。
     微信预支付前先 commit 本地订单；提交失败不调用提供方，失败重试复用持久订单号。
-    这不等于完整支付尝试账本/查单对账；服务商结果未知的恢复仍是收款发布阻断项。
+    尝试开始/结果另存事件；未知结果不是失败，自动查单对账仍是发布阻断项。
 
     `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
     """
     mode = settings.SHOP_PAY_MODE
+    if type(settings.SHOP_PRODUCT_AMOUNT) is not int or not 0 < settings.SHOP_PRODUCT_AMOUNT <= 2147483647:
+        raise HTTPException(503, "商品分金额必须为正整数且在数据库范围内")
+    if mode == 'mock' and settings.ENV != 'development':
+        raise HTTPException(503, '模拟支付只允许开发环境')
     if mode not in ("wechat", "mock", "manual"):
         raise HTTPException(500, f"SHOP_PAY_MODE 只能是 wechat / mock / manual，当前是 {mode!r}")
     cfg = pay_config()
@@ -101,6 +108,9 @@ async def create_order(
         except WeChatPayError:
             raise HTTPException(503, "支付未配置：请核对 WX_* 商户下单及平台回调凭据、证书有效期") from None
 
+    # Serialize same-user checkout before copying: concurrent retries reuse one snapshot/order,
+    # rather than competing for the bounded global copy slots. Commit before provider I/O releases it.
+    await lock_user(db, user.id)
     pending = await db.scalar(
         select(Order)
         .where(Order.user_id == user.id, Order.status == PENDING)
@@ -114,16 +124,22 @@ async def create_order(
         pending = None
     # manual 模式**没有** code_url（收款码是全站共用的一张静态图，不是每单一串），
     # 所以「这张单能不能直接用」不能只看 code_url，否则每次下单都会新建一张。
+    if pending is not None:
+        _check_order_channel(pending, mode, cfg)
     if pending is not None and (pending.code_url or mode == "manual"):
         return _payload(pending, reused=True, pay_mode=mode)
 
     order = pending
     if order is None:
+        snapshot = await _snapshot(request, settings.STORAGE_PRODUCT_KEY)
         order = Order(
             order_no=new_order_no(),
             user_id=user.id,
             product_name=settings.SHOP_PRODUCT_NAME,
             amount=settings.SHOP_PRODUCT_AMOUNT,
+            payment_mode=mode, merchant_id=cfg.mchid if mode == 'wechat' else None,
+            app_id=cfg.appid if mode == 'wechat' else None, currency='CNY',
+            delivery_key=snapshot.key, delivery_digest=snapshot.digest, delivery_size=snapshot.size,
             status=PENDING,
         )
         db.add(order)
@@ -149,7 +165,8 @@ async def create_order(
             )
             if order is None:  # 极端情况：对方在我们回滚期间把单关掉了
                 raise HTTPException(409, "下单冲突，请重试") from None
-            if order.code_url:
+            _check_order_channel(order, mode, cfg)
+            if order.code_url or mode == "manual":
                 return _payload(order, reused=True, pay_mode=mode)
 
     if mode == "manual":
@@ -165,6 +182,8 @@ async def create_order(
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
     else:
         # A flush is not durable. Persist before crossing the external payment boundary.
+        attempt_id = uuid.uuid4().hex
+        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
         await db.commit()
         try:
             order.code_url = await native_prepay(
@@ -174,7 +193,10 @@ async def create_order(
                 total=order.amount,
             )
         except WeChatPayError as e:
+            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_unknown'))
+            await db.commit()  # unknown means reconcile; never assert that no money moved
             raise HTTPException(502, str(e)) from e
+        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_ready'))
     await db.commit()
     await db.refresh(order)  # A callback may have changed status while prepay was in flight.
     return _payload(order, reused=False, pay_mode=mode)
@@ -208,7 +230,7 @@ class MockPayIn(BaseModel):
 @router.get("/mock-pay", include_in_schema=False)
 async def mock_pay_page(request: Request, order_no: str = ""):
     """模拟收银台页面（答辩演示用）。"""
-    if settings.SHOP_PAY_MODE != "mock":
+    if settings.SHOP_PAY_MODE != "mock" or settings.ENV != "development":
         raise HTTPException(404, "模拟支付通道未开启（SHOP_PAY_MODE != mock）")
     # 必须走 page_context：base.html 还要 site_name / tools / shop_path / product_name
     # 与 SEO 三件套。早先这里只传了 title 与 order_no，页面渲染出空品牌、空导航、
@@ -227,17 +249,19 @@ async def mock_pay_confirm(
 ):
     """把订单标记为已支付（模拟）。
 
-    刻意复用与真实回调**完全相同**的状态机与幂等逻辑（`mark_paid`），
+    复用与真实回调相同的原子凭证结算（`settle`），但严格绑定不同渠道，
     这样演示走通的路径和上生产走的是同一条，不会因为"演示专用代码"而漏测。
     """
-    if settings.SHOP_PAY_MODE != "mock":
+    if settings.SHOP_PAY_MODE != "mock" or settings.ENV != "development":
         raise HTTPException(404, "模拟支付通道未开启（SHOP_PAY_MODE != mock）")
     order = await db.scalar(select(Order).where(Order.order_no == payload.order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")  # 不是自己的单一律 404，不暴露是否存在
-    await mark_paid(
-        db, order, transaction_id=f"MOCK-{order.order_no}", paid_at=datetime.now(timezone.utc),
-    )
+    try:
+        await settle(db, order, source='mock', transaction_id=f"MOCK-{order.order_no}",
+                     paid_at=datetime.now(timezone.utc))
+    except PaymentConflict as e:
+        raise HTTPException(409, str(e)) from e
     return {
         "order_no": order.order_no,
         "status": order.status,
@@ -246,19 +270,34 @@ async def mock_pay_confirm(
     }
 
 
-# 人工确认收款是**人**替机器做了「钱到账了」这个判断，必须留下可追溯的记录。
-# 没有审计表（sys_order 也没有可放备注的列 —— `remark` 属于 SysConfig 不是 Order），
-# 所以走结构化日志：这也是这类运维动作的行业标准做法，进日志管道、可集中检索，
-# 且不会因为业务表结构调整而丢。
+# Structured operational logs supplement the transactional receipt; they are not the ledger.
 _audit_logger = logging.getLogger("codemax.audit")
 
 
 # ---------------------------------------------------------------- 人工确认收款（S5-04）
 
 
+class EvidenceIn(BaseModel):
+    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+
+    @field_validator('evidence')
+    @classmethod
+    def meaningful_evidence(cls, value):
+        if len(value.strip()) < 3:
+            raise ValueError('核账依据不能只是空白')
+        return value.strip()
+
+
+class ManualReceiptIn(EvidenceIn):
+    amount: StrictInt = Field(gt=0)
+    reference: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$")
+    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+
+
 @router.post("/orders/{order_no}/confirm")
 async def confirm_paid_manually(
     order_no: str,
+    proof: ManualReceiptIn,
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
@@ -272,7 +311,7 @@ async def confirm_paid_manually(
     等于免费发货按钮（所以只能开在开发环境）；这里是 `require_admin`，
     只有管理员能确认，可以留在生产上。
 
-    状态机刻意复用真实回调那条（`mark_paid`）：幂等、且 `CLOSED` 也能收 ——
+    凭证结算复用`settle`，提交状态与凭证；`CLOSED`也能收 ——
     用户扫了旧码照样可能付钱，钱到账就必须发货（TD-156）。
     """
     if settings.SHOP_PAY_MODE != "manual":
@@ -282,27 +321,29 @@ async def confirm_paid_manually(
         # 这里**可以**返回 404 而不是像用户侧那样刻意模糊：调用方是管理员，
         # 「这个单号不存在」是他需要知道的运维信息，不是要对他保密的东西。
         raise HTTPException(404, "订单不存在")
-    await mark_paid(
-        db, order, transaction_id=f"MANUAL-{order.order_no}", paid_at=datetime.now(timezone.utc),
-    )
-    # 谁、什么时候、把哪一单标成已支付 —— 这三件事必须落盘。
-    # 只在响应体里回一个 confirmed_by 等于没记录：调用方关掉页面就什么都没了，
-    # 事后要查「这单是谁放的货」时无从查起（钱货争议时这是唯一证据）。
-    _audit_logger.info(
-        "人工确认收款 order_no=%s user_id=%s amount=%s status=%s confirmed_by=%s",
-        order.order_no,
-        order.user_id,
-        order.amount,
-        order.status,
-        admin.username,
-        extra={"audit_event": "manual_payment_confirmed", "order_no": order.order_no},
-    )
+    try:
+        changed = await settle(db, order, source='manual', transaction_id=proof.reference,
+                               actor=admin, evidence=proof.evidence, amount=proof.amount, paid_at=datetime.now(timezone.utc))
+    except PaymentConflict as e:
+        raise HTTPException(409, str(e)) from e
+    receipt = await db.scalar(select(PaymentReceipt).where(PaymentReceipt.order_id == order.id))
+    if changed:
+        _audit_logger.info(
+            "人工确认收款 order_no=%s user_id=%s amount=%s status=%s confirmed_by=%s",
+            order.order_no,
+            order.user_id,
+            order.amount,
+            order.status,
+            admin.username,
+            extra={"audit_event": "manual_payment_confirmed", "order_no": order.order_no},
+        )
     return {
         "order_no": order.order_no,
         "status": order.status,
         "transaction_id": order.transaction_id,
         "pay_mode": "manual",
-        "confirmed_by": admin.username,
+        "confirmed_by": receipt.actor_name,
+        "changed": changed,
     }
 
 
@@ -334,9 +375,13 @@ async def download_url(
         raise HTTPException(403, "订单未支付")
     if order.status not in (PAID, DOWNLOADED):
         raise HTTPException(409, "订单状态不支持下载，请联系站内客服")
-    key = settings.STORAGE_PRODUCT_KEY
+    key = order.delivery_key
+    if not key or not order.delivery_digest or order.delivery_size is None:
+        raise HTTPException(409, "历史交付对象未核准，请联系站内客服；购买权益未删除")
     if not storage.exists(key):
         raise HTTPException(404, f"商品文件不存在（对象 key：{key}）")
+    if not await run_in_threadpool(verify_snapshot, storage, key, order.delivery_digest, order.delivery_size):
+        raise HTTPException(409, "交付快照损坏，需从备份恢复；购买权益未删除")
     url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL)
     try:
         await mark_downloaded(db, order)  # idempotent; not winning CAS no longer destroys paid rights
@@ -370,6 +415,10 @@ async def serve_download(request: Request, key: str, expires: int, signature: st
     # 由 test_signed_url_for_missing_file_returns_404 守着。
     if not path.is_file():
         raise HTTPException(404, "文件不存在")
+    if key.startswith('.snapshots/'):
+        parts = key.split('/')
+        if len(parts) != 3 or not await run_in_threadpool(verify_snapshot, storage, key, parts[1], path.stat().st_size):
+            raise HTTPException(409, "交付快照完整性校验失败")
     return FileResponse(
         path, media_type="application/octet-stream", filename=Path(key).name
     )
@@ -397,6 +446,7 @@ def _payload(order: Order, *, reused: bool, pay_mode: str) -> dict:
     # 只有微信 Native 支付的 `weixin://` 串需要画二维码。
     # mock 模式（TD-124）的 code_url 是本站的 http 链接，前端直接给个按钮点开就行，
     # 画成二维码反而多一步扫码 —— 所以这里按前缀区分，不给 http 链接生成码。
+    pay_mode = order.payment_mode or 'legacy'
     needs_qr = bool(order.code_url) and not order.code_url.startswith(("http://", "https://"))
     return {
         "order_no": order.order_no,
@@ -421,8 +471,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
 
     应答格式是微信规定的，不能用 `HTTPException`（那会返回 `{"detail": ...}`）：
     已验证且处理/忽略成功 → 200 SUCCESS JSON；失败 → 4XX/5XX + `{"code": "FAIL", "message": "..."}`。
-    **4XX/5XX 会被微信重推**，所以"重试也没用"的情况（非支付成功通知、已处理过）
-    必须回 200，否则会被无限重推。
+    精确重复成功通知200；冲突和未接入事件不伪装成功，退款须另行接入与运维告警。
     """
     cfg = pay_config()
     if not cfg.notify_ready:
@@ -478,7 +527,7 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     if not isinstance(data, dict):
         return _fail(400, "回调业务数据必须为对象")
     if notify.get("event_type") != "TRANSACTION.SUCCESS" or data.get("trade_state") != "SUCCESS":
-        return _ok()  # 退款 / 未支付等通知本阶段不处理，但要确认收到，否则会被重推
+        return _fail(422, "此入口仅处理支付成功；退款及其他事件尚未接入，不能当作已处理")
 
     if (data.get("appid") != cfg.appid or data.get("mchid") != cfg.mchid
             or data.get("trade_type") != "NATIVE" or resource.get("algorithm") != "AEAD_AES_256_GCM"
@@ -498,11 +547,94 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     if total != order.amount:
         return _fail(400, f"金额不符：回调 {total} 分，订单 {order.amount} 分")
 
+    try:
+        success_time = data.get('success_time')
+        if not isinstance(success_time, str) or len(success_time) > 40:
+            raise ValueError('missing time')
+        provider_paid_at = datetime.fromisoformat(success_time)
+        if provider_paid_at.tzinfo is None:
+            raise ValueError('missing timezone')
+    except ValueError:
+        return _fail(400, '支付成功时间必须为带时区的有效时间')
+
     # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
     try:
-        await mark_paid(
-            db, order, transaction_id=data.get("transaction_id"), paid_at=datetime.now(timezone.utc),
-        )
-    except IllegalTransition as e:
+        await settle(db, order, source='wechat', transaction_id=transaction_id,
+                     merchant_id=data['mchid'], app_id=data['appid'], amount=total, paid_at=provider_paid_at)
+    except PaymentConflict as e:
         return _fail(409, str(e))
     return _ok()
+
+
+async def _snapshot(request: Request, key: str):
+    try:
+        return await run_in_threadpool(snapshot_product, _storage(request), key)
+    except StorageError as e:
+        raise HTTPException(503, str(e)) from e
+
+
+def _check_order_channel(order: Order, mode: str, cfg) -> None:
+    expected = (mode, cfg.mchid if mode == 'wechat' else None, cfg.appid if mode == 'wechat' else None)
+    if (order.payment_mode, order.merchant_id, order.app_id) != expected:
+        raise HTTPException(409, "待支付订单的渠道/商户与当前配置不一致，请核账后处理，不能换渠道确认")
+
+
+class LegacyBindingIn(EvidenceIn):
+    payment_mode: str = Field(pattern=r"^(manual|wechat|mock)$")
+    source_key: str = Field(min_length=1, max_length=400, pattern=r"^[^\x00-\x1f]+$")
+    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+
+
+@router.post('/orders/{order_no}/legacy-binding')
+async def bind_legacy_order(order_no: str, proof: LegacyBindingIn, request: Request,
+                            db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Operator-reviewed one-time binding, not a guessed backfill or a new receipt for past money."""
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None:
+        raise HTTPException(404, '订单不存在')
+    if order.payment_mode is not None or order.delivery_key is not None:
+        raise HTTPException(409, '已绑定的订单合同不能改写')
+    if proof.payment_mode == 'mock' and settings.ENV != 'development':
+        raise HTTPException(409, '生产不能把历史订单绑定为模拟支付')
+    cfg = pay_config()
+    if proof.payment_mode == 'wechat':
+        try:
+            assert_notify_configuration(cfg)
+        except WeChatPayError as e:
+            raise HTTPException(503, '平台凭据不可用') from e
+    snapshot = await _snapshot(request, proof.source_key)
+    await lock_order(db, order)
+    if order.payment_mode is not None or order.delivery_key is not None:
+        await db.rollback()
+        raise HTTPException(409, '订单已被其他维护者绑定')
+    order.payment_mode = proof.payment_mode
+    order.merchant_id = cfg.mchid if proof.payment_mode == 'wechat' else None
+    order.app_id = cfg.appid if proof.payment_mode == 'wechat' else None
+    order.delivery_key, order.delivery_digest, order.delivery_size = snapshot.key, snapshot.digest, snapshot.size
+    db.add(PaymentEvent(order_id=order.id, attempt_id=uuid.uuid4().hex, kind='legacy_bound',
+                        actor_id=admin.id, actor_name=admin.username, evidence=proof.evidence))
+    await db.commit()
+    return {'order_no': order.order_no, 'bound': True}
+
+
+@router.get('/admin/orders/{order_no}/ledger')
+async def payment_ledger(order_no: str, response: Response, before: int | None = Query(None, gt=0),
+                         db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Bounded admin-only evidence view. Unknown attempts require real provider reconciliation."""
+    response.headers["Cache-Control"] = "no-store"
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None:
+        raise HTTPException(404, '订单不存在')
+    receipt = await db.scalar(select(PaymentReceipt).where(PaymentReceipt.order_id == order.id))
+    query = select(PaymentEvent).where(PaymentEvent.order_id == order.id)
+    if before is not None:
+        query = query.where(PaymentEvent.id < before)
+    events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
+    return {'order_no': order.order_no,
+            'receipt': ({'source': receipt.source, 'reference': receipt.transaction_id,
+                         'amount': receipt.amount, 'currency': receipt.currency,
+                         'actor': receipt.actor_name, 'evidence': receipt.evidence,
+                         'paid_at': receipt.paid_at, 'received_at': receipt.received_at} if receipt else None),
+            'events': [{'id': e.id, 'attempt_id': e.attempt_id, 'kind': e.kind,
+                        'actor': e.actor_name, 'evidence': e.evidence, 'create_time': e.create_time} for e in events],
+            'next_cursor': events[-1].id if len(events) == 50 else None}

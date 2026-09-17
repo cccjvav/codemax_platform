@@ -156,6 +156,7 @@ async def make_order(amount: int = 19900, status: str = "pending") -> str:
             user_id=user.id,
             product_name="毕设服务",
             amount=amount,
+            payment_mode="wechat", merchant_id="1900000109", app_id="wxAPPID",
             status=status,
         )
         s.add(order)
@@ -341,18 +342,12 @@ async def test_notify_marks_order_paid(client, notify_ready):
 
 
 async def test_notify_is_idempotent(client, notify_ready):
-    """重复通知（S3-01-3-3）：第二次仍答成功，但不二次迁移、不覆盖首次支付信息。
-
-    变异验证记录（诚实起见）：把端点里 `if order.status == PENDING` 的判断去掉后
-    **本测试仍然是绿的** —— 因为 `mark_paid` 对已支付订单直接返回 `False`、根本不提交，
-    那句多余的赋值会随 session 关闭被丢弃，属于等价变异，测不出来。
-    真正被变异测试抓住的是：跳过验签（3 条红）、去掉金额校验（1 条红）。
-    """
+    """同一流水重复通知200且只记一笔；不同流水由财务边界测试要求409。"""
     order_no = await make_order()
     first, h1 = build_notify(txn(order_no, txid="TX-FIRST"))
     assert (await post_notify(client, first, h1)).status_code == 200
 
-    again, h2 = build_notify(txn(order_no, txid="TX-SECOND"))
+    again, h2 = build_notify(txn(order_no, txid="TX-FIRST"))
     r = await post_notify(client, again, h2)
     assert r.status_code == 200
     assert r.json()["code"] == "SUCCESS"
@@ -379,22 +374,27 @@ async def test_notify_amount_mismatch_is_rejected(client, notify_ready):
     assert (await fetch(order_no)).status == "pending"
 
 
-async def test_notify_ignores_non_success_events(client, notify_ready):
-    """未支付 / 退款类通知：回 200 确认收到（否则会被无限重推），但不改状态。"""
+async def test_notify_refuses_unimplemented_events(client, notify_ready):
+    """未接入事件返回422，不伪装退款已处理，也不修改订单。"""
     order_no = await make_order()
     for raw, headers in (
         build_notify(txn(order_no, trade_state="NOTPAY")),
         build_notify(txn(order_no), event_type="REFUND.SUCCESS"),
     ):
         r = await post_notify(client, raw, headers)
-        assert r.status_code == 200
-        assert r.json()["code"] == "SUCCESS"
+        assert r.status_code == 422
+        assert r.json()["code"] == "FAIL"
     assert (await fetch(order_no)).status == "pending"
 
 
 async def test_late_notify_does_not_revert_downloaded_order(client, notify_ready):
-    order_no = await make_order(status="downloaded")
+    from app.order_state import mark_downloaded
+    order_no = await make_order()
     raw, headers = build_notify(txn(order_no))
+    assert (await post_notify(client, raw, headers)).status_code == 200
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == order_no))
+        await mark_downloaded(db, order)
     r = await post_notify(client, raw, headers)
     assert r.status_code == 200
     assert (await fetch(order_no)).status == "downloaded"
@@ -445,7 +445,7 @@ async def test_notify_on_closed_order_is_still_idempotent(client, notify_ready):
     first, h1 = build_notify(txn(order_no, txid="TX-LATE-FIRST"))
     assert (await post_notify(client, first, h1)).status_code == 200
 
-    again, h2 = build_notify(txn(order_no, txid="TX-LATE-SECOND"))
+    again, h2 = build_notify(txn(order_no, txid="TX-LATE-FIRST"))
     r = await post_notify(client, again, h2)
     assert r.status_code == 200 and r.json()["code"] == "SUCCESS"
 
