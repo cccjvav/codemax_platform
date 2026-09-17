@@ -100,8 +100,9 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `d266c8253deb` | L1–L224 |
-| [`app/routers/shop.py`](shop.py) | `4d3efb6594fe` | L1–L648 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
+| [`app/routers/refunds_admin.py`](refunds_admin.py) | `f623cb35aa6b` | L1–L133 |
+| [`app/routers/shop.py`](shop.py) | `690085f3d6c0` | L1–L673 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -146,3 +147,11 @@ shop.payment_ledger现在同时给详情页返回原合同和manual操作可用�
 payments_admin.orders新增needs_review/reviewed投影筛选，原筛选不变；每批最多50单，最多扫描200候选，按最后实际检查的id返回游标，空页仍可能继续。候选读取后若已不需要复核，不误纳入待办。shop.payment_ledger附加实时review元数据，与50条事件分页独立，GET不写。
 
 ReviewIn限制动作、160字说明、SHA摘要、严格整数版本、32位十六进制请求ID和确认单号；review_order要求管理员/来源/独立限流，先锁用户复核权限再锁订单。相同请求只返回首次记录；内容/发起人/归属冲突409。首次写比对资料与版本、只追加operator_review；无待办不能直接完成，但可主动登记跟进。与资金结算完全分离，没有新增表。服务端提交失败不会留下完成标记；HTTP错误依赖会话退出回滚释放锁。
+
+## 第六批：refunds_admin与逐次下载授权
+
+`RefundIn`限定确认单号及3–160字单行依据；`RefundQueryIn`加原商户退款号；`ManualRefundIn`加真实退款流水、严格整数分和AwareDatetime（必带时区）。`active_actor`按用户→订单锁序刷新权限/凭据；`target`先比确认号再取单。两个POST均有活跃管理员、财务来源防护、限流与no-store；manual入口按原凭证渠道，而不让当前SHOP_PAY_MODE覆盖旧渠道。
+
+`manual_refund`登记实际已经完成的人工全额退款，不代为转账；仅manual原凭证。`query_refund`只发GET：先持久化包含原退款单号的refund_query_started，再网络I/O，返回后重查管理员。成功调用record_refund原子写凭证与成功审计；未知/中止/冲突和非成功各写终态，不撤回或恢复权益。进程中断可能只剩started，60秒后进入未知待核查；无自动退款/轮询/退款回调。
+
+`download_url`在耗时快照校验前查退款，之后锁单再查，才签发绑定order_no的v2短链。`serve_download`拒绝旧格式，验签后核对订单状态、冻结key/hash/size及退款，文件校验后再查一次退款；响应no-store。链接仍是可转交的短时bearer；退款提交后新授权拒绝，但已接纳传输/已下载副本无法召回。order_status/order_history返回refunded而不篡改原支付status；ledger同时展示收款与退款，事件分页不影响独立退款凭证。

@@ -11,6 +11,7 @@ const ST = {
   landing: document.getElementById("st-landing"),
   pending: document.getElementById("st-pending"),
   paid: document.getElementById("st-paid"),
+  refunded: document.getElementById("st-refunded"),
   closed: document.getElementById("st-closed"),
   downloaded: document.getElementById("st-downloaded"),
 };
@@ -31,6 +32,7 @@ function show(name) {
 // 下载仍由用户主动点按钮触发，避免轮询反复申请链接或跳转页面。
 function render(o) {
   currentNo = o.order_no;
+  if (o.refunded) { show("refunded"); return; }
   if (o.status === "pending") {
     show("pending");
     document.getElementById("p-no").textContent = o.order_no;
@@ -205,7 +207,7 @@ async function loadHistory(more = false) {
     const labels = { pending: "待付款", paid: "可下载", downloaded: "可重新下载", closed: "已关闭" };
     for (const order of data.orders) {
       const button = document.createElement("button"); button.type = "button";
-      button.textContent = `${order.order_no} · ${labels[order.status] || order.status}`;
+      button.textContent = `${order.order_no} · ${order.refunded ? "已全额退款（不可下载）" : labels[order.status] || order.status}`;
       button.onclick = () => { ++buySeq; stop(); render(order); };
       box.appendChild(button);
     }

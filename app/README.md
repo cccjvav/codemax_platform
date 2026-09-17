@@ -106,22 +106,23 @@ pending → closed → paid
 | [`app/config.py`](config.py) | `1e150dc23bfd` | L1–L138 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `aff882f475eb` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `2c5f3a7c5c75` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `ccd8d213c81e` | L1–L248 |
+| [`app/models.py`](models.py) | `5f6865df0c6b` | L1–L277 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
-| [`app/payment_ledger.py`](payment_ledger.py) | `94135a287c59` | L1–L83 |
-| [`app/payment_review.py`](payment_review.py) | `589649ad9ced` | L1–L111 |
+| [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
+| [`app/payment_review.py`](payment_review.py) | `9161e75b4183` | L1–L116 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
+| [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
-| [`app/storage.py`](storage.py) | `edc0b127e612` | L1–L119 |
+| [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `0fcc1c54d35c` | L1–L392 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `4f9a8824e60c` | L1–L434 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -161,3 +162,13 @@ Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提
 ## 第五批：payment_review.py的只读复核投影
 
 review_payload把动作/资料摘要/上轮版本/最多160字说明编码为500字符内的v1 JSON，decode_review检查格式与原发起人，坏记录不当完成。overdue_start严格按同单同attempt对应预付/查单结束种类并等待60秒；review_candidates只是SQL候选条件，不是最终状态。review_states对最多50单做四次批量读取：非复核事件count/max/异常数、孤立开始数、最新复核、凭证ID，再计算包含订单状态/流水的SHA256摘要。count不可省，序列号不是提交顺序；旧close只有匹配当前资料才呈现reviewed，其他新进展重新待办。它不写库、调渠道或改变收入/权益，也不是资金问题结案。
+
+## 第六批：refunds.py与退款证据
+
+`RefundReceipt`不是申请状态，而是单笔全额退款成功凭证；订单与原PaymentReceipt各唯一，来源/退款ID唯一，来源/原商户/商户退款号唯一。金额是合同退款金额，不是微信实际现金退款额、净结算额或手续费会计分录。0011的真实PG触发器还核验原单/收款的归属、渠道、金额和时间，并禁止改写/删除；ORM建表只有列级/唯一约束，不能证明触发器。
+
+`refund_for(db, order_id)`每次发SELECT查退款事实，不依赖旧ORM关系缓存。`original_receipt`要求真实manual/wechat且付款凭证与冻结合同一致，拒绝mock/无凭证历史单。`record_refund`由调用方传渠道已验签结果或实际人工证据，调用方锁住并重查管理员；它锁订单、检查全额/成功时间/归属，把凭证和审计一起commit，异常rollback。精确重复不覆盖第一人/依据/收到时间；查询重试仍追加本次终态事件。保留paid/downloaded与原付款时间，所以迟到付款通知仍可幂等，但下载门禁另读退款表，不会恢复退款权益。
+
+`query_full_refund`复用有界HTTPS/平台应答验签，只GET普通商户退款查询；绑定原商户配置、商户订单号、原交易号、商户退款号、ORIGINAL、CNY和整数全额；SUCCESS必须有带时区时间。RefundResult只是内部验证后的观察，非SUCCESS不生成退款凭证。详见[操作与边界](../docs/PAYMENTS_ADMIN_GUIDE.md)。
+
+付款/退款时间写入前统一UTC，避免SQLite丢失偏移后同一+02/+08证据重试冲突；PG亦保持一致。成功时间不早于已知原付款时间，最多容忍服务端当前时间之后五分钟的时钟偏差。已有SQLite错误偏移数据不能凭空推断原时区，需受控核账；生产目标是PostgreSQL。

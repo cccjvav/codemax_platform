@@ -18,7 +18,7 @@
 <div class="finance">
 <h1>订单与收款管理</h1>
 <p>核对原订单，再采取操作。仅管理员可读取数据；本页不发起真实扣款、关单或退款。</p>
-<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；退款处理和定制服务里程碑仍未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
+<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款、发起退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
 <p id="finance-access" role="status">正在确认登录权限…</p>
 <button id="finance-login" type="button">管理员登录</button>
 <p id="finance-message" role="status" aria-live="polite"></p>
@@ -39,6 +39,7 @@
 <p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
 <h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
+<h3>成功退款凭证（原收款保留）</h3><pre id="finance-refund-receipt"></pre>
 <h3>人工复核进度（不改变资金和权益）</h3><pre id="finance-review-status"></pre>
 <div id="finance-operations" hidden>
 <label>手动输入本次操作的完整订单号<input id="finance-confirm-no" maxlength="32" autocomplete="off"></label>
@@ -58,6 +59,18 @@
 <form id="finance-query" hidden>
 <h3>微信主动查单</h3><p>向已配置商户发起只读查询；仅经验证的 SUCCESS 才补记收款。超时请先刷新记录，不要重新创建订单。</p>
 <button id="finance-query-submit" type="submit">核查这个原订单</button>
+</form>
+<form id="finance-refund-query" hidden>
+<h3>核验已办理的微信全额原路退款</h3><p>先在原渠道办理并取得商户退款单号，再在这里查询。依据使用上方字段，3–160字。仅发GET，不发送退款申请；PROCESSING/ABNORMAL/CLOSED不是退款成功。建议至少间隔一分钟查询，不自动轮询。</p>
+<label>原商户退款单号<input id="finance-refund-no" required maxlength="64" autocomplete="off"></label>
+<button id="finance-refund-query-submit" type="submit">查询并核验全额退款</button>
+</form>
+<form id="finance-refund-manual" hidden>
+<h3>记录已完成的人工全额退款</h3><p>仅原人工收款凭证可用；先实际退回并核实渠道记录，不能只看客户截图。依据3–160字，保存不可覆盖；不能恢复已下载副本。</p>
+<label>真实退款流水（不是收款流水）<input id="finance-refund-reference" required maxlength="64" autocomplete="off"></label>
+<label>实际全额退款（分）<input id="finance-refund-amount" required type="number" min="1" step="1"></label>
+<label>实际成功时间，含时区（例如 2026-09-17T15:00:00+02:00）<input id="finance-refund-time" required maxlength="40" autocomplete="off"></label>
+<button id="finance-refund-manual-submit" type="submit">确认已核实全额退款成功</button>
 </form>
 <form id="finance-binding" hidden>
 <h3>一次性绑定历史合同</h3><p>只填写经你核实的原交付文件，不可猜用当前商品。绑定后不可改写；已付历史单不新增收入凭证。</p>

@@ -19,7 +19,7 @@ from ..database import get_db
 from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..payment_ledger import PaymentConflict, lock_order, settle
-from ..payment_review import REVIEW_KIND, review_candidates, review_payload, review_states
+from ..payment_review import ISSUES, REVIEW_KIND, review_candidates, review_payload, review_states
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_order
@@ -60,7 +60,7 @@ async def orders(response: Response, bucket: Literal['all', 'manual', 'wechat', 
         query = query.where(Order.payment_mode.is_(None))
     elif bucket == 'issues':
         query = query.where(exists(select(PaymentEvent.id).where(PaymentEvent.order_id == Order.id,
-                            PaymentEvent.kind.in_(('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund')))))
+                            PaymentEvent.kind.in_(ISSUES))))
     if order_no is not None:
         query = query.where(Order.order_no == order_no)
     if bucket not in ('needs_review', 'reviewed'):

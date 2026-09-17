@@ -196,7 +196,7 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise S
 
 ## 第三批追加验收
 
-下单前准备小于等于512MiB的本地真实文件。付款后覆盖原文件或改STORAGE_PRODUCT_KEY，重领链接仍须得到原字节。不要删`.snapshots`；模拟损坏只对独立测试快照操作，期望拒绝并保留权益，恢复相同字节再成功。旧库先0010迁移，历史未绑定订单不能自动取当前商品；管理员核实旧合同后绑定一次，过程见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。
+下单前准备小于等于512MiB的本地真实文件。付款后覆盖原文件或改STORAGE_PRODUCT_KEY，重领链接仍须得到原字节。不要删`.snapshots`；模拟损坏只对独立测试快照操作，期望拒绝并保留权益，恢复相同字节再成功。旧库须迁移到当前0011（含0010合同升级），历史未绑定订单不能自动取当前商品；管理员核实旧合同后绑定一次，过程见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。
 
 SQLite自动测试采用临时文件/独立连接，不再共享单连接来模拟并发。PG测试还运行实际SQL约束与触发器；独立数据库和storage的恢复、浏览器及真实商户仍需另验。
 

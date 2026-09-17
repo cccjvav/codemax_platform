@@ -19,7 +19,7 @@ from app.models import Order, User
 from app.storage import LocalStorage, StorageError, build_storage, sign_download, verify_download
 
 # product fixture 与商品常量已上移到 conftest（test_shop_page.py 也要用）
-from tests.conftest import PRODUCT_BYTES, PRODUCT_KEY, TestSession
+from tests.conftest import PRODUCT_BYTES, TestSession
 
 _seq = 0
 
@@ -155,9 +155,10 @@ async def test_download_streams_instead_of_reading_whole_file(client, product, m
 
     monkeypatch.setattr(LocalStorage, "read", spy)
 
-    expires = int(time.time()) + 300
-    sig = sign_download(settings.SECRET_KEY, PRODUCT_KEY, expires)
-    r = await client.get(f"/shop/dl?key={PRODUCT_KEY}&expires={expires}&signature={sig}")
+    h = await auth_headers(client)
+    number = await make_order("paid")
+    url = (await client.post(f"/shop/download/{number}", headers=h)).json()["download_url"]
+    r = await client.get(path_of(url))
 
     assert r.status_code == 200
     assert r.content == PRODUCT_BYTES  # 内容必须一字不差
@@ -175,9 +176,13 @@ async def test_signed_url_for_missing_file_returns_404(client, product):
     文件不存在会在**响应阶段**才炸，那已经不是 HTTPException 能兜住的位置了。
     所以端点要先自己判存在。
     """
-    expires = int(time.time()) + 300
-    sig = sign_download(settings.SECRET_KEY, "product/gone.zip", expires)
-    r = await client.get(f"/shop/dl?key=product/gone.zip&expires={expires}&signature={sig}")
+    h = await auth_headers(client)
+    number = await make_order("paid")
+    url = (await client.post(f"/shop/download/{number}", headers=h)).json()["download_url"]
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == number))
+        product.joinpath(order.delivery_key).unlink()
+    r = await client.get(path_of(url))
     assert r.status_code == 404
 
 
@@ -190,18 +195,24 @@ async def test_tampered_signature_rejected(client, product):
 
 
 async def test_expired_url_rejected(client, product):
+    number = await make_order("paid")
+    async with TestSession() as db:
+        key = await db.scalar(select(Order.delivery_key).where(Order.order_no == number))
     expires = int(time.time()) - 1
-    sig = sign_download(settings.SECRET_KEY, PRODUCT_KEY, expires)
-    r = await client.get(f"/shop/dl?key={PRODUCT_KEY}&expires={expires}&signature={sig}")
+    sig = sign_download(settings.SECRET_KEY, key, expires, order_no=number)
+    r = await client.get("/shop/dl", params={"order_no": number, "key": key, "expires": expires, "signature": sig})
     assert r.status_code == 403
 
 
 async def test_signature_is_bound_to_key(client, product):
     """拿 A 文件的合法签名去下 B 文件必须失败 —— 否则一个链接就能遍历整个桶。"""
     LocalStorage(str(product), "http://test", settings.SECRET_KEY).put("product/other.zip", b"secret")
+    number = await make_order("paid")
+    async with TestSession() as db:
+        key = await db.scalar(select(Order.delivery_key).where(Order.order_no == number))
     expires = int(time.time()) + 300
-    sig = sign_download(settings.SECRET_KEY, PRODUCT_KEY, expires)
-    r = await client.get(f"/shop/dl?key=product/other.zip&expires={expires}&signature={sig}")
+    sig = sign_download(settings.SECRET_KEY, key, expires, order_no=number)
+    r = await client.get("/shop/dl", params={"order_no": number, "key": "product/other.zip", "expires": expires, "signature": sig})
     assert r.status_code == 403
 
 

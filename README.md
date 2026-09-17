@@ -225,7 +225,7 @@ start docs\site\index.html
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `ae5824d81626` | L1–L39 |
-| [`main.py`](main.py) | `9c2c07c1a34d` | L1–L70 |
+| [`main.py`](main.py) | `54426e16426b` | L1–L84 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
@@ -249,3 +249,7 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 只刷新指纹不是语义审查；评审时必须核对人工说明。
 
 管理员页面：`/admin/payments`；[操作、失败处理和验收](docs/PAYMENTS_ADMIN_GUIDE.md)。只读订单发现/凭证历史，显式人工核账、旧单绑定与验签查单；不是扣款/退款入口。
+
+## 第六批资金/交付更新
+
+已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。需0011增量迁移；旧下载链接失效但未退款用户可以重领。没有发起退款、部分退款、定制服务取消或真实商户上线验收承诺。

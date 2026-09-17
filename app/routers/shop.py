@@ -19,7 +19,7 @@ from ..database import get_db, lock_user
 from ..delivery import snapshot_product, verify_snapshot
 from ..deps import get_current_user, require_admin, require_finance_origin
 from ..middleware import public_base_url
-from ..models import Order, PaymentEvent, PaymentReceipt, User
+from ..models import Order, PaymentEvent, PaymentReceipt, RefundReceipt, User
 from ..order_state import (
     CLOSED,
     DOWNLOADED,
@@ -33,6 +33,7 @@ from ..order_state import (
 from ..payment_ledger import PaymentConflict, lock_order, settle
 from ..payment_review import review_states
 from ..ratelimit import rate_limit
+from ..refunds import refund_for
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
@@ -215,6 +216,7 @@ async def order_status(
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")
     payload = _payload(order, reused=False, pay_mode=settings.SHOP_PAY_MODE)
+    payload["refunded"] = await refund_for(db, order.id) is not None
     payload["expired"] = is_expired(order, settings.ORDER_EXPIRE_MINUTES)
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
 
@@ -356,7 +358,8 @@ async def order_history(before: int | None = Query(None, gt=0), user: User = Dep
     if before is not None:
         stmt = stmt.where(Order.id < before)
     rows = list((await db.scalars(stmt.order_by(Order.id.desc()).limit(50))).all())
-    return {"orders": [_payload(r, reused=True, pay_mode=settings.SHOP_PAY_MODE) for r in rows],
+    refunded = set((await db.scalars(select(RefundReceipt.order_id).where(RefundReceipt.order_id.in_([r.id for r in rows])))).all())
+    return {"orders": [{**_payload(r, reused=True, pay_mode=settings.SHOP_PAY_MODE), "refunded": r.id in refunded} for r in rows],
             "next_cursor": rows[-1].id if len(rows) == 50 else None}
 
 
@@ -376,6 +379,8 @@ async def download_url(
         raise HTTPException(403, "订单未支付")
     if order.status not in (PAID, DOWNLOADED):
         raise HTTPException(409, "订单状态不支持下载，请联系站内客服")
+    if await refund_for(db, order.id) is not None:
+        raise HTTPException(403, "订单已全额退款，不能再领取下载链接")
     key = order.delivery_key
     if not key or not order.delivery_digest or order.delivery_size is None:
         raise HTTPException(409, "历史交付对象未核准，请联系站内客服；购买权益未删除")
@@ -383,26 +388,39 @@ async def download_url(
         raise HTTPException(404, f"商品文件不存在（对象 key：{key}）")
     if not await run_in_threadpool(verify_snapshot, storage, key, order.delivery_digest, order.delivery_size):
         raise HTTPException(409, "交付快照损坏，需从备份恢复；购买权益未删除")
-    url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL)
+    await lock_order(db, order)
+    if await refund_for(db, order.id) is not None:
+        raise HTTPException(403, "订单已全额退款，不能再领取下载链接")
+    url = storage.presigned_url(key, expires_in=settings.DOWNLOAD_URL_TTL, order_no=order.order_no)
     try:
         await mark_downloaded(db, order)  # idempotent; not winning CAS no longer destroys paid rights
     except IllegalTransition as e:
         raise HTTPException(409, str(e)) from e
+    await db.commit()  # mark_downloaded is a no-op for previously issued orders; release its grant lock too.
     return {"order_no": order.order_no, "download_url": url,
             "expires_in": settings.DOWNLOAD_URL_TTL, "status": order.status}
 
 
 @router.get("/dl", include_in_schema=False)
-async def serve_download(request: Request, key: str, expires: int, signature: str):
-    """本地后端的下载出口。**第二重校验：预签名 URL 的签名与过期时间**。
+async def serve_download(request: Request, key: str, expires: int, signature: str,
+                         order_no: str | None = Query(None, max_length=32, pattern=r'^[A-Za-z0-9_-]+$'),
+                         db: AsyncSession = Depends(get_db)):
+    """本地下载出口：订单域签名、期限、冻结对象和实时退款凭证必须一起验证。
 
-    云存储后端不需要这个端点（客户端直连对象存储），所以非 local 后端一律 404。
+    拒绝旧格式但保留未退款用户重领权；不撤回已接纳的传输或已下载副本。
+    当前仅local实现；未来云后端不能用绕过权益检查的直连链接代替。
     """
     storage = _storage(request)
     if storage.backend != "local":
         raise HTTPException(404, "当前存储后端由客户端直连下载，不经过本站")
-    if not verify_download(settings.SECRET_KEY, key, expires, signature):
+    if order_no is None:
+        raise HTTPException(403, "旧下载链接已停用，请从订单记录重新领取；未退款购买权益保留")
+    if not verify_download(settings.SECRET_KEY, key, expires, signature, order_no=order_no):
         raise HTTPException(403, "下载链接无效或已过期")
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if (order is None or order.status not in (PAID, DOWNLOADED) or order.delivery_key != key
+            or await refund_for(db, order.id) is not None):
+        raise HTTPException(403, "订单下载权益不可用（未付款或已全额退款）")
     # P1-6：不再 `storage.read(key)` 把整个文件读进内存 —— 一个 500MB 的软件包就是
     # 500MB 常驻，几个用户同时下载就 OOM。改成把**已校验过目录穿越**的路径交给
     # FileResponse，由 starlette 分块读盘、边读边发，Content-Length 也自动算对。
@@ -416,12 +434,15 @@ async def serve_download(request: Request, key: str, expires: int, signature: st
     # 由 test_signed_url_for_missing_file_returns_404 守着。
     if not path.is_file():
         raise HTTPException(404, "文件不存在")
-    if key.startswith('.snapshots/'):
-        parts = key.split('/')
-        if len(parts) != 3 or not await run_in_threadpool(verify_snapshot, storage, key, parts[1], path.stat().st_size):
-            raise HTTPException(409, "交付快照完整性校验失败")
+    if not order.delivery_digest or order.delivery_size is None or not await run_in_threadpool(
+            verify_snapshot, storage, key, order.delivery_digest, order.delivery_size):
+        raise HTTPException(409, "交付快照完整性校验失败")
+    # Hashing may take time: re-read revocation after I/O. Already accepted streams/copies cannot be recalled.
+    if await refund_for(db, order.id) is not None:
+        raise HTTPException(403, "订单已全额退款，下载权益已停止")
     return FileResponse(
-        path, media_type="application/octet-stream", filename=Path(key).name
+        path, media_type="application/octet-stream", filename=Path(key).name,
+        headers={"Cache-Control": "private, no-store", "Referrer-Policy": "no-referrer"}
     )
 
 
@@ -632,7 +653,11 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
         query = query.where(PaymentEvent.id < before)
     events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
     review = (await review_states(db, [order]))[order.id]
+    refund = await refund_for(db, order.id)
     return {'order_no': order.order_no, 'review': review,
+            'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
+                        'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
+                        'received_at': refund.received_at, 'actor': refund.actor_name, 'evidence': refund.evidence} if refund else None),
             'order': {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
                       'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
                       'merchant_id': order.merchant_id, 'app_id': order.app_id,

@@ -12,3 +12,5 @@
 第四批资金管理实施与验收采用[统一报告](../../review/RELEASE_BLOCKERS_PHASE4.md)，不新建竞争状态页。
 
 第五批复核的范围、证据和未结项统一见[报告](../../review/RELEASE_BLOCKERS_PHASE5.md)，不另建竞争状态页。
+
+- 第六批[退款证据与订单下载权益](../../review/RELEASE_BLOCKERS_PHASE6.md)：实施/验证/未决事项集中该报告，不另复制状态。

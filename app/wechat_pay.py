@@ -390,3 +390,45 @@ async def query_order(cfg: PayConfig, *, out_trade_no: str, total: int, transpor
     except ValueError:
         raise WeChatPayError('成功查单时间无效') from None
     return QueryResult(state, transaction_id, paid_at)
+
+
+@dataclass(frozen=True)
+class RefundResult:
+    state: str
+    refund_id: str
+    completed_at: datetime | None = None
+
+
+async def query_full_refund(cfg: PayConfig, *, out_refund_no: str, out_trade_no: str,
+                            transaction_id: str, total: int, transport=None) -> RefundResult:
+    """Verified ordinary-merchant GET only. Full ORIGINAL CNY refund, never a refund request.
+
+    The merchant-scoped authenticated request and original receipt identify the merchant/app;
+    this API does not return appid/mchid. A transaction REFUND observation is not this proof.
+    """
+    if not re.fullmatch(r'[A-Za-z0-9_\-|*@]{1,64}', out_refund_no):
+        raise WeChatPayError('商户退款单号格式无效')
+    data = await _request_json(cfg, 'GET', '/v3/refund/domestic/refunds/' + quote(out_refund_no, safe=''),
+                               transport=transport)
+    amount = data.get('amount')
+    if (data.get('out_refund_no') != out_refund_no or data.get('out_trade_no') != out_trade_no
+            or data.get('transaction_id') != transaction_id or data.get('channel') != 'ORIGINAL'
+            or not isinstance(amount, dict) or type(amount.get('total')) is not int
+            or type(amount.get('refund')) is not int or total <= 0
+            or amount['total'] != total or amount['refund'] != total or amount.get('currency') != 'CNY'):
+        raise WeChatPayError('退款身份、全额金额、币种或原路渠道不匹配；本入口不处理部分退款')
+    state, refund_id = data.get('status'), data.get('refund_id')
+    if state not in ('SUCCESS', 'CLOSED', 'PROCESSING', 'ABNORMAL') or not isinstance(refund_id, str) or not re.fullmatch(r'[0-9]{1,32}', refund_id):
+        raise WeChatPayError('退款状态或渠道退款号无效')
+    completed_at = None
+    if state == 'SUCCESS':
+        try:
+            value = data.get('success_time')
+            if not isinstance(value, str) or len(value) > 40:
+                raise ValueError('time')
+            completed_at = datetime.fromisoformat(value)
+            if completed_at.tzinfo is None:
+                raise ValueError('timezone')
+        except ValueError:
+            raise WeChatPayError('退款成功时间缺失或无时区') from None
+    return RefundResult(state, refund_id, completed_at)

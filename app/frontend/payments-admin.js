@@ -6,7 +6,7 @@
   let controller = new AbortController(), selected = null, contract = null;
   let listFilter = null;
   let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
-  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source"];
+  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
   const message = (text) => { el("message").textContent = text; };
@@ -16,11 +16,11 @@
     review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
     viewSeq++; selected = null; contract = null; busy = false; eventCursor = null;
     for (const id of inputs.filter((x) => x !== "order-no")) el(id).value = "";
-    for (const id of ["contract", "receipt"]) el(id).textContent = "";
+    for (const id of ["contract", "receipt", "refund-receipt"]) el(id).textContent = "";
     el("title").textContent = "请选择订单"; el("events").replaceChildren();
     el("operations").hidden = true; el("older").hidden = true;
     el("refresh").disabled = true;
-    for (const id of ["manual", "query", "binding", "review"]) el(`${id}-submit`).disabled = false;
+    for (const id of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${id}-submit`).disabled = false;
   }
   function reset(next) {
     epoch++; listSeq++; controller.abort(); controller = new AbortController();
@@ -87,10 +87,14 @@
       el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${contract.status} / ${contract.payment_mode}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;
       const receipt = data.receipt;
       el("receipt").textContent = receipt ? `来源：${receipt.source}\n流水：${receipt.reference}\n金额：${money(receipt.amount)} ${receipt.currency}\n确认/核查发起人：${receipt.actor || "自动回调"}\n依据：${receipt.evidence || "渠道验签"}\n渠道付款时间：${receipt.paid_at || "未提供"}\n本地入账时间：${receipt.received_at}` : "没有收款凭证（不等于没有付款；已付历史单不得伪造收入）。";
+      const refund = data.refund;
+      el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录人：${refund.actor}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
+      el("refund-query").hidden = !receipt || receipt.source !== "wechat";
+      el("refund-manual").hidden = !receipt || receipt.source !== "manual" || !!refund;
       el("manual").hidden = !(data.actions.manual && contract.payment_mode === "manual" && !receipt && ["pending", "closed"].includes(contract.status));
       el("query").hidden = contract.payment_mode !== "wechat";
       el("binding").hidden = contract.payment_mode !== "legacy";
-      el("operations").hidden = ["manual", "query", "binding", "review"].every((x) => el(x).hidden);
+      el("operations").hidden = ["manual", "query", "binding", "review", "refund-query", "refund-manual"].every((x) => el(x).hidden);
       el("events").replaceChildren();
       for (const event of data.events) {
         const li = document.createElement("li");
@@ -126,6 +130,26 @@
       if (!body.source_key) { message("请核实并填写原交付文件路径。"); return; }
       summary = `永久绑定渠道 ${body.payment_mode} 与原文件 ${body.source_key}；不可改写。是否已核实？`;
     }
+    if (kind === "refund-query" || kind === "refund-manual") {
+      if (evidence.length > 160) { message("退款核验依据须为3–160字。"); return; }
+      body.confirm_order_no = number;
+      if (kind === "refund-query") {
+        body.out_refund_no = el("refund-no").value.trim();
+        if (!/^[A-Za-z0-9_\-|*@]{1,64}$/.test(body.out_refund_no)) { message("请填写原渠道的商户退款单号。"); return; }
+        url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/query`;
+        summary = "只查询既有全额原路退款；成功凭证入库后，此订单旧/新链接均停止下载。不会发起退款。是否继续？";
+      } else {
+        body.amount = Number(el("refund-amount").value); body.reference = el("refund-reference").value.trim();
+        body.completed_at = el("refund-time").value.trim();
+        if (!Number.isSafeInteger(body.amount) || body.amount !== contract.amount || body.amount <= 0 ||
+            !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(body.reference) ||
+            !/(Z|[+-]\d{2}:\d{2})$/.test(body.completed_at) || !Number.isFinite(Date.parse(body.completed_at))) {
+          message("填写实际全额退款分数、真实退款流水及带时区的成功时间；不是收款流水或退款申请时间。"); return;
+        }
+        url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/manual`;
+        summary = `已在真实记录核实全额退款 ${money(body.amount)}，退款流水 ${body.reference}？保存不可覆盖，会停止此订单后续下载。`;
+      }
+    }
     if (kind === "review") {
       if (!review || evidence.length > 160) { message("复核说明须为3–160字，请先刷新进度。"); return; }
       const action = el("review-action").value;
@@ -141,7 +165,7 @@
     if (!window.confirm(`订单 ${number} / 客户ID ${contract.user_id}\n${summary}`)) return;
     if (kind === "review") pendingReview = body;
     busy = true;
-    for (const name of ["manual", "query", "binding", "review"]) el(`${name}-submit`).disabled = true;
+    for (const name of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${name}-submit`).disabled = true;
     let resultText;
     try {
       const result = await request(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
@@ -154,7 +178,7 @@
     } finally {
       if (alive(stamp, view)) {
         busy = false;
-        for (const name of ["manual", "query", "binding", "review"]) el(`${name}-submit`).disabled = false;
+        for (const name of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${name}-submit`).disabled = false;
         message(resultText || "请核对记录");
         await detail(); // preserves entered proof on failure; no automatic mutation retries
       }
@@ -165,7 +189,7 @@
   el("next").onclick = () => list(true);
   el("refresh").onclick = () => detail();
   el("older").onclick = () => detail(true);
-  for (const kind of ["manual", "query", "binding", "review"]) el(kind).onsubmit = (event) => operate(kind, event);
+  for (const kind of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(kind).onsubmit = (event) => operate(kind, event);
   auth.onChange((next) => { reset(next); if (user) list(); });
   reset(auth.user); if (user) list();
 })();

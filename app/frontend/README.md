@@ -53,8 +53,8 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `722f5f6697d8` | L1–L171 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `e595c6742dfe` | L1–L234 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `ffc056e64819` | L1–L195 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -79,3 +79,7 @@ reset/clearDetail递增会话与详情序号，清私人数据/输入、abort旧
 ## 第五批：复核与游标上下文
 
 payments-admin.detail显示复核状态/操作人/说明，按新资料重新待办；operate的review分支要求共同手输单号和160字内说明，带资料摘要/版本/稳定请求ID。5xx或丢响应保留原请求，4xx或读到本请求已提交则允许重新核对，旧账号响应仍丢弃。nonce只是幂等标识，不是认证秘密，现代crypto.randomUUID优先，旧开发上下文使用随机降级并由数据库唯一约束兜底。list的游标绑定筛选参数，改变范围不复用旧游标；空页有游标显示继续提示。没有自动复核/后台轮询；保存后需刷新左侧清单。
+
+## 第六批：退款与原付款分开展示
+
+payments-admin把退款查询/人工已退款登记纳入原有账号、详情代次和busy保护。独立字段存原商户退款号或人工退款流水/金额/带时区成功时间，确认弹窗明确不发起退款；来源从原收款凭证决定，已退款人工表单隐藏。失败保留原字段，先刷新记录再按原流水/时间重试，不另造退款号；切换账户清空字段和退款证据。所有证据用textContent，不插HTML。shop-page先看refunded展示停止下载说明；paid/downloaded仍是历史付款/领链状态。Node VM测试源码和提交bundle，不代表浏览器实机验收。

@@ -123,7 +123,7 @@ def test_failed_migration_rolls_back_ddl_and_journal(maintenance_db, tmp_path, m
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / 'migrate_0011_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;')
+    (tmp_path / 'migrate_0012_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     with pytest.raises(psycopg2.Error):
         db_admin.migrate(conn)
@@ -205,7 +205,7 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / 'migrate_0011_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);')
+    (tmp_path / 'migrate_0012_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     db_admin.migrate(conn)
     db_admin.migrate(conn)
@@ -215,7 +215,7 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
 
 def legacy_0008(conn):
     """Remove post-0008 structures to exercise adoption against a real historical column set."""
-    rows(conn, 'DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
+    rows(conn, 'DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
                'DROP FUNCTION codemax_freeze_order_contract() CASCADE; '
                'DROP FUNCTION codemax_append_only_evidence() CASCADE')
     for column in ('payment_mode', 'merchant_id', 'app_id', 'currency', 'delivery_key', 'delivery_digest', 'delivery_size'):

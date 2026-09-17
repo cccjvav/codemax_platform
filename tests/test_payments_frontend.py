@@ -38,7 +38,20 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario==='permissions'){
+if(scenario==='refund-manual' || scenario==='refund-query'){
+ paid=true; const mode=scenario==='refund-query'?'wechat':'manual';
+ impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.receipt.source=mode;d.order.payment_mode=mode;return d};
+ start();await tick();await clickOrder();input();
+ el('refund-reference').value='BANK-REFUND';el('refund-amount').value='19900';el('refund-time').value='2026-09-17T13:00:00+02:00';el('refund-no').value='REFUND1';
+ accept=false;await el(scenario).onsubmit({preventDefault(){}});const cancelled=posts().length;accept=true;
+ await el(scenario).onsubmit({preventDefault(){}});
+ const first=posts()[0];auth.listener(null);await tick();
+ console.log(JSON.stringify({cancelled,url:first.url,body:JSON.parse(first.options.body),cleared:el('refund-reference').value===''&&el('refund-time').value===''&&el('refund-receipt').textContent==='',hidden:el('workspace').hidden}));
+}else if(scenario==='refund-display'){
+ paid=true;impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.refund={source:'manual',refund_id:'REFUND1',out_refund_no:'BANK1',amount:19900,currency:'CNY',completed_at:'TIME',received_at:'LOCAL',actor:'FIRST',evidence:'<script>REFUND</script>'};return d};
+ start();await tick();await clickOrder();
+ console.log(JSON.stringify({posts:posts().length,hidden:el('refund-manual').hidden,receipt:el('refund-receipt').textContent}));
+}else if(scenario==='permissions'){
  auth.user={username:'ordinary',role:0};start();await tick();
  console.log(JSON.stringify({requests:requests.length,hidden:el('workspace').hidden,empty:el('list').children.length===0}));
 }else if(scenario==='list-account-race'){
@@ -170,3 +183,23 @@ def test_html_patterns_use_browser_unicode_sets():
     result = subprocess.run(['node', '-e', script, json.dumps(patterns)], text=True, capture_output=True,
                             check=True, timeout=20)
     assert json.loads(result.stdout) == [True, False, True, False]
+
+
+@pytest.mark.parametrize('file', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['refund-manual', 'refund-query', 'refund-display'])
+def test_refund_controls_in_actual_source_and_bundle(file, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / file), scenario], text=True, capture_output=True,
+                            check=True, timeout=20)
+    data = json.loads(result.stdout)
+    if scenario == 'refund-display':
+        assert data['posts'] == 0 and data['hidden']
+        assert '<script>REFUND</script>' in data['receipt'] and 'FIRST' in data['receipt']
+    else:
+        assert data['cancelled'] == 0 and data['cleared'] and data['hidden']
+        assert data['url'].endswith('/refunds/' + ('query' if scenario == 'refund-query' else 'manual'))
+        assert data['body']['confirm_order_no'] == 'ORDER1'
+        if scenario == 'refund-query':
+            assert data['body']['out_refund_no'] == 'REFUND1' and 'amount' not in data['body']
+        else:
+            assert data['body']['reference'] == 'BANK-REFUND' and data['body']['amount'] == 19900
+            assert data['body']['completed_at'] == '2026-09-17T13:00:00+02:00'

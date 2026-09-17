@@ -13,10 +13,11 @@ from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from .models import Order, PaymentEvent, PaymentReceipt
+from .models import Order, PaymentEvent, PaymentReceipt, RefundReceipt
 
 REVIEW_KIND = 'operator_review'
-ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted')
+ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
+          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60
 
@@ -57,8 +58,11 @@ def overdue_start(now: datetime):
         completed.order_id == PaymentEvent.order_id, completed.attempt_id == PaymentEvent.attempt_id,
         or_(and_(PaymentEvent.kind == 'prepay_started', completed.kind.in_(('prepay_ready', 'prepay_unknown'))),
             and_(PaymentEvent.kind == 'query_started', completed.kind.in_(
-                ('query_success', 'query_unknown', 'query_aborted', 'query_notpay', 'query_closed', 'query_refund', 'query_conflict'))))))
-    return and_(PaymentEvent.kind.in_(('prepay_started', 'query_started')),
+                ('query_success', 'query_unknown', 'query_aborted', 'query_notpay', 'query_closed', 'query_refund', 'query_conflict'))),
+            and_(PaymentEvent.kind == 'refund_query_started', completed.kind.in_(
+                ('refund_query_success', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
+                 'refund_query_processing', 'refund_query_closed', 'refund_query_abnormal'))))))
+    return and_(PaymentEvent.kind.in_(('prepay_started', 'query_started', 'refund_query_started')),
                 PaymentEvent.create_time <= now - timedelta(seconds=ORPHAN_GRACE_SECONDS), ~terminal)
 
 
@@ -89,8 +93,9 @@ async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime 
     latest = select(func.max(PaymentEvent.id)).where(PaymentEvent.order_id.in_(ids), PaymentEvent.kind == REVIEW_KIND)
     reviews = {e.order_id: e for e in (await db.scalars(select(PaymentEvent)
                .where(PaymentEvent.id.in_(latest.group_by(PaymentEvent.order_id))))).all()}
-    receipts = dict((await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id)
-                    .where(PaymentReceipt.order_id.in_(ids)))).all())
+    receipts = {oid: (rid if refund_id is None else [rid, refund_id]) for oid, rid, refund_id in (await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id, RefundReceipt.id)
+                    .outerjoin(RefundReceipt, RefundReceipt.payment_receipt_id == PaymentReceipt.id)
+                    .where(PaymentReceipt.order_id.in_(ids)))).all()}
     result = {}
     for order in orders:
         count, maximum, issues = facts.get(order.id, (0, 0, 0))

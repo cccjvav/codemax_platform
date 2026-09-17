@@ -5,13 +5,14 @@ owns commit/rollback for settlement. Its row lock also works on SQLite through a
 """
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 
 from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .models import Order, PaymentEvent, PaymentReceipt, User
+from .timeutil import as_utc
 
 
 class PaymentConflict(ValueError):
@@ -37,6 +38,7 @@ async def settle(
     DB uniqueness handles same-transaction/different-order races. Cross-mode confirmations and
     already-paid legacy rows without evidence are refused, never silently adopted as real money.
     """
+    paid_at = as_utc(paid_at).astimezone(timezone.utc) if paid_at is not None else None  # SQLite drops offsets; persist UTC on both backends.
     actor_id, actor_name = (actor.id, actor.username) if actor else (None, None)
     try:
         await lock_order(db, order)

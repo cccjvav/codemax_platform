@@ -246,3 +246,32 @@ class PaymentEvent(Base):
         UniqueConstraint("attempt_id", "kind", name="uq_payment_attempt_kind"),
         Index("idx_payment_event_order", "order_id", "id"),
     )
+
+
+class RefundReceipt(Base):
+    """Append-only evidence of ONE completed full refund; observations live in PaymentEvent.
+
+    Original payment/status stays intact. Existence revokes this order's future download grants.
+    No partial refunds, mock refunds, outgoing money API or service cancellation is implied.
+    """
+    __tablename__ = "refund_receipt"
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey("sys_order.id"), unique=True)
+    payment_receipt_id: Mapped[int] = mapped_column(ForeignKey("payment_receipt.id"), unique=True)
+    source: Mapped[str] = mapped_column(String(16))
+    merchant_id: Mapped[str] = mapped_column(String(64))
+    refund_id: Mapped[str] = mapped_column(String(64))
+    out_refund_no: Mapped[str] = mapped_column(String(64))
+    amount: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3))
+    actor_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
+    actor_name: Mapped[str] = mapped_column(String(50))
+    evidence: Mapped[str] = mapped_column(String(500))
+    completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint("source", "refund_id", name="uq_refund_source_id"),
+        UniqueConstraint("source", "merchant_id", "out_refund_no", name="uq_refund_merchant_reference"),
+        CheckConstraint("amount > 0 AND currency = 'CNY'", name="ck_refund_amount_currency"),
+        CheckConstraint("source IN ('wechat', 'manual')", name="ck_refund_source"),
+    )

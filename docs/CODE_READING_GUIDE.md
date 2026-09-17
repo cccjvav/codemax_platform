@@ -363,3 +363,7 @@ Git 已跟踪及未忽略新增文本
 同一工作区的 npm 构建与文档扫描必须串行：Vite 会清空再写静态目录，最初并行扫描遇到暂时缺失的 chunk；改为串行后完整站点通过。这是执行顺序问题，不把那次失败删去或称为应用运行故障。
 
 这些记录在 Linux 沙箱执行，不是 Windows/conda、真实浏览器、桌面 Word、商户或真实模型验收。Vite 大 chunk 提醒与 Passlib 的 crypt 弃用警告仍存在，未用隐藏警告来制造通过。最终提交与其对应 GitHub CI 结果见交付消息；不能用此快照替代未来提交的复验。
+
+### 第六批精读路径：退款不擦掉付款
+
+先读models.RefundReceipt及0011，分清原收款、已完成退款和过程事件；再读refunds.original_receipt/record_refund与refunds_admin两个POST，追踪用户锁、订单锁、网络前started、网络后权限复查和同事务commit。最后沿storage签名→shop领链→公开下载出口阅读：校验订单号和实时退款，不是只检查HMAC。看tests/test_refunds.py中的合成签名、独立观察连接、下载校验期间退款及真实迁移反例；它们不是真实商户/银行凭证。

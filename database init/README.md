@@ -58,7 +58,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
-| [`database init/full_init.sql`](full_init.sql) | `666636ff56c8` | L1–L206 |
+| [`database init/full_init.sql`](full_init.sql) | `9ba8b63cd528` | L1–L250 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -69,6 +69,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | [`database init/migrate_0008_credential_revision.sql`](migrate_0008_credential_revision.sql) | `ad4f7d2d7903` | L1–L6 |
 | [`database init/migrate_0009_retire_demo.sql`](migrate_0009_retire_demo.sql) | `0e673c162089` | L1–L11 |
 | [`database init/migrate_0010_payment_ledger.sql`](migrate_0010_payment_ledger.sql) | `90fb5053ca49` | L1–L75 |
+| [`database init/migrate_0011_refund_receipt.sql`](migrate_0011_refund_receipt.sql) | `2dc409f52cc7` | L1–L44 |
 | [`database init/seed_demo.sql`](seed_demo.sql) | `1efd73f0a51b` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -88,8 +89,14 @@ python "database init/db_init.py" status --confirm-database codemax_db
 
 0009停写并备份数据库及storage后运行 `migrate --confirm-database 实际库名`，不要重跑init。0010保留旧状态/金额/流水，新增支付与交付列留NULL，不自动根据当前.env猜历史合同，不捏造旧收款凭证。新建payment_receipt的订单唯一/来源流水唯一及金额、币种、人工证据CHECK；payment_event记录尝试和核准行为。
 
-PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据库所有者仍可改触发器，不是WORM。纠错/退款要另走追加工作流，不能直接改旧账。新应用会要求账本包含0010。
+PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据库所有者仍可改触发器，不是WORM。纠错/退款要另走追加工作流，不能直接改旧账。该批应用要求0010；当前第六批应用要求完整账本到0011。
 
 旧0008基线列清单已固定，不随新ORM变化；has_transaction_control屏蔽PG引号、dollar函数体和嵌套注释，再检查顶层事务命令，允许函数内BEGIN，拒绝顶层同一行COMMIT。它不负责审计任意SQL，新迁移仍是必须人工审查的可信仓库代码。
 
 历史已付款订单权益保留，首次交付前按[第三批的管理员核准接口](../review/RELEASE_BLOCKERS_PHASE3.md)核对原文件并绑定一次。禁止批量套用当前商品或把未确认旧流水标成真实收入。新库SQL/升级SQL均须由真PG验证触发器，SQLite/ORM建表不是替代证据。
+
+## 0011：成功全额退款凭证
+
+从0010停写、备份数据库与storage后，通过原维护CLI执行migrate并核对status；只在新空库用init。0011创建refund_receipt及原付款归属/全额/时间检查、只追加触发器，不补造任何历史退款。每单及每原付款只支持一笔完整全额退款，不支持多个部分退款拼总额。当前生产启动按完整迁移账本校验到0011；不更改0001–0010旧文件校验和。
+
+应用部署会拒绝旧key-only短链，未退款用户从订单历史重新领取。旧应用不认识退款表，**不得回退运行旧下载代码**，否则绕过撤权；回滚方案必须停发下载并评估数据/应用一致性。DB管理员仍是可信边界，触发器不等于不可篡改审计系统。真实升级/触发器回归在tests/test_refunds.py及原迁移测试中，仅操作可丢弃数据库。

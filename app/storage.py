@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import time
 from pathlib import Path
 from typing import Protocol
@@ -28,29 +29,31 @@ class Storage(Protocol):
 
     def exists(self, key: str) -> bool: ...
 
-    def presigned_url(self, key: str, *, expires_in: int) -> str: ...
+    def presigned_url(self, key: str, *, expires_in: int, order_no: str | None = None) -> str: ...
 
 
-def sign_download(secret: str, key: str, expires: int) -> str:
-    """下载 URL 的签名：`HMAC-SHA256(secret, "<key>\\n<expires>")`。
+def sign_download(secret: str, key: str, expires: int, *, order_no: str | None = None) -> str:
+    """v2以JSON数组签用途域、订单号、key、期限，杜绝跨订单/字段分隔歧义。
 
-    把 key 也签进去，否则拿到一个合法链接就能改 key 去下别的文件。
+    不传order_no仅保留旧工具签名兼容；下载路由明确拒绝所有旧格式链接。
     """
-    return hmac.new(secret.encode(), f"{key}\n{expires}".encode(), hashlib.sha256).hexdigest()
+    payload = f"{key}\n{expires}" if order_no is None else json.dumps(
+        ['codemax-order-download-v2', order_no, key, expires], ensure_ascii=False, separators=(',', ':'))
+    return hmac.new(secret.encode(), payload.encode(), hashlib.sha256).hexdigest()
 
 
-def verify_download(secret: str, key: str, expires: int, signature: str) -> bool:
+def verify_download(secret: str, key: str, expires: int, signature: str, *, order_no: str | None = None) -> bool:
     """校验签名与过期时间。`compare_digest` 防时序侧信道。"""
     if expires < int(time.time()):
         return False
-    return signature.isascii() and hmac.compare_digest(sign_download(secret, key, expires), signature)
+    return signature.isascii() and hmac.compare_digest(sign_download(secret, key, expires, order_no=order_no), signature)
 
 
 class LocalStorage:
     """本地目录后端（开发与答辩演示用）。
 
-    预签名 URL 指向本站 `/shop/dl`，由该端点校验签名后再吐文件；
-    云后端则是客户端直连对象存储，不经过本站。
+    预签名 URL 指向本站 `/shop/dl`，端点验证订单签名与实时退款权益。
+    不传order_no的旧工具链接不可下载；未来云适配也必须有等价撤权能力。
     """
 
     backend = "local"
@@ -96,11 +99,13 @@ class LocalStorage:
         """
         return self._path(key)
 
-    def presigned_url(self, key: str, *, expires_in: int) -> str:
+    def presigned_url(self, key: str, *, expires_in: int, order_no: str | None = None) -> str:
         expires = int(time.time()) + expires_in
-        signature = sign_download(self.secret, key, expires)
+        signature = sign_download(self.secret, key, expires, order_no=order_no)
         return (
-            f"{self.base_url}/shop/dl?key={quote(key)}&expires={expires}&signature={signature}"
+            f"{self.base_url}/shop/dl?key={quote(key)}&expires={expires}"
+            + (f"&order_no={quote(order_no, safe='')}" if order_no is not None else "")
+            + f"&signature={signature}"
         )
 
 

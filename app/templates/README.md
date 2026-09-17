@@ -32,8 +32,8 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `e4251fbf6039` | L1–L76 |
-| [`app/templates/shop.html`](shop.html) | `ca1a76b058bb` | L1–L106 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `d8db18326512` | L1–L89 |
+| [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -52,3 +52,7 @@ site.py 提供页面上下文；HTML 自动转义，不信任模型、消息和�
 只刷新指纹不是语义审查；评审时必须核对人工说明。
 
 payments-admin增加复核状态、三种处理进度及两个投影筛选。保留真实到账/永久绑定各自的确认文案；完成本轮复核不是退款成功，没有伪造退款按钮。
+
+## 第六批界面合同
+
+payments-admin.html增加成功退款凭证区、原商户退款号查询与人工已完成全额退款记录表单，复用完整单号/依据确认；不提供发起退款按钮。shop.html增加st-refunded，供refunded字段选择，不把原支付状态改成取消。字段与app/frontend脚本同步构建后再验证；浏览器与真实商户仍需单独签收。
