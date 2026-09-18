@@ -777,3 +777,15 @@ npm run build
 ```
 
 生产迁移当前0013，按数据库指南处理，不复制业务库连接来测试。WX_REFUND_SEND_ENABLED默认false，保持关闭；新页面独立授权不发送，发送按钮另有真实转款确认。未知先刷新原尝试/查询原号，不换退款号。具体步骤及不可自动恢复的情况见管理手册第九批；Windows/浏览器/商户/恢复仍需实际验收，不从沙箱通过推断。
+
+
+## 第十批增补：停止新的本站发送
+
+在VS Code集成CMD、激活Conda、使用系统Node及独立测试库：
+
+```cmd
+python -m pytest -q tests/test_refund_stops.py tests/test_refund_submissions.py tests/test_payments_frontend.py
+npm run build
+```
+
+账本当前0014，升级/备份按数据库指南，不用业务库跑pytest。WX_REFUND_SEND_ENABLED保持false也能使用停止按钮：核原授权，手输订单号/CMR号/全额及停办依据，确认后核首次停止记录。断网先刷新、原请求恢复；已经开始的尝试仍可能退款，应查询原号。不是微信取消，也不恢复下载或允许换号。真实Windows/商户/恢复验收仍需另做。

@@ -215,7 +215,7 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
 
 def legacy_0008(conn):
     """Remove post-0008 structures to exercise adoption against a real historical column set."""
-    rows(conn, 'DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
+    rows(conn, 'DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
                'DROP FUNCTION codemax_freeze_order_contract() CASCADE; '
                'DROP FUNCTION codemax_append_only_evidence() CASCADE')
     for column in ('payment_mode', 'merchant_id', 'app_id', 'currency', 'delivery_key', 'delivery_digest', 'delivery_size'):

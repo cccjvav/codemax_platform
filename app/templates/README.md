@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `9c1b85e6cf62` | L1–L113 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `73f5f184daf6` | L1–L118 |
 | [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -67,3 +67,8 @@ payments-admin.html增加成功退款凭证区、原商户退款号查询与人�
 ## 第九批财务模板
 
 新增submission-view、客户原因、手动原准备号/全额以及独立authorize/send表单。发送区默认hidden，文案明确可能真实转款；new-attempt按钮是type=button只准备下一尝试，不提交。正式启用须商户/恢复验收；普通核验按钮仍不转账。
+
+
+## 第十批停止控件
+
+新增stop-view和refund-stop表单，默认hidden；明确只阻止新的本站发送，不能撤回已有尝试/渠道退款，不释放原号或改变下载。submit发送到stop路径，不复用真实send动作。无需开启退款发送开关才能使用。

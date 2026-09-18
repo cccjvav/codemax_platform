@@ -70,6 +70,11 @@
 <label>客户可见退款原因（最多80 UTF-8字节，与内部依据分开）<input id="finance-customer-reason" maxlength="80" autocomplete="off"></label>
 <button id="finance-refund-authorize-submit" type="submit">冻结请求并独立授权（不发送）</button>
 </form>
+<pre id="finance-stop-view"></pre>
+<form id="finance-refund-stop" hidden>
+<p class="warning">停止只阻止新的本站发送，不撤回已经开始的网络请求，不取消微信退款，不恢复下载，也不释放原退款号。停办/纠错依据会永久保留，当前不提供恢复发送。</p>
+<button id="finance-refund-stop-submit" type="submit">停止后续本站发送（不撤回渠道退款）</button>
+</form>
 <form id="finance-refund-send" hidden>
 <p class="warning">此操作可能转出真实资金。冻结内容、原商户退款号不能修改；申请应答不是成功凭证，须独立查询。旧准备/授权不会自动发送。</p>
 <button id="finance-refund-send-submit" type="submit">确认向微信发送 / 恢复本次尝试</button>

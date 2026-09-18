@@ -15,7 +15,7 @@ from urllib.parse import urlsplit
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from .models import Order, PaymentEvent, RefundAuthorization, User
+from .models import Order, PaymentEvent, RefundAuthorization, RefundSendStop, User
 from .order_state import as_utc
 from .payment_ledger import PaymentConflict, lock_order
 from .refund_requests import prior_refund_activity, request_for
@@ -24,6 +24,7 @@ from .refunds import original_receipt, refund_for
 AUTHORIZED = 'refund_authorized'
 STARTED = 'refund_send_started'
 OBSERVED = 'refund_send_observed'
+STOPPED = 'refund_send_stopped'
 RETRY_SECONDS = 60  # exceeds the bounded APIv3 exchange (20 seconds); not a worker lease.
 
 
@@ -79,7 +80,8 @@ async def submission_view(db: AsyncSession, prepared) -> dict | None:
                              PaymentEvent.kind == STARTED).order_by(PaymentEvent.id.desc()).limit(1))
     return {'authorization_id': row.request_id, 'digest': row.digest, 'body': json.loads(row.body),
             'actor': row.actor_name, 'evidence': row.evidence, 'created_at': row.created_at,
-            'attempt': await attempt_view(db, latest) if latest else None}
+            'attempt': await attempt_view(db, latest) if latest else None,
+            'stop': stop_view(await stop_for(db, row.id))}
 
 
 async def authorize(db: AsyncSession, order: Order, *, actor: User, key: str, refund_no: str,
@@ -138,6 +140,8 @@ async def begin_send(db: AsyncSession, order: Order, *, actor: User, key: str, a
             view = await attempt_view(db, existing)
             await db.commit()
             return view, None
+        if await stop_for(db, row.id):
+            raise PaymentConflict('本授权已停止后续本站发送；不能撤回渠道处理中退款，请独立查询原号')
         if not enabled:
             raise PaymentConflict('真实退款发送开关关闭；历史授权不会自动发送')
         if (prepared.merchant_id, prepared.app_id) != (cfg.mchid, cfg.appid):
@@ -181,6 +185,55 @@ async def finish_send(db: AsyncSession, order: Order, *, key: str, result) -> di
                                 actor_id=start.actor_id, actor_name=start.actor_name, evidence=canonical(note)))
         await db.commit()
         return await attempt_view(db, start)
+    except BaseException:
+        await db.rollback()
+        raise
+
+
+async def stop_for(db: AsyncSession, authorization_id: int) -> RefundSendStop | None:
+    return await db.scalar(select(RefundSendStop).where(RefundSendStop.authorization_id == authorization_id))
+
+
+def stop_view(row: RefundSendStop | None) -> dict | None:
+    if row is None:
+        return None
+    return {'request_id': row.request_id, 'actor': row.actor_name, 'evidence': row.evidence,
+            'created_at': row.created_at, 'scope': 'future_local_sends_only'}
+
+
+async def stop_sending(db: AsyncSession, order: Order, *, actor: User, key: str, authorization_id: str,
+                       expected_digest: str, refund_no: str, amount: int, evidence: str) -> tuple[dict, bool]:
+    """Caller locks/checks current user first; order lock serializes stop against durable send start.
+
+    Always allowed for an existing matching authorization, even after a send/receipt or with the
+    deployment gate off. Never calls a provider, edits the request, releases its number, cancels
+    an in-flight attempt or restores download rights. Exact replay preserves first facts.
+    """
+    try:
+        await lock_order(db, order)
+        prepared = await request_for(db, order.id)
+        auth = await authorization_for(db, prepared.id) if prepared else None
+        if (auth is None or auth.request_id != authorization_id or auth.digest != expected_digest
+                or digest(auth.body) != auth.digest or prepared.out_refund_no != refund_no
+                or type(amount) is not int or prepared.amount != amount):
+            raise PaymentConflict('停止确认与原授权/摘要/商户退款号/全额不符')
+        existing = await db.scalar(select(RefundSendStop).where(RefundSendStop.request_id == key))
+        if existing:
+            if (existing.authorization_id, existing.actor_id, existing.evidence) != (auth.id, actor.id, evidence):
+                raise PaymentConflict('同停止请求ID的归属或内容不同，不能覆盖首次记录')
+            view = stop_view(existing)
+            await db.commit()
+            return view, False
+        if await stop_for(db, auth.id):
+            raise PaymentConflict('原授权已有停止记录，请读取首次记录，不重建授权或退款号')
+        row = RefundSendStop(authorization_id=auth.id, request_id=key, actor_id=actor.id,
+                             actor_name=actor.username, evidence=evidence)
+        db.add(row)
+        await db.flush()
+        db.add(PaymentEvent(order_id=order.id, attempt_id=key, kind=STOPPED, actor_id=actor.id,
+                            actor_name=actor.username, evidence=evidence))
+        await db.commit()
+        return stop_view(row), True
     except BaseException:
         await db.rollback()
         raise

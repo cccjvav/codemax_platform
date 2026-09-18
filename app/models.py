@@ -315,3 +315,15 @@ class RefundAuthorization(Base):
     body: Mapped[str] = mapped_column(Text)
     digest: Mapped[str] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RefundSendStop(Base):
+    """Permanent local stop; never claims a provider cancellation or changes the frozen request."""
+    __tablename__ = 'refund_send_stop'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    authorization_id: Mapped[int] = mapped_column(ForeignKey('refund_authorization.id'), unique=True)
+    request_id: Mapped[str] = mapped_column(String(32), unique=True)
+    actor_id: Mapped[int] = mapped_column(ForeignKey('sys_user.id'))
+    actor_name: Mapped[str] = mapped_column(String(50))
+    evidence: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

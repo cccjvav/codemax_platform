@@ -727,7 +727,7 @@
     },
     {
       "path": "app/models.py",
-      "sha256": "ce0a2b1aad562d0d1ee6daf28d56c1387278e574451138800e3d0ac6b4c68b33",
+      "sha256": "b687a880b0c841def4f6f3069ef3d2b40c522cb68017370d5b79f0d60b7a064a",
       "method": "manual",
       "blocks": [
         {
@@ -804,6 +804,11 @@
           "end": 317,
           "title": "RefundAuthorization",
           "explanation": "单独只追加表，一原准备一份、授权request_id全局唯一；完整UTF-8 JSON正文/摘要、首次人/依据/时间。不是待发队列或成功凭证；PG0013另验合同/角色/正文并禁止改写删除。"
+        },
+        {
+          "end": 329,
+          "title": "RefundSendStop",
+          "explanation": "只追加的本地停止表：唯一原授权/全局停止请求ID，首次管理员、单行依据、时区时间。没有渠道取消状态、修改正文或恢复发送字段；0014另验证已有授权/活跃管理员和禁止改删。"
         }
       ]
     },
@@ -2949,7 +2954,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "bdd221daee7228cba07993b023396198e140496c2b4e2eef2b8b0153ad8b1596",
+      "sha256": "b8f5be39ebfd0a0459c884a741bd01c87a4418784320993ac33da3740f73f0e6",
       "method": "manual",
       "blocks": [
         {
@@ -3000,7 +3005,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。"
         },
         {
           "end": 338,
@@ -4370,7 +4375,7 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "45b34a9b6fc869cd6b9a76bb444514234a3a1b36541e29ad4612dffb19bb9732",
+      "sha256": "ea8c8121f03496aa517aaeed59ede06e02fd7ebbe4c96edfce82bcc08a736469",
       "method": "guided",
       "blocks": [
         {
@@ -4381,7 +4386,7 @@
         {
           "end": 68,
           "title": "test_route_count_matches_runtime_app",
-          "explanation": "AST与运行时路由集合精确比较；第九批另加authorize/send管理员POST，总59，不删其他路由掩盖偏差。"
+          "explanation": "第十批新增管理员stop POST，AST与运行时实际集合完全一致、总60；没有删路由规避计数。"
         },
         {
           "end": 87,
@@ -4391,7 +4396,7 @@
         {
           "end": 98,
           "title": "test_auth_and_ratelimit_counts",
-          "explanation": "第九批35条鉴权、19条限流；新增两个接口均有独立保护。公开退款通知仍走平台密码学认证，不伪称无需认证。"
+          "explanation": "新增stop同样有来源/当前管理员/独立限流；当前36条鉴权、20条限流，通知仍走独立密码学认证。"
         },
         {
           "end": 119,
@@ -8451,7 +8456,7 @@
     },
     {
       "path": "app/db_admin.py",
-      "sha256": "462f5b06dc7364122c92646b7a26a85df478a3654d1556cbf9937ec1a33a38ec",
+      "sha256": "dbe0cf594385b3106379396b6e795b3abf6816fa8084a489a53cb328a29f1ada",
       "method": "manual",
       "blocks": [
         {
@@ -8467,7 +8472,7 @@
         {
           "end": 100,
           "title": "migration_manifest",
-          "explanation": "按文件名提取四位版本与SHA，要求从0001连续且至少到0013，阻止新准备表迁移漏打包。旧0001–0012校验和不修改；生产启动完整账本检查复用同一manifest。"
+          "explanation": "按文件名提取四位版本与SHA，要求从0001连续且至少到0014，阻止新准备表迁移漏打包。旧0001–0013校验和不修改；生产启动完整账本检查复用同一manifest。"
         },
         {
           "end": 111,
@@ -8550,7 +8555,7 @@
     },
     {
       "path": "tests/test_db_admin.py",
-      "sha256": "0c61937a7e67a589c284d242dc9ad63842535d26e397e41dbd6b36759e505c6f",
+      "sha256": "5e576b1e75c4045458fe7328ecfb14db2cc72eab71e83e5f9749cf5998e7cf64",
       "method": "manual",
       "blocks": [
         {
@@ -8606,12 +8611,12 @@
         {
           "end": 133,
           "title": "test_failed_migration_rolls_back_ddl_and_journal",
-          "explanation": "复制当前实际迁移，再按当前版本+1创建故意除零的SQL。真实维护器执行后必须回滚新表和账本，最终仍原manifest长度；动态编号只避免撞名，没有弱化异常/回滚断言。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "复制当前实际迁移，再按当前版本+1创建故意除零的SQL。真实维护器执行后必须回滚新表和账本，最终仍原manifest长度；动态编号只避免撞名，没有弱化异常/回滚断言。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 141,
           "title": "test_checksum_drift_refuses_upgrade",
-          "explanation": "改坏数据库历史checksum，migrate必须在执行新SQL前报错；不删除账本或扩大忽略列表。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "改坏数据库历史checksum，migrate必须在执行新SQL前报错；不删除账本或扩大忽略列表。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 155,
@@ -8641,17 +8646,17 @@
         {
           "end": 215,
           "title": "test_successful_new_migration_is_not_replayed",
-          "explanation": "复制完整当前迁移，用当前版本+1附加只执行一次的DDL/DML。调用migrate两次，数据仅一行、账本只多一版；不能固定写未来0012，与真实新增版本撞名。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "复制完整当前迁移，用当前版本+1附加只执行一次的DDL/DML。调用migrate两次，数据仅一行、账本只多一版；不能固定写未来0012，与真实新增版本撞名。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 222,
           "title": "legacy_0008",
-          "explanation": "仅在隔离PG测试库按外键逆序去掉refund_request/其检查函数、refund_receipt/函数、0010表/函数/触发器/列及账本，构造真实旧0008列集合。恢复旧基线后执行原接入断言，不回滚业务库也不改历史SQL。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "仅在隔离PG测试库按外键逆序去掉refund_request/其检查函数、refund_receipt/函数、0010表/函数/触发器/列及账本，构造真实旧0008列集合。恢复旧基线后执行原接入断言，不回滚业务库也不改历史SQL。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 230,
           "title": "test_manifest_requires_current_refund_preparation_migration",
-          "explanation": "只复制0001–0011到临时目录，调用实际manifest必须拒绝缺0012。保护新代码不能在漏打包准备表迁移时假装历史完整；不操作数据库或原历史文件。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "只复制0001–0011到临时目录，调用实际manifest必须拒绝缺0012。保护新代码不能在漏打包准备表迁移时假装历史完整；不操作数据库或原历史文件。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         }
       ]
     },
@@ -8744,7 +8749,7 @@
     },
     {
       "path": "database init/full_init.sql",
-      "sha256": "7b7cfd9ef3c571241394f24f80e58cc049671bd92a325c97314d93cbc402a4cf",
+      "sha256": "f711bdafcc60964be50a8ce933d62431a321e8a9613999181c0e56136faa92cf",
       "method": "manual",
       "blocks": [
         {
@@ -8861,6 +8866,21 @@
           "end": 342,
           "title": "授权只追加",
           "explanation": "插入执行合同检查，UPDATE/DELETE复用既有只追加函数拒绝；应用仍负责授权与事件原子提交。"
+        },
+        {
+          "end": 352,
+          "title": "停止表及唯一归属",
+          "explanation": "新增stop表唯一原授权和全局客户端key，记录首次人/依据/时间，无回填，无金额释放或恢复发送状态。"
+        },
+        {
+          "end": 366,
+          "title": "停止插入检查",
+          "explanation": "依用户→原订单取锁，通过授权和准备取所属单，核活跃管理员/姓名、key和单行依据；不检查渠道是否完成，因为只限制以后新开始。"
+        },
+        {
+          "end": 370,
+          "title": "停止只追加",
+          "explanation": "INSERT执行检查；UPDATE/DELETE调用既有只追加拒绝函数。不能防数据库所有者修改触发器，不意味着撤回微信请求。"
         }
       ]
     },
@@ -8969,7 +8989,7 @@
     },
     {
       "path": "tests/test_payment_ledger.py",
-      "sha256": "0fa411d20467f42dbd37b70cf76e7232a5c8be0d2049a6568f15f43b05c64c45",
+      "sha256": "d563b4e12983bd3cbc9b03de9600b5ae34eb47250eb8069dcc2497da30333606",
       "method": "manual",
       "blocks": [
         {
@@ -9070,7 +9090,7 @@
         {
           "end": 311,
           "title": "test_pg_upgrade_preserves_history_and_enforces_immutable_evidence",
-          "explanation": "新空维护库先按依赖顺序拆除0012准备表/函数、0011退款表/函数与0010结构，账本删除0010–0012以构造原0009基线。执行当前升级后原订单数据保留，历史合同/金额与证据只追加约束仍用真实非法SQL验证。不是拿新init冒充升级。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "新空维护库先按依赖顺序拆除0012准备表/函数、0011退款表/函数与0010结构，账本删除0010–0012以构造原0009基线。执行当前升级后原订单数据保留，历史合同/金额与证据只追加约束仍用真实非法SQL验证。不是拿新init冒充升级。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 317,
@@ -9128,18 +9148,18 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "699bfb5b364ddecb0ff085233b15a11da1ab1e8c5a6743d0eced50a46fe2f854",
+      "sha256": "6ab0a5c68e37c2fa91461641bad3d7ebc005e69eb31ac56699320a65ad8dca5b",
       "method": "manual",
       "blocks": [
         {
           "end": 17,
           "title": "状态与身份标签",
-          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pendingRequest。forms统一九类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pendingAuthorization/pendingSend和原退款号/全额/客户reason；仍只有内存状态。"
+          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pendingRequest。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pendingAuthorization/pendingSend和原退款号/全额/客户reason；仍只有内存状态。 新增pendingStop，停止与发送不共用幂等key。"
         },
         {
           "end": 39,
           "title": "清屏与旧会话隔离",
-          "explanation": "clearDetail清currentRequest/pendingRequest/通知/复核/合同/凭证/金额和所有输入，禁用两个填号按钮并递增视图代次。reset另递增账号/列表代次、abort旧请求，普通用户隐藏工作区；不会因此撤销服务器已经提交的准备。 同时清授权/尝试/客户原因，新账号不继承待发送body；不能取消已发生网络。"
+          "explanation": "clearDetail清currentRequest/pendingRequest/通知/复核/合同/凭证/金额和所有输入，禁用两个填号按钮并递增视图代次。reset另递增账号/列表代次、abort旧请求，普通用户隐藏工作区；不会因此撤销服务器已经提交的准备。 同时清授权/尝试/客户原因，新账号不继承待发送body；不能取消已发生网络。 清pendingStop与stop-view，不把前端清屏当网络取消。"
         },
         {
           "end": 52,
@@ -9152,19 +9172,19 @@
           "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。"
         },
         {
-          "end": 127,
+          "end": 130,
           "title": "冻结合同与收款历史",
-          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。"
+          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。"
         },
         {
-          "end": 249,
+          "end": 254,
           "title": "显式确认与不可取消的服务端边界",
-          "explanation": "operate先核选单/可见/busy、手填单号及无C0/C1控制字符依据。九类显式操作中，refund-request要求全额安全整数与160字依据；未知pendingRequest不许改内容，重试整个原body含原request_id。确认后才保存pending并POST本地准备；成功清pending，失败保留并刷新。复核仍用快照/CAS与稳定nonce；两个退款核验仍按原流水/时间。账号/view变化丢弃结果，后端继续独立授权。 authorize/send另手输原CMR号/全额；reason按TextEncoder最多80字节。两个pending保留完整body阻止改未知请求，授权不连发send；发送确认明确真实转款。send重放键保留以读回；新尝试按钮另明确确认才清键。"
+          "explanation": "operate先核选单/可见/busy、手填单号及无C0/C1控制字符依据。十类显式操作中，refund-request要求全额安全整数与160字依据；未知pendingRequest不许改内容，重试整个原body含原request_id。确认后才保存pending并POST本地准备；成功清pending，失败保留并刷新。复核仍用快照/CAS与稳定nonce；两个退款核验仍按原流水/时间。账号/view变化丢弃结果，后端继续独立授权。 authorize/send另手输原CMR号/全额；reason按TextEncoder最多80字节。两个pending保留完整body阻止改未知请求，授权不连发send；发送确认明确真实转款。send重放键保留以读回；新尝试按钮另明确确认才清键。 stop分支手输原号/全额/单号，传原授权/摘要与停办依据；独立pendingStop保留未知body并拒绝修改，明确确认只停新本站尝试，POST只走stop而非send。"
         },
         {
-          "end": 274,
+          "end": 279,
           "title": "事件入口",
-          "explanation": "request-prefill仅当前管理员/有效prepared/非busy/可见区时填查询号，不提交或代填依据。通知填号保持原规则。登录/查询/分页/刷新/九表单事件统一绑定；切账号重置后只为新管理员读取。 send-new-attempt只清内存发送key，不POST；隐藏/非管理员/busy不操作，服务器仍检查60秒和既有观察。"
+          "explanation": "request-prefill仅当前管理员/有效prepared/非busy/可见区时填查询号，不提交或代填依据。通知填号保持原规则。登录/查询/分页/刷新/十表单事件统一绑定；切账号重置后只为新管理员读取。 send-new-attempt只清内存发送key，不POST；隐藏/非管理员/busy不操作，服务器仍检查60秒和既有观察。"
         }
       ]
     },
@@ -9217,7 +9237,7 @@
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "9c1b85e6cf620f1f74f557a2bcf5b9fce1113d6fc7de852bdfad2cce4556f43b",
+      "sha256": "73f5f184daf6afefb62ec7c3868e020de59252fb3ed7f14b157be59bbc5a19cf",
       "method": "manual",
       "blocks": [
         {
@@ -9241,14 +9261,14 @@
           "explanation": "准备、通知、成功退款、复核独立显示；operations默认hidden，共用手动订单号/单行依据。复核和人工收款按原合同填写，不用准备状态冒充金融完成。"
         },
         {
-          "end": 102,
+          "end": 107,
           "title": "主动查单与历史原件",
           "explanation": "增加refund-request准备表单及整数全额输入，submit说明仅保存、不发送/授权、不撤权；并保留付款查单、独立退款查询、人工已退款登记。新增request-prefill与通知填号均type=button且默认禁用。历史绑定仍一次性核准，所有权限由API再次检查。"
         },
         {
-          "end": 113,
+          "end": 118,
           "title": "事件历史与构建入口",
-          "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。 第九批新增独立客户原因/手输原号全额、授权及发送表单和冻结正文区；发送默认hidden、明确可能真实转款。new-attempt是button不自动提交。"
+          "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。 第九批新增独立客户原因/手输原号全额、授权及发送表单和冻结正文区；发送默认hidden、明确可能真实转款。new-attempt是button不自动提交。 新stop-view/stop表单默认hidden，submit明确不能撤回渠道退款、释放号码或恢复下载，没有恢复发送按钮。"
         }
       ]
     },
@@ -9418,85 +9438,90 @@
     },
     {
       "path": "tests/test_payments_frontend.py",
-      "sha256": "0fc0e2e87cbc406ae14b1d96e91c0768c443ab8a246ebb73e68a5361d33f4189",
+      "sha256": "455d941f693db8c346d1f06cd480f78796d53a28ddefcbf67719e7ab6d1d86d2",
       "method": "manual",
       "blocks": [
         {
-          "end": 189,
+          "end": 217,
           "title": "装配与验证边界",
-          "explanation": "Node VM构造可控DOM/认证/fetch并执行实际源码和bundle。新增prepare场景控制提交前未知、提交后丢ACK可读、改未知内容、取消、换账号后延迟应答及只填号；记录body、POST数量、可见性和提示。原通知/核验/复核/付款场景保留，不模拟真实浏览器布局/商户。 第九批VM加入TextEncoder与六种授权/发送场景；执行实际源码及bundle，不用字符串存在性代替行为。"
+          "explanation": "Node VM构造可控DOM/认证/fetch并执行实际源码和bundle。新增prepare场景控制提交前未知、提交后丢ACK可读、改未知内容、取消、换账号后延迟应答及只填号；记录body、POST数量、可见性和提示。原通知/核验/复核/付款场景保留，不模拟真实浏览器布局/商户。 第九批VM加入TextEncoder与六种授权/发送场景；执行实际源码及bundle，不用字符串存在性代替行为。 新stop五场景使用真JS及TextEncoder/可控fetch，不造浏览器验收结论。"
         },
         {
-          "end": 238,
+          "end": 266,
           "title": "test_workbench_browser_logic",
           "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。"
         },
         {
-          "end": 245,
+          "end": 273,
           "title": "test_hidden_css_and_no_html_interpolation",
           "explanation": "静态补充检查强制hidden样式避免grid覆盖UA隐藏，并禁止管理脚本innerHTML和localStorage。主要行为仍由上方VM执行，不只做源码字符串存在性检查。"
         },
         {
-          "end": 256,
+          "end": 284,
           "title": "test_html_patterns_use_browser_unicode_sets",
           "explanation": "提取管理HTML的两个pattern，Node以浏览器使用的v标志真正构造完整匹配正则，再验证安全订单号和BANK斜线/连字符参考号能匹配、点路径与空格不匹配。旧普通JS字符类会SyntaxError，不能靠pattern字符串存在或VM不模拟表单校验而漏掉。未安装Node时明确skip，不声称浏览器通过。"
         },
         {
-          "end": 276,
+          "end": 304,
           "title": "test_refund_controls_in_actual_source_and_bundle",
           "explanation": "源码/提交bundle各跑退款人工、查询、已退款展示三个Node VM场景，取消不发POST、字段映射准确、切账号清敏感字段，退款依据按文本显示，已退人工表单隐藏。不代表浏览器或商户验收。"
         },
         {
-          "end": 289,
+          "end": 317,
           "title": "test_refund_notice_only_refills_and_never_submits_or_leaks",
           "explanation": "分别执行源码和bundle的全额通知/部分通知/迟到详情三种Node场景。断言展示明确非本地凭证、POST为零、确认号/依据未代填、账号切换后摘要和退款号清空；仅全额能填号，部分按钮禁用，标题回请选择订单。模拟DOM不验证CSS布局或真实商户。"
         },
         {
-          "end": 314,
+          "end": 342,
           "title": "test_preparation_ui_preserves_request_and_never_sends_money",
           "explanation": "两份实际JS各执行六场景：未知重试两个body完全相同/32位ID；丢ACK后GET隐藏表单不重发；改未确认内容拦截；取消零POST；换账号迟到结果不回填；填号不POST/不代填确认，另号成功则禁用。断言文本明确非发送授权，不冒充浏览器/商户验收。"
         },
         {
-          "end": 331,
+          "end": 359,
           "title": "test_explicit_submission_ui_is_not_automatic",
           "explanation": "源码/bundle六场景：发送/授权未知重试同完整body和32位key；开关关、取消及超字节原因零POST；换账号后旧应答不回填。所有场景敏感字段清空，不冒充真实浏览器/商户验收。"
+        },
+        {
+          "end": 376,
+          "title": "test_stop_ui_keeps_original_request_and_never_sends_refund",
+          "explanation": "源码/bundle五场景：未知同body重试，改未知依据不发第二次，取消零POST，账号迟到清屏，丢ACK后GET隐藏发送及停止。所有POST必须stop路径，绝不能误发真实send；不替代浏览器验收。"
         }
       ]
     },
     {
       "path": "app/payment_review.py",
-      "sha256": "2870967a24f0f70ebefc792a5fe53a870801362ea23e27b89b88b2774f0be5c9",
+      "sha256": "63f52522afbf0586733774594490bc90aa282ab06544079c7de050fcc9ff16df",
       "method": "manual",
       "blocks": [
         {
-          "end": 24,
+          "end": 32,
           "title": "装配与范围",
-          "explanation": "常量区分复核记录、查询/通知异常和refund_request_prepared。额外导入RefundRequest供独立事实发现；导入不发网络或建表，不把准备当金融成功。 第九批新增授权/发送开始/观察issue种类，不将它们当成功凭证。"
+          "explanation": "常量区分复核记录、查询/通知异常和refund_request_prepared。额外导入RefundRequest供独立事实发现；导入不发网络或建表，不把准备当金融成功。 第九批新增授权/发送开始/观察issue种类，不将它们当成功凭证。 新增STOPPED异常/复核事实，不是渠道取消或金融成功。"
         },
         {
-          "end": 33,
+          "end": 41,
           "title": "review_payload",
           "explanation": "按固定v1结构编码动作、资料SHA摘要、前次版本和说明，ensure_ascii=False保留中文，sort_keys固定重试字节。整体不得超过500字符；调用方schema限制说明160字并拒绝控制字符，不能直接用任意长JSON撑爆既有证据列。"
         },
         {
-          "end": 53,
+          "end": 61,
           "title": "decode_review",
           "explanation": "没有事件/发起人/说明、超长或坏JSON、未知版本/动作、非法摘要/版本/说明都返回None，绝不能默认为已完成。历史操作者仍按保存的ID/name展示，不要求他现在仍是管理员；这是历史事实，不是再次授权。"
         },
         {
-          "end": 68,
+          "end": 76,
           "title": "overdue_start",
           "explanation": "SQL exists关联同单、同attempt、同协议终态，分别处理prepay/query/refund_query。开始满60秒没匹配结果就是未知；付款query_success不能完成refund_query_started。只构造条件，不发外部查询或写库。"
         },
         {
-          "end": 75,
+          "end": 83,
           "title": "review_candidates",
           "explanation": "SQL候选为存在准备行，或已有异常/复核/到龄孤立尝试。准备缺事件也能进候选；最终状态仍由review_states判断，查询只读。"
         },
         {
-          "end": 127,
+          "end": 138,
           "title": "review_states",
-          "explanation": "最多50单仍四次批量只读：事件count/max/issues、孤立尝试、最新复核、原收款LEFT JOIN退款与唯一准备行。原无准备的receipt编码保持不变，有准备则[原凭证编码,request标记,准备ID]，独立改变摘要且使该订单成为候选。新事实让旧close过期；count抓较小ID晚提交。精确重放不追加事件因此不反复开单；不是全库瞬时快照或退款完成判定。 第九批同一凭证SQL再LEFT JOIN授权，只有存在授权才包入authorization/ID；无授权保持原编码，缺audit时新授权也使旧close过期。"
+          "explanation": "最多50单仍四次批量只读：事件count/max/issues、孤立尝试、最新复核、原收款LEFT JOIN退款与唯一准备行。原无准备的receipt编码保持不变，有准备则[原凭证编码,request标记,准备ID]，独立改变摘要且使该订单成为候选。新事实让旧close过期；count抓较小ID晚提交。精确重放不追加事件因此不反复开单；不是全库瞬时快照或退款完成判定。 第九批同一凭证SQL再LEFT JOIN授权，只有存在授权才包入authorization/ID；无授权保持原编码，缺audit时新授权也使旧close过期。 第十批同一SQL再LEFT JOIN唯一停止行，仅有停止才包send_stop/ID；无停止旧编码不变，audit缺失也能使旧close过期，仍四次查询。"
         }
       ]
     },
@@ -9651,7 +9676,7 @@
     },
     {
       "path": "app/routers/refunds_admin.py",
-      "sha256": "cbeb980cea56803f59c0bdadcc62e2a96d235a7a54c437696c26d254728b746c",
+      "sha256": "4706e78b13fd21edbf02b2ff583b79d470940414dfd4544142ee3a4769cb6771",
       "method": "manual",
       "blocks": [
         {
@@ -9723,6 +9748,11 @@
           "end": 230,
           "title": "send_refund",
           "explanation": "同样先锁当前用户并确认原单，begin_send核开关/原授权/原号/金额/摘要。精确attempt只读回；新尝试commit后才调用submit_full_refund，无数据库锁跨网络。微信失败只作unknown，finish持久观察，即使SUCCESS也不record_refund。SQL失败503不能推断未发送；取消/崩溃遗留started供查询。"
+        },
+        {
+          "end": 250,
+          "title": "stop_refund_sending",
+          "explanation": "POST stop使用同一严格确认模型而非send动作。管理员/来源/独立限流、active_actor角色/状态/版本重查，target核手输单号，服务拥有提交。返回no-store和准确范围；409冲突，SQL错误503结果未知。无需发送开关或商户网络配置。"
         }
       ]
     },
@@ -9745,7 +9775,7 @@
     },
     {
       "path": "tests/test_refunds.py",
-      "sha256": "645768bdb2781de5be941fbfd2e65ab6c8e75ea1f01d5fd4714d75fc36b48fc0",
+      "sha256": "4e25b59df203e4bf356a4b8e96b2fd33374b8e529fdf5ecbd137fbb3e82c7cce",
       "method": "manual",
       "blocks": [
         {
@@ -9861,7 +9891,7 @@
         {
           "end": 317,
           "title": "test_pg_refund_migration_validates_full_original_receipt_and_freezes_records",
-          "explanation": "隔离真PG从新结构拆0012/0011表及函数并去掉对应账本，回到0010；插入真实原收款样本后migrate。验证不造历史退款、错误全额/来源/归属拒绝、合法成功可写且不能覆盖/删除，原paid/流水保留，再migrate不重放。新增准备表只是倒回基线的依赖清理，不减少既有断言。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "隔离真PG从新结构拆0012/0011表及函数并去掉对应账本，回到0010；插入真实原收款样本后migrate。验证不造历史退款、错误全额/来源/归属拒绝、合法成功可写且不能覆盖/删除，原paid/流水保留，再migrate不重放。新增准备表只是倒回基线的依赖清理，不减少既有断言。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 331,
@@ -10150,7 +10180,7 @@
     },
     {
       "path": "tests/test_refund_requests.py",
-      "sha256": "3bb0af69b316b33feb0a4ba08bfb685e5afe9037da7d651a1ffe29bd21b3bc97",
+      "sha256": "91a5e6686c13fbc82dc8331a937f350c8b1219e02bfb995a0a39a33e20cd2317",
       "method": "manual",
       "blocks": [
         {
@@ -10251,7 +10281,7 @@
         {
           "end": 280,
           "title": "test_real_migration_preserves_payment_and_checks_immutable_preparations",
-          "explanation": "独立非超级用户PG新库先退回0011并种合成原单/收款，migrate到0012不回填准备。真实INSERT错误金额/商户/原收款/人名/编号均拒绝；已有退款查询也拒绝。测试内临时去阻断事件后合法写入，重复/UPDATE/DELETE均失败，原paid/流水不变，再migrate无待执行。绝不在业务库做故障注入。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。"
+          "explanation": "独立非超级用户PG新库先退回0011并种合成原单/收款，migrate到0012不回填准备。真实INSERT错误金额/商户/原收款/人名/编号均拒绝；已有退款查询也拒绝。测试内临时去阻断事件后合法写入，重复/UPDATE/DELETE均失败，原paid/流水不变，再migrate无待执行。绝不在业务库做故障注入。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 295,
@@ -10294,64 +10324,79 @@
     },
     {
       "path": "app/refund_submissions.py",
-      "sha256": "4d1fe29b2f10985837a14ee791b801db79b20a5f433caa38b6fe506eee66930e",
+      "sha256": "c4447355f2c3febc1ce414b4ae469786d7fd19fa29d4840aef1bdbc530fefe9e",
       "method": "manual",
       "blocks": [
         {
-          "end": 29,
+          "end": 30,
           "title": "装配与边界",
           "explanation": "引入既有ORM/原付款/固定JSON/事务与时间工具，定义授权、开始、观察及60秒冷却。没有导入即发送/后台队列；测试只用假配置、真正合成签名与可丢弃库。"
         },
         {
-          "end": 33,
+          "end": 34,
           "title": "canonical",
           "explanation": "用不转义中文、排序键和紧凑分隔序列化，供冻结正文及小型事件依据。固定存储字节，不用当前配置重建旧请求。"
         },
         {
-          "end": 37,
+          "end": 38,
           "title": "digest",
           "explanation": "对UTF-8原字节算SHA256十六进制，用于确认/完整性；不是数据库所有者不可篡改证明，也不是签名或认证秘密。"
         },
         {
-          "end": 58,
+          "end": 59,
           "title": "build_body",
           "explanation": "原收款与准备提供交易号、固定退款号及全额CNY；reason必须单独1–80 UTF-8字节且无控制字符/首尾空白。仅接受HTTPS ASCII域名来源/有效端口，无路径参数凭据；固定/shop/refunds/notify且≤256字节。不接收客户端回调，不证明公网可达或商户余额/期限。"
         },
         {
-          "end": 62,
+          "end": 63,
           "title": "authorization_for",
           "explanation": "按唯一preparation_id读取现有授权或None；只读，不自动创建/发送。"
         },
         {
-          "end": 71,
+          "end": 72,
           "title": "attempt_view",
           "explanation": "按STARTED的attempt_id找唯一OBSERVED；缺结束记录显示unknown，不能推断未发送。仅展示首次人/时间、受理观察和退款ID，不产生金融结论。"
         },
         {
-          "end": 84,
+          "end": 86,
           "title": "submission_view",
-          "explanation": "对原准备独立读授权及该单最新started，再取观察；返回完整冻结正文/摘要/首次授权人/依据与attempt。没有准备/授权返回None，不受ledger事件游标影响。"
+          "explanation": "对原准备独立读授权及该单最新started，再取观察；返回完整冻结正文/摘要/首次授权人/依据与attempt。没有准备/授权返回None，不受ledger事件游标影响。 第十批再独立读取stop并输出首次停止范围，不受历史事件游标影响，不隐藏在途结果。"
         },
         {
-          "end": 117,
+          "end": 119,
           "title": "authorize",
           "explanation": "调用者须先校验输入/锁当前用户。本函数锁原单、核原微信收款及手输准备号/全额。全局key精确重放绑定原准备/人/依据/客户reason，用原冻结回调而非新配置；新授权拒绝既有授权/成功/通知/查询。构建完整body/digest与AUTHORIZED同事务提交，任何异常回滚，不外网。"
         },
         {
-          "end": 167,
+          "end": 171,
           "title": "begin_send",
-          "explanation": "调用者持当前用户锁；锁订单重查原付款、准备、授权ID/摘要及正文摘要、原退款号/额。精确attempt绑定同单/同人/同依据后只读回，早于后续开关/状态保护。新尝试要求开关和原商户/app，无成功/通知/查询；已有任意accepted禁止，未知须距最新started≥60秒。持久started后才返回冻结标量packet并释放锁，没有网络/自动消费。异常回滚；60秒不是工作租约，正确性仍依渠道原号幂等。"
+          "explanation": "调用者持当前用户锁；锁订单重查原付款、准备、授权ID/摘要及正文摘要、原退款号/额。精确attempt绑定同单/同人/同依据后只读回，早于后续开关/状态保护。新尝试要求开关和原商户/app，无成功/通知/查询；已有任意accepted禁止，未知须距最新started≥60秒。持久started后才返回冻结标量packet并释放锁，没有网络/自动消费。异常回滚；60秒不是工作租约，正确性仍依渠道原号幂等。 第十批在精确attempt读回之后、新started之前读取停止表，有停止则拒绝任何新尝试；与stop_sending共用订单锁，不召回已取得开始资格者。"
         },
         {
-          "end": 186,
+          "end": 190,
           "title": "finish_send",
           "explanation": "网络后锁原单，必须已有同单STARTED；OBSERVED一次追加小型accepted或unknown，沿用首次发起人，角色变化也不丢已发生观察。提交后返回attempt；不借旧权限新增网络或写成功凭证。故障回滚，原started保留未知。"
+        },
+        {
+          "end": 196,
+          "title": "stop_for",
+          "explanation": "按唯一authorization_id只读停止行或None。调用方在原订单锁内用它拦新开始；读取不生成停止/渠道请求。"
+        },
+        {
+          "end": 203,
+          "title": "stop_view",
+          "explanation": "无行返回None，否则只展示首次key、人、依据、时间和固定future_local_sends_only范围。不能由这条记录推断渠道已取消或请求未发。"
+        },
+        {
+          "end": 239,
+          "title": "stop_sending",
+          "explanation": "调用者先锁当前管理员并验证schema。锁订单后核原准备/授权、摘要及正文摘要、手输固定号/严格全额；不要求原付款仍可发送或开关开启。全局key精确绑定原授权/人/依据，重放保留首笔；同授权换key冲突。flush停止后同事务加STOPPED再commit，异常含取消回滚。不给外网、旧正文、编号或下载权做任何变更；订单锁决定新开始和停止的先后，不能召回已有started。"
         }
       ]
     },
     {
       "path": "tests/test_refund_submissions.py",
-      "sha256": "4da5499f3e93f90a310951357abaaaa5da8a4995f3580ca45fd1cce70dd21472",
+      "sha256": "c99c7137906027bc554503b336f191838248ea7d8d3eeb6b521a402736700116",
       "method": "manual",
       "blocks": [
         {
@@ -10432,12 +10477,12 @@
         {
           "end": 295,
           "title": "test_package_requires_authorization_migration",
-          "explanation": "只打包到0012的临时迁移目录必须被manifest拒绝，避免新代码在缺0013包下假通过。"
+          "explanation": "只打包到0012的临时迁移目录必须被manifest拒绝，避免新代码在缺0013包下假通过。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 348,
           "title": "test_real_pg_authorization_contract_and_append_only",
-          "explanation": "真实非超级用户隔离库退0012，种合成原收款/准备，再migrate到0013无回填；绑定参数写部分金额、错交易、超字节原因/非法回调都拒绝。合法正文可写且UPDATE/DELETE拒绝，保留原字节，再migrate不重放。"
+          "explanation": "真实非超级用户隔离库退0012，种合成原收款/准备，再migrate到0013无回填；绑定参数写部分金额、错交易、超字节原因/非法回调都拒绝。合法正文可写且UPDATE/DELETE拒绝，保留原字节，再migrate不重放。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
           "end": 375,
@@ -10475,6 +10520,105 @@
           "end": 45,
           "title": "授权只追加",
           "explanation": "插入执行合同检查，UPDATE/DELETE复用既有只追加函数拒绝；应用仍负责授权与事件原子提交。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_refund_stops.py",
+      "sha256": "3e00bacb0274b4a4eeb87b421b2bf16d9de3c8828dc648818a9a721569023e59",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 31,
+          "title": "装配与隔离",
+          "explanation": "复用合成原收款/授权、假CFG与签名MockTransport。导入autouse发送替身避免真实HTTP；独立会话和可丢弃PG验证事务/触发器，不传业务库。"
+        },
+        {
+          "end": 35,
+          "title": "stop_proof",
+          "explanation": "为测试构造独立停止key和停办依据，复用已核实授权/摘要/原号/全额，不造渠道取消请求。"
+        },
+        {
+          "end": 40,
+          "title": "stop_rows",
+          "explanation": "独立TestSession读取已提交停止行，避免在写会话看flush假装持久化。"
+        },
+        {
+          "end": 66,
+          "title": "test_stop_is_immutable_local_only_and_blocks_new_send",
+          "explanation": "实际授权后在关发送开关时停止，核no-store/首次字段/精确重放；改key或依据409。分页仍展示，隔离ORM删除audit后摘要仍变；再开启发送也拒绝且网络零调用，付款/下载与成功凭证不变。"
+        },
+        {
+          "end": 89,
+          "title": "test_missing_authorization_and_cross_actor_or_order_replay_rejected",
+          "explanation": "已有停止后另一管理员同key不能冒领；别单同key不能覆盖；只有准备没有独立授权也不能记录停止。最终只有一行。"
+        },
+        {
+          "end": 109,
+          "title": "test_invalid_stop_never_writes",
+          "explanation": "九个反例覆盖bool/错额、错摘要/原号/授权/确认单号、坏key/控制依据和额外resume字段。422/409分开，无停止行。"
+        },
+        {
+          "end": 136,
+          "title": "test_permissions_origin_revision_and_rate_limit",
+          "explanation": "普通用户拒绝；实际用正确凭据登录取得Cookie后，外来源403；锁时修改凭据版本403。真实限流打开后首笔200、第二次429，不用未登录401冒充来源验证。"
+        },
+        {
+          "end": 148,
+          "title": "test_concurrent_stop_has_one_record",
+          "explanation": "两个独立HTTP请求同key均200，异key一200一409；唯一停止行不因并发被重写。"
+        },
+        {
+          "end": 170,
+          "title": "test_unknown_commit_recovers_original_stop",
+          "explanation": "commit前flush失败和真commit后丢ACK均503；独立读分别0/1行。恢复后同body/key仅一行，changed区分首次保存/恢复。"
+        },
+        {
+          "end": 185,
+          "title": "test_stop_and_audit_are_atomic",
+          "explanation": "STOPPED的before_insert故障时停止已flush仍需整体rollback，503后无停止；finally卸监听。捕获先提交停止再写audit反例。"
+        },
+        {
+          "end": 218,
+          "title": "test_started_request_can_finish_after_stop_but_never_start_another",
+          "explanation": "签名MockTransport实际进入网络后暂停，停止仍能提交证明无锁跨网络；释放后保留accepted。旧attempt读回无第二次HTTP，新attempt409，下载不变；独立签名原号查询才能生成成功凭证并撤权。"
+        },
+        {
+          "end": 245,
+          "title": "test_stop_lock_wins_against_concurrent_send",
+          "explanation": "在真实锁单完成后暂停停止事务，再并发发send；放行停止提交后send409，真实签名transport零调用。验证相反先后，不靠顺序串行调用假装互锁。"
+        },
+        {
+          "end": 253,
+          "title": "test_manifest_requires_stop_migration",
+          "explanation": "只复制至0013的迁移包，当前manifest必须拒绝缺0014，不降低历史连续性规则。"
+        },
+        {
+          "end": 298,
+          "title": "test_real_pg_stop_upgrade_constraints_and_append_only",
+          "explanation": "隔离非超级用户PG退0013，种真实原收款/准备/授权，再升级0014无回填。错管理员/授权/key/依据INSERT拒绝，合法停止后重复/改删拒绝；原授权body字节不变，重复migrate不重放。"
+        }
+      ]
+    },
+    {
+      "path": "database init/migrate_0014_refund_send_stop.sql",
+      "sha256": "46c75fc2f7856d609d302b027414790fbf463a792a99dbadafa41aa49292969e",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 10,
+          "title": "停止表及唯一归属",
+          "explanation": "新增stop表唯一原授权和全局客户端key，记录首次人/依据/时间，无回填，无金额释放或恢复发送状态。"
+        },
+        {
+          "end": 24,
+          "title": "停止插入检查",
+          "explanation": "依用户→原订单取锁，通过授权和准备取所属单，核活跃管理员/姓名、key和单行依据；不检查渠道是否完成，因为只限制以后新开始。"
+        },
+        {
+          "end": 28,
+          "title": "停止只追加",
+          "explanation": "INSERT执行检查；UPDATE/DELETE调用既有只追加拒绝函数。不能防数据库所有者修改触发器，不意味着撤回微信请求。"
         }
       ]
     }

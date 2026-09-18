@@ -181,3 +181,12 @@ Manifest：清单；fingerprint：内容指纹；contract test：接口约定测
 落到代码：RefundAuthorization/0013冻结客户reason、原交易号、原退款号、全额CNY和本站回调URL的JSON正文与SHA。authorize只提交；send核开关/当前权限/原单/摘要，begin_send提交started后释放锁，再submit_full_refund签固定POST字节，finish_send持久accepted/unknown观察。申请SUCCESS不直接调用record_refund，独立查询仍是金融完成与下载撤权入口。复核直接包含授权行。
 
 术语：attempt_id是本站一次发送尝试，out_refund_no是渠道退款幂等号；换尝试ID绝不换后者或正文。精确尝试重放是读回，不是重发；新显式尝试需60秒且无受理/独立观察。这个冷却不是worker租约，没有自动发送器/补偿消费者。默认关闭的开关也不是授权，打开后仍逐次人工确认。
+
+
+## 第十批：锁住出件口，不追认已经寄出的信被追回
+
+大白话：在已签的退款申请旁追加一张“停止以后寄出”便条，不能擦掉申请或重写金额。快递员如果已取得这次出件资格，之后仍可能送到银行；便条不等于银行已经取消退款。
+
+落到代码：RefundSendStop/0014绑定原授权。stop_sending与begin_send都在当前用户锁之后取原订单锁，停止与audit同事务提交，新started检查stop；精确旧attempt重放只读。finish_send仍保留在途观察，query仍用原号独立核验。只读投影和复核摘要直接包含停止行，不依赖过程事件永远完整。
+
+术语：这里的线性化点是订单锁内持久开始/停止的提交顺序，不是公网HTTP先后。停止只阻止新的本站尝试，没有worker召回、渠道取消、金额更正、号码释放或权益恢复。SQL只追加不防数据库所有者篡改。

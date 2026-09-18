@@ -377,3 +377,8 @@ Git 已跟踪及未忽略新增文本
 ## 第九批阅读路径
 
 从RefundAuthorization与0013读不可覆盖请求，再顺序读refund_submissions.build_body/authorize/begin_send/finish_send，标记commit与外部I/O的分界。看wechat_pay._request_json与新parse_full_refund/submit_full_refund：校验相同不等于调用方拥有相同记账权限。路由send只记录观察，query才走record_refund。最后对照前端pendingSend和Node VM，理解“同尝试恢复”和“新尝试同号发送”的区别；默认开关、实时权限和明确确认缺一不可。
+
+
+## 第十批阅读路径
+
+先读RefundSendStop/0014，再读stop_sending的用户→订单锁、身份/确认绑定、同事务audit；对照begin_send中精确attempt读回早于stop检查、新started晚于stop检查。finish_send和query故意不因stop而丢失渠道事实。再读submission_view与review_states的独立停止行，最后对照前端pendingStop与并发测试：停止不是网络撤回，复核不是金融结案。

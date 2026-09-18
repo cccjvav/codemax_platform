@@ -6,8 +6,8 @@
   let controller = new AbortController(), selected = null, contract = null;
   let listFilter = null, currentNotice = null, currentRequest = null, pendingRequest = null;
   let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
-  let submission = null, pendingAuthorization = null, pendingSend = null;
-  const forms = ["manual", "query", "binding", "review", "refund-query", "refund-manual", "refund-request", "refund-authorize", "refund-send"];
+  let submission = null, pendingAuthorization = null, pendingSend = null, pendingStop = null;
+  const forms = ["manual", "query", "binding", "review", "refund-query", "refund-manual", "refund-request", "refund-authorize", "refund-send", "refund-stop"];
   const nonce = () => globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
   const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time", "request-amount", "send-number", "send-amount", "customer-reason"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
@@ -16,7 +16,7 @@
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
 
   function clearDetail() {
-    submission = null; pendingAuthorization = null; pendingSend = null; el("submission-view").textContent = "";
+    submission = null; pendingAuthorization = null; pendingSend = null; pendingStop = null; el("stop-view").textContent = ""; el("submission-view").textContent = "";
     currentRequest = null; pendingRequest = null; el("request-view").textContent = ""; el("request-prefill").disabled = true;
     currentNotice = null; el("refund-prefill").disabled = true; el("refund-notice").textContent = "";
     review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
@@ -106,7 +106,10 @@
       if (pendingAuthorization && submission?.authorization_id === pendingAuthorization.request_id) pendingAuthorization = null;
       el("submission-view").textContent = submission ? `独立授权：${submission.authorization_id}\n摘要：${submission.digest}\n首次授权人：${submission.actor} · ${submission.created_at}\n冻结的客户可见请求：\n${JSON.stringify(submission.body, null, 2)}\n最近发送尝试：${submission.attempt ? JSON.stringify(submission.attempt) : "无"}\n申请观察不是成功凭证。` : "未独立授权发送；旧准备不会自动发送。";
       el("refund-authorize").hidden = !currentRequest || currentRequest.state !== "prepared" || !!submission;
-      el("refund-send").hidden = !submission || !data.refund_send_enabled || !!data.refund;
+      if (pendingStop && submission?.stop?.request_id === pendingStop.request_id) pendingStop = null;
+      el("stop-view").textContent = submission?.stop ? `已停止后续本站发送\n首次记录人：${submission.stop.actor} · ${submission.stop.created_at}\n依据：${submission.stop.evidence}\n已经开始的请求仍可能退款；不是渠道取消，不改下载权益，请查询原号。` : "暂无本站发送停止记录。";
+      el("refund-stop").hidden = !submission || !!submission.stop;
+      el("refund-send").hidden = !submission || !!submission.stop || !data.refund_send_enabled || !!data.refund;
       const refund = data.refund;
       el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录人：${refund.actor}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
       el("refund-query").hidden = !receipt || receipt.source !== "wechat";
@@ -182,14 +185,14 @@
       url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/requests`;
       summary = "保存不可覆盖的全额退款准备与固定商户退款号。不是发送或自动退款授权，不停止下载；一单不能换号再建。是否继续？";
     }
-    if (kind === "refund-authorize" || kind === "refund-send") {
+    if (kind === "refund-authorize" || kind === "refund-send" || kind === "refund-stop") {
       const amount = Number(el("send-amount").value), numberConfirmed = el("send-number").value.trim();
       if (!currentRequest || numberConfirmed !== currentRequest.out_refund_no || amount !== currentRequest.amount ||
           !Number.isSafeInteger(amount) || evidence.length > 160) {
         message("手动输入原准备商户退款号、全额整数分和最多160字内部依据。"); return;
       }
       const base = {confirm_order_no: number, amount, out_refund_no: numberConfirmed, evidence};
-      const isAuth = kind === "refund-authorize";
+      const isAuth = kind === "refund-authorize", isStop = kind === "refund-stop";
       if (isAuth) {
         const reason = el("customer-reason").value.trim();
         if (!reason || new TextEncoder().encode(reason).length > 80 || /[\x00-\x1f\x7f-\x9f]/.test(reason)) {
@@ -200,13 +203,13 @@
         if (!submission) return;
         base.authorization_id = submission.authorization_id; base.digest = submission.digest;
       }
-      const pending = isAuth ? pendingAuthorization : pendingSend;
+      const pending = isAuth ? pendingAuthorization : isStop ? pendingStop : pendingSend;
       if (pending && Object.keys(base).some(key => base[key] !== pending[key])) {
         message("上次结果未知或已记录，请按原内容恢复；不可覆盖未知尝试。"); return;
       }
       body = pending || {...base, request_id: nonce()};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/${isAuth ? "authorize" : "send"}`;
-      summary = isAuth ? `冻结并授权全额退款请求，客户会看到原因：${base.reason}。此按钮仅保存，之后仍需单独确认发送。` :
+      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/${isAuth ? "authorize" : isStop ? "stop" : "send"}`;
+      summary = isStop ? "永久停止新的本站发送，并保存当前纠错/停办依据；不能撤回已开始或已送达微信的请求，不改退款号/正文/金额/下载权益。确认停止？" : isAuth ? `冻结并授权全额退款请求，客户会看到原因：${base.reason}。此按钮仅保存，之后仍需单独确认发送。` :
         `即将真实向微信申请全额退款 ${money(amount)}，商户退款号 ${numberConfirmed}，摘要 ${submission.digest}。首次点击可能转出资金；同尝试恢复不会重发。确认发送？`;
     }
     if (kind === "review") {
@@ -223,6 +226,7 @@
     if (!window.confirm(`订单 ${number} / 客户ID ${contract.user_id}\n${summary}`)) return;
     if (kind === "refund-authorize") pendingAuthorization = body;
     if (kind === "refund-send") pendingSend = body;
+    if (kind === "refund-stop") pendingStop = body;
     if (kind === "review") pendingReview = body;
     if (kind === "refund-request") pendingRequest = body;
     busy = true;
@@ -234,7 +238,8 @@
       if (kind === "review") pendingReview = null;
       if (kind === "refund-request") pendingRequest = null;
       if (kind === "refund-authorize") pendingAuthorization = null;
-      resultText = kind === "refund-send" ? "已记录发送尝试观察；不是退款成功。刷新并按原号查询，不换号。" : kind === "refund-authorize" ? "独立授权与完整请求已保存，尚未发送；请核对冻结内容。" : kind === "refund-request" ? "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。" : kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
+      if (kind === "refund-stop") pendingStop = null;
+      resultText = kind === "refund-stop" ? "已记录停止后续本站发送；不是渠道取消。已经开始的请求仍须查询原号确认。" : kind === "refund-send" ? "已记录发送尝试观察；不是退款成功。刷新并按原号查询，不换号。" : kind === "refund-authorize" ? "独立授权与完整请求已保存，尚未发送；请核对冻结内容。" : kind === "refund-request" ? "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。" : kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
     } catch (error) {
       if (alive(stamp, view) && kind === "review" && error.status >= 400 && error.status < 500) pendingReview = null;
       if (alive(stamp, view)) resultText = `${error.message}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;

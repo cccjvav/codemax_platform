@@ -228,3 +228,23 @@ async def send_refund(order_no: str, proof: RefundSendIn, response: Response,
         raise HTTPException(409, str(exc)) from None
     except SQLAlchemyError:
         raise HTTPException(503, '发送/保存结果未知；先刷新原记录并查询原号，不自动重发') from None
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/stop',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-stop', 'RATE_LIMIT_TOOLS'))])
+async def stop_refund_sending(order_no: str, proof: RefundSendIn, response: Response,
+                              db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Permanently stop new local sends; NOT a channel cancellation or financial correction."""
+    response.headers['Cache-Control'] = 'no-store'
+    current = await active_actor(db, admin, admin.credential_version)
+    order = await target(db, order_no, proof)
+    try:
+        stop, changed = await submissions.stop_sending(db, order, actor=current, key=proof.request_id,
+                        authorization_id=proof.authorization_id, expected_digest=proof.digest,
+                        refund_no=proof.out_refund_no, amount=proof.amount, evidence=proof.evidence)
+        return {'stop': stop, 'changed': changed,
+                'warning': '仅停止新的本站发送；已经开始的请求仍可能退款，须查询原号。不是渠道取消，不改金额、正文或下载权益。'}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '停止保存结果未知；刷新原记录并用原请求ID/内容重试，勿据错误推断已停止') from None

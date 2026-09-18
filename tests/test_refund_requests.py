@@ -249,7 +249,7 @@ async def test_prior_completed_refund_cannot_create_preparation(client, refund_c
 def test_real_migration_preserves_payment_and_checks_immutable_preparations(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
-    rows(conn, "DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DELETE FROM schema_migration WHERE version IN ('0012','0013')")
+    rows(conn, "DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DELETE FROM schema_migration WHERE version IN ('0012','0013','0014')")
     rows(conn, "INSERT INTO sys_user(username,password,role) VALUES ('preparer','x',1); "
                "INSERT INTO sys_order(order_no,user_id,product_name,amount,payment_mode,merchant_id,app_id,status,transaction_id) "
                "SELECT 'ORDER1',id,'fixed',100,'wechat','MCH','APP','paid','TX1' FROM sys_user; "

@@ -58,7 +58,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
-| [`database init/full_init.sql`](full_init.sql) | `7b7cfd9ef3c5` | L1–L342 |
+| [`database init/full_init.sql`](full_init.sql) | `f711bdafcc60` | L1–L370 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -72,6 +72,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | [`database init/migrate_0011_refund_receipt.sql`](migrate_0011_refund_receipt.sql) | `2dc409f52cc7` | L1–L44 |
 | [`database init/migrate_0012_refund_request.sql`](migrate_0012_refund_request.sql) | `7f457d50f464` | L1–L47 |
 | [`database init/migrate_0013_refund_authorization.sql`](migrate_0013_refund_authorization.sql) | `980b195895ed` | L1–L45 |
+| [`database init/migrate_0014_refund_send_stop.sql`](migrate_0014_refund_send_stop.sql) | `46c75fc2f785` | L1–L28 |
 | [`database init/seed_demo.sql`](seed_demo.sql) | `1efd73f0a51b` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -115,6 +116,13 @@ PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据�
 
 ## 0013：独立退款授权与完整请求
 
-当前生产应用要求完整账本至0013。仍先备份/停写，用原CLI status/migrate；不重跑init、不改0001–0012。新增refund_authorization，一原准备一份、全局授权ID唯一，正文TEXT、UTF-8 SHA256摘要、首次人/依据/时间；不回填历史授权。
+该子项引入0013；当前生产应用要求完整账本至0014。仍先备份/停写，用原CLI status/migrate；不重跑init、不改0001–0012。新增refund_authorization，一原准备一份、全局授权ID唯一，正文TEXT、UTF-8 SHA256摘要、首次人/依据/时间；不回填历史授权。
 
 真实PG插入触发器锁用户→订单，核当前管理员/姓名、原准备/原付款、精确JSON键数/交易号/固定退款号/全额CNY、80字节reason、本站回调形状及摘要；已有退款活动拒绝。UPDATE/DELETE复用只追加保护，所有者仍能改触发器，不是WORM。发送开始/观察沿用PaymentEvent只追加，不存在自动待发队列。默认开关关闭，迁移本身不发网络/资金。
+
+
+## 0014：只追加的本站发送停止
+
+当前生产完整账本至0014。备份/停写后用原维护CLI status/migrate，历史0001–0013字节不改，不对非空库重跑init。refund_send_stop唯一authorization_id、全局唯一32位request_id、首次人/单行依据/时间，不回填历史停止。
+
+插入触发器锁当前用户→原授权所属订单，核已有授权、活跃管理员/姓名、key和依据；UPDATE/DELETE复用只追加保护。应用把停止和事件同事务保存；数据库所有者仍能改触发器，不是WORM。停止不是渠道取消，不删除原授权/准备/成功凭证或释放退款号。

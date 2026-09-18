@@ -38,7 +38,35 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('submit-')){
+if(scenario.startsWith('stop-')){
+ paid=true;let stopped=null,tries=0,release;
+ const ready={authorization_id:'a'.repeat(32),digest:'c'.repeat(64),body:{reason:'client reason'},actor:'A'};
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   ++tries;const body=JSON.parse(opt.body);
+   if(scenario==='stop-race')return new Promise(r=>release=r);
+   if(tries===1 && ['stop-retry','stop-change'].includes(scenario))throw Error('unknown');
+   stopped={request_id:body.request_id,actor:'FIRST',evidence:body.evidence};
+   if(scenario==='stop-lost-ack')throw Error('lost ACK');
+   return {stop:stopped};
+  }
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.refund_request={request_id:'d'.repeat(32),out_refund_no:'CMR'+'b'.repeat(32),amount:19900,state:'prepared'};
+  d.refund_submission={...ready,stop:stopped};d.refund_send_enabled=true;return d;
+ };
+ start();await tick();await clickOrder();input();el('send-number').value='CMR'+'b'.repeat(32);el('send-amount').value='19900';
+ const submitStop=()=>el('refund-stop').onsubmit({preventDefault(){}});
+ if(scenario==='stop-cancel')accept=false;
+ const pending=submitStop();await tick();
+ if(scenario==='stop-race'){auth.listener(null);release({stop:{actor:'OLD'}})}
+ await pending;
+ if(scenario==='stop-change')el('evidence').value='不能改变未知请求';
+ if(['stop-retry','stop-change','stop-lost-ack'].includes(scenario))await submitStop();
+ const sent=posts().map(r=>({url:r.url,body:JSON.parse(r.options.body)}));
+ const hidden=el('refund-send').hidden,stopHidden=el('refund-stop').hidden,text=el('stop-view').textContent;
+ auth.listener(null);
+ console.log(JSON.stringify({sent,hidden,stopHidden,text,cleared:el('stop-view').textContent===''&&el('send-number').value===''}));
+}else if(scenario.startsWith('submit-')){
  paid=true;let saved=null,tries=0,release;
  const ready={authorization_id:'a'.repeat(32),digest:'c'.repeat(64),body:{reason:'client reason'},actor:'A'};
  if(!scenario.startsWith('submit-authorize'))saved=ready;
@@ -329,3 +357,20 @@ def test_explicit_submission_ui_is_not_automatic(path, scenario):
         assert all('即将真实' in text or '冻结并授权' in text for text in result['confirmations'])
     else:
         assert len(result['sent']) == 1
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js','app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['stop-retry','stop-change','stop-cancel','stop-race','stop-lost-ack'])
+def test_stop_ui_keeps_original_request_and_never_sends_refund(path, scenario):
+    process = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario], text=True, capture_output=True, timeout=15, check=True)
+    data = json.loads(process.stdout)
+    assert data['cleared']
+    assert all(item['url'].endswith('/refunds/stop') for item in data['sent'])
+    if scenario == 'stop-cancel':
+        assert data['sent'] == []
+    elif scenario == 'stop-retry':
+        assert len(data['sent']) == 2 and data['sent'][0] == data['sent'][1]
+    else:
+        assert len(data['sent']) == 1
+    if scenario in ('stop-retry','stop-lost-ack'):
+        assert data['hidden'] and data['stopHidden'] and '不是渠道取消' in data['text']
