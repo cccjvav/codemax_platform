@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     SITE_BASE_URL: str = "https://codemax.top"
 
     # 微信支付 APIv3（S3-01）：下单六项及平台回调凭据均须校验，不合格下单接口直接 503
+    WX_REFUND_SEND_ENABLED: bool = False  # Deployment gate; each send still needs fresh explicit administrator confirmation.
     WX_APPID: str = ""
     WX_MCHID: str = ""  # 商户号
     WX_SERIAL_NO: str = ""  # 商户 API 证书序列号

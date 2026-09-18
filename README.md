@@ -1,4 +1,6 @@
-> 当前第八批：[本地退款准备台账与幂等恢复](review/RELEASE_BLOCKERS_PHASE8.md)，仅保存准备，不发送或授权自动退款。已有全额退款凭证/下载撤权；通知本身不代替成功凭证。后续以[当前队列](review/README.md)为准。
+> 第九批：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
+
+> 第八批历史：[本地退款准备台账与幂等恢复](review/RELEASE_BLOCKERS_PHASE8.md)，仅保存准备，不发送或授权自动退款。已有全额退款凭证/下载撤权；通知本身不代替成功凭证。后续以[当前队列](review/README.md)为准。
 
 > 第四批历史记录：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
 
@@ -221,7 +223,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `57d5af08af42` | L1–L25 |
-| [`.env.example`](.env.example) | `be7c57469ee6` | L1–L112 |
+| [`.env.example`](.env.example) | `105ce963466b` | L1–L116 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
@@ -253,4 +255,4 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 
 ## 第六批资金/交付更新
 
-已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0012本地准备台账迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。没有发起退款、部分退款、定制服务取消或真实商户上线验收承诺。
+已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0013独立授权迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。

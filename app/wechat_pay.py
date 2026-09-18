@@ -410,6 +410,12 @@ async def query_full_refund(cfg: PayConfig, *, out_refund_no: str, out_trade_no:
         raise WeChatPayError('商户退款单号格式无效')
     data = await _request_json(cfg, 'GET', '/v3/refund/domestic/refunds/' + quote(out_refund_no, safe=''),
                                transport=transport)
+    return parse_full_refund(data, out_refund_no=out_refund_no, out_trade_no=out_trade_no,
+                             transaction_id=transaction_id, total=total)
+
+
+def parse_full_refund(data: dict, *, out_refund_no: str, out_trade_no: str, transaction_id: str, total: int) -> RefundResult:
+    """Bind an already signature-verified refund observation; callers decide settlement authority."""
     amount = data.get('amount')
     if (data.get('out_refund_no') != out_refund_no or data.get('out_trade_no') != out_trade_no
             or data.get('transaction_id') != transaction_id or data.get('channel') != 'ORIGINAL'
@@ -432,3 +438,16 @@ async def query_full_refund(cfg: PayConfig, *, out_refund_no: str, out_trade_no:
         except ValueError:
             raise WeChatPayError('退款成功时间缺失或无时区') from None
     return RefundResult(state, refund_id, completed_at)
+
+
+async def submit_full_refund(cfg: PayConfig, *, body: str, out_trade_no: str, transaction_id: str,
+                             total: int, transport=None) -> RefundResult:
+    """Explicit caller only: send exactly the persisted bytes. Return observation, never settle."""
+    request = json.loads(body)
+    if (set(request) != {'transaction_id', 'out_refund_no', 'amount', 'reason', 'notify_url'}
+            or request['transaction_id'] != transaction_id
+            or request['amount'] != {'total': total, 'refund': total, 'currency': 'CNY'}):
+        raise WeChatPayError('冻结退款请求与原合同不符')
+    data = await _request_json(cfg, 'POST', '/v3/refund/domestic/refunds', body, transport=transport)
+    return parse_full_refund(data, out_refund_no=request['out_refund_no'], out_trade_no=out_trade_no,
+                             transaction_id=transaction_id, total=total)

@@ -17,8 +17,8 @@
 </style>
 <div class="finance">
 <h1>订单与收款管理</h1>
-<p>核对原订单，再采取操作。仅管理员可读取数据；本页不发起真实扣款、关单或退款。</p>
-<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款、发起退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
+<p>核对原订单，再采取操作。仅管理员可读取数据；普通核验不转账；独立授权后的“向微信发送”会申请真实退款，部署开关默认关闭。</p>
+<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
 <p id="finance-access" role="status">正在确认登录权限…</p>
 <button id="finance-login" type="button">管理员登录</button>
 <p id="finance-message" role="status" aria-live="polite"></p>
@@ -61,6 +61,19 @@
 <form id="finance-query" hidden>
 <h3>微信主动查单</h3><p>向已配置商户发起只读查询；仅经验证的 SUCCESS 才补记收款。超时请先刷新记录，不要重新创建订单。</p>
 <button id="finance-query-submit" type="submit">核查这个原订单</button>
+</form>
+<h3>独立授权与发送（非自动退款）</h3>
+<pre id="finance-submission-view"></pre>
+<label>手动确认原准备商户退款号<input id="finance-send-number" maxlength="35" autocomplete="off"></label>
+<label>手动确认全额整数分<input id="finance-send-amount" type="number" min="1" step="1"></label>
+<form id="finance-refund-authorize" hidden>
+<label>客户可见退款原因（最多80 UTF-8字节，与内部依据分开）<input id="finance-customer-reason" maxlength="80" autocomplete="off"></label>
+<button id="finance-refund-authorize-submit" type="submit">冻结请求并独立授权（不发送）</button>
+</form>
+<form id="finance-refund-send" hidden>
+<p class="warning">此操作可能转出真实资金。冻结内容、原商户退款号不能修改；申请应答不是成功凭证，须独立查询。旧准备/授权不会自动发送。</p>
+<button id="finance-refund-send-submit" type="submit">确认向微信发送 / 恢复本次尝试</button>
+<button id="finance-send-new-attempt" type="button">未知时准备同号新尝试（不发送）</button>
 </form>
 <form id="finance-refund-request" hidden>
 <h3>登记一笔全额微信退款准备</h3>

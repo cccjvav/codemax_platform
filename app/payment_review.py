@@ -13,11 +13,11 @@ from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from .models import Order, PaymentEvent, PaymentReceipt, RefundReceipt, RefundRequest
+from .models import Order, PaymentEvent, PaymentReceipt, RefundAuthorization, RefundReceipt, RefundRequest
 
 REVIEW_KIND = 'operator_review'
 ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
-          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared')
+          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared', 'refund_authorized', 'refund_send_started', 'refund_send_observed')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60
 
@@ -94,14 +94,17 @@ async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime 
     latest = select(func.max(PaymentEvent.id)).where(PaymentEvent.order_id.in_(ids), PaymentEvent.kind == REVIEW_KIND)
     reviews = {e.order_id: e for e in (await db.scalars(select(PaymentEvent)
                .where(PaymentEvent.id.in_(latest.group_by(PaymentEvent.order_id))))).all()}
-    receipt_rows = (await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id, RefundReceipt.id, RefundRequest.id)
+    receipt_rows = (await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id, RefundReceipt.id, RefundRequest.id, RefundAuthorization.id)
                     .outerjoin(RefundReceipt, RefundReceipt.payment_receipt_id == PaymentReceipt.id)
                     .outerjoin(RefundRequest, RefundRequest.payment_receipt_id == PaymentReceipt.id)
+                    .outerjoin(RefundAuthorization, RefundAuthorization.preparation_id == RefundRequest.id)
                     .where(PaymentReceipt.order_id.in_(ids)))).all()
     receipts, prepared_orders = {}, set()
-    for oid, rid, refund_id, prepared_id in receipt_rows:
+    for oid, rid, refund_id, prepared_id, authorized_id in receipt_rows:
         receipt_fact = rid if refund_id is None else [rid, refund_id]
         receipts[oid] = receipt_fact if prepared_id is None else [receipt_fact, 'request', prepared_id]
+        if authorized_id is not None:
+            receipts[oid] = [receipts[oid], 'authorization', authorized_id]
         if prepared_id is not None:
             prepared_orders.add(oid)
     result = {}

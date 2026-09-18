@@ -62,7 +62,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `cc4134be9cac` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `bdd221daee72` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
@@ -101,3 +101,6 @@ python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_
 第七批DOC_GROUPS登记退款通知线索实施报告；路由统计新增公开的平台验签回调，不把“无用户鉴权依赖”误写成无需认证。计数与运行时集合精确对照，既有管理员鉴权/限流数不放宽。
 
 第八批登记本地退款准备实施报告；源码/路由地图仍从实际代码提取，新增受控准备POST。数据库新表和函数的逐段解释与0012一起维护，不以历史迁移样例数量替代当前结构。
+
+
+第九批仍沿用现有构建/README门禁：新报告登记DOC_GROUPS，新增服务/迁移/测试补分段解释后再更新SHA；不只刷新指纹。

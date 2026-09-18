@@ -57,12 +57,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
-| [`tests/test_db_admin.py`](test_db_admin.py) | `2afc0b5cb327` | L1–L230 |
+| [`tests/test_db_admin.py`](test_db_admin.py) | `0c61937a7e67` | L1–L230 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `fe3639b32385` | L1–L457 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `45b34a9b6fc8` | L1–L457 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -80,19 +80,20 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `489ffbede4ec` | L1–L539 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
-| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `3da3e5f17782` | L1–L338 |
+| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `0fa411d20467` | L1–L338 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `d728665252bf` | L1–L287 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `0fc0e2e87cbc` | L1–L331 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
-| [`tests/test_refund_requests.py`](test_refund_requests.py) | `8389eb69db28` | L1–L319 |
-| [`tests/test_refunds.py`](test_refunds.py) | `d46c7ea6a30d` | L1–L445 |
+| [`tests/test_refund_requests.py`](test_refund_requests.py) | `3bb0af69b316` | L1–L319 |
+| [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `4da5499f3e93` | L1–L406 |
+| [`tests/test_refunds.py`](test_refunds.py) | `645768bdb278` | L1–L445 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
@@ -178,3 +179,8 @@ test_refund_notifications使用自己的refund/AES-GCM事件构造器，借现�
 test_refund_requests覆盖独立提交/首笔不变、同单与跨单/跨人竞争、严格分数与未知字段拒绝、来源隔离、既有退款活动拒绝造新号、提交前回滚/提交后丢ACK、权限版本/来源/限流、仅查询成功才撤权、通知不升级准备、缺审计仍可发现。真实维护库执行0011→0012和只追加/全额/原商户/管理员/既有退款活动触发器反例，不指向业务库。
 
 历史0008/0010/0011测试倒回其基线时先移除新的依赖表/函数，再执行原升级断言；不改历史迁移。两个未来迁移测试改用当前版本+1，避免新增0012与写死测试编号撞名；仍必须实际DDL回滚和不重放。新增最低0012打包缺失拒绝测试。Node源码/bundle同测准备重试同body、丢ACK读回、改未知内容拦截、取消、账号迟到清屏及填号不提交。前端VM与SQLite不冒充浏览器/生产PG触发器验收。
+
+
+## 第九批合成发送与恢复
+
+新test_refund_submissions全程拦截真实发送，注入真正签名的MockTransport验证POST签名/精确正文/应答验签，独立连接证明started先可见且无用户锁跨网络。覆盖授权原子失败、发送前提交失败/丢ACK、发送后结果落库失败、相同/不同尝试竞争、开关/权限/商户/摘要/原额、字节原因、回调配置、独立授权事实、冷却与同号重试；申请即便SUCCESS也不撤权。真PG退回0012后升级0013，实际写坏合同/原因/回调及UPDATE/DELETE反例；原升级fixture先拆新依赖，不修改历史SQL。Node源码/bundle新增授权/发送丢应答同body、取消/开关、超字节、换账号迟到清屏。

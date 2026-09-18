@@ -102,8 +102,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
 | [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
-| [`app/routers/refunds_admin.py`](refunds_admin.py) | `fdeb77995487` | L1–L162 |
-| [`app/routers/shop.py`](shop.py) | `8f441760ba28` | L1–L682 |
+| [`app/routers/refunds_admin.py`](refunds_admin.py) | `cbeb980cea56` | L1–L230 |
+| [`app/routers/shop.py`](shop.py) | `11b0b79cbfd9` | L1–L684 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -169,4 +169,11 @@ shop.payment_ledger在管理员权限下另读最新本地ID的通知摘要，�
 
 refunds_admin新增RefundPrepareIn（拒绝未知字段、32位小写十六进制request_id、严格整数分、单行无C0/C1控制字符的3–160字依据）及POST `/shop/admin/orders/{order_no}/refunds/requests`。活跃管理员/凭据版本、来源与限流均验证，固定单号手输确认；调用prepare_request，返回首次稳定商户退款号、changed与明确preparation_only。冲突409，数据库保存未知503，不把失败写成未保存。
 
-shop.payment_ledger另读准备及是否有既有退款活动，返回refund_request/refund_prepare_allowed，不受事件分页影响。可用标记仅是当前页面提示，真正写入仍在锁内检查。读取不写任务、不调用渠道；两个原退款核验入口和下载授权规则不变。当前需要0012，不能让未升级业务库直接接新流量。
+shop.payment_ledger另读准备及是否有既有退款活动，返回refund_request/refund_prepare_allowed，不受事件分页影响。可用标记仅是当前页面提示，真正写入仍在锁内检查。读取不写任务、不调用渠道；两个原退款核验入口和下载授权规则不变。当前需要0013，不能让未升级业务库直接接新流量。
+
+
+## 第九批独立授权与发送
+
+refunds_admin新增authorize/send两个管理员POST，均有财务来源与独立限流。RefundAuthorizeIn继承extra=forbid/严格整数/手输确认，另验reason的UTF-8字节数；RefundSendIn要求授权ID、完整摘要和固定退款号。两个路由先active_actor重查角色/状态/凭据版本并持用户锁，再进入服务订单锁。authorize仅保存，不发网络。send先持久尝试才调用渠道；未知HTTP/验签结果保守记录，SQL失败503。返回no-store，不透出原始渠道报文。已有query仍是独立金融核验入口。
+
+shop.ledger另读refund_submission与部署开关；它不发送，历史游标不隐藏当前授权/尝试。页面可见性不是权限/可发送保证；已有通知/查询即使404也阻止本站重新申请，须人工在原渠道继续核验，不删事件解除保护。

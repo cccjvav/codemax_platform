@@ -103,20 +103,21 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `1e150dc23bfd` | L1–L138 |
+| [`app/config.py`](config.py) | `eaaf3ac74b46` | L1–L139 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `75122254d0b7` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `462f5b06dc73` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `cb80683f8e37` | L1–L303 |
+| [`app/models.py`](models.py) | `ce0a2b1aad56` | L1–L317 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `889998df4d92` | L1–L124 |
+| [`app/payment_review.py`](payment_review.py) | `2870967a24f0` | L1–L127 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `744c462ad740` | L1–L203 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
+| [`app/refund_submissions.py`](refund_submissions.py) | `4d1fe29b2f10` | L1–L186 |
 | [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -124,7 +125,7 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `4f9a8824e60c` | L1–L434 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `8d6ddfeb4f1b` | L1–L453 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -159,7 +160,7 @@ Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提
 
 `wechat_pay._request_json`统一Native POST/查单GET：精确签名和发送字节、固定域名、禁止跳转/压缩、64KiB及20秒总预算。`assert_response_signature`检查单值有界四头、平台身份/有效期、5分钟窗口及原文签名，不能先反序列化再验；非200即便可信也不当未付。`QueryResult`只暴露受验证状态/流水/时间，不存payer原文；`query_order`绑定订单号、商户/app和提供的金额，SUCCESS强制CNY/NATIVE/完整带时区凭证。未付可缺官方可选金额，REFUND仅观察。sign要求RSA至少2048位。
 
-`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`服务七种管理员财务写操作（含复核、两个退款核验与本地准备）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
+`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`服务九种管理员财务写操作（含复核、两个核验、准备、独立授权和发送）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
 
 ## 第五批：payment_review.py的只读复核投影
 
@@ -194,3 +195,14 @@ RefundRequest通过唯一order_id/payment_receipt_id/request_id/商户退款号�
 request_for独立读原单准备；request_view仅以成功凭证给prepared/confirmed/completed_elsewhere展示状态。prepared只说明有本地记录，不能推断渠道没发送；通知SUCCESS不会把它升级。实际退款号不同则保留原准备并提示已有其他成功凭证，禁止另发。内部依据最多160字符，不是微信面向客户的reason字段（80字节），不得以后直接透传。
 
 payment_review仍四次批量读取：最后一次收款/退款查询再LEFT JOIN唯一准备行，资料摘要带准备ID；无准备保持旧摘要编码。候选及最终state同时考虑准备行，缺过程事件也可发现；精确重试不追加事件、不重新打开已完成的同一轮复核。
+
+
+## 第九批：refund_submissions.py与显式发送
+
+RefundAuthorization唯一绑定原准备，另有全局授权request_id；冻结完整JSON字节及SHA256、首次授权人/依据/时间。build_body只取原交易流水/全额CNY/固定商户退款号，客户原因单独输入且最多80 UTF-8字节，回调由SITE_BASE_URL固定拼出/shop/refunds/notify。内部依据不能透传为reason。authorize持用户→订单锁，完整授权和事件同事务；精确同人同事实重放保留原回调，即使配置后来改变。
+
+begin_send需要当前管理员再次确认授权ID/摘要/原退款号/全额，默认WX_REFUND_SEND_ENABLED=false。每次新尝试先持久refund_send_started，再释放事务调用固定微信端点；相同尝试ID仅读回，绝不再次发送。未知需新显式尝试且至少60秒、同正文同号；任一已受理观察、独立通知/查询或成功凭证阻止新发送。60秒不是分布式任务租约；进程暂停也只能重复原商户号，不能新造号码。
+
+finish_send只追加有界观察，保留发起人，即使网络期间角色撤销也保存已发生事实；不发新请求/不创建RefundReceipt/不撤权。崩溃、取消或结果落库失败留下unknown，不捏造未发送。submission_view独立读授权/最近尝试；复核摘要独立包含授权ID，缺过程事件仍能发现。没有后台扫描器、自动重试、授权取消/改写、部分退款或真实商户签收。
+
+wechat_pay.submit_full_refund复用有界签名POST传输，逐字节发送冻结body；parse_full_refund是查询与申请共用的可信应答字段校验，调用方决定权限：申请即便SUCCESS也只记观察，独立查询才记成功凭证。

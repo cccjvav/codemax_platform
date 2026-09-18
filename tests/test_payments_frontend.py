@@ -25,7 +25,7 @@ const ledger=(no)=>({order_no:no,order:{user_id:1,product_name:'<img src=x onerr
   review:{state:'open',version:7,snapshot:'a'.repeat(64),issues:1,orphans:0,note:'<script>NOTE</script>',actor:'A'},
   events:[{id:1,kind:'PRIVATE_'+no,actor:'A',evidence:'<script>EVENT</script>'}],next_cursor:null});
 let impl=async(url,opt)=>url.includes('/ledger')?ledger(url.split('/')[4]):rows();
-const context={document:{getElementById:get,createElement:make},AbortController,URLSearchParams,Number,
+const context={document:{getElementById:get,createElement:make},AbortController,URLSearchParams,Number,TextEncoder,
   window:{CodeMaxAuth:auth,confirm(text){confirmations.push(text);return accept}},
   fetch:async(url,options={})=>{requests.push({url,options});const data=await impl(url,options);
     if(data?.httpStatus)return {ok:false,status:data.httpStatus,json:async()=>({detail:'rejected'})};
@@ -38,7 +38,34 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('prepare-')){
+if(scenario.startsWith('submit-')){
+ paid=true;let saved=null,tries=0,release;
+ const ready={authorization_id:'a'.repeat(32),digest:'c'.repeat(64),body:{reason:'client reason'},actor:'A'};
+ if(!scenario.startsWith('submit-authorize'))saved=ready;
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   ++tries;if(scenario==='submit-race')return new Promise(r=>release=r);
+   if(tries===1 && ['submit-retry','submit-authorize-retry'].includes(scenario))throw Error('lost ACK');
+   if(url.endsWith('/authorize'))saved=ready;
+   return {attempt:{state:'unknown'},submission:saved};
+  }
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.receipt.source='wechat';d.order.payment_mode='wechat';
+  d.refund_request={request_id:'d'.repeat(32),out_refund_no:'CMR'+'b'.repeat(32),amount:19900,state:'prepared'};
+  d.refund_submission=saved;d.refund_send_enabled=scenario!=='submit-disabled';return d;
+ };
+ start();await tick();await clickOrder();input();el('send-number').value='CMR'+'b'.repeat(32);el('send-amount').value='19900';
+ el('customer-reason').value=scenario==='submit-authorize-bytes'?'中'.repeat(27):'客户取消';
+ const action=scenario.startsWith('submit-authorize')?'refund-authorize':'refund-send';
+ if(scenario==='submit-cancel')accept=false;
+ const pending=el(action).onsubmit({preventDefault(){}});await tick();
+ if(scenario==='submit-race'){auth.listener(null);release({attempt:{state:'accepted'}})}
+ await pending;
+ if(['submit-retry','submit-authorize-retry'].includes(scenario))await el(action).onsubmit({preventDefault(){}});
+ const sent=posts().map(r=>({url:r.url,body:JSON.parse(r.options.body)}));
+ auth.listener(null);
+ console.log(JSON.stringify({sent,confirmations,cleared:el('submission-view').textContent===''&&el('send-number').value==='',hidden:el('workspace').hidden}));
+}else if(scenario.startsWith('prepare-')){
  paid=true; let saved=null, release, tries=0;
  const prepared=(body)=>({request_id:body.request_id,out_refund_no:'CMR'+'b'.repeat(32),amount:19900,currency:'CNY',state:'prepared',actor:'adminA',evidence:body.evidence,merchant_id:'M',app_id:'A'});
  if(scenario==='prepare-prefill')saved=prepared({request_id:'a'.repeat(32),evidence:'<script>proof</script>'});
@@ -285,3 +312,20 @@ def test_preparation_ui_preserves_request_and_never_sends_money(folder, scenario
         assert all(body == data['bodies'][0] for body in data['bodies'])
         assert re.fullmatch(r'[0-9a-f]{32}', data['bodies'][0]['request_id'])
         assert data['bodies'][0]['amount'] == 19900
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js','app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['submit-retry','submit-authorize-retry','submit-disabled','submit-cancel','submit-race','submit-authorize-bytes'])
+def test_explicit_submission_ui_is_not_automatic(path, scenario):
+    process = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario], text=True, capture_output=True, timeout=15, check=True)
+    result = json.loads(process.stdout)
+    assert result['cleared'] and result['hidden']
+    if scenario in ('submit-disabled','submit-cancel','submit-authorize-bytes'):
+        assert result['sent'] == []
+    elif scenario.endswith('retry'):
+        assert len(result['sent']) == 2
+        assert result['sent'][0] == result['sent'][1]
+        assert len(result['sent'][0]['body']['request_id']) == 32
+        assert all('即将真实' in text or '冻结并授权' in text for text in result['confirmations'])
+    else:
+        assert len(result['sent']) == 1

@@ -1,23 +1,25 @@
-"""Admin-only recording/verification of externally completed FULL refunds; never sends money."""
+"""Administrator full-refund preparation, authorization, gated sending and separate verification."""
 from __future__ import annotations
 
 import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import AwareDatetime, ConfigDict, Field, StrictInt
+from pydantic import AwareDatetime, ConfigDict, Field, StrictInt, field_validator
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from .. import refund_submissions as submissions
+from ..config import settings
 from ..database import get_db, lock_user
 from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, User
 from ..payment_ledger import PaymentConflict, lock_order
 from ..ratelimit import rate_limit
-from ..refund_requests import prepare_request, request_view
+from ..refund_requests import prepare_request, request_for, request_view
 from ..refunds import original_receipt, record_refund, refund_for
-from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund
+from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund, submit_full_refund
 from .shop import EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
@@ -160,3 +162,69 @@ async def prepare_refund(order_no: str, proof: RefundPrepareIn, response: Respon
     return {'order_no': order_no, 'changed': changed,
             'refund_request': request_view(row, await refund_for(db, order.id)),
             'warning': '仅保存本地准备，不发送或批准自动退款，不改变下载权。请保留原请求号。'}
+
+
+class RefundAuthorizeIn(RefundPrepareIn):
+    out_refund_no: str = Field(pattern=r'^CMR[0-9a-f]{32}$')
+    reason: str = Field(min_length=1, max_length=80)
+
+    @field_validator('reason')
+    @classmethod
+    def customer_reason(cls, value):
+        if value != value.strip() or len(value.encode('utf-8')) > 80 or any(ord(c) < 32 or 127 <= ord(c) < 160 for c in value):
+            raise ValueError('客户可见退款原因须为1–80 UTF-8字节单行，不能透传内部依据')
+        return value
+
+
+class RefundSendIn(RefundPrepareIn):
+    authorization_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    digest: str = Field(pattern=r'^[0-9a-f]{64}$')
+    out_refund_no: str = Field(pattern=r'^CMR[0-9a-f]{32}$')
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/authorize',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-authorize', 'RATE_LIMIT_TOOLS'))])
+async def authorize_refund(order_no: str, proof: RefundAuthorizeIn, response: Response,
+                           db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Freeze separately confirmed full request; authorizing alone does not send."""
+    response.headers['Cache-Control'] = 'no-store'
+    current = await active_actor(db, admin, admin.credential_version)
+    order = await target(db, order_no, proof)
+    try:
+        changed = await submissions.authorize(db, order, actor=current, key=proof.request_id,
+                    refund_no=proof.out_refund_no, amount=proof.amount, reason=proof.reason,
+                    evidence=proof.evidence, origin=settings.SITE_BASE_URL)
+        return {'changed': changed, 'submission': await submissions.submission_view(db, await request_for(db, order.id))}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '授权保存结果未知；刷新并用原请求内容恢复，不另造退款号') from None
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/send',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-send', 'RATE_LIMIT_TOOLS'))])
+async def send_refund(order_no: str, proof: RefundSendIn, response: Response,
+                      db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Fresh explicit money-moving action, gated off by default; exact attempt replay never resends."""
+    response.headers['Cache-Control'] = 'no-store'
+    current = await active_actor(db, admin, admin.credential_version)
+    order = await target(db, order_no, proof)
+    cfg = pay_config()
+    try:
+        view, packet = await submissions.begin_send(db, order, actor=current, key=proof.request_id,
+                        authorization_id=proof.authorization_id, expected_digest=proof.digest,
+                        refund_no=proof.out_refund_no, amount=proof.amount, evidence=proof.evidence,
+                        cfg=cfg, enabled=settings.WX_REFUND_SEND_ENABLED)
+        if packet is not None:
+            body, number, transaction, total = packet
+            try:
+                result = await submit_full_refund(cfg, body=body, out_trade_no=number,
+                                                   transaction_id=transaction, total=total)
+            except WeChatPayError:
+                result = None
+            view = await submissions.finish_send(db, order, key=proof.request_id, result=result)
+        return {'attempt': view, 'warning': '申请观察不是成功凭证；下载权不变。请按原商户退款号独立查询，不换号重退。'}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '发送/保存结果未知；先刷新原记录并查询原号，不自动重发') from None

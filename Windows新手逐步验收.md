@@ -765,3 +765,15 @@ npm run build
 ```
 
 现行应用需要0012；只在独立空库init，已有库按数据库指南备份/停写后migrate，切勿拿业务库跑pytest。管理员页面新增“保存退款准备（不发送）”：输入完整单号、全额分数、内部依据，保存后核对固定商户退款号。断网先刷新，按原内容重试；不能另造号码。准备/通知/成功凭证分开，两个填号按钮均不提交或代填确认；换账号应清空。准备不撤销下载，也不等于同意以后自动退款；具体步骤见管理手册第八批，实际Windows/商户/恢复仍未代办签收。
+
+
+## 第九批增补：先在隔离环境验显式申请
+
+VS Code集成CMD、激活Conda并使用系统Node，仍沿用独立测试库：
+
+```cmd
+python -m pytest -q tests/test_refund_submissions.py tests/test_refund_requests.py tests/test_refunds.py tests/test_payments_frontend.py
+npm run build
+```
+
+生产迁移当前0013，按数据库指南处理，不复制业务库连接来测试。WX_REFUND_SEND_ENABLED默认false，保持关闭；新页面独立授权不发送，发送按钮另有真实转款确认。未知先刷新原尝试/查询原号，不换退款号。具体步骤及不可自动恢复的情况见管理手册第九批；Windows/浏览器/商户/恢复仍需实际验收，不从沙箱通过推断。

@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `925691b0a63a` | L1–L100 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `9c1b85e6cf62` | L1–L113 |
 | [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -62,3 +62,8 @@ payments-admin.html增加成功退款凭证区、原商户退款号查询与人�
 
 
 第八批增加request-view、refund-request表单、request-amount及request-prefill。准备表单明确一单一笔全额、未发送/未授权自动发送/不撤权；使用共同手输单号/依据。两个填号按钮均type=button，保存准备的submit只调用本地接口。现行控制列表和脚本同步；页面壳不嵌入私人准备数据。
+
+
+## 第九批财务模板
+
+新增submission-view、客户原因、手动原准备号/全额以及独立authorize/send表单。发送区默认hidden，文案明确可能真实转款；new-attempt按钮是type=button只准备下一尝试，不提交。正式启用须商户/恢复验收；普通核验按钮仍不转账。

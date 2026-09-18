@@ -1,4 +1,6 @@
-> 当前第八批：[本地退款准备台账](review/RELEASE_BLOCKERS_PHASE8.md)，不发送退款。第六批全额退款凭证/订单下载门禁保留。后续开发、实机验收和可选扩展的优先级统一见[当前队列](review/README.md)，下方旧阶段勾选不作为现行验收。
+> 第九批：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
+
+> 第八批历史：[本地退款准备台账](review/RELEASE_BLOCKERS_PHASE8.md)，不发送退款。第六批全额退款凭证/订单下载门禁保留。后续开发、实机验收和可选扩展的优先级统一见[当前队列](review/README.md)，下方旧阶段勾选不作为现行验收。
 
 > 第五批历史进展：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)，不改变资金或下载权益。
 

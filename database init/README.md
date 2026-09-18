@@ -58,7 +58,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
-| [`database init/full_init.sql`](full_init.sql) | `cae77acbf62e` | L1–L297 |
+| [`database init/full_init.sql`](full_init.sql) | `7b7cfd9ef3c5` | L1–L342 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -71,6 +71,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | [`database init/migrate_0010_payment_ledger.sql`](migrate_0010_payment_ledger.sql) | `90fb5053ca49` | L1–L75 |
 | [`database init/migrate_0011_refund_receipt.sql`](migrate_0011_refund_receipt.sql) | `2dc409f52cc7` | L1–L44 |
 | [`database init/migrate_0012_refund_request.sql`](migrate_0012_refund_request.sql) | `7f457d50f464` | L1–L47 |
+| [`database init/migrate_0013_refund_authorization.sql`](migrate_0013_refund_authorization.sql) | `980b195895ed` | L1–L45 |
 | [`database init/seed_demo.sql`](seed_demo.sql) | `1efd73f0a51b` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -110,3 +111,10 @@ PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据�
 新PG插入触发器按用户→订单锁序，核对当前活跃管理员/姓名及原微信收款、订单、金额/币种/商户/app；已有成功退款、退款通知或退款查询记录则拒绝新准备。号码格式/依据及来源也核验。UPDATE/DELETE使用既有只追加保护；不是数据库所有者不可篡改的WORM。ORM/SQLite仅有模型列与唯一/CHECK约束，完整触发器另用真实PG测试。
 
 准备与refund_request_prepared事件由应用同事务提交。SQL触发器不自动补事件，因此复核投影也独立纳入准备行。这里没有发起退款、审批自动发送、取消/删号重建或部分准备。以后接发送器必须另做明确授权和完整请求快照，不得自动处理所有历史准备行。保持退款成功凭证与下载门禁；回滚须停写评估，不删表/账本规避校验。
+
+
+## 0013：独立退款授权与完整请求
+
+当前生产应用要求完整账本至0013。仍先备份/停写，用原CLI status/migrate；不重跑init、不改0001–0012。新增refund_authorization，一原准备一份、全局授权ID唯一，正文TEXT、UTF-8 SHA256摘要、首次人/依据/时间；不回填历史授权。
+
+真实PG插入触发器锁用户→订单，核当前管理员/姓名、原准备/原付款、精确JSON键数/交易号/固定退款号/全额CNY、80字节reason、本站回调形状及摘要；已有退款活动拒绝。UPDATE/DELETE复用只追加保护，所有者仍能改触发器，不是WORM。发送开始/观察沿用PaymentEvent只追加，不存在自动待发队列。默认开关关闭，迁移本身不发网络/资金。

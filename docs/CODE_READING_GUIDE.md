@@ -372,3 +372,8 @@ Git 已跟踪及未忽略新增文本
 ### 第八批精读路径：准备不是发送
 
 从models.RefundRequest和0012读唯一归属/原收款/只追加保护，再追refunds_admin.prepare_refund的管理员锁与refund_requests.prepare_request的订单锁、先查精确重放再查阻断活动、flush/事件/commit。对照GET ledger、payment_review的独立准备事实与前端pendingRequest：本地丢响应保持原请求，显示/填号不是发送。看新测试的提交前/后故障、并发、真实SQL触发器和Node换账号，不把本地准备当渠道请求成功。
+
+
+## 第九批阅读路径
+
+从RefundAuthorization与0013读不可覆盖请求，再顺序读refund_submissions.build_body/authorize/begin_send/finish_send，标记commit与外部I/O的分界。看wechat_pay._request_json与新parse_full_refund/submit_full_refund：校验相同不等于调用方拥有相同记账权限。路由send只记录观察，query才走record_refund。最后对照前端pendingSend和Node VM，理解“同尝试恢复”和“新尝试同号发送”的区别；默认开关、实时权限和明确确认缺一不可。

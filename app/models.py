@@ -301,3 +301,17 @@ class RefundRequest(Base):
         UniqueConstraint('merchant_id', 'out_refund_no', name='uq_request_merchant_reference'),
         CheckConstraint("amount > 0 AND currency = 'CNY'", name='ck_request_amount_currency'),
     )
+
+
+class RefundAuthorization(Base):
+    """Explicit immutable outbound contract, never a queue consumed automatically."""
+    __tablename__ = 'refund_authorization'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    preparation_id: Mapped[int] = mapped_column(ForeignKey('refund_request.id'), unique=True)
+    request_id: Mapped[str] = mapped_column(String(32), unique=True)
+    actor_id: Mapped[int] = mapped_column(ForeignKey('sys_user.id'))
+    actor_name: Mapped[str] = mapped_column(String(50))
+    evidence: Mapped[str] = mapped_column(String(160))
+    body: Mapped[str] = mapped_column(Text)
+    digest: Mapped[str] = mapped_column(String(64))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
