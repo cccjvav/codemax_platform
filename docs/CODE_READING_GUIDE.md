@@ -367,3 +367,8 @@ Git 已跟踪及未忽略新增文本
 ### 第六批精读路径：退款不擦掉付款
 
 先读models.RefundReceipt及0011，分清原收款、已完成退款和过程事件；再读refunds.original_receipt/record_refund与refunds_admin两个POST，追踪用户锁、订单锁、网络前started、网络后权限复查和同事务commit。最后沿storage签名→shop领链→公开下载出口阅读：校验订单号和实时退款，不是只检查HMAC。看tests/test_refunds.py中的合成签名、独立观察连接、下载校验期间退款及真实迁移反例；它们不是真实商户/银行凭证。
+
+
+### 第八批精读路径：准备不是发送
+
+从models.RefundRequest和0012读唯一归属/原收款/只追加保护，再追refunds_admin.prepare_refund的管理员锁与refund_requests.prepare_request的订单锁、先查精确重放再查阻断活动、flush/事件/commit。对照GET ledger、payment_review的独立准备事实与前端pendingRequest：本地丢响应保持原请求，显示/填号不是发送。看新测试的提交前/后故障、并发、真实SQL触发器和Node换账号，不把本地准备当渠道请求成功。

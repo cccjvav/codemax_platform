@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `f7c03941b6c6` | L1–L204 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `16d7f24e72e7` | L1–L231 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -88,3 +88,10 @@ payments-admin把退款查询/人工已退款登记纳入原有账号、详情�
 ## 第七批：通知只展示/填号，不自动提交
 
 detail在原有会话/详情序号保护内更新currentNotice，明确SUCCESS通知不等于本地退款完成；部分通知只提示核账。refund-prefill是type=button，只填refund-no，要求当前管理员/有效全额通知/非busy/可见操作区，不填确认号或依据、不fetch。clearDetail清空通知和禁用按钮；刷新进行中隐藏操作区，旧通知不可借按钮提交。账号切换/迟到详情仍由epoch/view保护。所有内容继续textContent，Node分别测源码与bundle，不代替浏览器验收。
+
+
+## 第八批：准备请求的稳定身份与确认
+
+管理脚本新增currentRequest/pendingRequest、准备金额和独立展示区。七类表单共用forms列表控制隐藏/忙碌/清屏；nonce共用原有UUID优先、随机降级逻辑，它是幂等标识，不是认证秘密。prepare分支验证手输原单/全额整数分/依据，再明确确认“不是发送授权”。首次提交保存完整pendingRequest，网络错误不换ID；改未确认内容会拒绝并提示读原记录，重试仍用原body。成功或GET读到同request_id才确认已保存；换单/账号清空本地状态，服务器一单唯一仍保护晚到提交。
+
+详情用textContent展示原商户/app、固定号码、登记人/依据与准备/匹配成功/另号成功三种含义。准备记录不推断渠道发送状态；现有通知/成功凭证仍分区。request-prefill只填查询框，不POST、不代填确认号/依据；成功凭证存在时禁用。没有退款发送按钮，历史准备不能成为未来自动发送队列。

@@ -102,8 +102,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
 | [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
-| [`app/routers/refunds_admin.py`](refunds_admin.py) | `f623cb35aa6b` | L1–L133 |
-| [`app/routers/shop.py`](shop.py) | `c9845cb490f6` | L1–L676 |
+| [`app/routers/refunds_admin.py`](refunds_admin.py) | `fdeb77995487` | L1–L162 |
+| [`app/routers/shop.py`](shop.py) | `8f441760ba28` | L1–L682 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -163,3 +163,10 @@ ReviewIn限制动作、160字说明、SHA摘要、严格整数版本、32位十�
 POST `/shop/refunds/notify`是公开服务器回调，不使用用户Cookie/管理员来源鉴权，而以可信平台验签和原付款归属授权。refund_notify检查接收配置、压缩与流式64KiB/4秒预算，parse_notice后save_notice持久提交，成功204空体；failure只返回固定FAIL消息/no-store，不透传原文/密钥。400协议/签名、409业务冲突、413上限、415压缩、503配置/数据库/超时；未知提交结果必须原ID重试。应用预算不保证代理端到端5秒SLA，生产仍须网关限额/监测与实测。
 
 shop.payment_ledger在管理员权限下另读最新本地ID的通知摘要，不受事件before分页影响；仅返回notice_view通过的显示字段，普通客户无权读取。回调与管理GET均不调用退款服务/外网，不改变权益。完整配置与不自动补发历史通知的限制见管理手册第七批。
+
+
+## 第八批：准备登记与只读恢复
+
+refunds_admin新增RefundPrepareIn（拒绝未知字段、32位小写十六进制request_id、严格整数分、单行无C0/C1控制字符的3–160字依据）及POST `/shop/admin/orders/{order_no}/refunds/requests`。活跃管理员/凭据版本、来源与限流均验证，固定单号手输确认；调用prepare_request，返回首次稳定商户退款号、changed与明确preparation_only。冲突409，数据库保存未知503，不把失败写成未保存。
+
+shop.payment_ledger另读准备及是否有既有退款活动，返回refund_request/refund_prepare_allowed，不受事件分页影响。可用标记仅是当前页面提示，真正写入仍在锁内检查。读取不写任务、不调用渠道；两个原退款核验入口和下载授权规则不变。当前需要0012，不能让未升级业务库直接接新流量。

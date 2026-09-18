@@ -5,8 +5,9 @@ import json
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Response
-from pydantic import AwareDatetime, Field, StrictInt
+from pydantic import AwareDatetime, ConfigDict, Field, StrictInt
 from sqlalchemy import select
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..database import get_db, lock_user
@@ -14,7 +15,8 @@ from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, User
 from ..payment_ledger import PaymentConflict, lock_order
 from ..ratelimit import rate_limit
-from ..refunds import original_receipt, record_refund
+from ..refund_requests import prepare_request, request_view
+from ..refunds import original_receipt, record_refund, refund_for
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund
 from .shop import EvidenceIn
 
@@ -131,3 +133,30 @@ async def query_refund(order_no: str, proof: RefundQueryIn, response: Response,
         await db.commit()
     return {'order_no': order_no, 'observed_state': result.state, 'changed': changed, 'attempt_id': attempt,
             'status': order.status, 'warning': '只有成功退款凭证才停止后续下载；原收款记录保留。未发起退款。'}
+
+
+class RefundPrepareIn(RefundIn):
+    model_config = ConfigDict(extra='forbid')
+    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+    request_id: str = Field(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$')
+    amount: StrictInt = Field(gt=0, le=2147483647)
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/requests',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-prepare', 'RATE_LIMIT_TOOLS'))])
+async def prepare_refund(order_no: str, proof: RefundPrepareIn, response: Response,
+                          db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Persist a local preparation + stable reference, NOT authorization to send or proof of refund."""
+    response.headers['Cache-Control'] = 'no-store'
+    current = await active_actor(db, admin, admin.credential_version)
+    order = await target(db, order_no, proof)
+    try:
+        row, changed = await prepare_request(db, order, actor=current, request_id=proof.request_id,
+                                             amount=proof.amount, evidence=proof.evidence)
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '退款准备保存结果未知，请刷新记录并使用原请求ID与内容重试') from None
+    return {'order_no': order_no, 'changed': changed,
+            'refund_request': request_view(row, await refund_for(db, order.id)),
+            'warning': '仅保存本地准备，不发送或批准自动退款，不改变下载权。请保留原请求号。'}

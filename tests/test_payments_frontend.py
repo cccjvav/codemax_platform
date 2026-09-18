@@ -38,7 +38,38 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario==='refund-notice' || scenario==='refund-partial' || scenario==='refund-notice-race'){
+if(scenario.startsWith('prepare-')){
+ paid=true; let saved=null, release, tries=0;
+ const prepared=(body)=>({request_id:body.request_id,out_refund_no:'CMR'+'b'.repeat(32),amount:19900,currency:'CNY',state:'prepared',actor:'adminA',evidence:body.evidence,merchant_id:'M',app_id:'A'});
+ if(scenario==='prepare-prefill')saved=prepared({request_id:'a'.repeat(32),evidence:'<script>proof</script>'});
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   ++tries;const body=JSON.parse(opt.body);
+   if(scenario==='prepare-race')return new Promise(r=>release=r);
+   if(tries===1 && ['prepare-retry','prepare-change'].includes(scenario))throw Error('unknown');
+   saved=prepared(body);if(scenario==='prepare-lost-ack')throw Error('lost ACK');
+   return {refund_request:saved};
+  }
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.receipt.source='wechat';d.order.payment_mode='wechat';d.refund_prepare_allowed=!saved;d.refund_request=saved;return d;
+ };
+ start();await tick();await clickOrder();
+ if(scenario==='prepare-prefill'){
+  el('request-prefill').onclick();const filled=el('refund-no').value,text=el('request-view').textContent;
+  saved.state='completed_elsewhere';await el('refresh').onclick();el('refund-no').value='';el('request-prefill').onclick();
+  console.log(JSON.stringify({posts:posts().length,filled,text,blocked:el('request-prefill').disabled&&el('refund-no').value==='',confirm:el('confirm-no').value}));
+ }else{
+  input();el('request-amount').value='19900';if(scenario==='prepare-cancel')accept=false;
+  const submitPrepare=()=>el('refund-request').onsubmit({preventDefault(){}});
+  const pending=submitPrepare();await tick();
+  if(scenario==='prepare-race'){auth.listener(null);auth.listener({username:'adminB',role:1});release({refund_request:prepared({request_id:'a'.repeat(32)})})}
+  await pending;await tick();
+  if(scenario==='prepare-change')el('evidence').value='different note';
+  if(['prepare-retry','prepare-change','prepare-lost-ack'].includes(scenario))await submitPrepare();
+  const bodies=posts().map(r=>JSON.parse(r.options.body));
+  console.log(JSON.stringify({bodies,posts:posts().length,hidden:el('refund-request').hidden,text:el('request-view').textContent,message:el('message').textContent,proof:el('evidence').value,confirmation:confirmations.at(-1)}));
+ }
+}else if(scenario==='refund-notice' || scenario==='refund-partial' || scenario==='refund-notice-race'){
  paid=true;impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.receipt.source='wechat';d.order.payment_mode='wechat';d.refund_notice={notification_id:'NOTICE',refund_no:'REFUND1',refund_id:'500123',state:'SUCCESS',refund:19900,partial:scenario==='refund-partial'};return d};
  start();await tick();await clickOrder();
  const text=el('refund-notice').textContent,disabled=el('refund-prefill').disabled;
@@ -229,3 +260,28 @@ def test_refund_notice_only_refills_and_never_submits_or_leaks(folder, scenario)
     assert data['posts'] == 0 and data['confirmed'] == data['evidence'] == '' and data['cleared']
     assert data['filled'] == ('' if scenario == 'refund-partial' else 'REFUND1')
     assert data['disabled'] is (scenario == 'refund-partial') and data['title'] == '请选择订单'
+
+
+@pytest.mark.skipif(shutil.which('node') is None, reason='Node VM execution requires system Node')
+@pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
+@pytest.mark.parametrize('scenario', ['prepare-retry', 'prepare-change', 'prepare-lost-ack', 'prepare-race', 'prepare-cancel', 'prepare-prefill'])
+def test_preparation_ui_preserves_request_and_never_sends_money(folder, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
+                            text=True, capture_output=True, check=True, timeout=20)
+    data = json.loads(result.stdout)
+    if scenario == 'prepare-prefill':
+        assert data['posts'] == 0 and data['confirm'] == '' and data['filled'] == 'CMR' + 'b' * 32 and data['blocked']
+        assert '<script>proof</script>' in data['text']
+    elif scenario == 'prepare-cancel':
+        assert data['posts'] == 0
+    elif scenario == 'prepare-race':
+        assert data['posts'] == 1 and data['text'] == data['message'] == data['proof'] == ''
+    elif scenario == 'prepare-change':
+        assert data['posts'] == 1 and '结果未知' in data['message']
+    else:
+        assert data['hidden'] and '仅有本地准备' in data['text']
+        assert '不是发送或自动退款授权' in data['confirmation']
+        assert data['posts'] == (2 if scenario == 'prepare-retry' else 1)
+        assert all(body == data['bodies'][0] for body in data['bodies'])
+        assert re.fullmatch(r'[0-9a-f]{32}', data['bodies'][0]['request_id'])
+        assert data['bodies'][0]['amount'] == 19900

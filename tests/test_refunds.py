@@ -295,7 +295,7 @@ async def test_order_key_must_match_frozen_contract_even_with_valid_signature(cl
 def test_pg_refund_migration_validates_full_original_receipt_and_freezes_records(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
-    rows(conn, "DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DELETE FROM schema_migration WHERE version='0011'")
+    rows(conn, "DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DELETE FROM schema_migration WHERE version IN ('0011','0012')")
     rows(conn, "INSERT INTO sys_user(username,password,role) VALUES ('refund-admin','x',1); "
                "INSERT INTO sys_order(order_no,user_id,product_name,amount,payment_mode,status,transaction_id) "
                "SELECT 'REFUND-ORDER',id,'fixed',100,'manual','paid','BANK-PAY' FROM sys_user; "

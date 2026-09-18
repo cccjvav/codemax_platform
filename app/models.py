@@ -275,3 +275,29 @@ class RefundReceipt(Base):
         CheckConstraint("amount > 0 AND currency = 'CNY'", name="ck_refund_amount_currency"),
         CheckConstraint("source IN ('wechat', 'manual')", name="ck_refund_source"),
     )
+
+
+class RefundRequest(Base):
+    """Immutable FULL WeChat refund preparation, not submission authorization or completion.
+
+    One per original payment/order. Never auto-send old preparations when adding a sender later.
+    The stable provider reference survives lost ACKs; no delete-and-recreate/correction API.
+    """
+    __tablename__ = 'refund_request'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('sys_order.id'), unique=True)
+    payment_receipt_id: Mapped[int] = mapped_column(ForeignKey('payment_receipt.id'), unique=True)
+    request_id: Mapped[str] = mapped_column(String(32), unique=True)
+    out_refund_no: Mapped[str] = mapped_column(String(64))
+    merchant_id: Mapped[str] = mapped_column(String(64))
+    app_id: Mapped[str] = mapped_column(String(64))
+    amount: Mapped[int] = mapped_column(Integer)
+    currency: Mapped[str] = mapped_column(String(3))
+    actor_id: Mapped[int] = mapped_column(ForeignKey('sys_user.id'))
+    actor_name: Mapped[str] = mapped_column(String(50))
+    evidence: Mapped[str] = mapped_column(String(160))
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        UniqueConstraint('merchant_id', 'out_refund_no', name='uq_request_merchant_reference'),
+        CheckConstraint("amount > 0 AND currency = 'CNY'", name='ck_request_amount_currency'),
+    )

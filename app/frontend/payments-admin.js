@@ -4,15 +4,18 @@
   const el = (id) => document.getElementById(`finance-${id}`);
   let user = null, epoch = 0, listSeq = 0, viewSeq = 0;
   let controller = new AbortController(), selected = null, contract = null;
-  let listFilter = null, currentNotice = null;
+  let listFilter = null, currentNotice = null, currentRequest = null, pendingRequest = null;
   let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
-  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time"];
+  const forms = ["manual", "query", "binding", "review", "refund-query", "refund-manual", "refund-request"];
+  const nonce = () => globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
+  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time", "request-amount"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
   const message = (text) => { el("message").textContent = text; };
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
 
   function clearDetail() {
+    currentRequest = null; pendingRequest = null; el("request-view").textContent = ""; el("request-prefill").disabled = true;
     currentNotice = null; el("refund-prefill").disabled = true; el("refund-notice").textContent = "";
     review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
     viewSeq++; selected = null; contract = null; busy = false; eventCursor = null;
@@ -21,7 +24,7 @@
     el("title").textContent = "请选择订单"; el("events").replaceChildren();
     el("operations").hidden = true; el("older").hidden = true;
     el("refresh").disabled = true;
-    for (const id of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${id}-submit`).disabled = false;
+    for (const id of forms) el(`${id}-submit`).disabled = false;
   }
   function reset(next) {
     epoch++; listSeq++; controller.abort(); controller = new AbortController();
@@ -91,6 +94,12 @@
       currentNotice = data.refund_notice || null;
       el("refund-notice").textContent = currentNotice ? `已接收并核验的渠道通知（不是本地退款完成凭证）\n通知ID：${currentNotice.notification_id}\n商户退款号：${currentNotice.refund_no}\n渠道退款ID：${currentNotice.refund_id}\n通知状态：${currentNotice.state}\n合同退款金额：${money(currentNotice.refund)}\n${currentNotice.partial ? "部分退款：当前全额核验入口不处理，请在原渠道核账；该通知本身不改变权益。" : "全额通知仍须独立查询原路退款；资金结论以成功退款凭证为准。"}` : "暂无可展示的退款通知摘要；完整历史见事件列表。";
       el("refund-prefill").disabled = !currentNotice || currentNotice.partial;
+      currentRequest = data.refund_request || null;
+      if (pendingRequest && currentRequest?.request_id === pendingRequest.request_id) pendingRequest = null;
+      const requestStates = {prepared: "仅有本地准备；不证明渠道已发送或已退款", confirmed: "已有匹配成功退款凭证", completed_elsewhere: "已有其他退款号的成功凭证，不得另发退款"};
+      el("request-view").textContent = currentRequest ? `${requestStates[currentRequest.state]}\n商户退款号：${currentRequest.out_refund_no}\n请求ID：${currentRequest.request_id}\n全额：${money(currentRequest.amount)} ${currentRequest.currency}\n原商户 / 应用：${currentRequest.merchant_id} / ${currentRequest.app_id}\n登记人：${currentRequest.actor} · ${currentRequest.created_at}\n依据：${currentRequest.evidence}` : "没有本地退款准备。已有通知/退款查询的订单须先核对原退款，不生成新编号。";
+      el("refund-request").hidden = !data.refund_prepare_allowed;
+      el("request-prefill").disabled = !currentRequest || currentRequest.state !== "prepared";
       const refund = data.refund;
       el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录人：${refund.actor}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
       el("refund-query").hidden = !receipt || receipt.source !== "wechat";
@@ -98,7 +107,7 @@
       el("manual").hidden = !(data.actions.manual && contract.payment_mode === "manual" && !receipt && ["pending", "closed"].includes(contract.status));
       el("query").hidden = contract.payment_mode !== "wechat";
       el("binding").hidden = contract.payment_mode !== "legacy";
-      el("operations").hidden = ["manual", "query", "binding", "review", "refund-query", "refund-manual"].every((x) => el(x).hidden);
+      el("operations").hidden = forms.every((x) => el(x).hidden);
       el("events").replaceChildren();
       for (const event of data.events) {
         const li = document.createElement("li");
@@ -114,7 +123,7 @@
     if (!user || !selected || !contract || busy || el("operations").hidden || el(kind).hidden) return;
     const number = selected, stamp = epoch, view = viewSeq;
     const evidence = el("evidence").value.trim();
-    if (el("confirm-no").value.trim() !== number || evidence.length < 3 || evidence.length > 500 || /[\x00-\x1f]/.test(evidence)) {
+    if (el("confirm-no").value.trim() !== number || evidence.length < 3 || evidence.length > 500 || /[\x00-\x1f\x7f-\x9f]/.test(evidence)) {
       message("请手动输入与当前订单一致的完整单号，以及3–500字的单行核查依据。"); return;
     }
     let url, body = {evidence}, summary;
@@ -154,40 +163,58 @@
         summary = `已在真实记录核实全额退款 ${money(body.amount)}，退款流水 ${body.reference}？保存不可覆盖，会停止此订单后续下载。`;
       }
     }
+    if (kind === "refund-request") {
+      const amount = Number(el("request-amount").value);
+      if (evidence.length > 160 || !Number.isSafeInteger(amount) || amount <= 0 || amount !== contract.amount) {
+        message("准备金额必须等于原合同全额整数分，依据须为3–160字。"); return;
+      }
+      if (pendingRequest && (pendingRequest.evidence !== evidence || pendingRequest.amount !== amount)) {
+        message("上次准备结果未知，请先刷新或用原内容重试，不能换号、改金额或依据。"); return;
+      }
+      body = pendingRequest || {request_id: nonce(), confirm_order_no: number, amount, evidence};
+      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/requests`;
+      summary = "保存不可覆盖的全额退款准备与固定商户退款号。不是发送或自动退款授权，不停止下载；一单不能换号再建。是否继续？";
+    }
     if (kind === "review") {
       if (!review || evidence.length > 160) { message("复核说明须为3–160字，请先刷新进度。"); return; }
       const action = el("review-action").value;
       if (pendingReview && (pendingReview.action !== action || pendingReview.evidence !== evidence)) {
         message("上次复核结果未确认，请先用原内容重试，或重新选单核对历史后再发起新操作。"); return;
       }
-      const nonce = () => Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
       body = pendingReview || {evidence, action, snapshot: review.snapshot, expected_version: review.version,
-        confirm_order_no: number, request_id: globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : nonce()};
+        confirm_order_no: number, request_id: nonce()};
       url = `/shop/admin/orders/${encodeURIComponent(number)}/review`;
       summary = `保存复核进度 ${action}；不代表到账或退款完成，也不改变下载权。是否继续？`;
     }
     if (!window.confirm(`订单 ${number} / 客户ID ${contract.user_id}\n${summary}`)) return;
     if (kind === "review") pendingReview = body;
+    if (kind === "refund-request") pendingRequest = body;
     busy = true;
-    for (const name of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${name}-submit`).disabled = true;
+    for (const name of forms) el(`${name}-submit`).disabled = true;
     let resultText;
     try {
       const result = await request(url, {method: "POST", headers: {"Content-Type": "application/json"}, body: JSON.stringify(body)});
       if (!alive(stamp, view)) return;
       if (kind === "review") pendingReview = null;
-      resultText = kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
+      if (kind === "refund-request") pendingRequest = null;
+      resultText = kind === "refund-request" ? "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。" : kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
     } catch (error) {
       if (alive(stamp, view) && kind === "review" && error.status >= 400 && error.status < 500) pendingReview = null;
       if (alive(stamp, view)) resultText = `${error.message}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;
     } finally {
       if (alive(stamp, view)) {
         busy = false;
-        for (const name of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(`${name}-submit`).disabled = false;
+        for (const name of forms) el(`${name}-submit`).disabled = false;
         message(resultText || "请核对记录");
         await detail(); // preserves entered proof on failure; no automatic mutation retries
       }
     }
   }
+  el("request-prefill").onclick = () => {
+    if (!user || !currentRequest || currentRequest.state !== "prepared" || busy || el("operations").hidden || el("refund-query").hidden) return;
+    el("refund-no").value = currentRequest.out_refund_no;
+    message("只填入已保存的准备号，不发送查询或退款。查询不到不代表可以换号重退；本阶段没有发送退款功能。");
+  };
   el("refund-prefill").onclick = () => {
     if (!user || !currentNotice || currentNotice.partial || busy || el("operations").hidden || el("refund-query").hidden) return;
     el("refund-no").value = currentNotice.refund_no;
@@ -198,7 +225,7 @@
   el("next").onclick = () => list(true);
   el("refresh").onclick = () => detail();
   el("older").onclick = () => detail(true);
-  for (const kind of ["manual", "query", "binding", "review", "refund-query", "refund-manual"]) el(kind).onsubmit = (event) => operate(kind, event);
+  for (const kind of forms) el(kind).onsubmit = (event) => operate(kind, event);
   auth.onChange((next) => { reset(next); if (user) list(); });
   reset(auth.user); if (user) list();
 })();

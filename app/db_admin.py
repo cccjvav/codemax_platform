@@ -93,7 +93,7 @@ def migration_manifest(root: Path = SQL_ROOT) -> dict[str, tuple[Path, str]]:
         if not match or match[1] in result:
             raise MaintenanceError('Invalid or duplicate migration filename')
         result[match[1]] = (path, hashlib.sha256(path.read_bytes()).hexdigest())
-    if list(result) != [f'{n:04}' for n in range(1, len(result) + 1)] or len(result) < 11:
+    if list(result) != [f'{n:04}' for n in range(1, len(result) + 1)] or len(result) < 12:
         raise MaintenanceError('Missing migration history')
     return result
 

@@ -753,3 +753,15 @@ npm run build
 ```
 
 这些测试用合成RSA/AES通知，不需要、也不会使用真实商户转账。浏览器步骤见[管理手册第七批](docs/PAYMENTS_ADMIN_GUIDE.md)：通知和成功凭证分开显示，“填入商户退款号”只填号，不自动查询/退款，不代填确认单号和依据；部分通知只提示核账。换账号应清空通知与输入。沙箱Node通过不代表这些本机动作已通过；真实回调接入需专用HTTPS环境与另行授权，不在业务库跑pytest或填虚构退款证据。
+
+
+## 第八批增补：保存退款准备，不向微信发起退款
+
+在VS Code集成CMD、已激活Conda和系统Node下，沿用前文独立测试库：
+
+```cmd
+python -m pytest -q tests/test_refund_requests.py tests/test_db_admin.py tests/test_payment_review.py tests/test_payments_frontend.py
+npm run build
+```
+
+现行应用需要0012；只在独立空库init，已有库按数据库指南备份/停写后migrate，切勿拿业务库跑pytest。管理员页面新增“保存退款准备（不发送）”：输入完整单号、全额分数、内部依据，保存后核对固定商户退款号。断网先刷新，按原内容重试；不能另造号码。准备/通知/成功凭证分开，两个填号按钮均不提交或代填确认；换账号应清空。准备不撤销下载，也不等于同意以后自动退款；具体步骤见管理手册第八批，实际Windows/商户/恢复仍未代办签收。

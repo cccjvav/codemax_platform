@@ -34,6 +34,7 @@ from ..payment_ledger import PaymentConflict, lock_order, settle
 from ..payment_review import review_states
 from ..ratelimit import rate_limit
 from ..refund_notifications import NOTICE_KIND, notice_view
+from ..refund_requests import prior_refund_activity, request_for, request_view
 from ..refunds import refund_for
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -657,7 +658,12 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
     refund = await refund_for(db, order.id)
     notice = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order.id, PaymentEvent.kind == NOTICE_KIND)
                              .order_by(PaymentEvent.id.desc()).limit(1))
+    prepared = await request_for(db, order.id)
+    can_prepare = (receipt is not None and receipt.source == 'wechat' and order.status in ('paid', 'downloaded')
+                   and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
+                   and not await prior_refund_activity(db, order.id))
     return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
+            'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
             'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
                         'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
                         'received_at': refund.received_at, 'actor': refund.actor_name, 'evidence': refund.evidence} if refund else None),

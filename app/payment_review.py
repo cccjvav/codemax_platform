@@ -13,11 +13,11 @@ from sqlalchemy import and_, case, exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import aliased
 
-from .models import Order, PaymentEvent, PaymentReceipt, RefundReceipt
+from .models import Order, PaymentEvent, PaymentReceipt, RefundReceipt, RefundRequest
 
 REVIEW_KIND = 'operator_review'
 ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
-          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal')
+          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60
 
@@ -68,8 +68,9 @@ def overdue_start(now: datetime):
 
 def review_candidates(now: datetime):
     """SQL prefilter only; exact workflow state must be computed from current facts below."""
-    return exists(select(PaymentEvent.id).where(PaymentEvent.order_id == Order.id,
-                  or_(PaymentEvent.kind.in_((*ISSUES, REVIEW_KIND)), overdue_start(now))))
+    return or_(exists(select(RefundRequest.id).where(RefundRequest.order_id == Order.id)),
+               exists(select(PaymentEvent.id).where(PaymentEvent.order_id == Order.id,
+                      or_(PaymentEvent.kind.in_((*ISSUES, REVIEW_KIND)), overdue_start(now)))))
 
 
 async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime | None = None) -> dict[int, dict]:
@@ -93,9 +94,16 @@ async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime 
     latest = select(func.max(PaymentEvent.id)).where(PaymentEvent.order_id.in_(ids), PaymentEvent.kind == REVIEW_KIND)
     reviews = {e.order_id: e for e in (await db.scalars(select(PaymentEvent)
                .where(PaymentEvent.id.in_(latest.group_by(PaymentEvent.order_id))))).all()}
-    receipts = {oid: (rid if refund_id is None else [rid, refund_id]) for oid, rid, refund_id in (await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id, RefundReceipt.id)
+    receipt_rows = (await db.execute(select(PaymentReceipt.order_id, PaymentReceipt.id, RefundReceipt.id, RefundRequest.id)
                     .outerjoin(RefundReceipt, RefundReceipt.payment_receipt_id == PaymentReceipt.id)
-                    .where(PaymentReceipt.order_id.in_(ids)))).all()}
+                    .outerjoin(RefundRequest, RefundRequest.payment_receipt_id == PaymentReceipt.id)
+                    .where(PaymentReceipt.order_id.in_(ids)))).all()
+    receipts, prepared_orders = {}, set()
+    for oid, rid, refund_id, prepared_id in receipt_rows:
+        receipt_fact = rid if refund_id is None else [rid, refund_id]
+        receipts[oid] = receipt_fact if prepared_id is None else [receipt_fact, 'request', prepared_id]
+        if prepared_id is not None:
+            prepared_orders.add(oid)
     result = {}
     for order in orders:
         count, maximum, issues = facts.get(order.id, (0, 0, 0))
@@ -105,7 +113,7 @@ async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime 
         event = reviews.get(order.id)
         data = decode_review(event)
         current = data is not None and data['snapshot'] == snapshot
-        candidate = bool(issues or orphan_count or event)
+        candidate = bool(issues or orphan_count or event or order.id in prepared_orders)
         state = 'none' if not candidate else 'reviewed' if current and data['action'] == 'close' else (
             'followup' if current and data['action'] == 'followup' else 'open')
         result[order.id] = {'state': state, 'version': event.id if event else 0, 'snapshot': snapshot,
