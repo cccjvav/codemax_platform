@@ -199,3 +199,11 @@ Manifest：清单；fingerprint：内容指纹；contract test：接口约定测
 落到代码：save_notice→enqueue是入站事务；refund_worker先检查开关/完整schema，repair_missing补旧收件箱，再claim→inputs→query_full_refund→finish。令牌、原归属、次数和数据库时钟约束最终写入，无数据库锁跨网络。队列状态可更新，PaymentEvent观察只追加；shop ledger与管理页只读取。下载入口和RefundReceipt没有新增系统权限。
 
 术语：租约是限时领取，不是分布式恰好一次；退避是失败后逐渐延长等待；fencing是拒绝旧领取凭条。verified指独立查询观察，不是本站资金结案。系统自动成功凭证/撤权仍需独立授权模型设计；本批保留管理员原号核验，部分退款、重新授权和真实商户验收未完成。
+
+## 第十二批：人手接管自动待办
+
+可把队列看成待办夹：hold把一张任务暂交人工，retry在剩余预算内放回；不是重新填写一张无限次数的退款单。管理页→control_verification（当前身份/来源/严格输入）→control_job（用户→订单→任务锁、原请求重放、最新任务摘要）→任务状态与PaymentEvent原子提交。worker不被远程召回，finish的token/状态栅栏拒绝旧结果。claim只锁任务并写事件，其订单外键KEY SHARE与订单NO KEY UPDATE兼容；不增加反向用户锁或跨网络锁。
+
+snapshot把订单控制事件ID也算入，避免同秒hold/retry回到看似相同状态时误接旧请求（ABA）。控制重放先查不可变事件再验可变快照，返回首笔动作而非当前状态保证；GET各任务snapshot/最近操作与历史分页独立。成功退款仍由原管理员独立查询完成；当前没有系统金融结算身份。
+
+接管的界线是持久领取，而不是HTTP到达渠道：领取已提交的尝试，即使尚未发出HTTP，也可能在接管返回后继续GET；接管保证不再领取该暂停任务，并使旧结果不能覆盖当前任务，不是网络召回。

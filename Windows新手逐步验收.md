@@ -798,3 +798,13 @@ npm run build
 3. 专用验收环境另开VS Code CMD终端，激活同一Conda环境，确认目标库/可信商户配置；运行`set WX_REFUND_VERIFY_ENABLED=false`后`python -m app.refund_worker --once`，应拒绝执行而不查网络。
 4. 只有获得真实查询验收授权后才在专用环境`set WX_REFUND_VERIFY_ENABLED=true`，运行`python -m app.refund_worker --once`观察一次有界周期。无--once是常驻循环，可Ctrl+C；中断留下租约，下次可恢复，不代表已保存结果。没有授权/凭据就保留未执行，不拿假流水冒充真实联调。
 5. 管理页刷新查看任务原号/状态/次数；SUCCESS仍待管理员按原号独立核验，attention手工核账。保持发送开关关闭，不能把worker当自动退款按钮。Windows/浏览器实机步骤尚需你在本机签收，Linux合成测试不冒充已执行。
+
+## 第十二批补充：核验任务人工接管
+
+在VS Code集成CMD中先`conda activate codemax`，保持系统Node可用，仅用测试环境执行：
+
+```cmd
+python -m pytest -q tests/test_verification_controls.py tests/test_payments_frontend.py
+```
+
+浏览器在隔离测试订单详情抄对任务ID与原退款号，手动填确认单号/依据，选择人工接管；当前任务暂停但已开始查询不能召回。选择重新排队只用8次内剩余次数，开关关闭仍不执行，耗尽必须人工原号查询。模拟断网重试原内容，取消不提交；切账号后无旧资料。以上步骤未代你在真实Windows/商户环境验收，不开启真实退款发送。

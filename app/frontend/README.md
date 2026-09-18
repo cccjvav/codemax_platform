@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `11dac6d2c1be` | L1–L282 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `7098ca558e51` | L1–L305 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -92,7 +92,7 @@ detail在原有会话/详情序号保护内更新currentNotice，明确SUCCESS�
 
 ## 第八批：准备请求的稳定身份与确认
 
-管理脚本新增currentRequest/pendingRequest、准备金额和独立展示区。当前十类表单共用forms列表控制隐藏/忙碌/清屏；nonce共用原有UUID优先、随机降级逻辑，它是幂等标识，不是认证秘密。prepare分支验证手输原单/全额整数分/依据，再明确确认“不是发送授权”。首次提交保存完整pendingRequest，网络错误不换ID；改未确认内容会拒绝并提示读原记录，重试仍用原body。成功或GET读到同request_id才确认已保存；换单/账号清空本地状态，服务器一单唯一仍保护晚到提交。
+管理脚本新增currentRequest/pendingRequest、准备金额和独立展示区。当前十一类表单共用forms列表控制隐藏/忙碌/清屏；nonce共用原有UUID优先、随机降级逻辑，它是幂等标识，不是认证秘密。prepare分支验证手输原单/全额整数分/依据，再明确确认“不是发送授权”。首次提交保存完整pendingRequest，网络错误不换ID；改未确认内容会拒绝并提示读原记录，重试仍用原body。成功或GET读到同request_id才确认已保存；换单/账号清空本地状态，服务器一单唯一仍保护晚到提交。
 
 详情用textContent展示原商户/app、固定号码、登记人/依据与准备/匹配成功/另号成功三种含义。准备记录不推断渠道发送状态；现有通知/成功凭证仍分区。request-prefill只填查询框，不POST、不代填确认号/依据；成功凭证存在时禁用。没有退款发送按钮，历史准备不能成为未来自动发送队列。
 
@@ -106,7 +106,7 @@ pendingAuthorization/pendingSend各保留完整body；未知时不能改内容�
 
 ## 第十批停止表单
 
-管理页十类显式操作共用代次/忙碌/手输确认。refund-stop复用原号/全额/授权摘要确认，内部依据作为停办/纠错说明；pendingStop保存原body/key，未知时改内容拒绝，成功或GET读到同停止ID才确认。即使发送开关关闭也能停止；已有stop隐藏发送及停止表单，并阻断新尝试按钮。
+管理页十一类显式操作共用代次/忙碌/手输确认。refund-stop复用原号/全额/授权摘要确认，内部依据作为停办/纠错说明；pendingStop保存原body/key，未知时改内容拒绝，成功或GET读到同停止ID才确认。即使发送开关关闭也能停止；已有stop隐藏发送及停止表单，并阻断新尝试按钮。
 
 stop-view用textContent单独展示首次人/时间/依据及“不是渠道取消”警告；换账号清除stop/pendingStop和输入，迟到响应丢弃。旧尝试可能仍在网络中，前端不把登出或停止按钮宣称为网络召回。没有恢复发送按钮。
 
@@ -114,3 +114,7 @@ stop-view用textContent单独展示首次人/时间/依据及“不是渠道取�
 ## 核验任务展示
 
 payments-admin详情新增verification-view，textContent展示原退款号、通知事件ID、状态、次数、结果码和下次/租约时间；不新增自动POST/轮询。开关仅说明允许worker，不是在线证明；SUCCESS标待管理员，同原号已有成功凭证时不再声称待确认。账号变化清屏，迟到详情由epoch/viewSeq丢弃；Node源码/bundle回归不是浏览器验收。
+
+## 第十二批：核验调度表单
+
+第十一类verification-control手动填当前列表的任务ID，选hold/retry，并复用手动订单确认及依据。verificationJobs只来自当前详情；确认框显示原退款号及仅此任务/不召回GET/不清零次数边界。pendingControl保存原完整body/key/snapshot；未知失败后新详情不能偷偷替换请求，改依据/任务/动作阻止提交，409已知冲突才解除pending以重新确认。成功响应或读到相同latest_control key可解除待确认；账户切换清空任务/字段/首笔动作，丢弃旧响应。所有服务端文字经textContent。GET展示不触发重排，点击取消不POST；source/bundle都用Node VM回归，不等同真实浏览器签收。

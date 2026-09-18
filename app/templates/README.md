@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `215002b47823` | L1–L119 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `5ac70b5fb510` | L1–L126 |
 | [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -76,4 +76,8 @@ payments-admin.html增加成功退款凭证区、原商户退款号查询与人�
 
 ## 退款核验队列
 
-payments-admin新增只读finance-verification-view，与通知线索/成功凭证分区；不增加按钮或改变十类显式操作。后台查询成功观察不直接等于权益撤销，文本由payments-admin.js安全填充。
+payments-admin新增只读finance-verification-view，与通知线索/成功凭证分区；不增加按钮或改变十一类显式操作。后台查询成功观察不直接等于权益撤销，文本由payments-admin.js安全填充。
+
+## 第十二批：所选核验任务的人工入口
+
+payments-admin新增verification-control-view和verification-control表单（任务ID、hold/retry选项及独立提交按钮）。仍需页面公共原单确认和依据；说明暂停只作用当前任务，其他通知不受影响，在途GET不能召回，8次总预算不重置。控件隐藏/快照不是服务端权限，路由必须再次验证。

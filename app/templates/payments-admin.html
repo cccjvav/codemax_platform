@@ -40,7 +40,7 @@
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
 <h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
 <h3>本地退款准备（不是发送授权或退款凭证）</h3><pre id="finance-request-view"></pre>
-<h3>通知后续核验任务（只读）</h3><pre id="finance-verification-view"></pre>
+<h3>通知后续核验任务（只读）</h3><pre id="finance-verification-view"></pre><pre id="finance-verification-control-view"></pre>
 <h3>退款通知线索（需独立查询核验）</h3><pre id="finance-refund-notice"></pre>
 <h3>成功退款凭证（原收款保留）</h3><pre id="finance-refund-receipt"></pre>
 <h3>人工复核进度（不改变资金和权益）</h3><pre id="finance-review-status"></pre>
@@ -87,6 +87,13 @@
 <label>原合同全额（整数分）<input id="finance-request-amount" required type="number" min="1" step="1"></label>
 <p>使用上方手动确认单号与3–160字单行依据；超时先刷新并按原内容重试。</p>
 <button id="finance-refund-request-submit" type="submit">保存退款准备（不发送）</button>
+</form>
+<form id="finance-verification-control" hidden>
+<h3>人工接管 / 重新核验此任务</h3>
+<p>只改变所选任务调度，不取消已领取的查询（即使HTTP尚未发出）、不停止其他通知任务，不发起退款或改变下载权。重新排队不清零历史次数；8次耗尽或已核验成功，请使用下方原号人工查询。刷新时任务可能已有新进展，须重新确认。</p>
+<label>手动填写上方任务ID<input id="finance-verify-job" type="number" min="1" step="1" required></label>
+<label>操作<select id="finance-verify-action"><option value="hold">人工接管（暂停此任务自动调度）</option><option value="retry">重新排队（仅剩余次数）</option></select></label>
+<button id="finance-verification-control-submit" type="submit">确认核验调度操作</button>
 </form>
 <form id="finance-refund-query" hidden>
 <h3>核验已办理的微信全额原路退款</h3><p>先在原渠道办理并取得商户退款单号，再在这里查询。依据使用上方字段，3–160字。仅发GET，不发送退款申请；PROCESSING/ABNORMAL/CLOSED不是退款成功。建议至少间隔一分钟查询，不自动轮询。</p>

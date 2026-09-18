@@ -62,7 +62,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `ea8c8121f034` | L1–L457 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `ef5f2ebdec0c` | L1–L457 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -84,7 +84,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `782a53a51fcc` | L1–L404 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `721c2090a4c8` | L1–L455 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
@@ -110,6 +110,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
+| [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `efb4d957c00b` | L1–L454 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
 | [`tests/test_word_export.py`](test_word_export.py) | `d7c7c66103db` | L1–L92 |
@@ -198,3 +199,7 @@ test_refund_stops实际调用ASGI、独立会话和签名MockTransport，验证�
 ## 第十一批核验任务测试
 
 test_refund_verification.py用合成RSA/AES通知和已验签MockTransport GET，覆盖禁用/原子ACK/只读权限/部分退款/时序/坏商户/坏签名/有界修复/租约CAS/崩溃/耗尽/同事务审计；维护fixture另验证0014→0015与SQL不可变归属。独立连接测试HTTP阶段不持用户/订单锁。前端源码和bundle另验任务文本、已有凭证文案与换账号迟到响应，不是浏览器签收。旧迁移降级fixture先删新依赖表/函数/版本，不更改历史SQL。
+
+## 第十二批：人工接管与剩余预算
+
+test_verification_controls.py通过真实HTTP/独立会话验证严格字段、角色/来源/凭据版本/限流、跨单/跨人、首次key读回、快照陈旧与同秒ABA、同快照竞争、领取先后、在途GET不召回但结果被栅栏拒绝、未用次数重排、耗尽/成功/部分及已有凭证拒绝、提交前后ACK失败、审计失败原子回滚。全组还须在非超级用户可丢弃PG执行，不能拿SQLite替代行锁。test_payments_frontend新增源码/bundle的六种控制情景，检查未知重试body/key不变、改输入阻止、取消、换账号迟到、丢ACK读回与409重新确认。没有真实商户或浏览器调用。

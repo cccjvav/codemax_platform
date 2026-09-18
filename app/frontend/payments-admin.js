@@ -7,15 +7,17 @@
   let listFilter = null, currentNotice = null, currentRequest = null, pendingRequest = null;
   let listCursor = null, eventCursor = null, busy = false, review = null, pendingReview = null;
   let submission = null, pendingAuthorization = null, pendingSend = null, pendingStop = null;
-  const forms = ["manual", "query", "binding", "review", "refund-query", "refund-manual", "refund-request", "refund-authorize", "refund-send", "refund-stop"];
+  let verificationJobs = [], pendingControl = null;
+  const forms = ["manual", "query", "binding", "review", "refund-query", "refund-manual", "refund-request", "refund-authorize", "refund-send", "refund-stop", "verification-control"];
   const nonce = () => globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
-  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time", "request-amount", "send-number", "send-amount", "customer-reason"];
+  const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time", "request-amount", "send-number", "send-amount", "customer-reason", "verify-job"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
   const message = (text) => { el("message").textContent = text; };
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
 
   function clearDetail() {
+    verificationJobs = []; pendingControl = null; el("verify-action").value = "hold"; el("verification-control-view").textContent = "";
     submission = null; pendingAuthorization = null; pendingSend = null; pendingStop = null; el("stop-view").textContent = ""; el("submission-view").textContent = "";
     currentRequest = null; pendingRequest = null; el("request-view").textContent = ""; el("request-prefill").disabled = true;
     currentNotice = null; el("refund-prefill").disabled = true; el("refund-notice").textContent = "";
@@ -97,6 +99,11 @@
       el("refund-notice").textContent = currentNotice ? `已接收并核验的渠道通知（不是本地退款完成凭证）\n通知ID：${currentNotice.notification_id}\n商户退款号：${currentNotice.refund_no}\n渠道退款ID：${currentNotice.refund_id}\n通知状态：${currentNotice.state}\n合同退款金额：${money(currentNotice.refund)}\n${currentNotice.partial ? "部分退款：当前全额核验入口不处理，请在原渠道核账；该通知本身不改变权益。" : "全额通知仍须独立查询原路退款；资金结论以成功退款凭证为准。"}` : "暂无可展示的退款通知摘要；完整历史见事件列表。";
       el("refund-prefill").disabled = !currentNotice || currentNotice.partial;
       const verification = data.refund_verification || {jobs: [], has_more: false};
+      verificationJobs = verification.jobs;
+      const latestControl = verification.latest_control;
+      if (pendingControl && latestControl?.request_id === pendingControl.request_id) pendingControl = null;
+      el("verification-control").hidden = !verificationJobs.length;
+      el("verification-control-view").textContent = latestControl ? `最近核验调度操作（不是当前状态保证）\n任务 ${latestControl.job_id} · ${latestControl.action === "hold" ? "人工接管" : latestControl.action === "retry" ? "剩余次数重排" : "未知动作"} · ${latestControl.actor} · ${latestControl.created_at}\n${latestControl.evidence}` : "尚无人工调度操作";
       const jobLabels = {pending: "待核验", running: "核验中（租约超时可恢复）", retry: "等待重试", verified: "查询成功，待管理员按原号确认", attention: "需要人工处理"};
       el("verification-view").textContent = `${data.refund_verify_enabled ? "允许独立worker运行（不证明进程在线）" : "自动核验开关关闭，任务仍保存"}\n只读查询，不发起退款；SUCCESS观察不自动撤销下载。\n` + verification.jobs.map((j) => `任务 ${j.id} · 原退款号 ${j.refund_no || "需核对原通知"} · 通知事件 ${j.notice_event_id} · ${j.state === "verified" && data.refund?.out_refund_no === j.refund_no ? "该原号已有成功退款凭证" : jobLabels[j.state] || "未知状态"} · 尝试 ${j.attempts}/8\n结果：${j.outcome} · 更新：${j.updated_at} · 下次/租约：${j.state === "running" ? j.lease_until : j.state === "retry" || j.state === "pending" ? j.next_at : "无自动重试"}`).join("\n") + (verification.has_more ? "\n仅显示最近50项，旧观察见事件历史。" : "");
       currentRequest = data.refund_request || null;
@@ -215,6 +222,19 @@
       summary = isStop ? "永久停止新的本站发送，并保存当前纠错/停办依据；不能撤回已开始或已送达微信的请求，不改退款号/正文/金额/下载权益。确认停止？" : isAuth ? `冻结并授权全额退款请求，客户会看到原因：${base.reason}。此按钮仅保存，之后仍需单独确认发送。` :
         `即将真实向微信申请全额退款 ${money(amount)}，商户退款号 ${numberConfirmed}，摘要 ${submission.digest}。首次点击可能转出资金；同尝试恢复不会重发。确认发送？`;
     }
+    if (kind === "verification-control") {
+      const jobId = Number(el("verify-job").value), action = el("verify-action").value;
+      const job = verificationJobs.find(j => j.id === jobId);
+      if (!job || !["hold", "retry"].includes(action) || evidence.length > 160) {
+        message("输入当前列表中的任务ID，核对原退款号，依据须为3–160字。"); return;
+      }
+      if (pendingControl && (pendingControl.job_id !== jobId || pendingControl.action !== action || pendingControl.evidence !== evidence)) {
+        message("上次核验操作结果未知，请按原内容重试或刷新核对，不覆盖原请求。"); return;
+      }
+      body = pendingControl || {confirm_order_no: number, request_id: nonce(), job_id: jobId, action, snapshot: job.snapshot, evidence};
+      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/verification/control`;
+      summary = `任务 ${jobId} / 原退款号 ${job.refund_no || "须核对原通知"}：${action === "hold" ? "人工接管此任务，停止其自动调度；已领取尝试（即使还未发出HTTP）仍可能继续GET，不停止其他通知任务" : "重新排队，仅使用8次上限内剩余次数；开关关闭时不会执行，耗尽/已核验需人工查询"}。不发退款、不改变下载权，确认？`;
+    }
     if (kind === "review") {
       if (!review || evidence.length > 160) { message("复核说明须为3–160字，请先刷新进度。"); return; }
       const action = el("review-action").value;
@@ -230,6 +250,7 @@
     if (kind === "refund-authorize") pendingAuthorization = body;
     if (kind === "refund-send") pendingSend = body;
     if (kind === "refund-stop") pendingStop = body;
+    if (kind === "verification-control") pendingControl = body;
     if (kind === "review") pendingReview = body;
     if (kind === "refund-request") pendingRequest = body;
     busy = true;
@@ -242,8 +263,10 @@
       if (kind === "refund-request") pendingRequest = null;
       if (kind === "refund-authorize") pendingAuthorization = null;
       if (kind === "refund-stop") pendingStop = null;
-      resultText = kind === "refund-stop" ? "已记录停止后续本站发送；不是渠道取消。已经开始的请求仍须查询原号确认。" : kind === "refund-send" ? "已记录发送尝试观察；不是退款成功。刷新并按原号查询，不换号。" : kind === "refund-authorize" ? "独立授权与完整请求已保存，尚未发送；请核对冻结内容。" : kind === "refund-request" ? "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。" : kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
+      if (kind === "verification-control") pendingControl = null;
+      resultText = kind === "verification-control" ? "核验调度操作已记录；请核对当前任务状态。未发退款或修改下载权，历史次数保留。" : kind === "refund-stop" ? "已记录停止后续本站发送；不是渠道取消。已经开始的请求仍须查询原号确认。" : kind === "refund-send" ? "已记录发送尝试观察；不是退款成功。刷新并按原号查询，不换号。" : kind === "refund-authorize" ? "独立授权与完整请求已保存，尚未发送；请核对冻结内容。" : kind === "refund-request" ? "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。" : kind === "review" ? "复核记录已保存，资金/下载权未改变。请刷新左侧清单。" : result.observed_state ? `微信观察：${result.observed_state}；本地：${result.status}。${result.warning}` : "操作已提交；请核对下方凭证和历史记录。";
     } catch (error) {
+      if (alive(stamp, view) && kind === "verification-control" && error.status === 409) pendingControl = null;
       if (alive(stamp, view) && kind === "review" && error.status >= 400 && error.status < 500) pendingReview = null;
       if (alive(stamp, view)) resultText = `${error.message}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;
     } finally {

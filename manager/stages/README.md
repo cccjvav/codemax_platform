@@ -27,3 +27,5 @@
 
 
 第十一批[退款通知可靠核验队列](../../review/RELEASE_BLOCKERS_PHASE11.md)：0015、默认关闭独立GET worker、持久租约/退避/人工接管状态；不是自动发送或后台结算授权。
+
+第十二批[核验人工接管与剩余次数重排](../../review/RELEASE_BLOCKERS_PHASE12.md)：复用0015及事件审计，不重置预算、不自动结算。

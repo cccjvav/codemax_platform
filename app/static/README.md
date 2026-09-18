@@ -88,7 +88,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `14ed06115793` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `01e310e4ce5f` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `e7a30edbfb21` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `637c1b861223` | 生成物，见模块构建说明 |
@@ -144,3 +144,7 @@ app/static/js/ 是生成目录，归本 README 管理，不逐个解释第三方
 ## 第十一批产物
 
 payments-admin.js由Vite生成，新增核验状态只读展示/账号清屏；不手改bundle。重复构建和源码/产物两份Node VM检查，真实浏览器另验。
+
+## 第十二批产物
+
+payments-admin.js由新增核验调度表单源码重建；不要直接修改压缩文件。未知body/key恢复、409重新确认、取消及账号切换必须在源码和bundle同时执行测试，并重建比较摘要。

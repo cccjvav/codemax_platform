@@ -38,7 +38,37 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('verify-')){
+if(scenario.startsWith('control-')){
+ let tries=0,latest=null,release,snapshot='a'.repeat(64);
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   const b=JSON.parse(opt.body);tries++;
+   if(scenario==='control-race')return new Promise(r=>release=r);
+   if(tries===1 && ['control-retry','control-change','control-stale'].includes(scenario)){
+    snapshot='b'.repeat(64);
+    if(scenario==='control-stale')return {httpStatus:409};
+    throw Error('unknown');
+   }
+   latest={...b,actor:'FIRST<script>',created_at:'TIME'};
+   if(scenario==='control-lost-ack')throw Error('lost ACK');
+   return {control:latest};
+  }
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.refund_verification={jobs:[{id:9,state:'attention',attempts:2,refund_no:'ORIGINAL',snapshot}],latest_control:latest};return d;
+ };
+ start();await tick();await clickOrder();input();el('verify-job').value='9';
+ const act=()=>el('verification-control').onsubmit({preventDefault(){}});
+ if(scenario==='control-cancel')accept=false;
+ const first=act();await tick();
+ if(scenario==='control-race'){auth.listener(null);release({control:{actor:'OLD'}})}
+ await first;await tick();
+ if(scenario==='control-change')el('evidence').value='更改未知依据';
+ if(['control-retry','control-change','control-stale'].includes(scenario))await act();
+ const sent=posts().map(x=>({url:x.url,body:JSON.parse(x.options.body)}));
+ const text=el('verification-control-view').textContent;
+ auth.listener(null);
+ console.log(JSON.stringify({sent,text,confirmations,cleared:el('verification-control-view').textContent===''&&el('verify-job').value===''&&el('message').textContent===''}));
+}else if(scenario.startsWith('verify-')){
  let release;
  impl=async(url,opt)=>{
   if(!url.includes('/ledger'))return rows();
@@ -402,3 +432,24 @@ def test_read_only_verification_queue_and_account_isolation(path, scenario):
         assert 'ORIGINAL' in result['text'] and '<script>SUCCESS</script>' in result['text']
         assert '仅显示最近50项' in result['text'] and '不证明进程在线' not in result['text']
         assert ('该原号已有成功退款凭证' if scenario == 'verify-completed' else '待管理员按原号确认') in result['text']
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['control-retry', 'control-change', 'control-cancel', 'control-race', 'control-lost-ack', 'control-stale'])
+def test_verification_control_immutable_unknown_request_and_account_isolation(path, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario],
+                            text=True, capture_output=True, timeout=15, check=True)
+    data = json.loads(result.stdout)
+    assert data['cleared']
+    assert all(x['url'].endswith('/refunds/verification/control') for x in data['sent'])
+    assert all('不发退款' in c and '原退款号 ORIGINAL' in c for c in data['confirmations'])
+    if scenario == 'control-cancel':
+        assert not data['sent']
+    elif scenario == 'control-retry':
+        assert len(data['sent']) == 2 and data['sent'][0] == data['sent'][1]
+    elif scenario == 'control-stale':
+        assert len(data['sent']) == 2 and data['sent'][0]['body']['snapshot'] != data['sent'][1]['body']['snapshot']
+    else:
+        assert len(data['sent']) == 1
+    if scenario in ('control-retry', 'control-lost-ack', 'control-stale'):
+        assert 'FIRST<script>' in data['text'] and '不是当前状态保证' in data['text']

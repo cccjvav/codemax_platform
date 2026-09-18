@@ -6,6 +6,7 @@ transaction before HTTP; a token and DB-clock deadline fence late results after 
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from dataclasses import dataclass
@@ -16,11 +17,12 @@ from sqlalchemy import and_, func, or_, select, update
 from .models import Order, PaymentEvent, RefundVerificationJob
 from .payment_ledger import PaymentConflict, lock_order
 from .refund_notifications import NOTICE_KIND, notice_view
-from .refunds import original_receipt
+from .refunds import original_receipt, refund_for
 from .timeutil import as_utc
 from .wechat_pay import WeChatPayError, assert_notify_configuration, query_full_refund
 
 MAX_ATTEMPTS = 8
+CONTROL_KIND = 'refund_verify_control'
 LEASE_SECONDS = 90  # Recovery lease, not exactly-once HTTP. Duplicate GETs are harmless.
 
 
@@ -181,7 +183,94 @@ async def jobs_view(db, order_id):
     rows = (await db.execute(select(RefundVerificationJob, PaymentEvent).join(
         PaymentEvent, PaymentEvent.id == RefundVerificationJob.notice_event_id).where(
         RefundVerificationJob.order_id == order_id).order_by(RefundVerificationJob.id.desc()).limit(51))).all()
-    return {'jobs': [{'id': j.id, 'notice_event_id': j.notice_event_id, 'state': j.state, 'attempts': j.attempts,
+    latest = await last_control(db, order_id)
+    version = latest.id if latest else 0
+    return {'latest_control': control_view(latest), 'jobs': [{'snapshot': control_snapshot(j, version), 'id': j.id, 'notice_event_id': j.notice_event_id, 'state': j.state, 'attempts': j.attempts,
                       'refund_no': (notice_view(event) or {}).get('refund_no'),
                       'outcome': j.outcome, 'next_at': j.next_at, 'lease_until': j.lease_until,
                       'updated_at': j.updated_at} for j, event in rows[:50]], 'has_more': len(rows) > 50}
+
+
+async def last_control(db, order_id):
+    """Order-wide immutable sequence also prevents same-second hold/retry ABA snapshots."""
+    return await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order_id,
+                           PaymentEvent.kind == CONTROL_KIND).order_by(PaymentEvent.id.desc()).limit(1))
+
+
+def control_snapshot(job, version):
+    """Opaque optimistic proof, not authority. Include lease and control sequence, never expose token."""
+    values = [job.id, job.order_id, job.notice_event_id, job.state, job.attempts, job.token,
+              *(as_utc(v).isoformat() if v else None for v in (job.lease_until, job.next_at, job.updated_at)),
+              job.outcome, version]
+    return hashlib.sha256(json.dumps(values, separators=(',', ':')).encode()).hexdigest()
+
+
+def control_view(event):
+    """First action attribution, not a claim that the queue is still in that action's resulting state."""
+    if event is None:
+        return None
+    try:
+        note = json.loads(event.evidence)
+        if (event.kind != CONTROL_KIND or event.actor_id is None or not event.actor_name
+                or type(note.get('v')) is not int or note['v'] != 1
+                or note.get('action') not in ('hold', 'retry') or type(note.get('job_id')) is not int):
+            return None
+        return {'request_id': event.attempt_id, 'job_id': note['job_id'], 'action': note['action'],
+                'actor': event.actor_name, 'evidence': note['evidence'], 'created_at': event.create_time}
+    except (ValueError, TypeError, AttributeError, KeyError):
+        return None
+
+
+async def control_job(db, order, *, actor, key, job_id, action, snapshot, evidence):
+    """Caller locks/rechecks active user first. Then order -> job; no network or count reset.
+
+    Hold fences results; already-claimed work can still issue GET after hold returns. Retry uses remaining lifetime
+    budget; verified/exhausted jobs require the existing independent administrator query instead.
+    Exact request replay reads first attribution before checking current mutable state.
+    """
+    try:
+        await lock_order(db, order)
+        job = await db.scalar(select(RefundVerificationJob).where(RefundVerificationJob.id == job_id,
+                              RefundVerificationJob.order_id == order.id).with_for_update().execution_options(populate_existing=True))
+        if job is None or actor.role != 1 or actor.status != 1 or action not in ('hold', 'retry'):
+            raise PaymentConflict('核验任务归属、操作者或动作不符')
+        note = json.dumps({'v': 1, 'job_id': job_id, 'action': action, 'snapshot': snapshot, 'evidence': evidence},
+                          ensure_ascii=False, sort_keys=True, separators=(',', ':'))
+        if len(note) > 500:
+            raise PaymentConflict('核验操作依据过长')
+        old = await db.scalar(select(PaymentEvent).where(PaymentEvent.kind == CONTROL_KIND, PaymentEvent.attempt_id == key))
+        if old:
+            if (old.order_id, old.actor_id, old.evidence) != (order.id, actor.id, note):
+                raise PaymentConflict('原请求ID归属或内容不同，不可覆盖首次操作')
+            view = control_view(old)
+            await db.commit()
+            return view, False
+        latest = await last_control(db, order.id)
+        if control_snapshot(job, latest.id if latest else 0) != snapshot:
+            raise PaymentConflict('任务已有新进展，请刷新核对后重新确认')
+        if action == 'hold':
+            if job.state == 'verified' or job.outcome == 'manual_hold':
+                raise PaymentConflict('已核验成功请按原号人工查询；已接管任务无需重复接管')
+            job.state, job.outcome = 'attention', 'manual_hold'
+        else:
+            if job.state != 'attention' or job.attempts >= MAX_ATTEMPTS:
+                raise PaymentConflict('只能重排待人工任务的剩余次数；耗尽/已核验任务请按原号人工查询')
+            event = await db.get(PaymentEvent, job.notice_event_id)
+            view = notice_view(event)
+            receipt = await original_receipt(db, order, 'wechat')
+            if (view is None or event.order_id != order.id or view['partial'] or view['refund'] != receipt.amount
+                    or await refund_for(db, order.id)):
+                raise PaymentConflict('通知无效/部分退款或已有成功凭证，不能重排全额核验')
+            job.state, job.outcome = 'retry', 'operator_retry'
+        job.token, job.lease_until = None, None
+        job.updated_at = job.next_at = await clock(db)
+        event = PaymentEvent(order_id=order.id, attempt_id=key, kind=CONTROL_KIND,
+                             actor_id=actor.id, actor_name=actor.username, evidence=note)
+        db.add(event)
+        await db.flush()
+        view = control_view(event)
+        await db.commit()
+        return view, True
+    except BaseException:
+        await db.rollback()
+        raise

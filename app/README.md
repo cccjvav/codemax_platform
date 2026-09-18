@@ -113,12 +113,12 @@ pending → closed → paid
 | [`app/models.py`](models.py) | `3eba8dd26382` | L1–L352 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `9f2e7deb4df5` | L1–L138 |
+| [`app/payment_review.py`](payment_review.py) | `6bede82e7ace` | L1–L138 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `c4447355f2c3` | L1–L239 |
-| [`app/refund_verification.py`](refund_verification.py) | `141de48a176b` | L1–L187 |
+| [`app/refund_verification.py`](refund_verification.py) | `8316084ca215` | L1–L276 |
 | [`app/refund_worker.py`](refund_worker.py) | `e6f3d026b50d` | L1–L42 |
 | [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
@@ -162,7 +162,7 @@ Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提
 
 `wechat_pay._request_json`统一Native POST/查单GET：精确签名和发送字节、固定域名、禁止跳转/压缩、64KiB及20秒总预算。`assert_response_signature`检查单值有界四头、平台身份/有效期、5分钟窗口及原文签名，不能先反序列化再验；非200即便可信也不当未付。`QueryResult`只暴露受验证状态/流水/时间，不存payer原文；`query_order`绑定订单号、商户/app和提供的金额，SUCCESS强制CNY/NATIVE/完整带时区凭证。未付可缺官方可选金额，REFUND仅观察。sign要求RSA至少2048位。
 
-`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`服务十种管理员财务写操作（含复核、两个核验、准备、独立授权和发送）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
+`settle(audit_event=...)`检查事件属于原单，在锁内把成功事件与凭证/paid一起提交；精确重试也可有新的核查事件，原凭证/首次人不变，失败全部回滚。`deps.require_finance_origin`服务十一种管理员财务写操作（含复核、两个核验、准备、独立授权和发送）：Cookie来源/Fetch Metadata防护与有效Bearer通道分开，无来源头非浏览器客户端兼容；不声称完整token型CSRF系统。路由持久开始/未知/冲突等事件，底层支付客户端不自行操作数据库。
 
 ## 第五批：payment_review.py的只读复核投影
 
@@ -228,3 +228,11 @@ claim用数据库时间和条件UPDATE抢一张到期派工单，提交running�
 inputs复查原收款/原商户应用、系统通知摘要和全额；部分/坏通知转attention不查询。查询绑定原退款号/订单/流水/全额/CNY/ORIGINAL，另比对通知退款ID及成功时间。SUCCESS只写verified/success_needs_admin，PROCESSING/配置或验签/网络失败退避重试，ABNORMAL/CLOSED/冲突转attention。最多8次领取，30秒起指数退避，末次崩溃到期也转人工，不无限占槽；异常正文不落库。未预料异常令独立进程失败，租约恢复，不能冒充已完成。
 
 refund_worker.py只在WX_REFUND_VERIFY_ENABLED=true且完整迁移账本校验成功后运行；--once一次有界周期而非清空队列，默认循环每周期至少间隔5秒，由外部监督重启，不挂FastAPI后台任务。HTTP GET展示最近50任务/has_more，不展示token。开关可用不证明worker在线；配置只在进程启动读取，停worker不撤回已开始GET。此批不改变RefundReceipt管理员归属，不冒用账号撤销下载；SUCCESS后管理员仍用原号独立查询完成凭证。
+
+## 第十二批：核验调度人工控制
+
+refund_verification新增last_control按订单读末次不可变控制事件；control_snapshot把任务身份/状态/次数/token/时间/outcome与订单控制事件序号一起摘要，防同秒接管→重排后旧页面再次被接受（ABA）。它是乐观并发证明，不是授权凭据。jobs_view不受事件分页影响，给每任务snapshot及订单latest_control；后者描述首次操作，不保证任务仍保持那个状态。
+
+control_job要求调用方先锁并重查当前管理员，再锁订单→任务。相同key先按任务/订单/人/完整body读首次结果，不因后续进展变成新命令；新key必须匹配快照。hold仅把所选任务置attention/manual_hold并清token/租约，旧GET可能继续但不能回写；retry仅attention且attempts<8、原全额通知/凭证匹配且尚无RefundReceipt可用，设retry/operator_retry，不清零次数、不改变通知或退款号。不要求核验开关/当前商户配置已开启，因为端点不发网络；后台执行仍自行检查配置。动作与refund_verify_control审计同事务，失败回滚；未知提交按原key恢复。control_view只返回首笔动作/人/依据/时间，坏事件不冒充操作成功。复核ISSUES收录控制事实，因此旧复核快照失效。
+
+复用0015任务与既有不可变PaymentEvent，无新schema/依赖。人工接管不是所有通知的全局暂停；别的任务/新通知仍可调度。已verified或8次耗尽需现有管理员原号独立查询，不是自动结算或无限重排。

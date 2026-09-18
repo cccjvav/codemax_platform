@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Response
 from pydantic import AwareDatetime, ConfigDict, Field, StrictInt, field_validator
@@ -18,6 +19,7 @@ from ..models import Order, PaymentEvent, User
 from ..payment_ledger import PaymentConflict, lock_order
 from ..ratelimit import rate_limit
 from ..refund_requests import prepare_request, request_for, request_view
+from ..refund_verification import control_job
 from ..refunds import original_receipt, record_refund, refund_for
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund, submit_full_refund
 from .shop import EvidenceIn
@@ -248,3 +250,31 @@ async def stop_refund_sending(order_no: str, proof: RefundSendIn, response: Resp
         raise HTTPException(409, str(exc)) from None
     except SQLAlchemyError:
         raise HTTPException(503, '停止保存结果未知；刷新原记录并用原请求ID/内容重试，勿据错误推断已停止') from None
+
+
+class VerificationControlIn(RefundIn):
+    model_config = ConfigDict(extra='forbid')
+    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+    request_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    job_id: StrictInt = Field(gt=0, le=2147483647)
+    action: Literal['hold', 'retry']
+    snapshot: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/verification/control',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-verify-control', 'RATE_LIMIT_TOOLS'))])
+async def control_verification(order_no: str, proof: VerificationControlIn, response: Response,
+                               db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Local queue control only; no synchronous query, refund, budget reset or system settlement."""
+    response.headers['Cache-Control'] = 'no-store'
+    try:
+        current = await active_actor(db, admin, admin.credential_version)
+        order = await target(db, order_no, proof)
+        control, changed = await control_job(db, order, actor=current, key=proof.request_id, job_id=proof.job_id,
+                                            action=proof.action, snapshot=proof.snapshot, evidence=proof.evidence)
+        return {'control': control, 'changed': changed,
+                'warning': '仅改变此任务调度；已领取查询仍可能继续，不停止其他任务，不发退款或改下载权；重新核验不清零次数。'}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '核验操作保存未知，请刷新并保留原请求ID/内容恢复') from None

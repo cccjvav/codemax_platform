@@ -387,3 +387,7 @@ Git 已跟踪及未忽略新增文本
 ## 第十一批阅读路径
 
 先读RefundVerificationJob/0015的可变调度字段和不可变归属，再读save_notice同事务enqueue。沿worker→repair_missing→claim→inputs→query_full_refund→finish阅读：数据库时间、条件更新、租约token、事务与网络分离、8次领取和指数退避。最后看jobs_view/管理页与回归：SUCCESS观察不是RefundReceipt，不增加系统结算权限；部分/坏签名不会冒充全额完成。
+
+## 第十二批学习入口
+
+先读refund_verification的jobs_view/last_control/control_snapshot/control_view/control_job，区分当前状态与首笔命令、可变任务与不可变事件、租约栅栏与远程召回；再到refunds_admin的严格输入/控制路由，追踪用户→订单→任务锁。对照payments-admin的pendingControl，理解为何5xx不能换key而409须重新核对。新增回归覆盖同秒ABA及GET在途接管，不拿摘要覆盖替代人工语义审阅。
