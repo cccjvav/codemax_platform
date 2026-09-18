@@ -764,7 +764,7 @@ python -m pytest -q tests/test_refund_requests.py tests/test_db_admin.py tests/t
 npm run build
 ```
 
-现行应用需要0012；只在独立空库init，已有库按数据库指南备份/停写后migrate，切勿拿业务库跑pytest。管理员页面新增“保存退款准备（不发送）”：输入完整单号、全额分数、内部依据，保存后核对固定商户退款号。断网先刷新，按原内容重试；不能另造号码。准备/通知/成功凭证分开，两个填号按钮均不提交或代填确认；换账号应清空。准备不撤销下载，也不等于同意以后自动退款；具体步骤见管理手册第八批，实际Windows/商户/恢复仍未代办签收。
+本功能最初需要0012，现行应用需完整0016；只在独立空库init，已有库按数据库指南备份/停写后migrate，切勿拿业务库跑pytest。管理员页面新增“保存退款准备（不发送）”：输入完整单号、全额分数、内部依据，保存后核对固定商户退款号。断网先刷新，按原内容重试；不能另造号码。准备/通知/成功凭证分开，两个填号按钮均不提交或代填确认；换账号应清空。准备不撤销下载，也不等于同意以后自动退款；具体步骤见管理手册第八批，实际Windows/商户/恢复仍未代办签收。
 
 
 ## 第九批增补：先在隔离环境验显式申请
@@ -794,10 +794,10 @@ npm run build
 ## 第十一批：只读核验worker（VS Code CMD + Conda + 系统Node）
 
 1. 先完成前文的Conda激活、系统Node及专用测试库准备，绝不把业务库用于测试。运行`python -m pytest -q tests/test_refund_verification.py tests/test_refund_notifications.py tests/test_payments_frontend.py`，然后`npm run build`。
-2. 正式连接维护仍须备份/停写/恢复核实，按原维护CLI迁移到0015；这里没有代你执行。不要重新init存量库。
+2. 正式连接维护仍须备份/停写/恢复核实，按原维护CLI迁移到当前0016；这里没有代你执行。不要重新init存量库。
 3. 专用验收环境另开VS Code CMD终端，激活同一Conda环境，确认目标库/可信商户配置；运行`set WX_REFUND_VERIFY_ENABLED=false`后`python -m app.refund_worker --once`，应拒绝执行而不查网络。
 4. 只有获得真实查询验收授权后才在专用环境`set WX_REFUND_VERIFY_ENABLED=true`，运行`python -m app.refund_worker --once`观察一次有界周期。无--once是常驻循环，可Ctrl+C；中断留下租约，下次可恢复，不代表已保存结果。没有授权/凭据就保留未执行，不拿假流水冒充真实联调。
-5. 管理页刷新查看任务原号/状态/次数；SUCCESS仍待管理员按原号独立核验，attention手工核账。保持发送开关关闭，不能把worker当自动退款按钮。Windows/浏览器实机步骤尚需你在本机签收，Linux合成测试不冒充已执行。
+5. 管理页刷新查看任务原号/状态/次数；默认AUTO_RECORD关闭时，SUCCESS仍待管理员按原号独立核验，attention手工核账。保持发送开关关闭，不能把worker当自动退款按钮。Windows/浏览器实机步骤尚需你在本机签收，Linux合成测试不冒充已执行。
 
 ## 第十二批补充：核验任务人工接管
 
@@ -808,3 +808,19 @@ python -m pytest -q tests/test_verification_controls.py tests/test_payments_fron
 ```
 
 浏览器在隔离测试订单详情抄对任务ID与原退款号，手动填确认单号/依据，选择人工接管；当前任务暂停但已开始查询不能召回。选择重新排队只用8次内剩余次数，开关关闭仍不执行，耗尽必须人工原号查询。模拟断网重试原内容，取消不提交；切账号后无旧资料。以上步骤未代你在真实Windows/商户环境验收，不开启真实退款发送。
+
+
+## 第十三批：系统自动登记（VS Code CMD + Conda + 系统 Node）
+
+1. 在项目根目录的VS Code **CMD**终端激活原Conda环境；不创建venv，不改业务库连接。执行以下合成回归（默认测试用独立临时SQLite，内含另建可丢弃PG的迁移测试；Windows若缺PG测试二进制会跳过，需由Linux/CI补真库）：
+
+```bat
+python -m pytest -q tests/test_system_refunds.py tests/test_refund_verification.py tests/test_refunds.py
+npm run build
+python -m pytest -q tests/test_payments_frontend.py
+```
+
+2. 保持真实环境`WX_REFUND_AUTO_RECORD_ENABLED=false`与SEND关闭。本批没有替你升级库、重启或开启开关。单独试验环境先按数据库指南备份/停写，用status/migrate至0016，不重跑init。
+3. 若尚无真实查询验收授权，不执行联网worker测试，记录未执行。获得授权后仅在指定验收环境另开CMD并激活同一Conda环境；按管理手册配置VERIFY和AUTO_RECORD，再分别重启Web和独立worker。CMD进程临时变量语法是`set WX_REFUND_AUTO_RECORD_ENABLED=true`，仅影响该CMD启动的子进程；私有.env仍须统一核对，不在网页随意填写。
+4. 用`python -m app.refund_worker --once`只跑一次有界周期。核实凭证显示“系统核验（非管理员代办）”及事件ID，原付款事实保留，该订单后续领链/旧链接拒绝，另一未退款单正常。不要在真实订单伪造退款通知/成功时间，不把本步当自动转账。
+5. 老的verified/attention不会仅因开关开启重跑；管理员仍可原号独立查询。hold不召回已领GET，改.env不是在途撤销。实际Windows/浏览器/商户/备份恢复验收须分别记录，Linux结果不能代替。

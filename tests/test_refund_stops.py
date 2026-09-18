@@ -256,7 +256,7 @@ def test_real_pg_stop_upgrade_constraints_and_append_only(maintenance_db):
     db_admin.initialize(conn)
     rows(
         conn,
-        "DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DELETE FROM schema_migration WHERE version IN ('0014','0015')",
+        "DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DELETE FROM schema_migration WHERE version IN ('0014','0015')",
     )
     rows(
         conn,

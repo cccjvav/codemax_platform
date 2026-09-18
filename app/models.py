@@ -264,12 +264,16 @@ class RefundReceipt(Base):
     out_refund_no: Mapped[str] = mapped_column(String(64))
     amount: Mapped[int] = mapped_column(Integer)
     currency: Mapped[str] = mapped_column(String(3))
-    actor_id: Mapped[int] = mapped_column(ForeignKey("sys_user.id"))
+    actor_id: Mapped[int | None] = mapped_column(ForeignKey("sys_user.id"))
+    verification_event_id: Mapped[int | None] = mapped_column(ForeignKey("payment_event.id"), unique=True)
     actor_name: Mapped[str] = mapped_column(String(50))
     evidence: Mapped[str] = mapped_column(String(500))
     completed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     __table_args__ = (
+        CheckConstraint("(actor_id IS NOT NULL AND verification_event_id IS NULL) OR "
+                        "(actor_id IS NULL AND verification_event_id IS NOT NULL AND source = 'wechat' "
+                        "AND actor_name = 'system:refund-verifier')", name="ck_refund_authority"),
         UniqueConstraint("source", "refund_id", name="uq_refund_source_id"),
         UniqueConstraint("source", "merchant_id", "out_refund_no", name="uq_refund_merchant_reference"),
         CheckConstraint("amount > 0 AND currency = 'CNY'", name="ck_refund_amount_currency"),

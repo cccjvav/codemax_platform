@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `7098ca558e51` | L1–L305 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `421a74eeb098` | L1–L305 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -113,8 +113,13 @@ stop-view用textContent单独展示首次人/时间/依据及“不是渠道取�
 
 ## 核验任务展示
 
-payments-admin详情新增verification-view，textContent展示原退款号、通知事件ID、状态、次数、结果码和下次/租约时间；不新增自动POST/轮询。开关仅说明允许worker，不是在线证明；SUCCESS标待管理员，同原号已有成功凭证时不再声称待确认。账号变化清屏，迟到详情由epoch/viewSeq丢弃；Node源码/bundle回归不是浏览器验收。
+payments-admin详情新增verification-view，textContent展示原退款号、通知事件ID、状态、次数、结果码和下次/租约时间；不新增自动POST/轮询。开关仅说明允许worker，不是在线证明；默认仅核验时SUCCESS标待管理员，同原号已有成功凭证时不再声称待确认。账号变化清屏，迟到详情由epoch/viewSeq丢弃；Node源码/bundle回归不是浏览器验收。
 
 ## 第十二批：核验调度表单
 
 第十一类verification-control手动填当前列表的任务ID，选hold/retry，并复用手动订单确认及依据。verificationJobs只来自当前详情；确认框显示原退款号及仅此任务/不召回GET/不清零次数边界。pendingControl保存原完整body/key/snapshot；未知失败后新详情不能偷偷替换请求，改依据/任务/动作阻止提交，409已知冲突才解除pending以重新确认。成功响应或读到相同latest_control key可解除待确认；账户切换清空任务/字段/首笔动作，丢弃旧响应。所有服务端文字经textContent。GET展示不触发重排，点击取消不POST；source/bundle都用Node VM回归，不等同真实浏览器签收。
+
+
+## 第十三批：区分系统凭证与人工签字
+
+payments-admin从ledger读取refund.recorded_by及verification_event_id，以textContent显示系统核验（非管理员代办）/真实管理员和事件ID。refund_auto_record_enabled仅影响核验提示，不触发请求/授权；页面读到Web配置不证明独立worker在线。成功凭证仍独立展示不受事件翻页影响，账号/详情切换清屏与迟到响应栅栏不变。源码与bundle的system-on/off/race Node场景检查无POST、系统文字、事件编号及清屏；不是浏览器布局验收。

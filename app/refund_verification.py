@@ -1,6 +1,6 @@
-"""Durable, leased GET-only refund follow-up. No refund POST, receipt or entitlement writes.
+"""Durable, leased GET-only refund follow-up. No refund POST; system receipt authority is separately default-off.
 
-A verified SUCCESS is an observation awaiting an active administrator's independent query.
+Without explicit system authority, SUCCESS remains an observation awaiting an administrator.
 Callback and repair callers hold the order lock before enqueue. Each worker releases its DB
 transaction before HTTP; a token and DB-clock deadline fence late results after recovery.
 """
@@ -13,11 +13,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import and_, func, or_, select, update
+from sqlalchemy.exc import IntegrityError
 
 from .models import Order, PaymentEvent, RefundVerificationJob
 from .payment_ledger import PaymentConflict, lock_order
 from .refund_notifications import NOTICE_KIND, notice_view
-from .refunds import original_receipt, refund_for
+from .refunds import _stage_receipt, original_receipt, refund_for
 from .timeutil import as_utc
 from .wechat_pay import WeChatPayError, assert_notify_configuration, query_full_refund
 
@@ -120,24 +121,41 @@ async def inputs(factory, ticket, cfg):
                 'transaction_id': receipt.transaction_id, 'total': receipt.amount}, view['refund_id'], receipt.paid_at
 
 
-async def finish(factory, ticket, state, code):
+async def finish(factory, ticket, state, code, *, settlement=None):
     """Token AND unexpired deadline fence observations. Queue and audit commit atomically.
 
-    No receipt is written, even for SUCCESS. Redacted fixed outcome codes only, no raw payloads.
+    Optional trusted SUCCESS context stages receipt inside the same transaction/savepoint.
+    Stale/held tickets cannot create receipts. No raw payloads or pretend administrator identities.
     """
     async with factory() as db:
         order = await db.get(Order, ticket.order_id)
         await lock_order(db, order)
+        job = await db.scalar(select(RefundVerificationJob).where(RefundVerificationJob.id == ticket.id)
+                              .with_for_update().execution_options(populate_existing=True))
         now = await clock(db)
+        if (job is None or job.state != 'running' or job.token != ticket.token
+                or job.order_id != ticket.order_id or job.notice_event_id != ticket.event_id
+                or job.attempts != ticket.attempt or job.lease_until is None or as_utc(job.lease_until) <= now):
+            await db.rollback()
+            return False
+        if settlement is not None and state == 'verified' and code == 'success_needs_admin':
+            try:
+                async with db.begin_nested():
+                    changed = await stage_system_receipt(db, order, ticket, *settlement)
+                code = 'success_recorded' if changed else 'success_already_recorded'
+            except (PaymentConflict, IntegrityError):
+                state, code = 'attention', 'receipt_conflict'
         if state == 'retry' and ticket.attempt >= MAX_ATTEMPTS:
             state, code = 'attention', 'exhausted'
+        now = await clock(db)  # Staging/lock waits may have consumed the lease; fence at final CAS again.
         result = await db.execute(update(RefundVerificationJob).where(
             RefundVerificationJob.id == ticket.id, RefundVerificationJob.state == 'running',
             RefundVerificationJob.token == ticket.token, RefundVerificationJob.lease_until > now,
             RefundVerificationJob.order_id == ticket.order_id, RefundVerificationJob.notice_event_id == ticket.event_id,
             RefundVerificationJob.attempts == ticket.attempt
         ).values(state=state, outcome=code, token=None, lease_until=None, updated_at=now,
-                 next_at=now + timedelta(seconds=min(3600, 30 * 2 ** (ticket.attempt - 1)))))
+                 next_at=now + timedelta(seconds=min(3600, 30 * 2 ** (ticket.attempt - 1))))
+          .execution_options(synchronize_session=False))
         if result.rowcount != 1:
             await db.rollback()
             return False
@@ -146,7 +164,7 @@ async def finish(factory, ticket, state, code):
         return True
 
 
-async def run_once(factory, cfg, *, enabled=False):
+async def run_once(factory, cfg, *, enabled=False, auto_record=False):
     """One bounded repair/claim/query/finalize cycle. No privilege impersonation or money API."""
     if not enabled:
         return False
@@ -154,6 +172,7 @@ async def run_once(factory, cfg, *, enabled=False):
     ticket = await claim(factory)
     if ticket is None:
         return False
+    settlement = None
     try:
         payload, refund_id, paid_at = await inputs(factory, ticket, cfg)
         result = await query_full_refund(cfg, **payload)
@@ -166,6 +185,8 @@ async def run_once(factory, cfg, *, enabled=False):
                 state, code = 'attention', 'time_conflict'
             else:
                 state, code = 'verified', 'success_needs_admin'
+                if auto_record:
+                    settlement = (cfg, payload, result)
         elif result.state == 'PROCESSING':
             state, code = 'retry', 'processing'
         else:
@@ -174,7 +195,7 @@ async def run_once(factory, cfg, *, enabled=False):
         state, code = 'attention', 'invalid_or_partial_notice'
     except WeChatPayError:
         state, code = 'retry', 'untrusted_or_unavailable'
-    await finish(factory, ticket, state, code)
+    await finish(factory, ticket, state, code, settlement=settlement)
     return True
 
 
@@ -274,3 +295,26 @@ async def control_job(db, order, *, actor, key, job_id, action, snapshot, eviden
     except BaseException:
         await db.rollback()
         raise
+
+
+async def stage_system_receipt(db, order, ticket, cfg, payload, result):
+    """Only finish calls this with a fresh signed query result under order/job lease locks.
+
+    Rebind the immutable receipt and notice to the exact outbound query context. The result type
+    alone is not authority: no route or stored SUCCESS observation may call this as a shortcut.
+    """
+    receipt = await original_receipt(db, order, 'wechat')
+    notice = notice_view(await db.get(PaymentEvent, ticket.event_id))
+    start = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order.id,
+                            PaymentEvent.kind == 'refund_verify_started', PaymentEvent.attempt_id == ticket.token))
+    if (notice is None or notice['partial'] or notice['refund'] != receipt.amount
+            or (receipt.merchant_id, receipt.app_id) != (cfg.mchid, cfg.appid)
+            or payload != {'out_refund_no': notice['refund_no'], 'out_trade_no': order.order_no,
+                           'transaction_id': receipt.transaction_id, 'total': receipt.amount}
+            or result.state != 'SUCCESS' or result.refund_id != notice['refund_id']
+            or start is None or start.actor_id is not None or start.actor_name is not None):
+        raise PaymentConflict('系统凭证与原核验身份不匹配')
+    return await _stage_receipt(db, order, source='wechat', refund_id=result.refund_id,
+                     out_refund_no=notice['refund_no'], amount=receipt.amount, completed_at=result.completed_at,
+                     actor_id=None, actor_name='system:refund-verifier', verification_event_id=start.id,
+                     evidence='独立验签全额原路CNY退款查询；系统核验任务 ' + str(ticket.id))

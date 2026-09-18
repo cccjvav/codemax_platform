@@ -1,6 +1,8 @@
-> 第十二批当前进展：[核验任务人工接管与剩余次数重排](review/RELEASE_BLOCKERS_PHASE12.md)。不清零次数、不自动结算；人工查询仍是成功凭证入口。
+> 第十三批当前：[系统自动登记授权与审计](review/RELEASE_BLOCKERS_PHASE13.md)。默认关闭；仅独立验签全额原路成功查询可登记，不发送资金、不冒用管理员；需0016。
 
-> 第十一批：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
+> 第十二批历史：[核验任务人工接管与剩余次数重排](review/RELEASE_BLOCKERS_PHASE12.md)。不清零次数、不自动结算；人工查询仍是成功凭证入口。
+
+> 第十一批历史：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
 
 > 第九批历史：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
 
@@ -227,7 +229,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `57d5af08af42` | L1–L25 |
-| [`.env.example`](.env.example) | `207679b72441` | L1–L119 |
+| [`.env.example`](.env.example) | `e633d19f151c` | L1–L123 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
@@ -255,8 +257,8 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 源码变更必须复核本目录说明后执行 `python scripts/check_docs_contract.py --write`（仓库根目录）。
 只刷新指纹不是语义审查；评审时必须核对人工说明。
 
-管理员页面：`/admin/payments`；[操作、失败处理和验收](docs/PAYMENTS_ADMIN_GUIDE.md)。只读订单发现/凭证历史，显式人工核账、旧单绑定与验签查单；不是扣款/退款入口。
+管理员页面：`/admin/payments`；[操作、失败处理和验收](docs/PAYMENTS_ADMIN_GUIDE.md)。只读订单发现/凭证历史，显式人工核账、旧单绑定与验签查单；不是客户扣款入口；退款申请另有默认关闭的显式授权/发送流程。
 
 ## 第六批资金/交付更新
 
-已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0015核验队列迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。
+已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0016系统凭证归属迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。

@@ -38,7 +38,20 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('control-')){
+if(scenario.startsWith('system-')){
+ let release;
+ impl=async(url,opt)=>{
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.refund_verify_enabled=true;d.refund_auto_record_enabled=scenario!=='system-off';
+  d.refund_verification={jobs:[{id:9,state:'verified',attempts:1,refund_no:'ORIGINAL',outcome:'success_recorded'}]};
+  d.refund={source:'wechat',recorded_by:'system',actor:'system<script>',verification_event_id:123,out_refund_no:'ORIGINAL',amount:19900};
+  if(scenario==='system-race')return new Promise(r=>release=()=>r(d));return d;
+ };
+ start();await tick();await clickOrder();
+ if(scenario==='system-race'){auth.listener(null);release();await tick()}
+ const text=el('verification-view').textContent,receipt=el('refund-receipt').textContent;
+ auth.listener(null);console.log(JSON.stringify({text,receipt,posts:posts().length,cleared:el('verification-view').textContent===''&&el('refund-receipt').textContent===''}));
+}else if(scenario.startsWith('control-')){
  let tries=0,latest=null,release,snapshot='a'.repeat(64);
  impl=async(url,opt)=>{
   if(opt.method==='POST'){
@@ -453,3 +466,18 @@ def test_verification_control_immutable_unknown_request_and_account_isolation(pa
         assert len(data['sent']) == 1
     if scenario in ('control-retry', 'control-lost-ack', 'control-stale'):
         assert 'FIRST<script>' in data['text'] and '不是当前状态保证' in data['text']
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['system-on', 'system-off', 'system-race'])
+def test_system_receipt_identity_and_authority_display(path, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario],
+                            text=True, capture_output=True, timeout=15, check=True)
+    data = json.loads(result.stdout)
+    assert data['posts'] == 0 and data['cleared']
+    if scenario == 'system-race':
+        assert data['text'] == data['receipt'] == ''
+    else:
+        assert '系统核验（非管理员代办）' in data['receipt'] and 'system<script>' in data['receipt']
+        assert '123' in data['receipt']
+        assert ('已允许系统登记' if scenario == 'system-on' else 'SUCCESS观察不自动撤销下载') in data['text']

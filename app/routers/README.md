@@ -103,7 +103,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `22b4714f4641` | L1–L280 |
-| [`app/routers/shop.py`](shop.py) | `42eeed62489e` | L1–L686 |
+| [`app/routers/shop.py`](shop.py) | `dd95a6c252ee` | L1–L689 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -186,7 +186,7 @@ POST /shop/admin/orders/{order_no}/refunds/stop复用严格RefundSendIn确认字
 
 ## 第十一批：入站原子派工与只读投影
 
-refund_notify仍4秒应用预算且无外部I/O；save_notice把事件和唯一核验任务一起提交才204，重试恢复首次结果。shop.payment_ledger增加refund_verification与refund_verify_enabled；最多50条任务/has_more，不随事件游标隐藏，无token或原始失败正文。require_admin和no-store保持，GET不启动worker/补队列。自动GET只留观察，退款成功凭证仍由当前管理员走原独立查询入口。
+refund_notify仍4秒应用预算且无外部I/O；save_notice把事件和唯一核验任务一起提交才204，重试恢复首次结果。shop.payment_ledger增加refund_verification与refund_verify_enabled；最多50条任务/has_more，不随事件游标隐藏，无token或原始失败正文。require_admin和no-store保持，GET不启动worker/补队列。默认自动GET只留观察；系统登记开关另行授权后可以落系统凭证，人工查询入口保持独立。ledger新增refund_auto_record_enabled及凭证recorded_by/verification_event_id；仅显示当前Web进程配置，不证明worker在线或配置一致。
 
 ## 第十二批：核验任务控制端点
 

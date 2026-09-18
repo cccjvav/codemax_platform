@@ -20,14 +20,15 @@ async def run(once=False):
         rows = (await db.execute(text('SELECT version, checksum FROM schema_migration ORDER BY version'))).all()
         verify_ledger(rows, migration_manifest(), complete=True)
     while settings.WX_REFUND_VERIFY_ENABLED:
-        await run_once(SessionLocal, pay_config(), enabled=settings.WX_REFUND_VERIFY_ENABLED)
+        await run_once(SessionLocal, pay_config(), enabled=settings.WX_REFUND_VERIFY_ENABLED,
+                       auto_record=settings.WX_REFUND_AUTO_RECORD_ENABLED)
         if once:
             return
         await asyncio.sleep(5)  # bounded pressure, including failures/idle; supervise/restart externally.
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Read-only refund notification verification, no money movement')
+    parser = argparse.ArgumentParser(description='Refund GET verification, optional local receipt recording, no outgoing money')
     parser.add_argument('--once', action='store_true', help='one bounded cycle; NOT drain the whole backlog')
     args = parser.parse_args()
     try:

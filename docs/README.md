@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `b3dd11255984` | L1–L10971 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `4f3ce3c102b3` | L1–L11100 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -58,6 +58,8 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 管理员实际操作见[订单与收款工作台](PAYMENTS_ADMIN_GUIDE.md)，不需要打开生产API文档。
 
 
-当前新增第十一批只读核验队列；操作见PAYMENTS_ADMIN_GUIDE，单独进程/0015部署见DEPLOY，边界与证据见review/RELEASE_BLOCKERS_PHASE11.md。没有自动转款/结算权限。
+第十一批引入只读核验队列；操作见PAYMENTS_ADMIN_GUIDE，单独进程/0015部署见DEPLOY，边界与证据见review/RELEASE_BLOCKERS_PHASE11.md。没有自动转款权限；系统登记是第十三批独立默认关闭权限。
 
 第十二批人工调度控制入口见[管理手册](PAYMENTS_ADMIN_GUIDE.md)和[报告](../review/RELEASE_BLOCKERS_PHASE12.md)；讲解覆盖不是自动语义认证。
+
+第十三批系统成功登记见[管理手册](PAYMENTS_ADMIN_GUIDE.md)、[0016部署与进程配置](DEPLOY.md)及[阶段报告](../review/RELEASE_BLOCKERS_PHASE13.md)，不冒用管理员、不发送资金。

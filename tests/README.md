@@ -57,7 +57,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
-| [`tests/test_db_admin.py`](test_db_admin.py) | `8a34c65f0d4b` | L1–L230 |
+| [`tests/test_db_admin.py`](test_db_admin.py) | `aef0a0b35275` | L1–L230 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
@@ -67,7 +67,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `2cc3fa166b77` | L1–L532 |
-| [`tests/test_er_page.py`](test_er_page.py) | `85003015e498` | L1–L176 |
+| [`tests/test_er_page.py`](test_er_page.py) | `a8d5200cabe7` | L1–L180 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
@@ -80,22 +80,22 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `489ffbede4ec` | L1–L539 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
-| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `b6797d3b171e` | L1–L338 |
+| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `972df1f8c00f` | L1–L338 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `721c2090a4c8` | L1–L455 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `0b2bec2310ad` | L1–L483 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
-| [`tests/test_refund_requests.py`](test_refund_requests.py) | `a35d94fe22f9` | L1–L319 |
-| [`tests/test_refund_stops.py`](test_refund_stops.py) | `c0abad6c183f` | L1–L298 |
-| [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `9cea637afea7` | L1–L406 |
-| [`tests/test_refund_verification.py`](test_refund_verification.py) | `66e7ac122182` | L1–L305 |
-| [`tests/test_refunds.py`](test_refunds.py) | `18a293ff9f94` | L1–L445 |
+| [`tests/test_refund_requests.py`](test_refund_requests.py) | `f2852f1d01b3` | L1–L319 |
+| [`tests/test_refund_stops.py`](test_refund_stops.py) | `a259aaad1674` | L1–L298 |
+| [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `220f8c84c080` | L1–L406 |
+| [`tests/test_refund_verification.py`](test_refund_verification.py) | `025a4addc94f` | L1–L305 |
+| [`tests/test_refunds.py`](test_refunds.py) | `9878d9a442ed` | L1–L445 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
@@ -108,12 +108,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support.py`](test_support.py) | `9cd0e6ef02c4` | L1–L240 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `de7599c20fee` | L1–L113 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
+| [`tests/test_system_refunds.py`](test_system_refunds.py) | `40a1b34cd974` | L1–L324 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `efb4d957c00b` | L1–L454 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
-| [`tests/test_word_export.py`](test_word_export.py) | `d7c7c66103db` | L1–L92 |
+| [`tests/test_word_export.py`](test_word_export.py) | `024d6245aad9` | L1–L95 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -203,3 +204,12 @@ test_refund_verification.py用合成RSA/AES通知和已验签MockTransport GET�
 ## 第十二批：人工接管与剩余预算
 
 test_verification_controls.py通过真实HTTP/独立会话验证严格字段、角色/来源/凭据版本/限流、跨单/跨人、首次key读回、快照陈旧与同秒ABA、同快照竞争、领取先后、在途GET不召回但结果被栅栏拒绝、未用次数重排、耗尽/成功/部分及已有凭证拒绝、提交前后ACK失败、审计失败原子回滚。全组还须在非超级用户可丢弃PG执行，不能拿SQLite替代行锁。test_payments_frontend新增源码/bundle的六种控制情景，检查未知重试body/key不变、改输入阻止、取消、换账号迟到、丢ACK读回与409重新确认。没有真实商户或浏览器调用。
+
+
+## 第十三批系统登记回归
+
+test_system_refunds.py用既有合成签名GET/通知及独立会话，覆盖显式双开关、终态不复活、完整ORIGINAL/CNY/日期、hold与过期/暂存途中租约到期、签名失败、配置/出站参数/actor重绑定、人机并发与首次归属、冲突不覆盖、commit故障/丢ACK与审计失败整笔回滚、逐订单下载撤权。worker开关传递测试替身只证明接线，真实维护fixture另验证0015→0016保留人类凭证、系统CHECK/活租约/唯一及只追加保护；不把ORM create_all等同生产触发器。旧迁移fixture先拆0016再构造历史基线，绝不对业务库运行。
+
+前端system-on/off/race同时跑源码/bundle；已有通知/显式发送/管理员核验回归仍要求它们单独不构成自动登记权限。
+
+本轮full_init新增后超公开ER接口20000字符预算；ER布局与Word接口夹具只去本仓库独立注释行，保留全套DDL，额外断言API图等于原SQL解析图。不增加生产预算、不裁表/字段/外键，原布局断言不变。

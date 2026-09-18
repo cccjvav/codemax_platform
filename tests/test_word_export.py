@@ -74,7 +74,10 @@ def test_build_data_dictionary_table_contents():
 
 async def test_word_export_returns_attachment(client):
     graph = _graph()
-    r = await _export(client, FULL_INIT_SQL.read_text(encoding="utf-8"))
+    raw = FULL_INIT_SQL.read_text(encoding="utf-8")
+    ddl = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("--"))
+    assert parse_ddl(ddl) == graph  # Keep every table/column/FK within the unchanged API budget.
+    r = await _export(client, ddl)
     assert r.status_code == 200
     assert r.headers["content-type"] == MIME_DOCX
     assert f'attachment; filename="{FILENAME}"' in r.headers["content-disposition"]

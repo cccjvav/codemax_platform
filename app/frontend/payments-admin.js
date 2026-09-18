@@ -105,7 +105,7 @@
       el("verification-control").hidden = !verificationJobs.length;
       el("verification-control-view").textContent = latestControl ? `最近核验调度操作（不是当前状态保证）\n任务 ${latestControl.job_id} · ${latestControl.action === "hold" ? "人工接管" : latestControl.action === "retry" ? "剩余次数重排" : "未知动作"} · ${latestControl.actor} · ${latestControl.created_at}\n${latestControl.evidence}` : "尚无人工调度操作";
       const jobLabels = {pending: "待核验", running: "核验中（租约超时可恢复）", retry: "等待重试", verified: "查询成功，待管理员按原号确认", attention: "需要人工处理"};
-      el("verification-view").textContent = `${data.refund_verify_enabled ? "允许独立worker运行（不证明进程在线）" : "自动核验开关关闭，任务仍保存"}\n只读查询，不发起退款；SUCCESS观察不自动撤销下载。\n` + verification.jobs.map((j) => `任务 ${j.id} · 原退款号 ${j.refund_no || "需核对原通知"} · 通知事件 ${j.notice_event_id} · ${j.state === "verified" && data.refund?.out_refund_no === j.refund_no ? "该原号已有成功退款凭证" : jobLabels[j.state] || "未知状态"} · 尝试 ${j.attempts}/8\n结果：${j.outcome} · 更新：${j.updated_at} · 下次/租约：${j.state === "running" ? j.lease_until : j.state === "retry" || j.state === "pending" ? j.next_at : "无自动重试"}`).join("\n") + (verification.has_more ? "\n仅显示最近50项，旧观察见事件历史。" : "");
+      el("verification-view").textContent = `${data.refund_verify_enabled ? "允许独立worker运行（不证明进程在线）" : "自动核验开关关闭，任务仍保存"}\n${data.refund_auto_record_enabled ? "已允许系统登记可信全额原路成功凭证并停止后续下载；不会发起退款，不补处理旧终态任务。" : "只读查询，不发起退款；SUCCESS观察不自动撤销下载。"}\n` + verification.jobs.map((j) => `任务 ${j.id} · 原退款号 ${j.refund_no || "需核对原通知"} · 通知事件 ${j.notice_event_id} · ${j.state === "verified" && data.refund?.out_refund_no === j.refund_no ? "该原号已有成功退款凭证" : jobLabels[j.state] || "未知状态"} · 尝试 ${j.attempts}/8\n结果：${j.outcome} · 更新：${j.updated_at} · 下次/租约：${j.state === "running" ? j.lease_until : j.state === "retry" || j.state === "pending" ? j.next_at : "无自动重试"}`).join("\n") + (verification.has_more ? "\n仅显示最近50项，旧观察见事件历史。" : "");
       currentRequest = data.refund_request || null;
       if (pendingRequest && currentRequest?.request_id === pendingRequest.request_id) pendingRequest = null;
       const requestStates = {prepared: "仅有本地准备；不证明渠道已发送或已退款", confirmed: "已有匹配成功退款凭证", completed_elsewhere: "已有其他退款号的成功凭证，不得另发退款"};
@@ -121,7 +121,7 @@
       el("refund-stop").hidden = !submission || !!submission.stop;
       el("refund-send").hidden = !submission || !!submission.stop || !data.refund_send_enabled || !!data.refund;
       const refund = data.refund;
-      el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录人：${refund.actor}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
+      el("refund-receipt").textContent = refund ? `已全额退款，停止此订单后续下载\n来源：${refund.source}\n渠道退款号：${refund.refund_id}\n商户退款单号：${refund.out_refund_no}\n金额：${money(refund.amount)} ${refund.currency}\n成功时间：${refund.completed_at}\n本地记录时间：${refund.received_at}\n记录身份：${refund.recorded_by === "system" ? "系统核验（非管理员代办）" : "管理员"} · ${refund.actor}\n核验开始事件：${refund.verification_event_id ?? "人工入口"}\n依据：${refund.evidence}` : "没有成功退款凭证；申请、处理中和查询失败不是退款完成。";
       el("refund-query").hidden = !receipt || receipt.source !== "wechat";
       el("refund-manual").hidden = !receipt || receipt.source !== "manual" || !!refund;
       el("manual").hidden = !(data.actions.manual && contract.payment_mode === "manual" && !receipt && ["pending", "closed"].includes(contract.status));

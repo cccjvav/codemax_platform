@@ -32,49 +32,57 @@ async def original_receipt(db: AsyncSession, order: Order, source: str) -> Payme
     return receipt
 
 
+async def _stage_receipt(db, order, *, source, refund_id, out_refund_no, amount, completed_at,
+                         actor_id, actor_name, evidence, verification_event_id=None):
+    """Caller holds order lock and validates authority. Stage financial facts, never commit.
+
+    Both manual and system paths share exact full-refund/time/idempotency constraints. Existing
+    attribution is immutable; a later human/system confirmation cannot relabel the first receipt.
+    """
+    receipt = await original_receipt(db, order, source)
+    if (type(amount) is not int or amount != receipt.amount or amount <= 0
+            or completed_at is None or completed_at.tzinfo is None
+            or as_utc(completed_at) > datetime.now(timezone.utc) + timedelta(minutes=5)
+            or (receipt.paid_at and as_utc(completed_at) < as_utc(receipt.paid_at))
+            or not evidence or len(evidence) > 500
+            or any(not isinstance(v, str) or not 1 <= len(v) <= 64 or any(ord(c) < 33 for c in v)
+                   for v in (refund_id, out_refund_no))):
+        raise PaymentConflict('全额退款金额、成功时间或证据不合规')
+    existing = await refund_for(db, order.id)
+    expected = (receipt.id, source, receipt.merchant_id or '', refund_id, out_refund_no, amount, 'CNY', as_utc(completed_at))
+    if existing:
+        actual = (existing.payment_receipt_id, existing.source, existing.merchant_id, existing.refund_id,
+                  existing.out_refund_no, existing.amount, existing.currency, as_utc(existing.completed_at))
+        if actual != expected:
+            raise PaymentConflict('与已记录退款不一致，禁止覆盖或重复退款')
+        return False
+    db.add(RefundReceipt(order_id=order.id, payment_receipt_id=receipt.id, source=source,
+                         merchant_id=receipt.merchant_id or '', refund_id=refund_id, out_refund_no=out_refund_no,
+                         amount=amount, currency='CNY', completed_at=as_utc(completed_at).astimezone(timezone.utc),
+                         actor_id=actor_id, actor_name=actor_name, evidence=evidence,
+                         verification_event_id=verification_event_id))
+    return True
+
+
 async def record_refund(db: AsyncSession, order: Order, *, source: str, refund_id: str,
                         out_refund_no: str, amount: int, completed_at: datetime,
                         actor: User, evidence: str, audit_event: PaymentEvent) -> bool:
-    """Own commit/rollback: immutable full-refund receipt + same-order audit atomically.
-
-    Exact financial repeats preserve first attribution/evidence/time. Different financial facts
-    conflict, including a different completion time; actor/note are not a new financial fact.
-    """
-    actor_id, actor_name = actor.id, actor.username
+    """Human-only entry. Caller locks/rechecks actor; receipt and same-order audit commit together."""
     try:
         await lock_order(db, order)
-        receipt = await original_receipt(db, order, source)
-        if (type(amount) is not int or amount != receipt.amount or amount <= 0
-                or completed_at is None or completed_at.tzinfo is None
-                or as_utc(completed_at) > datetime.now(timezone.utc) + timedelta(minutes=5)
-                or (receipt.paid_at and as_utc(completed_at) < as_utc(receipt.paid_at))
-                or actor.role != 1 or actor.status != 1 or not evidence or len(evidence) > 500
-                or any(not isinstance(v, str) or not 1 <= len(v) <= 64 or any(ord(c) < 33 for c in v)
-                       for v in (refund_id, out_refund_no))):
-            raise PaymentConflict('全额退款金额、成功时间、管理员或证据不合规')
-        if audit_event.order_id != order.id or audit_event.actor_id != actor_id:
+        if actor is None or actor.role != 1 or actor.status != 1:
+            raise PaymentConflict('退款登记须为当前有效管理员')
+        if audit_event.order_id != order.id or audit_event.actor_id != actor.id:
             raise PaymentConflict('退款审计归属不一致')
-        existing = await refund_for(db, order.id)
-        expected = (receipt.id, source, receipt.merchant_id or '', refund_id, out_refund_no, amount, 'CNY', as_utc(completed_at))
-        if existing:
-            actual = (existing.payment_receipt_id, existing.source, existing.merchant_id, existing.refund_id,
-                      existing.out_refund_no, existing.amount, existing.currency, as_utc(existing.completed_at))
-            if actual != expected:
-                raise PaymentConflict('与已记录退款不一致，禁止覆盖或重复退款')
-            # Query attempts still need their own terminal event; original receipt is unchanged.
-            db.add(audit_event)
-            await db.commit()
-            return False
-        db.add(RefundReceipt(order_id=order.id, payment_receipt_id=receipt.id, source=source,
-                             merchant_id=receipt.merchant_id or '', refund_id=refund_id, out_refund_no=out_refund_no,
-                             amount=amount, currency='CNY', completed_at=as_utc(completed_at).astimezone(timezone.utc),
-                             actor_id=actor_id, actor_name=actor_name, evidence=evidence))
+        changed = await _stage_receipt(db, order, source=source, refund_id=refund_id, out_refund_no=out_refund_no,
+                         amount=amount, completed_at=completed_at, actor_id=actor.id, actor_name=actor.username,
+                         evidence=evidence)
         db.add(audit_event)
         await db.commit()
-        return True
+        return changed
     except IntegrityError as exc:
         await db.rollback()
         raise PaymentConflict('退款标识已归属其他订单或发生并发冲突') from exc
-    except Exception:
+    except BaseException:
         await db.rollback()
         raise

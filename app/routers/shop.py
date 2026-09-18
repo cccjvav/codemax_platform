@@ -665,12 +665,15 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
                    and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
                    and not await prior_refund_activity(db, order.id))
     return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
+            'refund_auto_record_enabled': settings.WX_REFUND_AUTO_RECORD_ENABLED,
             'refund_verification': await jobs_view(db, order.id), 'refund_verify_enabled': settings.WX_REFUND_VERIFY_ENABLED,
             'refund_submission': await submission_view(db, prepared), 'refund_send_enabled': settings.WX_REFUND_SEND_ENABLED,
             'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
             'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
                         'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
-                        'received_at': refund.received_at, 'actor': refund.actor_name, 'evidence': refund.evidence} if refund else None),
+                        'received_at': refund.received_at, 'actor': refund.actor_name,
+                        'recorded_by': 'system' if refund.verification_event_id is not None else 'administrator',
+                        'verification_event_id': refund.verification_event_id, 'evidence': refund.evidence} if refund else None),
             'order': {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
                       'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
                       'merchant_id': order.merchant_id, 'app_id': order.app_id,

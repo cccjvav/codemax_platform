@@ -103,14 +103,14 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `fd2a4ac46c4d` | L1–L140 |
+| [`app/config.py`](config.py) | `1e3191d1b8b2` | L1–L141 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `45b0168919c6` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `d63f094dea2e` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `3eba8dd26382` | L1–L352 |
+| [`app/models.py`](models.py) | `e50f2e0e0f18` | L1–L356 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
 | [`app/payment_review.py`](payment_review.py) | `6bede82e7ace` | L1–L138 |
@@ -118,9 +118,9 @@ pending → closed → paid
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `c4447355f2c3` | L1–L239 |
-| [`app/refund_verification.py`](refund_verification.py) | `8316084ca215` | L1–L276 |
-| [`app/refund_worker.py`](refund_worker.py) | `e6f3d026b50d` | L1–L42 |
-| [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
+| [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
+| [`app/refund_worker.py`](refund_worker.py) | `aba70b0625b0` | L1–L43 |
+| [`app/refunds.py`](refunds.py) | `6701c38ac7f2` | L1–L88 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
@@ -227,7 +227,7 @@ claim用数据库时间和条件UPDATE抢一张到期派工单，提交running�
 
 inputs复查原收款/原商户应用、系统通知摘要和全额；部分/坏通知转attention不查询。查询绑定原退款号/订单/流水/全额/CNY/ORIGINAL，另比对通知退款ID及成功时间。SUCCESS只写verified/success_needs_admin，PROCESSING/配置或验签/网络失败退避重试，ABNORMAL/CLOSED/冲突转attention。最多8次领取，30秒起指数退避，末次崩溃到期也转人工，不无限占槽；异常正文不落库。未预料异常令独立进程失败，租约恢复，不能冒充已完成。
 
-refund_worker.py只在WX_REFUND_VERIFY_ENABLED=true且完整迁移账本校验成功后运行；--once一次有界周期而非清空队列，默认循环每周期至少间隔5秒，由外部监督重启，不挂FastAPI后台任务。HTTP GET展示最近50任务/has_more，不展示token。开关可用不证明worker在线；配置只在进程启动读取，停worker不撤回已开始GET。此批不改变RefundReceipt管理员归属，不冒用账号撤销下载；SUCCESS后管理员仍用原号独立查询完成凭证。
+refund_worker.py只在WX_REFUND_VERIFY_ENABLED=true且完整迁移账本校验成功后运行；--once一次有界周期而非清空队列，默认循环每周期至少间隔5秒，由外部监督重启，不挂FastAPI后台任务。HTTP GET展示最近50任务/has_more，不展示token。开关可用不证明worker在线；配置只在进程启动读取，停worker不撤回已开始GET。仅核验模式下SUCCESS仍由管理员原号独立查询；第十三批增加独立默认关闭的系统凭证权限，见下节。
 
 ## 第十二批：核验调度人工控制
 
@@ -236,3 +236,12 @@ refund_verification新增last_control按订单读末次不可变控制事件；c
 control_job要求调用方先锁并重查当前管理员，再锁订单→任务。相同key先按任务/订单/人/完整body读首次结果，不因后续进展变成新命令；新key必须匹配快照。hold仅把所选任务置attention/manual_hold并清token/租约，旧GET可能继续但不能回写；retry仅attention且attempts<8、原全额通知/凭证匹配且尚无RefundReceipt可用，设retry/operator_retry，不清零次数、不改变通知或退款号。不要求核验开关/当前商户配置已开启，因为端点不发网络；后台执行仍自行检查配置。动作与refund_verify_control审计同事务，失败回滚；未知提交按原key恢复。control_view只返回首笔动作/人/依据/时间，坏事件不冒充操作成功。复核ISSUES收录控制事实，因此旧复核快照失效。
 
 复用0015任务与既有不可变PaymentEvent，无新schema/依赖。人工接管不是所有通知的全局暂停；别的任务/新通知仍可调度。已verified或8次耗尽需现有管理员原号独立查询，不是自动结算或无限重排。
+
+
+## 系统凭证权限与同事务登记
+
+`_stage_receipt`无commit/flush：调用者持订单锁并核实权限，复用原收款、严格全额/带时区时间/号码及精确重复验证。`record_refund`仍是human-only包装，检查活跃管理员和同单审计后commit/rollback。系统仅由`finish`传可信settlement，`stage_system_receipt`重绑cfg/payload/result/notice/start事件，不把普通RefundResult对象或存储的SUCCESS当权限。
+
+finish按订单→任务锁，校验running/token/原归属/次数/期限；savepoint内添加凭证，预期冲突只撤销该段并attention，其他故障整体回滚。再次读取DB时钟做末次CAS，再一次提交终态事件+任务+凭证。系统actor_id为空且固定名称，verification_event_id唯一指向本次start；精确重复不覆盖首次人/时间。0016的CHECK/PG租约归属触发器是额外防线，不替代应用验签。
+
+worker每周期明确传WX_REFUND_AUTO_RECORD_ENABLED，默认false且必须先有VERIFY授权；SEND不受影响。无网络POST、无系统User、无Web自动后台任务。ledger展示系统/人工归属和本Web配置，不证明worker健康。0016迁移/独立进程重启/旧终态不复活见管理手册。

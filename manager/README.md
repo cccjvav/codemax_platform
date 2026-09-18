@@ -17,4 +17,6 @@
 
 阶段关闭/已解决 P1 时复盘；有理由才修改可访问的 Skill 源、升版本、同步副本，并留进化记录。`tests/test_docs_site.py` 验证源/副本一致及现行提交示例不回退到危险旧命令；文档站注册/本地链接门禁覆盖这些 Markdown。平台是否自动加载 Skill 不在此承诺范围内。
 
-当前第六批状态与证据集中[退款凭证与订单下载权益](../review/RELEASE_BLOCKERS_PHASE6.md)。
+第六批历史状态与证据集中[退款凭证与订单下载权益](../review/RELEASE_BLOCKERS_PHASE6.md)。
+
+当前第十三批范围、证据与后续集中[系统自动登记授权与审计](../review/RELEASE_BLOCKERS_PHASE13.md)，元复盘见experience；不复制竞争测试台账。
