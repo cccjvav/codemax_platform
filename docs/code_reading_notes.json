@@ -108,13 +108,13 @@
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "25aad36faa220108e02dd8267886a4348ac4b0ca3c19dd9fea399d3e19367afa",
+      "sha256": "f56faf645017842bfaddd31a37f73db9ef8a489ff38a03baf899da0b1aa44de7",
       "method": "manual",
       "blocks": [
         {
           "end": 48,
           "title": "触发、权限与并发取消",
-          "explanation": "六个job并行，push所有分支及PR触发；contents读、PR写用于失败评论。concurrency同ref取消旧运行，所以必须核最终提交SHA的run，不拿上次绿灯当本次通过。开头旧网络/版本说明属历史，不推定当前出口一定失败。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "六个job并行，push所有分支及PR触发；contents读、PR写用于失败评论。concurrency同ref取消旧运行，所以必须核最终提交SHA的run，不拿上次绿灯当本次通过。开头旧网络/版本说明属历史，不推定当前出口一定失败。 四项非全量job限制20分钟，两项全量测试35分钟；后者按实测20分钟超时修订，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
         },
         {
           "end": 72,
@@ -139,12 +139,12 @@
         {
           "end": 255,
           "title": "SQLite：全套测试与失败评论",
-          "explanation": "Python3.11装整清单，pytest通过tee保留日志且pipefail保留失败。PR失败才gh comment尾300行，普通push不发PR评论；评论记录SHA/run链接，不能包含真实密钥。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "Python3.11装整清单，pytest通过tee保留日志且pipefail保留失败。PR失败才gh comment尾300行，普通push不发PR评论；评论记录SHA/run链接，不能包含真实密钥。 第十二批按实测将本全量job限制改35分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
         },
         {
           "end": 335,
           "title": "PostgreSQL16：独立DDL库和测试库",
-          "explanation": "postgres:16服务提供独立codemax_ddl和codemax_test。前者显式init/status，第二次init必须非零拒绝；不是重建两遍。pytest保持全套并包含自行隔离的非超级用户维护库、并发/回滚/保留数据。set-euo pipefail不让预期拒绝分支掩盖其他失败；无商户或模型真实调用。"
+          "explanation": "postgres:16服务提供独立codemax_ddl和codemax_test。前者显式init/status，第二次init必须非零拒绝；不是重建两遍。pytest保持全套并包含自行隔离的非超级用户维护库、并发/回滚/保留数据。set-euo pipefail不让预期拒绝分支掩盖其他失败；无商户或模型真实调用。 第十二批因已观测20分钟超时改35分钟，不改测试范围或失败判定；取消从来不是通过。"
         }
       ]
     },
@@ -4380,7 +4380,7 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "ef5f2ebdec0c823460b46d91efa2a35262713681a1f4a965d6e41b3a37f25aa2",
+      "sha256": "1c17e31e49349b7abf499ee7f00f66013ebca54214ce0d7066afb86719261845",
       "method": "guided",
       "blocks": [
         {
@@ -4532,6 +4532,11 @@
           "end": 457,
           "title": "拒绝恢复旧危险提交示例",
           "explanation": "遍历全部现行 .claude/skills/*/SKILL.md，用 DOTALL 正则只取 bash/cmd 围栏中的命令；拒绝 git add -A、上一会话旧分支、自动 gh pr merge、固定数字 passed 和 HANDOVER 旧章节号。说明文字可以回顾旧坑，但可执行示例不能恢复它。glob 扩大到新增 Skill，避免只守三份收尾文件；检查这些已知回退不等于任意 shell 安全或所有文档语义已获证明。"
+        },
+        {
+          "end": 469,
+          "title": "全量CI预算和失败传播",
+          "explanation": "读取实际工作流，四个非全量job仍20分钟；两套全量job为实测调整后的35分钟，原完整pytest命令和pipefail必须存在，不接受continue-on-error。预算改变不缩减断言或用例；实际最终SHA六job还须远端执行成功。"
         }
       ]
     },

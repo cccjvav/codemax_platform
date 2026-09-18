@@ -211,7 +211,7 @@ jobs:
   test-sqlite:
     name: 测试（SQLite 后端）
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
         with:
@@ -256,7 +256,7 @@ jobs:
   test-postgres:
     name: 测试（真 PostgreSQL 16）
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
 
     services:
       postgres:

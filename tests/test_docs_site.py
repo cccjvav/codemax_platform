@@ -455,3 +455,15 @@ def test_current_skill_command_blocks_do_not_restore_obsolete_delivery_commands(
             assert 'gh pr merge' not in block
             assert not re.search(r'\b\d+ passed\b', block)
             assert not re.search(r'HANDOVER\.md.*§\d+', block)
+
+
+def test_full_ci_suites_keep_bounded_budget_and_propagate_failure():
+    """Observed full-suite duration outgrew 20m; extend budget, never narrow pytest selection."""
+    workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+    before, suites = workflow.split('  test-sqlite:', 1)
+    assert before.count('timeout-minutes: 20') == 4
+    for job in suites.split('  test-postgres:'):
+        assert 'timeout-minutes: 35' in job
+        assert 'set -o pipefail' in job
+        assert 'python -m pytest -q 2>&1 | tee pytest-output.txt' in job
+        assert 'continue-on-error' not in job

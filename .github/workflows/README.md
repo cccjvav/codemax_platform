@@ -26,7 +26,7 @@ contents:read 用于 checkout；pull-requests:write 用于失败评论。权限�
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `efbbecbc14c4` | L1–L88 |
-| [`.github/workflows/ci.yml`](ci.yml) | `25aad36faa22` | L1–L335 |
+| [`.github/workflows/ci.yml`](ci.yml) | `f56faf645017` | L1–L335 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -52,3 +52,7 @@ checkout 的源码 → 安装锁定依赖 → 检查/构建/测试 → 对应提
 第一批历史（f7e1cdc）：frontend开始执行 npm audit --audit-level=high 和手写JS的 node --check；六job各设20分钟超时，checkout不保留Git凭据。full_init连续执行仅证明可重复重建，绝不是无损迁移幂等。当前仍有PR评论写权限/可变action版本等待办，见审查台账。
 
 第二批：PG job不再重复执行破坏性SQL，改测维护CLI和拒绝覆盖；tests/test_db_admin另外自建非超级用户的一次性PG，不使用业务DSN。真实商户、浏览器与Docker启动仍不由这六job证明。
+
+## 第十二批：全量测试预算按实测调整
+
+运行35396917535的PG检查注解明确为“exceeded the maximum execution time of 20m0s”；SQLite虽通过也用19分48秒，PG取消不是测试通过，也不推断为断言失败。仅两套完整测试job改35分钟，四个其他job仍20分钟。pytest仍全量、pipefail保留，未增skip/continue-on-error、未删测试或弱化断言。test_docs_site回归核对范围/预算和失败传播；最终提交须重新等待全部六项CI，不能沿用取消运行。日志下载EOF时可通过check-run annotations取得取消原因，不归咎GitHub鉴权。

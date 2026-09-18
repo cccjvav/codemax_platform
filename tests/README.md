@@ -62,7 +62,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `ef5f2ebdec0c` | L1–L457 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `1c17e31e4934` | L1–L469 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
