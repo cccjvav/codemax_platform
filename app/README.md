@@ -103,21 +103,23 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `eaaf3ac74b46` | L1–L139 |
+| [`app/config.py`](config.py) | `fd2a4ac46c4d` | L1–L140 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `dbe0cf594385` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `45b0168919c6` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `b687a880b0c8` | L1–L329 |
+| [`app/models.py`](models.py) | `3eba8dd26382` | L1–L352 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `63f52522afbf` | L1–L138 |
+| [`app/payment_review.py`](payment_review.py) | `9f2e7deb4df5` | L1–L138 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
-| [`app/refund_notifications.py`](refund_notifications.py) | `744c462ad740` | L1–L203 |
+| [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `c4447355f2c3` | L1–L239 |
+| [`app/refund_verification.py`](refund_verification.py) | `141de48a176b` | L1–L187 |
+| [`app/refund_worker.py`](refund_worker.py) | `e6f3d026b50d` | L1–L42 |
 | [`app/refunds.py`](refunds.py) | `68f29f266a1b` | L1–L80 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -203,7 +205,7 @@ RefundAuthorization唯一绑定原准备，另有全局授权request_id；冻结
 
 begin_send需要当前管理员再次确认授权ID/摘要/原退款号/全额，默认WX_REFUND_SEND_ENABLED=false。每次新尝试先持久refund_send_started，再释放事务调用固定微信端点；相同尝试ID仅读回，绝不再次发送。未知需新显式尝试且至少60秒、同正文同号；任一已受理观察、独立通知/查询或成功凭证阻止新发送。60秒不是分布式任务租约；进程暂停也只能重复原商户号，不能新造号码。
 
-finish_send只追加有界观察，保留发起人，即使网络期间角色撤销也保存已发生事实；不发新请求/不创建RefundReceipt/不撤权。崩溃、取消或结果落库失败留下unknown，不捏造未发送。submission_view独立读授权/最近尝试；复核摘要独立包含授权ID，缺过程事件仍能发现。没有后台扫描器、自动重试、授权取消/改写、部分退款或真实商户签收。
+finish_send只追加有界观察，保留发起人，即使网络期间角色撤销也保存已发生事实；不发新请求/不创建RefundReceipt/不撤权。崩溃、取消或结果落库失败留下unknown，不捏造未发送。submission_view独立读授权/最近尝试；复核摘要独立包含授权ID，缺过程事件仍能发现。没有自动发送扫描器、自动发送重试、授权取消/改写、部分退款或真实商户签收。
 
 wechat_pay.submit_full_refund复用有界签名POST传输，逐字节发送冻结body；parse_full_refund是查询与申请共用的可信应答字段校验，调用方决定权限：申请即便SUCCESS也只记观察，独立查询才记成功凭证。
 
@@ -214,4 +216,15 @@ RefundSendStop唯一绑定授权，另有全局停止request_id、首次操作�
 
 begin_send在原attempt精确读回之后、任何新尝试提交之前读停止表；停止不影响旧attempt读回。它和stop_sending使用同一订单锁，因此先提交停止者阻止新started；已有started属于已获准尝试，即使HTTP尚未到达微信也可能继续。finish_send不丢其结果，独立query仍可写成功凭证；停止不撤回退款、不撤销/恢复下载。
 
-stop_for/stop_view只读首次停止事实，submission_view独立带stop字段，不受事件分页影响；payment_review的四次批量SQL在原授权JOIN后再JOIN停止表，仅有停止时包装摘要，无停止保持原编码，缺audit也能发现。本批没有自动核验队列、重新启用或正文纠错。
+stop_for/stop_view只读首次停止事实，submission_view独立带stop字段，不受事件分页影响；payment_review的四次批量SQL在原授权JOIN后再JOIN停止表，仅有停止时包装摘要，无停止保持原编码，缺audit也能发现。第十批未包含核验队列；现有队列见下节，仍无重新启用或正文纠错。
+
+
+## 第十一批：收件箱、派工单和查询笔记
+
+refund_verification.py只使用query_full_refund的已验签GET，不导入发送/退款记账函数。save_notice在订单锁内flush通知后enqueue，同事务提交才ACK；同通知重放不重置任务。repair_missing按事件ID每次最多50条补旧通知缺的派工单，逐单锁内查重，不在迁移/GET页面里扫描。
+
+claim用数据库时间和条件UPDATE抢一张到期派工单，提交running、90秒租约、随机token及refund_verify_started后才返回Ticket。独立连接的HTTP阶段没有DB事务/锁。到期或崩溃可重新领取；不是恰好一次GET，不同通知也可能重复查询同退款号。finish在订单锁内检查token、次数、原通知、原订单和未到期租约，任务状态与refund_verify_observed同事务保存；迟到结果丢弃，不覆盖新租约。
+
+inputs复查原收款/原商户应用、系统通知摘要和全额；部分/坏通知转attention不查询。查询绑定原退款号/订单/流水/全额/CNY/ORIGINAL，另比对通知退款ID及成功时间。SUCCESS只写verified/success_needs_admin，PROCESSING/配置或验签/网络失败退避重试，ABNORMAL/CLOSED/冲突转attention。最多8次领取，30秒起指数退避，末次崩溃到期也转人工，不无限占槽；异常正文不落库。未预料异常令独立进程失败，租约恢复，不能冒充已完成。
+
+refund_worker.py只在WX_REFUND_VERIFY_ENABLED=true且完整迁移账本校验成功后运行；--once一次有界周期而非清空队列，默认循环每周期至少间隔5秒，由外部监督重启，不挂FastAPI后台任务。HTTP GET展示最近50任务/has_more，不展示token。开关可用不证明worker在线；配置只在进程启动读取，停worker不撤回已开始GET。此批不改变RefundReceipt管理员归属，不冒用账号撤销下载；SUCCESS后管理员仍用原号独立查询完成凭证。

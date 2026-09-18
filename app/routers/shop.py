@@ -36,6 +36,7 @@ from ..ratelimit import rate_limit
 from ..refund_notifications import NOTICE_KIND, notice_view
 from ..refund_requests import prior_refund_activity, request_for, request_view
 from ..refund_submissions import submission_view
+from ..refund_verification import jobs_view
 from ..refunds import refund_for
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -664,6 +665,7 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
                    and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
                    and not await prior_refund_activity(db, order.id))
     return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
+            'refund_verification': await jobs_view(db, order.id), 'refund_verify_enabled': settings.WX_REFUND_VERIFY_ENABLED,
             'refund_submission': await submission_view(db, prepared), 'refund_send_enabled': settings.WX_REFUND_SEND_ENABLED,
             'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
             'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,

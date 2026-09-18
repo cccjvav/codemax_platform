@@ -327,3 +327,26 @@ class RefundSendStop(Base):
     actor_name: Mapped[str] = mapped_column(String(50))
     evidence: Mapped[str] = mapped_column(String(160))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RefundVerificationJob(Base):
+    """Durable read-only follow-up per verified notice; lease tokens fence stale workers."""
+    __tablename__ = 'refund_verification_job'
+    id: Mapped[int] = mapped_column(primary_key=True)
+    notice_event_id: Mapped[int] = mapped_column(ForeignKey('payment_event.id'), unique=True)
+    order_id: Mapped[int] = mapped_column(ForeignKey('sys_order.id'))
+    state: Mapped[str] = mapped_column(String(16), server_default='pending')
+    attempts: Mapped[int] = mapped_column(Integer, server_default='0')
+    token: Mapped[str | None] = mapped_column(String(32))
+    lease_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    outcome: Mapped[str] = mapped_column(String(32), server_default='queued')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    __table_args__ = (
+        CheckConstraint("state IN ('pending','running','retry','verified','attention')", name='ck_verify_state'),
+        CheckConstraint('attempts >= 0 AND attempts <= 8', name='ck_verify_attempts'),
+        CheckConstraint("(state = 'running' AND token IS NOT NULL AND lease_until IS NOT NULL) OR "
+                        "(state <> 'running' AND token IS NULL AND lease_until IS NULL)", name='ck_verify_lease'),
+        Index('ix_verify_due', 'state', 'next_at'),
+    )

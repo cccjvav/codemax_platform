@@ -286,9 +286,9 @@ def test_transaction_guard_accepts_quoted_bodies(sql):
 def test_pg_upgrade_preserves_history_and_enforces_immutable_evidence(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
-    rows(conn, 'DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; '
+    rows(conn, 'DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; '
                'DROP FUNCTION codemax_freeze_order_contract() CASCADE; DROP FUNCTION codemax_append_only_evidence() CASCADE; '
-               "DELETE FROM schema_migration WHERE version IN ('0010','0011','0012','0013','0014')")
+               "DELETE FROM schema_migration WHERE version IN ('0010','0011','0012','0013','0014','0015')")
     for column in ('payment_mode', 'merchant_id', 'app_id', 'currency', 'delivery_key', 'delivery_digest', 'delivery_size'):
         rows(conn, f'ALTER TABLE sys_order DROP COLUMN {column}')
     rows(conn, "INSERT INTO sys_user(username,password) VALUES ('old','hash'); "

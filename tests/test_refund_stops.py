@@ -256,7 +256,7 @@ def test_real_pg_stop_upgrade_constraints_and_append_only(maintenance_db):
     db_admin.initialize(conn)
     rows(
         conn,
-        "DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DELETE FROM schema_migration WHERE version='0014'",
+        "DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DELETE FROM schema_migration WHERE version IN ('0014','0015')",
     )
     rows(
         conn,

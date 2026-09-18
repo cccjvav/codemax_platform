@@ -148,6 +148,8 @@ async def save_notice(db: AsyncSession, cfg: PayConfig, notice: RefundNotice) ->
     across states prevents an ID from being reused to inject a different state under another kind.
     """
     try:
+        from .refund_verification import enqueue
+
         order = await db.scalar(select(Order).where(Order.order_no == notice.order_no))
         if order is None:
             raise PaymentConflict('退款通知订单或原商户/应用不匹配')
@@ -167,9 +169,13 @@ async def save_notice(db: AsyncSession, cfg: PayConfig, notice: RefundNotice) ->
             if (existing.order_id != order.id or existing.evidence != evidence
                     or existing.actor_id is not None or existing.actor_name is not None):
                 raise PaymentConflict('相同通知ID与已记录事实冲突')
+            await enqueue(db, existing)
             await db.commit()
             return False
-        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt, kind=NOTICE_KIND, evidence=evidence))
+        event = PaymentEvent(order_id=order.id, attempt_id=attempt, kind=NOTICE_KIND, evidence=evidence)
+        db.add(event)
+        await db.flush()
+        await enqueue(db, event)
         await db.commit()  # Durable inbox before ACK; no receipt/state/entitlement mutations.
         return True
     except IntegrityError as exc:

@@ -1,4 +1,4 @@
-> 第十批：[停止后续本站退款发送与停办依据](review/RELEASE_BLOCKERS_PHASE10.md)。仅阻止新的发送尝试，不撤回渠道退款、不恢复下载。可靠通知后续核验仍待下一批。
+> 第十一批：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
 
 > 第九批历史：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
 

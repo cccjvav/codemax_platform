@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `6ab0a5c68e37` | L1–L279 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `11dac6d2c1be` | L1–L282 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -109,3 +109,8 @@ pendingAuthorization/pendingSend各保留完整body；未知时不能改内容�
 管理页十类显式操作共用代次/忙碌/手输确认。refund-stop复用原号/全额/授权摘要确认，内部依据作为停办/纠错说明；pendingStop保存原body/key，未知时改内容拒绝，成功或GET读到同停止ID才确认。即使发送开关关闭也能停止；已有stop隐藏发送及停止表单，并阻断新尝试按钮。
 
 stop-view用textContent单独展示首次人/时间/依据及“不是渠道取消”警告；换账号清除stop/pendingStop和输入，迟到响应丢弃。旧尝试可能仍在网络中，前端不把登出或停止按钮宣称为网络召回。没有恢复发送按钮。
+
+
+## 核验任务展示
+
+payments-admin详情新增verification-view，textContent展示原退款号、通知事件ID、状态、次数、结果码和下次/租约时间；不新增自动POST/轮询。开关仅说明允许worker，不是在线证明；SUCCESS标待管理员，同原号已有成功凭证时不再声称待确认。账号变化清屏，迟到详情由epoch/viewSeq丢弃；Node源码/bundle回归不是浏览器验收。

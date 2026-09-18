@@ -62,7 +62,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `b8f5be39ebfd` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `94f71b1f5bfd` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
@@ -107,3 +107,6 @@ python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_
 
 
 第十批报告登记DOC_GROUPS；更新停止模型/服务/路由/前端/SQL/测试分段语义后再同步指纹，不以生成统计冒充浏览器或渠道验收。
+
+
+第十一批报告登记到文档站DOC_GROUPS；精读新增任务服务/独立worker/SQL与回归。构建不运行worker、不需要真实支付凭据；覆盖计数不是语义认证。

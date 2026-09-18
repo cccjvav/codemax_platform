@@ -38,7 +38,21 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('stop-')){
+if(scenario.startsWith('verify-')){
+ let release;
+ impl=async(url,opt)=>{
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');d.refund_verification={jobs:[{id:9,notice_event_id:7,state:'verified',attempts:1,refund_no:'ORIGINAL',outcome:'<script>SUCCESS</script>',updated_at:'NOW'}],has_more:true};
+  if(scenario==='verify-completed')d.refund={out_refund_no:'ORIGINAL'};
+  if(scenario==='verify-race')return new Promise(r=>release=()=>r(d));
+  return d;
+ };
+ start();await tick();await clickOrder();
+ if(scenario==='verify-race'){auth.listener(null);release();await tick()}
+ const text=el('verification-view').textContent;
+ auth.listener(null);
+ console.log(JSON.stringify({text,cleared:el('verification-view').textContent==='',posts:posts().length}));
+}else if(scenario.startsWith('stop-')){
  paid=true;let stopped=null,tries=0,release;
  const ready={authorization_id:'a'.repeat(32),digest:'c'.repeat(64),body:{reason:'client reason'},actor:'A'};
  impl=async(url,opt)=>{
@@ -374,3 +388,17 @@ def test_stop_ui_keeps_original_request_and_never_sends_refund(path, scenario):
         assert len(data['sent']) == 1
     if scenario in ('stop-retry','stop-lost-ack'):
         assert data['hidden'] and data['stopHidden'] and '不是渠道取消' in data['text']
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['verify-state', 'verify-completed', 'verify-race'])
+def test_read_only_verification_queue_and_account_isolation(path, scenario):
+    process = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario], text=True, capture_output=True, timeout=15, check=True)
+    result = json.loads(process.stdout)
+    assert result['posts'] == 0 and result['cleared']
+    if scenario == 'verify-race':
+        assert result['text'] == ''
+    else:
+        assert 'ORIGINAL' in result['text'] and '<script>SUCCESS</script>' in result['text']
+        assert '仅显示最近50项' in result['text'] and '不证明进程在线' not in result['text']
+        assert ('该原号已有成功退款凭证' if scenario == 'verify-completed' else '待管理员按原号确认') in result['text']

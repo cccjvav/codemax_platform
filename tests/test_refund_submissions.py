@@ -298,7 +298,7 @@ def test_real_pg_authorization_contract_and_append_only(maintenance_db):
     db_admin.initialize(conn)
     rows(
         conn,
-        "DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DELETE FROM schema_migration WHERE version IN ('0013','0014')",
+        "DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DELETE FROM schema_migration WHERE version IN ('0013','0014','0015')",
     )
     rows(conn, "INSERT INTO sys_user(id,username,password,role,status) VALUES(1,'author','synthetic',1,1)")
     rows(

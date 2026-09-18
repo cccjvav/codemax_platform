@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `4bd79212db31` | L1–L10626 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `0f0bb651916b` | L1–L10849 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -56,3 +56,6 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 只刷新指纹不是语义审查；评审时必须核对人工说明。
 
 管理员实际操作见[订单与收款工作台](PAYMENTS_ADMIN_GUIDE.md)，不需要打开生产API文档。
+
+
+当前新增第十一批只读核验队列；操作见PAYMENTS_ADMIN_GUIDE，单独进程/0015部署见DEPLOY，边界与证据见review/RELEASE_BLOCKERS_PHASE11.md。没有自动转款/结算权限。

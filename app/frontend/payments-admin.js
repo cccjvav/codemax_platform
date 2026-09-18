@@ -22,7 +22,7 @@
     review = null; pendingReview = null; el("review-status").textContent = ""; el("review-action").value = "followup";
     viewSeq++; selected = null; contract = null; busy = false; eventCursor = null;
     for (const id of inputs.filter((x) => x !== "order-no")) el(id).value = "";
-    for (const id of ["contract", "receipt", "refund-receipt"]) el(id).textContent = "";
+    for (const id of ["contract", "receipt", "refund-receipt", "verification-view"]) el(id).textContent = "";
     el("title").textContent = "请选择订单"; el("events").replaceChildren();
     el("operations").hidden = true; el("older").hidden = true;
     el("refresh").disabled = true;
@@ -96,6 +96,9 @@
       currentNotice = data.refund_notice || null;
       el("refund-notice").textContent = currentNotice ? `已接收并核验的渠道通知（不是本地退款完成凭证）\n通知ID：${currentNotice.notification_id}\n商户退款号：${currentNotice.refund_no}\n渠道退款ID：${currentNotice.refund_id}\n通知状态：${currentNotice.state}\n合同退款金额：${money(currentNotice.refund)}\n${currentNotice.partial ? "部分退款：当前全额核验入口不处理，请在原渠道核账；该通知本身不改变权益。" : "全额通知仍须独立查询原路退款；资金结论以成功退款凭证为准。"}` : "暂无可展示的退款通知摘要；完整历史见事件列表。";
       el("refund-prefill").disabled = !currentNotice || currentNotice.partial;
+      const verification = data.refund_verification || {jobs: [], has_more: false};
+      const jobLabels = {pending: "待核验", running: "核验中（租约超时可恢复）", retry: "等待重试", verified: "查询成功，待管理员按原号确认", attention: "需要人工处理"};
+      el("verification-view").textContent = `${data.refund_verify_enabled ? "允许独立worker运行（不证明进程在线）" : "自动核验开关关闭，任务仍保存"}\n只读查询，不发起退款；SUCCESS观察不自动撤销下载。\n` + verification.jobs.map((j) => `任务 ${j.id} · 原退款号 ${j.refund_no || "需核对原通知"} · 通知事件 ${j.notice_event_id} · ${j.state === "verified" && data.refund?.out_refund_no === j.refund_no ? "该原号已有成功退款凭证" : jobLabels[j.state] || "未知状态"} · 尝试 ${j.attempts}/8\n结果：${j.outcome} · 更新：${j.updated_at} · 下次/租约：${j.state === "running" ? j.lease_until : j.state === "retry" || j.state === "pending" ? j.next_at : "无自动重试"}`).join("\n") + (verification.has_more ? "\n仅显示最近50项，旧观察见事件历史。" : "");
       currentRequest = data.refund_request || null;
       if (pendingRequest && currentRequest?.request_id === pendingRequest.request_id) pendingRequest = null;
       const requestStates = {prepared: "仅有本地准备；不证明渠道已发送或已退款", confirmed: "已有匹配成功退款凭证", completed_elsewhere: "已有其他退款号的成功凭证，不得另发退款"};

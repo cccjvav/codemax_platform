@@ -382,3 +382,8 @@ Git 已跟踪及未忽略新增文本
 ## 第十批阅读路径
 
 先读RefundSendStop/0014，再读stop_sending的用户→订单锁、身份/确认绑定、同事务audit；对照begin_send中精确attempt读回早于stop检查、新started晚于stop检查。finish_send和query故意不因stop而丢失渠道事实。再读submission_view与review_states的独立停止行，最后对照前端pendingStop与并发测试：停止不是网络撤回，复核不是金融结案。
+
+
+## 第十一批阅读路径
+
+先读RefundVerificationJob/0015的可变调度字段和不可变归属，再读save_notice同事务enqueue。沿worker→repair_missing→claim→inputs→query_full_refund→finish阅读：数据库时间、条件更新、租约token、事务与网络分离、8次领取和指数退避。最后看jobs_view/管理页与回归：SUCCESS观察不是RefundReceipt，不增加系统结算权限；部分/坏签名不会冒充全额完成。

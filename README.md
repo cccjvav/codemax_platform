@@ -1,4 +1,4 @@
-> 第十批：[停止后续本站退款发送与停办依据](review/RELEASE_BLOCKERS_PHASE10.md)。仅阻止新的发送尝试，不撤回渠道退款、不恢复下载。可靠通知后续核验仍待下一批。
+> 第十一批：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
 
 > 第九批历史：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
 
@@ -225,7 +225,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `57d5af08af42` | L1–L25 |
-| [`.env.example`](.env.example) | `105ce963466b` | L1–L116 |
+| [`.env.example`](.env.example) | `207679b72441` | L1–L119 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
 | [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
@@ -257,4 +257,4 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 
 ## 第六批资金/交付更新
 
-已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0014本站发送停止迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。
+已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0015核验队列迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。

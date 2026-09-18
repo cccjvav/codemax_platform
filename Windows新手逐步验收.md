@@ -789,3 +789,12 @@ npm run build
 ```
 
 账本当前0014，升级/备份按数据库指南，不用业务库跑pytest。WX_REFUND_SEND_ENABLED保持false也能使用停止按钮：核原授权，手输订单号/CMR号/全额及停办依据，确认后核首次停止记录。断网先刷新、原请求恢复；已经开始的尝试仍可能退款，应查询原号。不是微信取消，也不恢复下载或允许换号。真实Windows/商户/恢复验收仍需另做。
+
+
+## 第十一批：只读核验worker（VS Code CMD + Conda + 系统Node）
+
+1. 先完成前文的Conda激活、系统Node及专用测试库准备，绝不把业务库用于测试。运行`python -m pytest -q tests/test_refund_verification.py tests/test_refund_notifications.py tests/test_payments_frontend.py`，然后`npm run build`。
+2. 正式连接维护仍须备份/停写/恢复核实，按原维护CLI迁移到0015；这里没有代你执行。不要重新init存量库。
+3. 专用验收环境另开VS Code CMD终端，激活同一Conda环境，确认目标库/可信商户配置；运行`set WX_REFUND_VERIFY_ENABLED=false`后`python -m app.refund_worker --once`，应拒绝执行而不查网络。
+4. 只有获得真实查询验收授权后才在专用环境`set WX_REFUND_VERIFY_ENABLED=true`，运行`python -m app.refund_worker --once`观察一次有界周期。无--once是常驻循环，可Ctrl+C；中断留下租约，下次可恢复，不代表已保存结果。没有授权/凭据就保留未执行，不拿假流水冒充真实联调。
+5. 管理页刷新查看任务原号/状态/次数；SUCCESS仍待管理员按原号独立核验，attention手工核账。保持发送开关关闭，不能把worker当自动退款按钮。Windows/浏览器实机步骤尚需你在本机签收，Linux合成测试不冒充已执行。
