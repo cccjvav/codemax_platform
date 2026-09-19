@@ -311,7 +311,10 @@ class RefundAuthorization(Base):
     """Explicit immutable outbound contract, never a queue consumed automatically."""
     __tablename__ = 'refund_authorization'
     id: Mapped[int] = mapped_column(primary_key=True)
-    preparation_id: Mapped[int] = mapped_column(ForeignKey('refund_request.id'), unique=True)
+    preparation_id: Mapped[int] = mapped_column(ForeignKey('refund_request.id'))
+    supersedes_id: Mapped[int | None] = mapped_column(ForeignKey('refund_authorization.id'), unique=True)
+    __table_args__ = (Index('uq_refund_authorization_root', 'preparation_id', unique=True,
+                           postgresql_where=text('supersedes_id IS NULL'), sqlite_where=text('supersedes_id IS NULL')),)
     request_id: Mapped[str] = mapped_column(String(32), unique=True)
     actor_id: Mapped[int] = mapped_column(ForeignKey('sys_user.id'))
     actor_name: Mapped[str] = mapped_column(String(50))

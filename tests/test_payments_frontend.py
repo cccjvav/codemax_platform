@@ -38,7 +38,29 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('system-')){
+if(scenario.startsWith('reapprove-')){
+ let release;
+ const d=ledger('ORDER1');d.refund_request={request_id:'c'.repeat(32),state:'prepared',out_refund_no:'CMR'+'d'.repeat(32),amount:19900};
+ d.refund_submission={authorization_id:'a'.repeat(32),digest:'b'.repeat(64),body:{reason:'old'},stop:{request_id:'e'.repeat(32),actor:'old-admin',evidence:'old-stop'},reauthorize_allowed:scenario!=='reapprove-denied',history:[{authorization_id:'a'.repeat(32),body:{reason:'old'},actor:'first<script>',stop:{actor:'old-admin',evidence:'old-stop'}}]};
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   if(['reapprove-unknown','reapprove-changed'].includes(scenario))throw Error('unknown');
+   return {changed:true};
+  }
+  if(url.includes('/ledger')){
+   if(scenario==='reapprove-race')return new Promise(r=>release=()=>r(d));return d;
+  }return rows();
+ };
+ start();await tick();await clickOrder();
+ if(scenario==='reapprove-race'){auth.listener(null);release();await tick()}
+ const hidden=el('refund-reauthorize').hidden,history=el('authorization-history').textContent;
+ input();el('send-number').value=d.refund_request.out_refund_no;el('send-amount').value='19900';el('customer-reason').value='corrected customer reason';
+ await el('refund-reauthorize').onsubmit({preventDefault(){}});
+ if(scenario==='reapprove-changed')el('customer-reason').value='changed after unknown';
+ if(['reapprove-unknown','reapprove-changed'].includes(scenario))await el('refund-reauthorize').onsubmit({preventDefault(){}});
+ const ps=posts().map(x=>({url:x.url,body:JSON.parse(x.options.body)}));auth.listener(null);
+ console.log(JSON.stringify({hidden,history,posts:ps,confirmations,cleared:el('authorization-history').textContent===''&&el('customer-reason').value===''}));
+}else if(scenario.startsWith('system-')){
  let release;
  impl=async(url,opt)=>{
   if(!url.includes('/ledger'))return rows();
@@ -481,3 +503,25 @@ def test_system_receipt_identity_and_authority_display(path, scenario):
         assert '系统核验（非管理员代办）' in data['receipt'] and 'system<script>' in data['receipt']
         assert '123' in data['receipt']
         assert ('已允许系统登记' if scenario == 'system-on' else 'SUCCESS观察不自动撤销下载') in data['text']
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['reapprove-save', 'reapprove-unknown', 'reapprove-changed', 'reapprove-denied', 'reapprove-race'])
+def test_reauthorization_ui_frozen_unknown_and_no_automatic_send(path, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario],
+                            text=True, capture_output=True, timeout=15, check=True)
+    data = json.loads(result.stdout)
+    assert data['cleared']
+    if scenario in ('reapprove-denied', 'reapprove-race'):
+        assert data['posts'] == []
+        if scenario == 'reapprove-race':
+            assert data['history'] == ''
+        return
+    assert not data['hidden'] and 'first<script>' in data['history'] and 'old-stop' in data['history']
+    assert len(data['posts']) == (2 if scenario == 'reapprove-unknown' else 1)
+    if scenario == 'reapprove-unknown':
+        assert data['posts'][0] == data['posts'][1]
+    assert data['posts'][0]['url'].endswith('/refunds/reauthorize')
+    assert data['posts'][0]['body']['authorization_id'] == 'a'*32
+    assert data['posts'][0]['body']['reason'] == 'corrected customer reason'
+    assert '只授权不发送' in data['confirmations'][0]

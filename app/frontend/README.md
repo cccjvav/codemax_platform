@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `421a74eeb098` | L1–L305 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `a64554ab357a` | L1–L312 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -123,3 +123,10 @@ payments-admin详情新增verification-view，textContent展示原退款号、�
 ## 第十三批：区分系统凭证与人工签字
 
 payments-admin从ledger读取refund.recorded_by及verification_event_id，以textContent显示系统核验（非管理员代办）/真实管理员和事件ID。refund_auto_record_enabled仅影响核验提示，不触发请求/授权；页面读到Web配置不证明独立worker在线。成功凭证仍独立展示不受事件翻页影响，账号/详情切换清屏与迟到响应栅栏不变。源码与bundle的system-on/off/race Node场景检查无POST、系统文字、事件编号及清屏；不是浏览器布局验收。
+
+
+## 第十四批：独立更正确认与版本历史
+
+新增refund-reauthorize表单，仅服务端允许时显示；共用手动原号/全额/客户原因，确认前版ID/摘要后POST一次，不调用send。pendingReauthorization保留完整未知body/key，修改原因/依据/前版会拒绝盲重试；详情读到历史中该key才视作可恢复记录。新授权成功后仍需单独发送。
+
+authorization-history用textContent显示有界历史/截断、前版/首笔人/正文/停止，账号和详情隔离沿用epoch/viewSeq，clearDetail同时清历史和未知请求。Node源码/bundle覆盖save/unknown/changed/denied/race，不冒充浏览器。

@@ -58,7 +58,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
-| [`database init/full_init.sql`](full_init.sql) | `88438e424d77` | L1–L434 |
+| [`database init/full_init.sql`](full_init.sql) | `7b0e3b00e027` | L1–L478 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -75,6 +75,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | [`database init/migrate_0014_refund_send_stop.sql`](migrate_0014_refund_send_stop.sql) | `46c75fc2f785` | L1–L28 |
 | [`database init/migrate_0015_refund_verification_job.sql`](migrate_0015_refund_verification_job.sql) | `c716ba16425d` | L1–L39 |
 | [`database init/migrate_0016_system_refund_receipt.sql`](migrate_0016_system_refund_receipt.sql) | `fa445d75bdc2` | L1–L26 |
+| [`database init/migrate_0017_refund_reauthorization.sql`](migrate_0017_refund_reauthorization.sql) | `687ddc98caaf` | L1–L45 |
 | [`database init/seed_demo.sql`](seed_demo.sql) | `1efd73f0a51b` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -118,21 +119,21 @@ PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据�
 
 ## 0013：独立退款授权与完整请求
 
-该子项引入0013；当前生产应用要求完整账本至0016。仍先备份/停写，用原CLI status/migrate；不重跑init、不改0001–0012。新增refund_authorization，一原准备一份、全局授权ID唯一，正文TEXT、UTF-8 SHA256摘要、首次人/依据/时间；不回填历史授权。
+该子项引入0013；当前生产应用要求完整账本至0017。仍先备份/停写，用原CLI status/migrate；不重跑init、不改0001–0012。新增refund_authorization，最初一原准备一份，0017改为唯一根+单后继链；全局授权ID仍唯一，正文TEXT、UTF-8 SHA256摘要、首次人/依据/时间；不回填历史授权。
 
 真实PG插入触发器锁用户→订单，核当前管理员/姓名、原准备/原付款、精确JSON键数/交易号/固定退款号/全额CNY、80字节reason、本站回调形状及摘要；已有退款活动拒绝。UPDATE/DELETE复用只追加保护，所有者仍能改触发器，不是WORM。发送开始/观察沿用PaymentEvent只追加，不存在自动待发队列。默认开关关闭，迁移本身不发网络/资金。
 
 
 ## 0014：只追加的本站发送停止
 
-当前生产完整账本至0016。备份/停写后用原维护CLI status/migrate，历史0001–0013字节不改，不对非空库重跑init。refund_send_stop唯一authorization_id、全局唯一32位request_id、首次人/单行依据/时间，不回填历史停止。
+当前生产完整账本至0017。备份/停写后用原维护CLI status/migrate，历史0001–0013字节不改，不对非空库重跑init。refund_send_stop唯一authorization_id、全局唯一32位request_id、首次人/单行依据/时间，不回填历史停止。
 
 插入触发器锁当前用户→原授权所属订单，核已有授权、活跃管理员/姓名、key和依据；UPDATE/DELETE复用只追加保护。应用把停止和事件同事务保存；数据库所有者仍能改触发器，不是WORM。停止不是渠道取消，不删除原授权/准备/成功凭证或释放退款号。
 
 
 ## 0015：持久只读核验任务
 
-当前完整账本0016（含0015）；备份、停写、一致升级后用维护CLI migrate/status，历史0001–0014不改，不重跑init。refund_verification_job按notice_event_id唯一，绑定原订单；state/attempts/token/lease_until/next_at/outcome/时间是可变调度字段。SQL检查原事件是无人工归属的refund_notify_signal、次数0–8、running租约一致、token形状；禁止删任务/改变原通知、订单、创建时间。派工单不是只追加凭证，审计观察另存PaymentEvent且同事务。
+当前完整账本0017（含0015）；备份、停写、一致升级后用维护CLI migrate/status，历史0001–0014不改，不重跑init。refund_verification_job按notice_event_id唯一，绑定原订单；state/attempts/token/lease_until/next_at/outcome/时间是可变调度字段。SQL检查原事件是无人工归属的refund_notify_signal、次数0–8、running租约一致、token形状；禁止删任务/改变原通知、订单、创建时间。派工单不是只追加凭证，审计观察另存PaymentEvent且同事务。
 
 不在迁移里造通知或启动网络。启用独立worker后按原收件箱每次最多50条补缺，旧代码ACK但没建任务可恢复；不得混用不理解0014停止表的旧发送实例。完整schema检查/真实升级回滚/约束及旧通知保留有测试；没有升级业务库。
 
@@ -144,3 +145,10 @@ PG触发器禁止已绑定合同覆盖及凭证/事件UPDATE或DELETE；数据�
 系统INSERT触发器先锁原订单再锁匹配job，检查同单refund_verify_started/空人工归属/匹配token/running/数据库时钟未过期；旧全额/原收款/只追加触发器仍有效。外部RSA和ORIGINAL/CNY语义依赖应用可信查询，SQL无法代替它们。持久审计与状态同事务由应用保证，单独直接INSERT不是受支持的业务入口。
 
 先备份/恢复核实/停Web及worker写入，再status/migrate并一致部署；不可对存量init，不混用旧模型或删列回滚已有系统凭证。测试中拆0016只是造可丢弃旧基线，不是业务回退配方。开关默认false，迁移不发查询/转账/撤权；启用与关闭都须重启独立worker，旧终态不会被迁移重排。
+
+
+## 0017：停止后的发送前重授权
+
+只新增授权自外键supersedes_id，旧授权保持唯一根；一准备允许多版本而不是多个退款准备号。NULL根部分唯一、每父节点最多一个后继，PG函数核同准备已停止叶子和全单无发送开始/观察及退款查询/核验；原正文/摘要/活跃管理员/全额合同/成功与通知保护、只追加触发器继续有效。新库表定义和索引/替换函数同步，0001–0016不编辑。
+
+停止全部写入、备份恢复核实后运行原CLI migrate/status；不自动更正或重排任何旧记录，不发资金。旧单版本应用不可混跑；已有后继的库不能用测试legacy_0016配方删列回退。测试专用helper恢复0013旧函数是构造历史夹具，不是生产恢复流程。

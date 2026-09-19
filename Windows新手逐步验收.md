@@ -794,7 +794,7 @@ npm run build
 ## 第十一批：只读核验worker（VS Code CMD + Conda + 系统Node）
 
 1. 先完成前文的Conda激活、系统Node及专用测试库准备，绝不把业务库用于测试。运行`python -m pytest -q tests/test_refund_verification.py tests/test_refund_notifications.py tests/test_payments_frontend.py`，然后`npm run build`。
-2. 正式连接维护仍须备份/停写/恢复核实，按原维护CLI迁移到当前0016；这里没有代你执行。不要重新init存量库。
+2. 正式连接维护仍须备份/停写/恢复核实，按原维护CLI迁移到当前0017；这里没有代你执行。不要重新init存量库。
 3. 专用验收环境另开VS Code CMD终端，激活同一Conda环境，确认目标库/可信商户配置；运行`set WX_REFUND_VERIFY_ENABLED=false`后`python -m app.refund_worker --once`，应拒绝执行而不查网络。
 4. 只有获得真实查询验收授权后才在专用环境`set WX_REFUND_VERIFY_ENABLED=true`，运行`python -m app.refund_worker --once`观察一次有界周期。无--once是常驻循环，可Ctrl+C；中断留下租约，下次可恢复，不代表已保存结果。没有授权/凭据就保留未执行，不拿假流水冒充真实联调。
 5. 管理页刷新查看任务原号/状态/次数；默认AUTO_RECORD关闭时，SUCCESS仍待管理员按原号独立核验，attention手工核账。保持发送开关关闭，不能把worker当自动退款按钮。Windows/浏览器实机步骤尚需你在本机签收，Linux合成测试不冒充已执行。
@@ -824,3 +824,19 @@ python -m pytest -q tests/test_payments_frontend.py
 3. 若尚无真实查询验收授权，不执行联网worker测试，记录未执行。获得授权后仅在指定验收环境另开CMD并激活同一Conda环境；按管理手册配置VERIFY和AUTO_RECORD，再分别重启Web和独立worker。CMD进程临时变量语法是`set WX_REFUND_AUTO_RECORD_ENABLED=true`，仅影响该CMD启动的子进程；私有.env仍须统一核对，不在网页随意填写。
 4. 用`python -m app.refund_worker --once`只跑一次有界周期。核实凭证显示“系统核验（非管理员代办）”及事件ID，原付款事实保留，该订单后续领链/旧链接拒绝，另一未退款单正常。不要在真实订单伪造退款通知/成功时间，不把本步当自动转账。
 5. 老的verified/attention不会仅因开关开启重跑；管理员仍可原号独立查询。hold不召回已领GET，改.env不是在途撤销。实际Windows/浏览器/商户/备份恢复验收须分别记录，Linux结果不能代替。
+
+
+## 第十四批：发送前更正（VS Code CMD + Conda + 系统 Node）
+
+1. 在项目根目录的VS Code **CMD**终端激活原Conda环境，不用venv，也不把业务库地址设成TEST_DATABASE_URL。
+
+```bat
+python -m pytest -q tests/test_refund_reauthorization.py tests/test_refund_submissions.py tests/test_refund_stops.py
+npm run build
+python -m pytest -q tests/test_payments_frontend.py tests/test_er_page.py tests/test_word_export.py
+```
+
+2. 本轮没有替你迁移业务库或开资金开关。专用环境按数据库指南先备份/核实恢复/停全部Web及worker写入，用原CLI status/migrate至0017，一致更新后分别重启。Windows若因缺PG测试二进制跳过迁移项，要由Linux/CI补做，不算本机通过。
+3. 管理页选原微信已付单，核对原准备/授权后先停止。只有本站从未开始发送、无查询/通知等记录，才显示重新授权；手动填原号、全额、依据与客户原因。确认仅保存新版本，不发退款、不改变下载。
+4. 展开历史，旧版正文/人/停止仍在，新版标前版ID；改正式回调须按部署手册先核配置，而不是在表单自行填URL。断网先刷新，保留原完整内容恢复。已经started哪怕没看到HTTP也不能改正文，继续原号核验；真实渠道取消不在此入口。
+5. 换账号必须清历史/输入并丢旧响应；只有另有真实资金授权及商户验收时才测试发送按钮，别为本步骤开启SEND。Linux/Node的通过不是Windows浏览器、实际商户或备份恢复签收。

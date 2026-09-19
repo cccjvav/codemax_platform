@@ -56,10 +56,11 @@ _NODE_ARGS = ["--input-type=module", "-e"]
 
 
 async def _graph_from_project_sql(client) -> dict:
-    """保留全套项目DDL，仅去注释以遵守公开接口20000字符预算。"""
+    """保留全套项目表DDL，排除维护过程语句以遵守公开接口预算。"""
     from app.tools.sql_ddl import parse_ddl
     raw = FULL_INIT_SQL.read_text(encoding="utf-8")
-    ddl = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("--"))
+    from tests.conftest import project_ddl_for_api
+    ddl = project_ddl_for_api()
     r = await client.post("/tools/er-diagram", json={"ddl": ddl})
     assert r.status_code == 200
     assert r.json() == parse_ddl(raw)  # Removing prose must not remove any table/column/FK.

@@ -20,8 +20,8 @@ from app.routers import refund_notify
 from app.wechat_pay import query_full_refund
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
+from tests.test_db_admin import legacy_0016, rows
 from tests.test_db_admin import maintenance_db as maintenance_db
-from tests.test_db_admin import rows
 from tests.test_download import path_of
 from tests.test_payment_review import state
 from tests.test_refund_notifications import plain, send
@@ -239,6 +239,7 @@ def test_manifest_requires_verification_migration(tmp_path):
 def test_real_pg_upgrade_preserves_inbox_and_guards_identity(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
+    legacy_0016(conn)
     rows(conn, 'DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); '
          "DELETE FROM schema_migration WHERE version='0015'; "
          "INSERT INTO sys_user(id,username,password) VALUES(1,'test','synthetic'); "

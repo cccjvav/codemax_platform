@@ -14,6 +14,7 @@ from urllib.parse import urlsplit
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import aliased
 
 from .models import Order, PaymentEvent, RefundAuthorization, RefundSendStop, User
 from .order_state import as_utc
@@ -25,6 +26,7 @@ AUTHORIZED = 'refund_authorized'
 STARTED = 'refund_send_started'
 OBSERVED = 'refund_send_observed'
 STOPPED = 'refund_send_stopped'
+REAUTHORIZED = 'refund_reauthorized'
 RETRY_SECONDS = 60  # exceeds the bounded APIv3 exchange (20 seconds); not a worker lease.
 
 
@@ -58,7 +60,9 @@ def build_body(receipt, prepared, reason: str, origin: str) -> str:
 
 
 async def authorization_for(db: AsyncSession, prepared_id: int) -> RefundAuthorization | None:
-    return await db.scalar(select(RefundAuthorization).where(RefundAuthorization.preparation_id == prepared_id))
+    child = aliased(RefundAuthorization)
+    return await db.scalar(select(RefundAuthorization).where(RefundAuthorization.preparation_id == prepared_id,
+        ~select(child.id).where(child.supersedes_id == RefundAuthorization.id).exists()))
 
 
 async def attempt_view(db: AsyncSession, start: PaymentEvent) -> dict:
@@ -70,18 +74,41 @@ async def attempt_view(db: AsyncSession, start: PaymentEvent) -> dict:
             'refund_id': note.get('refund_id')}
 
 
+async def reauthorization_activity(db: AsyncSession, order_id: int) -> bool:
+    """Any durable send or independent query evidence blocks editing, including orphan observations."""
+    return await db.scalar(select(PaymentEvent.id).where(PaymentEvent.order_id == order_id,
+        (PaymentEvent.kind.in_((STARTED, OBSERVED, 'refund_notify_signal'))
+         | PaymentEvent.kind.startswith('refund_query_', autoescape=True)
+         | PaymentEvent.kind.startswith('refund_verify_', autoescape=True))).limit(1)) is not None
+
+
+def authorization_view(row, stop=None, parent_key=None):
+    """Immutable authorization identity; stop applies to this version, not every successor."""
+    return {'authorization_id': row.request_id, 'digest': row.digest, 'body': json.loads(row.body),
+            'actor': row.actor_name, 'evidence': row.evidence, 'created_at': row.created_at,
+            'supersedes_authorization_id': parent_key, 'stop': stop_view(stop)}
+
+
 async def submission_view(db: AsyncSession, prepared) -> dict | None:
+    """Current leaf plus bounded immutable history, independent of event pagination. GET never sends."""
     if prepared is None:
         return None
     row = await authorization_for(db, prepared.id)
     if row is None:
         return None
+    parent = aliased(RefundAuthorization)
+    rows = (await db.execute(select(RefundAuthorization, RefundSendStop, parent.request_id)
+        .outerjoin(RefundSendStop, RefundSendStop.authorization_id == RefundAuthorization.id)
+        .outerjoin(parent, parent.id == RefundAuthorization.supersedes_id)
+        .where(RefundAuthorization.preparation_id == prepared.id)
+        .order_by((RefundAuthorization.id == row.id).desc(), RefundAuthorization.id.desc()).limit(51))).all()
+    history = [authorization_view(auth, stop, parent_key) for auth, stop, parent_key in rows[:50]]
     latest = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == prepared.order_id,
                              PaymentEvent.kind == STARTED).order_by(PaymentEvent.id.desc()).limit(1))
-    return {'authorization_id': row.request_id, 'digest': row.digest, 'body': json.loads(row.body),
-            'actor': row.actor_name, 'evidence': row.evidence, 'created_at': row.created_at,
-            'attempt': await attempt_view(db, latest) if latest else None,
-            'stop': stop_view(await stop_for(db, row.id))}
+    return {**history[0], 'history': history, 'history_has_more': len(rows) > 50,
+            'reauthorize_allowed': bool(history[0]['stop']) and latest is None
+                and not await refund_for(db, prepared.order_id) and not await reauthorization_activity(db, prepared.order_id),
+            'attempt': await attempt_view(db, latest) if latest else None}
 
 
 async def authorize(db: AsyncSession, order: Order, *, actor: User, key: str, refund_no: str,
@@ -96,7 +123,7 @@ async def authorize(db: AsyncSession, order: Order, *, actor: User, key: str, re
         existing = await db.scalar(select(RefundAuthorization).where(RefundAuthorization.request_id == key))
         # Exact retry uses the frozen callback even if configuration changed after the first save.
         if existing:
-            if (existing.preparation_id, existing.actor_id, existing.evidence, json.loads(existing.body)['reason']) != (
+            if existing.supersedes_id is not None or (existing.preparation_id, existing.actor_id, existing.evidence, json.loads(existing.body)['reason']) != (
                     prepared.id, actor.id, evidence, reason):
                 raise PaymentConflict('同授权ID的归属/内容不同，不能覆盖')
             await db.commit()
@@ -128,7 +155,8 @@ async def begin_send(db: AsyncSession, order: Order, *, actor: User, key: str, a
         await lock_order(db, order)
         receipt = await original_receipt(db, order, 'wechat')
         prepared = await request_for(db, order.id)
-        row = await authorization_for(db, prepared.id) if prepared else None
+        row = await db.scalar(select(RefundAuthorization).where(RefundAuthorization.preparation_id == prepared.id,
+                              RefundAuthorization.request_id == authorization_id)) if prepared else None
         if (row is None or row.request_id != authorization_id or row.digest != expected_digest
                 or digest(row.body) != row.digest or prepared.out_refund_no != refund_no or prepared.amount != amount):
             raise PaymentConflict('发送确认不匹配已冻结授权/准备；不重新编号或改正文')
@@ -140,6 +168,9 @@ async def begin_send(db: AsyncSession, order: Order, *, actor: User, key: str, a
             view = await attempt_view(db, existing)
             await db.commit()
             return view, None
+        current = await authorization_for(db, prepared.id)
+        if current is None or current.id != row.id:
+            raise PaymentConflict('授权已被新版本替代；旧版本不能开始发送，请刷新核对')
         if await stop_for(db, row.id):
             raise PaymentConflict('本授权已停止后续本站发送；不能撤回渠道处理中退款，请独立查询原号')
         if not enabled:
@@ -212,7 +243,8 @@ async def stop_sending(db: AsyncSession, order: Order, *, actor: User, key: str,
     try:
         await lock_order(db, order)
         prepared = await request_for(db, order.id)
-        auth = await authorization_for(db, prepared.id) if prepared else None
+        auth = await db.scalar(select(RefundAuthorization).where(RefundAuthorization.preparation_id == prepared.id,
+                               RefundAuthorization.request_id == authorization_id)) if prepared else None
         if (auth is None or auth.request_id != authorization_id or auth.digest != expected_digest
                 or digest(auth.body) != auth.digest or prepared.out_refund_no != refund_no
                 or type(amount) is not int or prepared.amount != amount):
@@ -234,6 +266,51 @@ async def stop_sending(db: AsyncSession, order: Order, *, actor: User, key: str,
                             actor_name=actor.username, evidence=evidence))
         await db.commit()
         return stop_view(row), True
+    except BaseException:
+        await db.rollback()
+        raise
+
+
+async def reauthorize(db: AsyncSession, order: Order, *, actor: User, key: str, authorization_id: str,
+                      expected_digest: str, refund_no: str, amount: int, reason: str, evidence: str, origin: str):
+    """Explicit replacement of a stopped NEVER-started leaf. Keep all old bodies/stops and original reference.
+
+    Actor lock/revision is checked by the route before this order lock. First-key replay is
+    validated before mutable current-state/config checks, enabling recovery after later progress.
+    """
+    try:
+        await lock_order(db, order)
+        receipt = await original_receipt(db, order, 'wechat')
+        prepared = await request_for(db, order.id)
+        parent = await db.scalar(select(RefundAuthorization).where(
+            RefundAuthorization.request_id == authorization_id,
+            RefundAuthorization.preparation_id == prepared.id)) if prepared else None
+        if (actor is None or actor.role != 1 or actor.status != 1 or parent is None
+                or parent.digest != expected_digest or digest(parent.body) != expected_digest
+                or prepared.out_refund_no != refund_no or type(amount) is not int or prepared.amount != amount):
+            raise PaymentConflict('重新授权须核对原授权、摘要、固定退款号和全额')
+        existing = await db.scalar(select(RefundAuthorization).where(RefundAuthorization.request_id == key))
+        if existing:
+            if (existing.supersedes_id, existing.preparation_id, existing.actor_id, existing.evidence,
+                    json.loads(existing.body)['reason']) != (parent.id, prepared.id, actor.id, evidence, reason):
+                raise PaymentConflict('同重新授权ID归属或内容不同，不可覆盖首次记录')
+            await db.commit()
+            return existing, False
+        current = await authorization_for(db, prepared.id)
+        started = await db.scalar(select(PaymentEvent.id).where(PaymentEvent.order_id == order.id,
+                                  PaymentEvent.kind == STARTED).limit(1))
+        if (current is None or current.id != parent.id or not await stop_for(db, parent.id) or started
+                or await refund_for(db, order.id) or await reauthorization_activity(db, order.id)):
+            raise PaymentConflict('只能替代已停止且从未开始发送、无退款观察的最新授权；未知不能当未发送')
+        body = build_body(receipt, prepared, reason, origin)
+        row = RefundAuthorization(preparation_id=prepared.id, supersedes_id=parent.id, request_id=key,
+            actor_id=actor.id, actor_name=actor.username, evidence=evidence, body=body, digest=digest(body))
+        db.add(row)
+        db.add(PaymentEvent(order_id=order.id, attempt_id=key, kind=REAUTHORIZED,
+            actor_id=actor.id, actor_name=actor.username,
+            evidence=canonical({'v': 1, 'supersedes': parent.request_id, 'digest': row.digest, 'evidence': evidence})))
+        await db.commit()
+        return row, True
     except BaseException:
         await db.rollback()
         raise

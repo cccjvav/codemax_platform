@@ -67,13 +67,18 @@
 <pre id="finance-submission-view"></pre>
 <label>手动确认原准备商户退款号<input id="finance-send-number" maxlength="35" autocomplete="off"></label>
 <label>手动确认全额整数分<input id="finance-send-amount" type="number" min="1" step="1"></label>
-<form id="finance-refund-authorize" hidden>
 <label>客户可见退款原因（最多80 UTF-8字节，与内部依据分开）<input id="finance-customer-reason" maxlength="80" autocomplete="off"></label>
+<form id="finance-refund-authorize" hidden>
 <button id="finance-refund-authorize-submit" type="submit">冻结请求并独立授权（不发送）</button>
+</form>
+<details><summary>不可覆盖的授权版本历史</summary><pre id="finance-authorization-history"></pre></details>
+<form id="finance-refund-reauthorize" hidden>
+<p>仅原授权已停止、整单从未开始发送且无退款观察时，才能保留原号/全额并重新授权。上方客户原因和当前正式域名用于新正文；旧版本与停止不删除。本次不发送，不能修订在途/未知请求。</p>
+<button id="finance-refund-reauthorize-submit" type="submit">确认更正并重新授权（不发送）</button>
 </form>
 <pre id="finance-stop-view"></pre>
 <form id="finance-refund-stop" hidden>
-<p class="warning">停止只阻止新的本站发送，不撤回已经开始的网络请求，不取消微信退款，不恢复下载，也不释放原退款号。停办/纠错依据会永久保留，当前不提供恢复发送。</p>
+<p class="warning">停止只阻止新的本站发送，不撤回已经开始的网络请求，不取消微信退款，不恢复下载，也不释放原退款号。停办/纠错依据会永久保留，原版本永久停止；仅从未发送且无观察时可通过独立新版本重新授权，不是解除旧停止。</p>
 <button id="finance-refund-stop-submit" type="submit">停止后续本站发送（不撤回渠道退款）</button>
 </form>
 <form id="finance-refund-send" hidden>

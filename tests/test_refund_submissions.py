@@ -20,8 +20,8 @@ from app.routers import refunds_admin
 from app.wechat_pay import WeChatPayError, submit_full_refund
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
+from tests.test_db_admin import legacy_0016, rows
 from tests.test_db_admin import maintenance_db as maintenance_db
-from tests.test_db_admin import rows
 from tests.test_payment_review import state
 from tests.test_refund_requests import ledger, prepare, proof
 from tests.test_refunds import provider, query, refunds, response_body
@@ -296,6 +296,7 @@ def test_package_requires_authorization_migration(tmp_path):
 def test_real_pg_authorization_contract_and_append_only(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
+    legacy_0016(conn)
     rows(
         conn,
         "DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DELETE FROM schema_migration WHERE version IN ('0013','0014','0015')",

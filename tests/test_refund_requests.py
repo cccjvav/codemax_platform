@@ -14,8 +14,8 @@ from app.models import Order, PaymentEvent, PaymentReceipt, RefundRequest, User
 from app.routers import refund_notify, refunds_admin
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
+from tests.test_db_admin import legacy_0016, rows
 from tests.test_db_admin import maintenance_db as maintenance_db
-from tests.test_db_admin import rows
 from tests.test_download import path_of
 from tests.test_payment_ledger import admin_headers
 from tests.test_payment_review import payload as review_payload
@@ -249,6 +249,7 @@ async def test_prior_completed_refund_cannot_create_preparation(client, refund_c
 def test_real_migration_preserves_payment_and_checks_immutable_preparations(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
+    legacy_0016(conn)
     rows(conn, "DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DELETE FROM schema_migration WHERE version IN ('0012','0013','0014','0015')")
     rows(conn, "INSERT INTO sys_user(username,password,role) VALUES ('preparer','x',1); "
                "INSERT INTO sys_order(order_no,user_id,product_name,amount,payment_mode,merchant_id,app_id,status,transaction_id) "

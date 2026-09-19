@@ -44,6 +44,16 @@ def rows(conn, sql):
         return cur.fetchall() if cur.description else []
 
 
+def legacy_0016(conn):
+    """Disposable fixture only: no business rollback for a history containing successors."""
+    rows(conn, "DROP INDEX uq_refund_authorization_root; ALTER TABLE refund_authorization DROP COLUMN supersedes_id; "
+               "ALTER TABLE refund_authorization ADD CONSTRAINT refund_authorization_preparation_id_key UNIQUE(preparation_id); "
+               "DELETE FROM schema_migration WHERE version::integer=17")
+    source = (Path(__file__).resolve().parents[1] / 'database init/migrate_0013_refund_authorization.sql').read_text()
+    function = source[source.index('CREATE FUNCTION'):source.index('CREATE TRIGGER')]
+    rows(conn, function.replace('CREATE FUNCTION', 'CREATE OR REPLACE FUNCTION', 1))
+
+
 def test_init_has_no_default_identity_and_repeat_preserves_data(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
@@ -215,6 +225,7 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
 
 def legacy_0008(conn):
     """Remove post-0008 structures to exercise adoption against a real historical column set."""
+    legacy_0016(conn)
     rows(conn, 'DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; DROP TABLE schema_migration; '
                'DROP FUNCTION codemax_freeze_order_contract() CASCADE; '
                'DROP FUNCTION codemax_append_only_evidence() CASCADE')

@@ -106,18 +106,18 @@ pending → closed → paid
 | [`app/config.py`](config.py) | `1e3191d1b8b2` | L1–L141 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `d63f094dea2e` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
-| [`app/models.py`](models.py) | `e50f2e0e0f18` | L1–L356 |
+| [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `6bede82e7ace` | L1–L138 |
+| [`app/payment_review.py`](payment_review.py) | `c05c59bffd24` | L1–L144 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
-| [`app/refund_submissions.py`](refund_submissions.py) | `c4447355f2c3` | L1–L239 |
+| [`app/refund_submissions.py`](refund_submissions.py) | `fb4b59cc4e4d` | L1–L316 |
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
 | [`app/refund_worker.py`](refund_worker.py) | `aba70b0625b0` | L1–L43 |
 | [`app/refunds.py`](refunds.py) | `6701c38ac7f2` | L1–L88 |
@@ -201,7 +201,7 @@ payment_review仍四次批量读取：最后一次收款/退款查询再LEFT JOI
 
 ## 第九批：refund_submissions.py与显式发送
 
-RefundAuthorization唯一绑定原准备，另有全局授权request_id；冻结完整JSON字节及SHA256、首次授权人/依据/时间。build_body只取原交易流水/全额CNY/固定商户退款号，客户原因单独输入且最多80 UTF-8字节，回调由SITE_BASE_URL固定拼出/shop/refunds/notify。内部依据不能透传为reason。authorize持用户→订单锁，完整授权和事件同事务；精确同人同事实重放保留原回调，即使配置后来改变。
+RefundAuthorization每个版本绑定原准备；0017起每准备一个初始根和不可覆盖的后继链，另有全局授权request_id；冻结完整JSON字节及SHA256、首次授权人/依据/时间。build_body只取原交易流水/全额CNY/固定商户退款号，客户原因单独输入且最多80 UTF-8字节，回调由SITE_BASE_URL固定拼出/shop/refunds/notify。内部依据不能透传为reason。authorize持用户→订单锁，完整授权和事件同事务；精确同人同事实重放保留原回调，即使配置后来改变。
 
 begin_send需要当前管理员再次确认授权ID/摘要/原退款号/全额，默认WX_REFUND_SEND_ENABLED=false。每次新尝试先持久refund_send_started，再释放事务调用固定微信端点；相同尝试ID仅读回，绝不再次发送。未知需新显式尝试且至少60秒、同正文同号；任一已受理观察、独立通知/查询或成功凭证阻止新发送。60秒不是分布式任务租约；进程暂停也只能重复原商户号，不能新造号码。
 
@@ -245,3 +245,12 @@ control_job要求调用方先锁并重查当前管理员，再锁订单→任务
 finish按订单→任务锁，校验running/token/原归属/次数/期限；savepoint内添加凭证，预期冲突只撤销该段并attention，其他故障整体回滚。再次读取DB时钟做末次CAS，再一次提交终态事件+任务+凭证。系统actor_id为空且固定名称，verification_event_id唯一指向本次start；精确重复不覆盖首次人/时间。0016的CHECK/PG租约归属触发器是额外防线，不替代应用验签。
 
 worker每周期明确传WX_REFUND_AUTO_RECORD_ENABLED，默认false且必须先有VERIFY授权；SEND不受影响。无网络POST、无系统User、无Web自动后台任务。ledger展示系统/人工归属和本Web配置，不证明worker健康。0016迁移/独立进程重启/旧终态不复活见管理手册。
+
+
+## 第十四批：只追加授权后继
+
+RefundAuthorization.supersedes_id自外键唯一；NULL根按preparation_id部分唯一，非NULL同准备线性后继由PG0017触发器再核。authorization_for用NOT EXISTS子版本选叶子；authorization_view只投影，submission_view一次有界联查历史/停止/前版ID，另查最近发送和活动给reauthorize_allowed，不把页面可用性当权限。
+
+reauthorization_activity保守检查send started/observed、notify及refund_query_/refund_verify_前缀，孤立终态也挡编辑。reauthorize调用方先锁重查用户，再取订单锁，严格校对parent ID/摘要/原准备号/全额。相同key先核归属/首次人/内容并恢复旧正文（域名变化不重建）；新key必须是最新已停止且无活动/成功的前版。build_body保持原金额/流水/号，只重新冻结客户原因和正式回调；后继+审计单事务，异常rollback。
+
+begin_send/stop_sending按显式版本定位；新发送另核当前叶子/未停止，旧发送重放仍仅读。初始authorize拒绝拿后继key冒充根重放。没有新增自动发送器，三个默认关闭开关不变；错误停止不删除，发送后未知不支持正文纠错。

@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `4f3ce3c102b3` | L1–L11100 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `0fc1b7f1608c` | L1–L11249 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -63,3 +63,6 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 第十二批人工调度控制入口见[管理手册](PAYMENTS_ADMIN_GUIDE.md)和[报告](../review/RELEASE_BLOCKERS_PHASE12.md)；讲解覆盖不是自动语义认证。
 
 第十三批系统成功登记见[管理手册](PAYMENTS_ADMIN_GUIDE.md)、[0016部署与进程配置](DEPLOY.md)及[阶段报告](../review/RELEASE_BLOCKERS_PHASE13.md)，不冒用管理员、不发送资金。
+
+
+第十四批发送前更正/重授权见[管理手册](PAYMENTS_ADMIN_GUIDE.md)、[0017部署](DEPLOY.md)与[阶段证据](../review/RELEASE_BLOCKERS_PHASE14.md)。

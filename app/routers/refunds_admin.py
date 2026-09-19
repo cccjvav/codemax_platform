@@ -15,7 +15,7 @@ from .. import refund_submissions as submissions
 from ..config import settings
 from ..database import get_db, lock_user
 from ..deps import require_admin, require_finance_origin
-from ..models import Order, PaymentEvent, User
+from ..models import Order, PaymentEvent, RefundAuthorization, User
 from ..payment_ledger import PaymentConflict, lock_order
 from ..ratelimit import rate_limit
 from ..refund_requests import prepare_request, request_for, request_view
@@ -196,11 +196,40 @@ async def authorize_refund(order_no: str, proof: RefundAuthorizeIn, response: Re
         changed = await submissions.authorize(db, order, actor=current, key=proof.request_id,
                     refund_no=proof.out_refund_no, amount=proof.amount, reason=proof.reason,
                     evidence=proof.evidence, origin=settings.SITE_BASE_URL)
-        return {'changed': changed, 'submission': await submissions.submission_view(db, await request_for(db, order.id))}
+        first = await db.scalar(select(RefundAuthorization).where(RefundAuthorization.request_id == proof.request_id))
+        return {'changed': changed, 'authorization': submissions.authorization_view(first, await submissions.stop_for(db, first.id)),
+                'submission': await submissions.submission_view(db, await request_for(db, order.id))}
     except PaymentConflict as exc:
         raise HTTPException(409, str(exc)) from None
     except SQLAlchemyError:
         raise HTTPException(503, '授权保存结果未知；刷新并用原请求内容恢复，不另造退款号') from None
+
+
+class RefundReauthorizeIn(RefundAuthorizeIn):
+    authorization_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    digest: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+
+@router.post('/shop/admin/orders/{order_no}/refunds/reauthorize',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('refund-reauthorize', 'RATE_LIMIT_TOOLS'))])
+async def reauthorize_refund(order_no: str, proof: RefundReauthorizeIn, response: Response,
+                            db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """New explicit consent after stop, only before ANY send start; never changes a sent/unknown request."""
+    response.headers['Cache-Control'] = 'no-store'
+    current = await active_actor(db, admin, admin.credential_version)
+    order = await target(db, order_no, proof)
+    try:
+        row, changed = await submissions.reauthorize(db, order, actor=current, key=proof.request_id,
+            authorization_id=proof.authorization_id, expected_digest=proof.digest,
+            refund_no=proof.out_refund_no, amount=proof.amount, reason=proof.reason,
+            evidence=proof.evidence, origin=settings.SITE_BASE_URL)
+        return {'changed': changed, 'authorization': submissions.authorization_view(row, await submissions.stop_for(db, row.id), parent_key=proof.authorization_id),
+                'submission': await submissions.submission_view(db, await request_for(db, order.id)),
+                'warning': '保存新的独立授权，未发送；原授权/停止永久保留，原号与全额不变。'}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '重新授权保存未知；保留原ID与完整确认内容，刷新后按原内容恢复，不换退款号') from None
 
 
 @router.post('/shop/admin/orders/{order_no}/refunds/send',
@@ -245,7 +274,7 @@ async def stop_refund_sending(order_no: str, proof: RefundSendIn, response: Resp
                         authorization_id=proof.authorization_id, expected_digest=proof.digest,
                         refund_no=proof.out_refund_no, amount=proof.amount, evidence=proof.evidence)
         return {'stop': stop, 'changed': changed,
-                'warning': '仅停止新的本站发送；已经开始的请求仍可能退款，须查询原号。不是渠道取消，不改金额、正文或下载权益。'}
+                'warning': '仅停止此授权的新的本站发送；已经开始的请求仍可能退款，须查询原号。不是渠道取消，不改金额、正文或下载权益。'}
     except PaymentConflict as exc:
         raise HTTPException(409, str(exc)) from None
     except SQLAlchemyError:

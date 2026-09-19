@@ -20,3 +20,6 @@
 第六批历史状态与证据集中[退款凭证与订单下载权益](../review/RELEASE_BLOCKERS_PHASE6.md)。
 
 当前第十三批范围、证据与后续集中[系统自动登记授权与审计](../review/RELEASE_BLOCKERS_PHASE13.md)，元复盘见experience；不复制竞争测试台账。
+
+
+第十四批范围与实测集中[发送前重新授权](../review/RELEASE_BLOCKERS_PHASE14.md)，当前全局仍由HANDOVER导航，不复制状态。

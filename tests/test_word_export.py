@@ -74,8 +74,8 @@ def test_build_data_dictionary_table_contents():
 
 async def test_word_export_returns_attachment(client):
     graph = _graph()
-    raw = FULL_INIT_SQL.read_text(encoding="utf-8")
-    ddl = "\n".join(line for line in raw.splitlines() if not line.lstrip().startswith("--"))
+    from tests.conftest import project_ddl_for_api
+    ddl = project_ddl_for_api()
     assert parse_ddl(ddl) == graph  # Keep every table/column/FK within the unchanged API budget.
     r = await _export(client, ddl)
     assert r.status_code == 200

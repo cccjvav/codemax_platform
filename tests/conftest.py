@@ -202,3 +202,16 @@ def product(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "STORAGE_PRODUCT_KEY", PRODUCT_KEY)
     LocalStorage(str(tmp_path), "http://test", settings.SECRET_KEY).put(PRODUCT_KEY, PRODUCT_BYTES)
     return tmp_path
+
+
+def project_ddl_for_api() -> str:
+    """Full project table DDL under unchanged public input budget; not a migration script.
+
+    Ignore procedural maintenance statements unsupported by the ER graph. Exact graph equality
+    against the original source prevents silently dropping fields, tables, FKs or supported comments.
+    """
+    from app.tools.sql_ddl import _iter_tables, _strip_comments, parse_ddl
+    raw = (Path(__file__).resolve().parents[1] / 'database init/full_init.sql').read_text(encoding='utf-8')
+    ddl = '\n'.join(f'CREATE TABLE {name} ({body});' for name, body in _iter_tables(_strip_comments(raw)))
+    assert parse_ddl(ddl) == parse_ddl(raw)
+    return ddl

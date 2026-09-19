@@ -15,8 +15,8 @@ from app.payment_ledger import PaymentConflict, settle
 from app.storage import StorageError, build_storage
 from tests.conftest import PRODUCT_BYTES, PRODUCT_KEY, TestSession, engine
 from tests.test_db_admin import isolated_pg as isolated_pg
+from tests.test_db_admin import legacy_0016, rows
 from tests.test_db_admin import maintenance_db as maintenance_db
-from tests.test_db_admin import rows
 from tests.test_download import auth_headers, path_of
 from tests.test_wechat_notify import build_notify, fetch, make_order, post_notify, txn
 from tests.test_wechat_notify import notify_ready as notify_ready
@@ -286,6 +286,7 @@ def test_transaction_guard_accepts_quoted_bodies(sql):
 def test_pg_upgrade_preserves_history_and_enforces_immutable_evidence(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
+    legacy_0016(conn)
     rows(conn, 'DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DROP TABLE refund_authorization; DROP FUNCTION codemax_check_refund_authorization(); DROP TABLE refund_request; DROP FUNCTION codemax_check_refund_request(); DROP TABLE refund_receipt; DROP FUNCTION codemax_check_full_refund(); DROP TABLE payment_event; DROP TABLE payment_receipt; '
                'DROP FUNCTION codemax_freeze_order_contract() CASCADE; DROP FUNCTION codemax_append_only_evidence() CASCADE; '
                "DELETE FROM schema_migration WHERE version IN ('0010','0011','0012','0013','0014','0015')")

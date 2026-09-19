@@ -17,8 +17,8 @@ from app.models import PaymentEvent, RefundSendStop
 from app.routers import refunds_admin
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
+from tests.test_db_admin import legacy_0016, rows
 from tests.test_db_admin import maintenance_db as maintenance_db
-from tests.test_db_admin import rows
 from tests.test_payment_ledger import admin_headers
 from tests.test_payment_review import state
 from tests.test_refund_requests import ledger
@@ -51,7 +51,8 @@ async def test_stop_is_immutable_local_only_and_blocks_new_send(client, refund_c
     for change in [{"request_id": uuid.uuid4().hex}, {"evidence": "另一依据不可覆盖"}]:
         assert (await post(client, admin, number, "stop", {**body, **change})).status_code == 409
     after = (await ledger(client, admin, number, "?before=1"))["refund_submission"]
-    assert after == {**original, "stop": stop}
+    assert after == {**original, "stop": stop, "reauthorize_allowed": True,
+                     "history": [{**original["history"][0], "stop": stop}]}
     assert len(await stop_rows()) == 1
     async with TestSession() as db:
         await db.execute(delete(PaymentEvent).where(PaymentEvent.kind == flow.STOPPED))
@@ -254,6 +255,7 @@ def test_manifest_requires_stop_migration(tmp_path):
 def test_real_pg_stop_upgrade_constraints_and_append_only(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)
+    legacy_0016(conn)
     rows(
         conn,
         "DROP TRIGGER check_system_refund_actor ON refund_receipt; DROP FUNCTION codemax_check_system_refund_actor(); ALTER TABLE refund_receipt DROP CONSTRAINT ck_refund_authority; ALTER TABLE refund_receipt DROP COLUMN verification_event_id; ALTER TABLE refund_receipt ALTER COLUMN actor_id SET NOT NULL; DELETE FROM schema_migration WHERE version::integer=16; DROP TABLE refund_verification_job; DROP FUNCTION codemax_check_refund_verification_job(); DROP TABLE refund_send_stop; DROP FUNCTION codemax_check_refund_send_stop(); DELETE FROM schema_migration WHERE version IN ('0014','0015')",

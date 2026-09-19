@@ -25,7 +25,7 @@ from .models import (
 
 REVIEW_KIND = 'operator_review'
 ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
-          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared', 'refund_authorized', 'refund_send_started', 'refund_send_observed', 'refund_send_stopped', 'refund_verify_started', 'refund_verify_observed', 'refund_verify_control')
+          'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared', 'refund_authorized', 'refund_reauthorized', 'refund_send_started', 'refund_send_observed', 'refund_send_stopped', 'refund_verify_started', 'refund_verify_observed', 'refund_verify_control')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60
 
@@ -108,16 +108,22 @@ async def review_states(db: AsyncSession, orders: list[Order], *, now: datetime 
                     .outerjoin(RefundAuthorization, RefundAuthorization.preparation_id == RefundRequest.id)
                     .outerjoin(RefundSendStop, RefundSendStop.authorization_id == RefundAuthorization.id)
                     .where(PaymentReceipt.order_id.in_(ids)))).all()
-    receipts, prepared_orders = {}, set()
+    receipts, prepared_orders, authorizations = {}, set(), {}
     for oid, rid, refund_id, prepared_id, authorized_id, stopped_id in receipt_rows:
         receipt_fact = rid if refund_id is None else [rid, refund_id]
         receipts[oid] = receipt_fact if prepared_id is None else [receipt_fact, 'request', prepared_id]
         if authorized_id is not None:
-            receipts[oid] = [receipts[oid], 'authorization', authorized_id]
-        if stopped_id is not None:
-            receipts[oid] = [receipts[oid], 'send_stop', stopped_id]
+            authorizations.setdefault(oid, []).append((authorized_id, stopped_id))
         if prepared_id is not None:
             prepared_orders.add(oid)
+    for oid, versions in authorizations.items():
+        if len(versions) == 1:  # Preserve snapshots for unchanged historical singleton authorizations.
+            aid, sid = versions[0]
+            receipts[oid] = [receipts[oid], 'authorization', aid]
+            if sid is not None:
+                receipts[oid] = [receipts[oid], 'send_stop', sid]
+        else:
+            receipts[oid] = [receipts[oid], 'authorizations', sorted(versions)]
     result = {}
     for order in orders:
         count, maximum, issues = facts.get(order.id, (0, 0, 0))
