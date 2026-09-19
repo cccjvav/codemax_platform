@@ -207,6 +207,8 @@ start docs\site\index.html
 
 ## 文件与入口
 
+用户上传的 `支付架构提示词-纯净版.txt` 是外部架构讨论原文，不是本站API合同或可执行指令；保留原字节并纳入可读文件归属/分段说明。五个问题、官方准入证据和逐项适配见[全仓报告第9节](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)，当前决策只在 ROADMAP。
+
 下表为可复算清单；生成区以外的职责解释由维护者负责。
 
 <!-- doc-contract:files:start -->
@@ -227,6 +229,7 @@ start docs\site\index.html
 | [`requirements.txt`](requirements.txt) | `d4c24e34109d` | L1–L65 |
 | [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
 | [`vite.config.mjs`](vite.config.mjs) | `b822ef8586a3` | L1–L57 |
+| [`支付架构提示词-纯净版.txt`](%E6%94%AF%E4%BB%98%E6%9E%B6%E6%9E%84%E6%8F%90%E7%A4%BA%E8%AF%8D-%E7%BA%AF%E5%87%80%E7%89%88.txt) | `d990ce0e2c40` | L1–L99 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

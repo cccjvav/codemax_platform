@@ -34,3 +34,7 @@
 Docker入口禁用默认Uvicorn access log，防签名下载查询串进入第二套日志；其他启动方式和代理需单独设置。Vite入口固定名，拆分chunk逻辑名可含hash；不能对所有固定资源宣称immutable安全。
 
 第十五批为Docker镜像增加独立runtime目录，Compose增加默认不启动的refund-verifier profile（有限失败重启、无HTTP端口、专用本地探针）；Git/镜像均排除主机runtime。详见[运行手册](REFUND_OPERATIONS.md)，配置模板不等于实际容器验收。
+
+## 外部架构材料（非实现）
+
+[支付架构提示词-纯净版.txt](../支付架构提示词-纯净版.txt)为用户19f236e上传的原文，归根README维护，保持原字节。分段说明在精读数据；包含桌面支付、离线许可、第三方登录建议及五个问题，不是本站功能清单、商户资格证明或可执行配置。适配与官方准入评估见[全仓报告第9节](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)，待办只在ROADMAP，不把原始提案悄悄改成自己的结论。
