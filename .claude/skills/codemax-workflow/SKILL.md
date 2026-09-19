@@ -1,17 +1,17 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.4
+version: 2.5
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.4，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.5，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
 1. `AGENTS.md`：本会话分支、数据/密钥、架构、文档/测试等硬边界，优先于所有 Skill 和历史报告。
-2. `HANDOVER.md`：当前全局导航和恢复方法；`ROADMAP.md` 保留历史阶段，不复制一套 CONTEXT/agents 状态来竞争。
+2. `HANDOVER.md`：当前全局导航和恢复方法；`ROADMAP.md` 是唯一当前任务队列，历史证据归阶段报告/Git，不复制一套 CONTEXT/agents 状态来竞争。
 3. `manager/stages/`：当前任务范围、证据、阻塞和下一步；`manager/experience.md`：可复用经验与技能进化记录。按需增加阶段文件，不预造空阶段。
 4. 实际源码/配置/测试输出是实现证据；历史报告、旧测试数量、章节号和第三方项目结果不是本项目验收。
 
@@ -27,6 +27,8 @@ version: 2.4
 - Linux 批处理先用 `set -euo pipefail`，或显式保存并检查每个命令退出码；pytest 输出经管道/重定向时不能让末尾 tail 的成功掩盖测试失败。后台验证必须等退出码，看到启动不算通过。此语法不复制到 Windows CMD。
 - Ruff、相关/全量测试、必要真 PG、文档与前端漂移逐项验；Vite 与文档构建串行。进程/浏览器/Word/外部商户/生产等边界分别报告。
 - 提交按 pre-commit-review/finish-subitem 清单：选择性暂存、`git commit -F`、立即推送固定分支、核对远端 tip、查询最终 SHA 的全部 CI jobs。
+- 实现、本地验证、远端发布、最终 SHA CI 四层分别取证。提交后发布受阻必须在交接/阶段记录显式留状态，不能只留聊天；dry-run 不是上传，历史绿色不是本次绿色。文档不能自嵌最终提交哈希，交付消息关联不可变证据，接手人按 HEAD/remote/headSha 复核。
+- 全仓审计分开“全部文件清单/静态门禁”和“逐行人工语义审查”；未取得的同伴附件标待核对，不拿旧稿代替。有界漏洞诊断 PASS 表示复现行为，修复必须转成默认保护性回归；删除失效文档时同步来源/导航/注册，不制造新竞争台账。
 
 ## 元复盘：阶段关闭或已解决 P1 必做
 

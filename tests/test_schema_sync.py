@@ -1,7 +1,8 @@
 """建表脚本与 ORM 模型必须同步（HANDOVER 点名的坑）。
 
 用项目自己的 DDL 解析器读 `database init/full_init.sql`，与 SQLAlchemy 元数据
-逐表逐列比对 —— 任何一边改了没同步，这里立刻报错，不用等线上炸。
+比对表名/列名集合，并另查时间类型的部分约束；不比较全部类型、默认值、
+索引、外键、CHECK 或触发器，不能据此宣称 fresh-init 与迁移链完全等价。
 """
 import re
 from pathlib import Path

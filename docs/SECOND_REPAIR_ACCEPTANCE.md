@@ -1,5 +1,7 @@
 # R-02 第二批修复与新增能力验收
 
+> 历史验收快照，不是现行部署步骤；当时“初始化执行两遍”的行为已被后续无种子/拒绝非空库协议替代。现行操作见[数据库 README](../database%20init/README.md)和[DEPLOY](DEPLOY.md)，当前队列见[ROADMAP](../ROADMAP.md)。
+
 日期：2026-09-12。固定分支：`arena/01a08bf5-codemax-platform`。
 基准：首批修复 `207aa03`，随后快进合入用户原始方案上传 `c4cd406`。
 

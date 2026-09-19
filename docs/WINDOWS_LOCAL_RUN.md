@@ -58,4 +58,4 @@ npm run build
 - 人工支持通过 `/support/center` 的管理员/客户站内会话提供，不是已接入外部客服机构或自动通知。
 - 安装浏览器不会解除动态抓取停用；对象存储、多副本等未实现能力不能当成“配置一下就完成”。
 
-历史验收快照见 [第二批修复记录](SECOND_REPAIR_ACCEPTANCE.md) 和 [文档质量复核](DOCUMENTATION_QUALITY_REVIEW.md)；本机尚未执行的项目按验收手册逐项记录，不沿用旧截图/数字代替本次结果。
+历史验收快照见 [第二批修复记录](SECOND_REPAIR_ACCEPTANCE.md) 和 [本轮全仓复核](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)；本机尚未执行的项目按验收手册逐项记录，不沿用旧截图/数字代替本次结果。

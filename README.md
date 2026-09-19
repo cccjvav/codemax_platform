@@ -1,30 +1,8 @@
-> 第十七批当前：[只读渠道日账与差异报告](review/RELEASE_BLOCKERS_PHASE17.md)。默认关闭的运维CLI，可信有界下载、付款双向差异、退款仅观察；不自动改账或结案。
-
-> 第十六批历史：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
-
-> 第十五批历史：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
-
-> 第十四批历史：[发送前纠错与显式重新授权](review/RELEASE_BLOCKERS_PHASE14.md)。0017；旧版先停止、本站从未开始发送且无退款观察，才可同号同额建立新授权；不发送资金。
-
-> 第十三批历史：[系统自动登记授权与审计](review/RELEASE_BLOCKERS_PHASE13.md)。默认关闭；仅独立验签全额原路成功查询可登记，不发送资金、不冒用管理员；需0016。
-
-> 第十二批历史：[核验任务人工接管与剩余次数重排](review/RELEASE_BLOCKERS_PHASE12.md)。不清零次数、不自动结算；人工查询仍是成功凭证入口。
-
-> 第十一批历史：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
-
-> 第九批历史：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
-
-> 第八批历史：[本地退款准备台账与幂等恢复](review/RELEASE_BLOCKERS_PHASE8.md)，仅保存准备，不发送或授权自动退款。已有全额退款凭证/下载撤权；通知本身不代替成功凭证。后续以[当前队列](review/README.md)为准。
-
-> 第四批历史记录：[可信查单与管理员收款工作台](review/RELEASE_BLOCKERS_PHASE4.md)，真实退款/异常结案及完整定制服务生命周期仍未完成。
-
 # codemax_platform
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
-> 第三批资金/文件权益进展见[实施记录](review/RELEASE_BLOCKERS_PHASE3.md)：人工确认参数和旧单交付流程已改变，真实收款仍未签收。
-
-> 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环仍有发布阻断；开放第三方 OAuth 属条件扩展；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
+> 当前交接：[2026-09-19 全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) · [恢复与发布状态](HANDOVER.md) · [唯一工作队列](ROADMAP.md)。阶段十七日账已实现，不等于真实收款/部署签收；历史批次见 [review 索引](review/README.md)。
 
 学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，已有默认关闭的显式渠道关单/退款申请和只读日账差异CLI；仍没有完整会计结算对账、部分退款处理及定制服务生命周期。
 
@@ -40,7 +18,7 @@
 
 ## 快速开始（仅隔离的本地演示）
 
-默认初始化不再创建演示管理员/客户端，也不会删除已有表；需显式创建管理员。生产仍须处理商户/存储/备份及已有库升级问题，见[发布阻断](review/README.md)。
+默认初始化不再创建演示管理员/客户端，也不会删除已有表；需显式创建管理员。生产仍须处理商户/存储/备份及已有库升级问题，见[发布验收队列](ROADMAP.md)。
 
 ```bash
 # 1. 安装依赖
@@ -186,7 +164,7 @@ start docs\site\index.html
 | 了解**实现取舍与上线阻塞项**（历史取舍与现行边界） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
 | 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
 | **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
-| 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [DOCUMENTATION_SUMMARY.md](./DOCUMENTATION_SUMMARY.md) |
+| 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [文档政策](docs/DOCUMENTATION_POLICY.md) / [全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) |
 | 看**根目录那几个文件**（`main.py` 等）的说明 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) |
 
 ### 📂 模块说明书（逐文件、带行号）

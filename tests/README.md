@@ -9,6 +9,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ## 文件与入口
 
+### 交接诊断，不是安全验收
+
+`audit_handoff_probes.py` 保留基线 7f2e125 的六项有界合成复现：分块请求读完/422回显、LLM大无关字段、深嵌套JSON异常、bool/float向量索引、同单双预支付、跨站来源表单登录。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
+
+显式执行 `python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s`。文件不命名为 test_*.py，因此默认套件不收集：**PASS代表观察到待修行为，不表示安全通过**。修复某项后应替换成默认套件里的保护性回归，不能为维持诊断绿色保留旧行为。来源、评级与环境局限见[全仓交接报告](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)。
+
+
 `test_agnes_integration.py` 验证 Agnes 默认值/模板一致、实际 LLMClient 非流式协议、HTTP分类与正文脱敏、关闭向量时零请求且不使用缓存、无密钥连通性模式以及 GitHub 真实请求只能手动启用。全部是离线断言，不伪装账号实测。语义测试的隔离 fixture 显式打开增强，真实标定的收集开关仍取实际配置，不因测试 fixture 自动解锁网络。
 
 `test_probe_llm.py` 用虚构 key / MockTransport 核对单次探测的端点、方法、模型与固定输入、配置优先级、TLS基址/显式选择前置要求、重定向不转发、畸形响应和密钥回显脱敏；没有真实请求，不替代模型标定。`test_docs_site.py` 另检查 Skill 源/副本逐字一致和全部 Skill 提交/验证代码块不恢复旧分支、全量暂存、自动合并、固定 passed 数或旧 HANDOVER 编号。
@@ -51,6 +58,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
+| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `691f12dfc1d4` | L1–L127 |
 | [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
@@ -105,7 +113,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_refunds.py`](test_refunds.py) | `8c0b61cd7acd` | L1–L446 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
-| [`tests/test_schema_sync.py`](test_schema_sync.py) | `ea1200feb254` | L1–L74 |
+| [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `41a0a9a1815e` | L1–L455 |

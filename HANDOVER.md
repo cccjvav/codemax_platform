@@ -1,72 +1,55 @@
-> 第十七批当前：[只读渠道日账与差异报告](review/RELEASE_BLOCKERS_PHASE17.md)。默认关闭的运维CLI，可信有界下载、付款双向差异、退款仅观察；不自动改账或结案。
+# 项目交接：先核实状态，再继续实现
 
-> 第十六批历史：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
+本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
 
-> 第十五批历史：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
+## 本次交接范围
 
-> 第十四批历史：[发送前纠错与显式重新授权](review/RELEASE_BLOCKERS_PHASE14.md)。0017；旧版先停止、本站从未开始发送且无退款观察，才可同号同额建立新授权；不发送资金。
+- 审计业务代码基线：`7f2e125dd6dc42fb7b31d8c295f176c8e3cb2f50`，包括第十七批日账只读下载/差异报告。完整迁移仍为 **0017**。
+- 本轮不增加支付功能、依赖或 schema，不操作真实商户/业务数据库。新增六项**诊断探针**、全仓审计、优先队列和文档清理；探针通过表示复现待修行为，**不是安全验收通过**。
+- 用户新上传的“支付上线阻断建议”未出现在可访问附件/工作树/远端文件清单，已请求文件名、路径或补传。不能用 9 月 15 日旧报告冒充；收到后先独立核对新证据。
+- 本地验证结果、局限与已删文档见报告；Windows、真实浏览器、商户、TLS/代理、生产备份恢复等仍未签收。
 
-> 第十三批历史：[系统自动登记授权与审计](review/RELEASE_BLOCKERS_PHASE13.md)。默认关闭；仅独立验签全额原路成功查询可登记，不发送资金、不冒用管理员；需0016。
+## 不混淆四种状态
 
-> 第十二批历史：[核验任务人工接管与剩余次数重排](review/RELEASE_BLOCKERS_PHASE12.md)。不清零次数、不自动结算；人工查询仍是成功凭证入口。
+| 层次 | 权威证据 |
+| --- | --- |
+| 实现 | 当前源码；第十七批基线 `7f2e125` 的实现已在本地提交 |
+| 本地验证 | 本轮报告中的实际命令/结果；不借用阶段十七早期全量覆盖最终修改 |
+| 远端发布 | 固定分支远端 SHA 必须等于交付提交；dry-run 不算上传 |
+| 最终 CI | 同一 SHA 的六个普通 CI jobs 全部 success；Agnes 专项不替代它 |
 
-> 第十一批历史：[退款通知持久核验队列](review/RELEASE_BLOCKERS_PHASE11.md)。默认关闭的独立worker仅GET核验；SUCCESS观察仍待管理员独立确认，不自动退款或撤销下载。
+审计开始时远端仍是第十六批 `56f4aa7`，CI 35455979865 不能证明阶段十七或本轮交接。最终提交不能在参与自身哈希的文档里写入自己的 SHA；**交付消息给出精确 SHA/run URL**，接手人仍须复核：
 
-> 第九批历史：[独立授权、固定请求与显式退款发送](review/RELEASE_BLOCKERS_PHASE9.md)。发送默认关闭；准备/授权不会自动发送，申请观察不是成功凭证。
+```bash
+git branch --show-current
+git rev-parse HEAD
+git ls-remote origin refs/heads/arena/01a08bf5-codemax-platform
+gh run list --workflow ci.yml --branch arena/01a08bf5-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
+gh run view <匹配HEAD的run-id> --json headSha,status,conclusion,jobs,url
+```
 
-# 交接与恢复工作
+本会话固定 `arena/01a08bf5-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
 
-学习入口：[从零复盘](docs/CODE_READING_GUIDE.md)；文档站 reading.html 列明人工精读与待补项。已有全部纳入范围非生成非空源码的连续分段讲解与来源标识；覆盖不等于每句语义已认证，历史报告也不作为当前实现认证。
+## 接手顺序
 
-Windows 本机先按 [新手逐步验收](Windows新手逐步验收.md) 一路操作，深入维护见 [conda 指南](docs/WINDOWS_CONDA.md)；剩余项目依 [验收手册](docs/ACCEPTANCE_GUIDE.md) 分层执行，并非全部只能在 Windows。未执行项不转写成通过记录。
+1. 读 AGENTS、manager/SKILL 和审计报告；核实实际 HEAD、远端和全部 CI。
+2. 独立执行报告中的六项有界合成探针，检查调用链，不把测试数量当安全证明；收到新付款建议后逐条标“确认/部分确认/不成立/待实机”。
+3. 按 ROADMAP 的 G1 处理公开接口资源上限、LLM 协议边界、预支付并发/限流及登录来源；先评审方案，再增加保护性回归。不要保持“复现漏洞即通过”的诊断断言来冒充修复测试。
+4. 确认首发类型：演示、免费工具、固定文件收费、定制开发服务的门槛不同；不得自动把部分退款、云存储、多实例或全自动会计系统变成首发必须功能。
+5. 分批实施并更新对应模块说明/精读/技术决策；每批选择性提交、真实推送并核对精确 SHA 六项 CI。
 
-## 当前入口
+## 现有能力与不可越过的边界
 
-- 尚未完成的工作按[当前队列](review/README.md)推进：只读可靠核验已补；本批已补任务人工接管，已补默认关闭的系统登记授权，已补发送前同号同额纠错/重新授权，已补本地监督/告警及可丢弃进程恢复演练，真实部署仍需签收；显式渠道关单与有界日账差异CLI已补；下一步服务生命周期，完整会计结算/部分退款和发送后纠错仍未支持；预发布/实机验收与可选扩展分开，不重复实现已经完成的功能。
+资金链已实现可信收款、只追加凭证、原订单冻结交付、退款撤权、显式准备/授权/发送、原号未知恢复、停止/发送前纠错、退款核验队列/人工接管/可选系统登记、本地监督、渠道关单和日账只读核查。**不要重新实现一遍，也不要把这些功能存在等同于生产可收款。**
 
-- 第八批：[本地退款准备台账与幂等恢复](review/RELEASE_BLOCKERS_PHASE8.md)。0012；一单全额稳定号、本地保存恢复、独立复核事实；没有发送或自动退款授权。
-- 第七批：[退款通知线索与显式核验](review/RELEASE_BLOCKERS_PHASE7.md)。可信入站去重后持久ACK；通知不直接变成退款凭证，管理页填号后仍独立查询；无新依赖/迁移、无真实资金/业务库操作。
-- 第六批：[退款凭证与订单下载权益](review/RELEASE_BLOCKERS_PHASE6.md)。0011迁移，单笔全额退款核验/人工登记及订单绑定短链；本地双后端全量与53项新回归/13项反例已核对；精确提交的六项CI见最终交付消息，后续边界以该报告为准。
+`WX_REFUND_SEND_ENABLED`、`WX_REFUND_VERIFY_ENABLED`、`WX_REFUND_AUTO_RECORD_ENABLED`、`WX_ORDER_CLOSE_ENABLED`、`WX_BILL_READ_ENABLED` 默认均关闭；具体名称和操作以配置与运行手册为准。准备不代表发送授权，通知不等于成功凭证，关单 ACK 不等于资金结案，日账差异为零不等于会计关账。
 
-- 第五批：[异常复核待办](review/RELEASE_BLOCKERS_PHASE5.md)。无新schema/依赖，复核完成不等于资金问题解决；本批证据和后续集中该报告。
+当前交付是固定数字文件快照，不是报价/合同/里程碑/验收型定制服务。用户本人可提供人工客服，已有管理员/客户对话网页；没有接入外部开票或人工客服供应商。完整会计结算、部分退款、发送后纠错、云存储/多实例都未被本轮新增或验收。
 
-- 第四批：[可信查单与管理员工作台](review/RELEASE_BLOCKERS_PHASE4.md)，操作见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)。本地双后端与反例已通过，最终六项CI绑定本批交付SHA，不继承第三批CI；外部商户/退款/实机仍未签收。
+## 操作与学习入口
 
-- 第三批：[资金与交付权益](review/RELEASE_BLOCKERS_PHASE3.md)。本地双后端全量、36项新回归及10种受控反例已核对，最终六项CI绑定交付SHA。0010迁移与storage快照需一起备份，人工确认和旧单绑定有新合同；尚不是真实收款上线签收。
-
-- 第二批：[剩余发布阻断的当前实施](review/RELEASE_BLOCKERS_PHASE2.md)。本地全量SQLite 933/6skip、一次性非超级用户PG 938/1skip，43项新回归和7种被拒绝反例；最终六项CI绑定交付SHA。初始化/迁移指令已改变，旧部署先读数据库指南，不重跑历史full_init。
-
-- 当前任务：[2026-09-15 交叉审查、第一批修复和未结项](review/README.md)。两份输入原文在 review；不能以本批通过等同完整生产签收。
-
-- 当前 Agnes 真实聊天已通过；embedding 未确认，免费候选尚未接入：[阶段记录](manager/stages/agnes-integration.md)，[接入说明](docs/AGNES_AI.md)。
-- 已交付的本地验收/外部模型任务：[阶段证据与下一步](manager/stages/windows-acceptance.md)；[管理约定与经验](manager/README.md)
-
-- 第二批实现与迁移：[验收记录](docs/SECOND_REPAIR_ACCEPTANCE.md)
-- 文档语义重做、排版和 CI 修复：[质量复核](docs/DOCUMENTATION_QUALITY_REVIEW.md)
-- 当前架构：[架构指南](docs/ARCHITECTURE_GUIDE.md)；执行方式：[根 README](README.md)
-- 原始问题与交叉分类：[交叉审查](docs/REVIEW_CROSSCHECK.md)
-
-旧沙箱次数、过期测试数字、一次性下载旧规则不再放在当前交接入口；历史内容保留在 Git 记录，不用来覆盖当前指南。
-
-## 已实现与需要注意的边界
-
-凭据版本、已购链接重领、站内客户/管理员会话、Drawio 实时导出/版本与生命周期隔离、配额预算、模型缓存、文档结构及链接门禁已落地。
-动态 Chromium 明确停用，静态抓取保留。LocalStorage 是当前唯一实现；未接 OSS/COS、开票、自动退款、外部通知或自助密码恢复。单个配置商品不能冒充多 SKU 目录。
-
-存量库先备份、停写并核实版本；已有0008未建账本时走adopt-legacy-0008，已有账本用migrate到当前0017。更早版本先按数据库指南处理前置条件，0008会清授权码。当前full_init只接受空库；历史版本曾删表，任何版本都不用于盲目升级。
-
-## 恢复环境
-
-1. 确认分支与 git status，读取实际未提交改动，不重跑历史临时修复脚本。
-2. 使用 Python 3.11 虚拟环境安装 requirements，前端 npm ci；不要把环境与构建临时日志提交。
-3. 默认全量测试用 SQLite；真实 PostgreSQL 指向专用可丢弃测试库，绝不指向业务库。
-4. 阅读变更源码和 README，再刷新文档指纹、构建离线站。不是先 --write 再假称完成语义审查。
-5. 交付必须绑定最终 SHA，实际查询每个 CI job。GitHub 认证失败只在 Arena 重连，不向用户索要密码或 token。
-
-## 保持的约束
-
-- 固定使用本 Arena 会话分支，不切换或新建分支。
-- 用户上传的新旧文档提案和汇总保留原文；不要当成全部已实现的规格。
-- 不上传鹈鹕演示、素材或相关文档扩写。
-- 没做真实浏览器/商户/模型联调就明确说明，不用 Node/mock 结果替代。
-- 以当前代码和真实测试输出为准，不根据 job 名或历史注释猜根因。
+- [新手逐步验收](Windows新手逐步验收.md)：Windows、VS Code 集成 **CMD + Conda + 系统 Node**；不改成 venv 教程。
+- [验收手册](docs/ACCEPTANCE_GUIDE.md)、[部署](docs/DEPLOY.md)、[数据库维护](database%20init/README.md)：先备份并验证恢复，停全部写者，再按账本迁移；禁止业务库 pytest 或重复 init。
+- [支付工作台](docs/PAYMENTS_ADMIN_GUIDE.md)、[退款运行](docs/REFUND_OPERATIONS.md)、[日账指南](docs/WECHAT_BILLS_GUIDE.md)：真实操作须独立授权与环境签收。
+- [代码阅读](docs/CODE_READING_GUIDE.md)、[架构](docs/ARCHITECTURE_GUIDE.md)、[文档政策](docs/DOCUMENTATION_POLICY.md)：机器覆盖/连续讲解不是逐行语义认证。
+- [历史证据索引](review/README.md)、[管理阶段](manager/stages/README.md)、[管理经验](manager/experience.md)：不恢复多份“当前状态”。Pelican 测试及相关文档不上传。

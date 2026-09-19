@@ -25,8 +25,8 @@
 
 - Windows 本地：[conda 运行/维护/测试](WINDOWS_CONDA.md)，[venv 备选与常见问题](WINDOWS_LOCAL_RUN.md)。
 - 签收步骤：[浏览器、文件、客服、支付、模型与上线验收](ACCEPTANCE_GUIDE.md)，明确执行环境和通过标准；未执行步骤不是通过记录。
-DOCUMENTATION_QUALITY_REVIEW 记录本轮内容审核；SECOND_REPAIR_ACCEPTANCE 是第二批实现验收快照。
-TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧状态覆盖现行模块契约。
+[全仓交接审计](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)记录本轮证据与文档清理；SECOND_REPAIR_ACCEPTANCE 保留第二批历史验收。
+ROADMAP 是当前唯一队列；TECH_DECISIONS 与原始审查/阶段报告按日期理解，不能用旧状态覆盖现行模块契约。
 `documentation_policy.json` 定义有理由的生成例外，不存放函数业务解释。
 
 ## 文件与入口
@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `5fcb98a40fc9` | L1–L11828 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `d2510fd23413` | L1–L11870 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

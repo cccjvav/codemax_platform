@@ -1,6 +1,6 @@
 # 编码与文档维护约定
 
-本会话固定分支 `arena/01a08bf5-codemax-platform`。当前架构见 docs/ARCHITECTURE_GUIDE.md，交接见 HANDOVER.md，内容审核见 docs/DOCUMENTATION_QUALITY_REVIEW.md；历史报告或 Skill 中旧章节号/固定测试数不覆盖当前指南。
+本会话固定分支 `arena/01a08bf5-codemax-platform`。当前架构见 docs/ARCHITECTURE_GUIDE.md，交接见 HANDOVER.md，内容审核见 review/FULL_REPOSITORY_HANDOFF_2026-09-19.md；历史报告或 Skill 中旧章节号/固定测试数不覆盖当前指南。
 
 ## 硬边界
 
@@ -24,7 +24,7 @@
 
 ## 常用验证
 
-以下为 Linux 沙箱命令；给用户 Windows 本机操作时使用 docs/WINDOWS_LOCAL_RUN.md 的 cmd 语法，不混用 shell。
+以下为 Linux 沙箱命令；给用户 Windows 本机操作时使用 Windows新手逐步验收.md / docs/WINDOWS_CONDA.md 的 CMD + Conda 配方，不混用 shell。
 
 ```bash
 .venv/bin/ruff check .

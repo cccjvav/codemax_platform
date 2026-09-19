@@ -27,7 +27,7 @@
 
 完整 CLI 与 `--data-only` 都需要 Mistune 提取真实 Markdown 标题/代码块；仅导入模块及纯 AST helper 不需要它。缺依赖明确非零退出，不把顶层无 import 的静态检查冒充完整执行证据。
 
-DOC_GROUPS 同时登记 Windows 入口、conda 指南和人工/外部依赖验收手册，让三者进入同一离线导航与搜索；不能只在仓库添加文件而漏掉站点入口。
+DOC_GROUPS 登记 Windows/Conda、人工验收和最新全仓交接报告；审计入口与历史阶段分组不代表全部是当前计划。2026-09-19 移除四份已由交接/政策承接的失效文档注册，保留独有阶段证据；新增、删除 Markdown 都须同步双向清单和链接，不能留下空入口。
 
 | 阶段 / 函数 | 做什么、返回什么 | 不代表什么 |
 | --- | --- | --- |
@@ -62,7 +62,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`scripts/build_docs_site.py`](build_docs_site.py) | `7bdc90729fce` | L1–L1063 |
+| [`scripts/build_docs_site.py`](build_docs_site.py) | `832b6b1133cf` | L1–L1063 |
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
@@ -94,7 +94,7 @@ python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_
 
 ## 2026-09-15 交叉审查增量
 
-本轮DOC_GROUPS新增review当前台账和两份原文，旧报告明确分组为历史快照；已经整合的两份文档方案不再生成独立页面，取舍保存在文档执行契约及Git历史。
+当时DOC_GROUPS新增review交叉记录和两份原文，旧报告明确分组为历史快照；已经整合的两份文档方案不再生成独立页面，取舍保存在文档执行契约及Git历史。
 
 第二批文档注册RELEASE_BLOCKERS_PHASE2；数据库CLI实现位于app/db_admin，执行入口在database init。生成站不能因执行目录不同读取另一套.env。
 

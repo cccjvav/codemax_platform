@@ -2969,7 +2969,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "7bdc90729fce4cb989c36c46bb2489beae6fa63da7ca4d39373bce8606e4f6e7",
+      "sha256": "832b6b1133cfeccfc7788ca22a2814a4decc14dc478c530fce00da1d2dd396fc",
       "method": "manual",
       "blocks": [
         {
@@ -3020,7 +3020,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。 DOC_GROUPS新增第十一批报告；只是构建文档导航，不触发worker。 DOC_GROUPS增加第十二批报告，必须有实际tracked文件，不能用历史报告计作当前验收。 明确登记第十四批报告进入DOC_GROUPS；不自动加载任意Markdown。 第十五批仅在后续DOC_GROUPS常量同一行登记运行手册与阶段报告，函数行为不变；全部tracked Markdown双向测试。 DOC_GROUPS登记第十六批报告，所有tracked文档双向核对，未增公开API文档保留权限。 DOC_GROUPS新增第十七批报告及WECHAT_BILLS_GUIDE，让CLI范围/Windows与私有文件边界可从同一离线站检索；不注册实际业务账单或runtime文件。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；后续DOC_GROUPS人工登记Windows/Conda入口、业务手册、当前交接审计和有独有证据的历史阶段，不自动收录任意Markdown。本轮删除四份失效文档注册并加入2026-09-19报告，必须有真实tracked文件且双向清单/链接通过。此常量只生成离线文档导航，不触发worker、不注册业务HTTP路由，也不公开runtime账单；唯一当前工作队列仍是ROADMAP。"
         },
         {
           "end": 338,
@@ -6978,48 +6978,48 @@
     },
     {
       "path": "tests/test_schema_sync.py",
-      "sha256": "ea1200feb2540e559a1d84cec33ea400c9b8c79ffae619d0e3830e7741807903",
+      "sha256": "70e23dab4d56722d26f0ebd1b2d6b11daf828d509643c1ed234f01c258d98b55",
       "method": "guided",
       "blocks": [
         {
-          "end": 15,
+          "end": 16,
           "title": "模块装配",
-          "explanation": "模块协作与边界：提取full_init和ORM表/列集合并核TIMESTAMPTZ。当前检查不完整比对索引、默认值、空值/约束或真实SQL执行；PG CI连跑DDL与其他迁移测试补充，不可称完整结构等价证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL6 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 import app.models；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from app.database import Base；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from app.tools.sql_ddl import parse_ddl；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 计算右侧并赋给 `FULL_INIT_SQL`：Path(__file__).resolve().parents[1] / 'database init' / 'full_init.sql'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：提取full_init和ORM表/列集合并核TIMESTAMPTZ。当前检查不完整比对索引、默认值、空值/约束或真实SQL执行；PG CI连跑DDL与其他迁移测试补充，不可称完整结构等价证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL7 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 import app.models；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from app.database import Base；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from app.tools.sql_ddl import parse_ddl；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 计算右侧并赋给 `FULL_INIT_SQL`：Path(__file__).resolve().parents[1] / 'database init' / 'full_init.sql'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 20,
+          "end": 21,
           "title": "_sql_schema",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL17 计算右侧并赋给 `graph`：调用 parse_ddl(FULL_INIT_SQL.read_text(encoding='utf-8'))。\nL18 结束当前函数，返回 {t['name']: sorted((c['name'] for c in t['columns'])) for t in graph['tables']}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL18 计算右侧并赋给 `graph`：调用 parse_ddl(FULL_INIT_SQL.read_text(encoding='utf-8'))。\nL19 结束当前函数，返回 {t['name']: sorted((c['name'] for c in t['columns'])) for t in graph['tables']}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 24,
+          "end": 25,
           "title": "_orm_schema",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL22 结束当前函数，返回 {t.name: sorted((c.name for c in t.columns)) for t in Base.metadata.sorted_tables}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL23 结束当前函数，返回 {t.name: sorted((c.name for c in t.columns)) for t in Base.metadata.sorted_tables}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 28,
+          "end": 29,
           "title": "test_table_sets_match",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL26 核对 `set(_sql_schema()) == set(_orm_schema())`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL27 核对 `set(_sql_schema()) == set(_orm_schema())`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 34,
+          "end": 35,
           "title": "test_columns_match_for_every_table",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL30 计算右侧并赋给 `(sql, orm)`：(_sql_schema(), _orm_schema())。\nL31 计算右侧并赋给 `diff`：{name: {'sql': sql[name], 'orm': orm.get(name)} for name in sql if sql[name] != orm.get(name)}。\nL32 核对 `not diff`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL31 计算右侧并赋给 `(sql, orm)`：(_sql_schema(), _orm_schema())。\nL32 计算右侧并赋给 `diff`：{name: {'sql': sql[name], 'orm': orm.get(name)} for name in sql if sql[name] != orm.get(name)}。\nL33 核对 `not diff`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 42,
+          "end": 43,
           "title": "test_sys_diagram_shape",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL37 核对 `_sql_schema()['sys_diagram'] == _orm_schema()['sys_diagram']`：此条件为假即测试失败；不是生产输入校验。\nL38 核对 `_sql_schema()['sys_diagram'] == ['content', 'create_time', 'deleted_at', 'id', 'name', 'update_time', 'user_id', 'version']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL38 核对 `_sql_schema()['sys_diagram'] == _orm_schema()['sys_diagram']`：此条件为假即测试失败；不是生产输入校验。\nL39 核对 `_sql_schema()['sys_diagram'] == ['content', 'create_time', 'deleted_at', 'id', 'name', 'update_time', 'user_id', 'version']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 60,
+          "end": 61,
           "title": "test_every_datetime_column_is_timezone_aware",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL50 导入 from sqlalchemy import DateTime as _DateTime；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL52 计算右侧并赋给 `naive`：[f'{t.name}.{c.name}' for t in Base.metadata.sorted_tables for c in t.columns if isinstance(c.type, _DateTime) and (not c.type.timezone)]。\nL58 核对 `not naive`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL51 导入 from sqlalchemy import DateTime as _DateTime；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL53 计算右侧并赋给 `naive`：[f'{t.name}.{c.name}' for t in Base.metadata.sorted_tables for c in t.columns if isinstance(c.type, _DateTime) and (not c.type.timezone)]。\nL59 核对 `not naive`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 74,
+          "end": 75,
           "title": "test_full_init_sql_uses_timestamptz",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL63 计算右侧并赋给 `sql`：调用 FULL_INIT_SQL.read_text(encoding='utf-8')。\nL64 核对 `'TIMESTAMPTZ' in sql`：此条件为假即测试失败；不是生产输入校验。\nL66 计算右侧并赋给 `bare`：[line.strip() for line in sql.split('\\n') if re.search('\\\\bTIMESTAMP\\\\b', line) and 'TIMESTAMPTZ' not in line and ('CURRENT_TIMESTAMP' not in line)]。\nL73 核对 `not bare`：此条件为假即测试失败；不是生产输入校验。\nL74 核对 `'DEFAULT CURRENT_TIMESTAMP' in sql`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL64 计算右侧并赋给 `sql`：调用 FULL_INIT_SQL.read_text(encoding='utf-8')。\nL65 核对 `'TIMESTAMPTZ' in sql`：此条件为假即测试失败；不是生产输入校验。\nL67 计算右侧并赋给 `bare`：[line.strip() for line in sql.split('\\n') if re.search('\\\\bTIMESTAMP\\\\b', line) and 'TIMESTAMPTZ' not in line and ('CURRENT_TIMESTAMP' not in line)]。\nL74 核对 `not bare`：此条件为假即测试失败；不是生产输入校验。\nL75 核对 `'DEFAULT CURRENT_TIMESTAMP' in sql`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -11821,6 +11821,48 @@
           "end": 539,
           "title": "test_full_cli_pipeline_on_complete_disposable_pg",
           "explanation": "自行创建pgserver临时库与非超级用户角色，用closing保证psycopg初始化不重复进入已有事务；执行真实完整SQL/账本，不用ORM伪造版本。中央配置/SessionLocal只替换到此可丢弃库，真实fetch使用签名MockTransport，完整run须生成未知订单报告且数据库仍无订单/凭证。finally清服务器，绝不接受业务DSN或真实商户；这不是Windows或生产恢复签收。"
+        }
+      ]
+    },
+    {
+      "path": "tests/audit_handoff_probes.py",
+      "sha256": "691f12dfc1d41a4c8eb25b61c869734156708d9c7a7d3a47842373ab69643779",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 24,
+          "title": "独立诊断装配与危险边界",
+          "explanation": "此文件不以test_命名，默认pytest不收集；显式执行时PASS表示复现基线7f2e125的待修行为，不是安全验收。fixture会重建表，TEST_DATABASE_URL只能指专用可丢弃库；合成API配置/MockTransport/函数替身不访问真实商户或模型。导入已有测试辅助保持调用契约，不新增生产功能。"
+        },
+        {
+          "end": 39,
+          "title": "解析前资源边界诊断",
+          "explanation": "自定义AsyncByteStream以32个64KiB片段发送约2MiB JSON，不提供Content-Length；每次yield累计实际被消费字节。对匿名Mermaid路由断言422但正文已全部读取、响应亦超过2MiB，只输出数字不打印内容。通过表示已有字段上限仍晚于消费/回显；没有调用模型、压测或耗尽内存。"
+        },
+        {
+          "end": 59,
+          "title": "LLM响应缓冲诊断",
+          "explanation": "MockTransport返回短合法回答加2MiB无关padding，响应流计数证实chat读取全部字节后返回ok。URL可能沿用配置但transport没有真实网络；此断言展示缺少HTTP字节预算，不代表模型输出安全或供应商实测。"
+        },
+        {
+          "end": 68,
+          "title": "深嵌套JSON异常分类",
+          "explanation": "1200层列表总2401字节，本地响应进入json解析后RecursionError未归一为LLMError。pytest.raises在此恰是待修行为的复现，不应转成永久发布门禁；真实慢读或上游实际行为未测试。"
+        },
+        {
+          "end": 82,
+          "title": "向量index类型严格性",
+          "explanation": "逐次以False和0.0作为index，合法有限二维向量被接受；lambda默认参数绑定本轮index，避免闭包后续漂移。只证明等值比较未区分bool/float/int，不否定已有同维/有限数值校验。"
+        },
+        {
+          "end": 115,
+          "title": "同单预支付在途诊断",
+          "explanation": "使用临时商品、测试账户与虚构微信配置，打开限流但不假定工具额度适用于shop。两个并发POST在替代native_prepay的事件屏障同时停留，finally释放并gather所有任务；断言两次200、同一原单号、一订单零收款凭证。该诊断不访问商户或证明重复扣款；修复后须转换为默认套件的单飞/退避保护性回归。"
+        },
+        {
+          "end": 127,
+          "title": "登录来源服务端诊断",
+          "explanation": "合成注册后带显式外站Origin和Sec-Fetch-Site提交合法凭据，断言200并设置Cookie。这里只证明服务端接受，不执行浏览器导航、SameSite/CORS或账户混淆PoC，不得宣称已盗取密码或成功利用login-CSRF。"
         }
       ]
     }

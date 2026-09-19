@@ -120,7 +120,7 @@ Manifest：清单；fingerprint：内容指纹；contract test：接口约定测
 
 ## 继续阅读
 
-[公共后端](../app/README.md) · [路由契约](../app/routers/README.md) · [工具算法](../app/tools/README.md) · [前端](../app/frontend/README.md) · [测试](../tests/README.md) · [部署](DEPLOY.md) · [文档质量复核](DOCUMENTATION_QUALITY_REVIEW.md)
+[公共后端](../app/README.md) · [路由契约](../app/routers/README.md) · [工具算法](../app/tools/README.md) · [前端](../app/frontend/README.md) · [测试](../tests/README.md) · [部署](DEPLOY.md) · [全仓审计与文档复核](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)
 
 ## Agnes 模型配置边界
 
