@@ -38,7 +38,28 @@ const submit=()=>el('manual').onsubmit({preventDefault(){}});
 const posts=()=>requests.filter(r=>r.options.method==='POST');
 (async()=>{
 const scenario=process.argv[2];
-if(scenario.startsWith('reapprove-')){
+if(scenario.startsWith('close-')){
+ let release;
+ const d=ledger('ORDER1');d.order.status='closed';d.order.payment_mode='wechat';
+ d.channel_close={enabled:true,allowed:scenario!=='close-denied',query_attempt_id:'a'.repeat(32),latest:{actor:'FIRST<script>',state:'unknown'}};
+ impl=async(url,opt)=>{
+  if(opt.method==='POST'){
+   d.channel_close.query_attempt_id='b'.repeat(32);d.channel_close.allowed=false;
+   if(['close-unknown','close-change'].includes(scenario))throw Error('unknown');
+   return {attempt:{state:'acknowledged'}};
+  }
+  if(url.includes('/ledger')){if(scenario==='close-race')return new Promise(r=>release=()=>r(d));return d;}return rows();
+ };
+ start();await tick();await clickOrder();
+ if(scenario==='close-race'){auth.listener(null);release();await tick()}
+ input();el('close-amount').value='19900';if(scenario==='close-cancel')accept=false;
+ const text=el('channel-close-view').textContent;
+ await el('channel-close').onsubmit({preventDefault(){}});
+ if(scenario==='close-change')el('evidence').value='changed after unknown';
+ if(['close-unknown','close-change'].includes(scenario))await el('channel-close').onsubmit({preventDefault(){}});
+ const ps=posts().map(x=>({url:x.url,body:JSON.parse(x.options.body)}));auth.listener(null);
+ console.log(JSON.stringify({text,posts:ps,confirmations,cleared:el('channel-close-view').textContent===''&&el('close-amount').value===''}));
+}else if(scenario.startsWith('reapprove-')){
  let release;
  const d=ledger('ORDER1');d.refund_request={request_id:'c'.repeat(32),state:'prepared',out_refund_no:'CMR'+'d'.repeat(32),amount:19900};
  d.refund_submission={authorization_id:'a'.repeat(32),digest:'b'.repeat(64),body:{reason:'old'},stop:{request_id:'e'.repeat(32),actor:'old-admin',evidence:'old-stop'},reauthorize_allowed:scenario!=='reapprove-denied',history:[{authorization_id:'a'.repeat(32),body:{reason:'old'},actor:'first<script>',stop:{actor:'old-admin',evidence:'old-stop'}}]};
@@ -525,3 +546,24 @@ def test_reauthorization_ui_frozen_unknown_and_no_automatic_send(path, scenario)
     assert data['posts'][0]['body']['authorization_id'] == 'a'*32
     assert data['posts'][0]['body']['reason'] == 'corrected customer reason'
     assert '只授权不发送' in data['confirmations'][0]
+
+
+@pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
+@pytest.mark.parametrize('scenario', ['close-save', 'close-unknown', 'close-change', 'close-denied', 'close-cancel', 'close-race'])
+def test_channel_close_explicit_unknown_frozen_and_account_isolation(path, scenario):
+    result = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario],
+                            text=True, capture_output=True, timeout=15, check=True)
+    data = json.loads(result.stdout)
+    assert data['cleared']
+    if scenario in ('close-denied', 'close-cancel', 'close-race'):
+        assert data['posts'] == []
+        if scenario == 'close-race':
+            assert data['text'] == ''
+        return
+    assert 'FIRST<script>' in data['text'] and 'closed不等于微信已关闭' in data['text']
+    assert len(data['posts']) == (2 if scenario == 'close-unknown' else 1)
+    assert data['posts'][0]['url'].endswith('/close-channel')
+    assert data['posts'][0]['body']['query_attempt_id'] == 'a'*32
+    if scenario == 'close-unknown':
+        assert data['posts'][0] == data['posts'][1]
+    assert '不是退款' in data['confirmations'][0]

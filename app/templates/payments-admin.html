@@ -63,6 +63,12 @@
 <h3>微信主动查单</h3><p>向已配置商户发起只读查询；仅经验证的 SUCCESS 才补记收款。超时请先刷新记录，不要重新创建订单。</p>
 <button id="finance-query-submit" type="submit">核查这个原订单</button>
 </form>
+<h3>渠道关单（不是退款）</h3><pre id="finance-channel-close-view"></pre>
+<form id="finance-channel-close" hidden>
+<p>先主动查原微信单；仅本站closed且最新可信NOTPAY、无收款时可显式关渠道。非自动任务，未知先恢复原尝试/另行查单，不换订单号。</p>
+<label>手动确认原合同金额（整数分）<input id="finance-close-amount" type="number" min="1" step="1"></label>
+<button id="finance-channel-close-submit" type="submit">确认渠道关单 / 恢复原尝试</button>
+</form>
 <h3>独立授权与发送（非自动退款）</h3>
 <pre id="finance-submission-view"></pre>
 <label>手动确认原准备商户退款号<input id="finance-send-number" maxlength="35" autocomplete="off"></label>

@@ -25,3 +25,5 @@
 第十四批范围与实测集中[发送前重新授权](../review/RELEASE_BLOCKERS_PHASE14.md)，当前全局仍由HANDOVER导航，不复制状态。
 
 第十五批监督/告警/恢复的阶段证据见[统一报告](../review/RELEASE_BLOCKERS_PHASE15.md)，运维配方见[运行手册](../docs/REFUND_OPERATIONS.md)。
+
+第十六批[显式渠道关单](../review/RELEASE_BLOCKERS_PHASE16.md)：本地closed、渠道观察、收款及日账对账分开验收。

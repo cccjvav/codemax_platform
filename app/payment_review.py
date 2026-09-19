@@ -24,7 +24,7 @@ from .models import (
 )
 
 REVIEW_KIND = 'operator_review'
-ISSUES = ('prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
+ISSUES = ('channel_close_started', 'channel_close_acknowledged', 'channel_close_unknown', 'prepay_unknown', 'query_unknown', 'query_conflict', 'query_refund', 'query_aborted', 'refund_query_unknown', 'refund_query_aborted', 'refund_query_conflict',
           'refund_query_processing', 'refund_query_abnormal', 'refund_query_closed', 'refund_notify_signal', 'refund_request_prepared', 'refund_authorized', 'refund_reauthorized', 'refund_send_started', 'refund_send_observed', 'refund_send_stopped', 'refund_verify_started', 'refund_verify_observed', 'refund_verify_control')
 ACTIONS = ('followup', 'close', 'reopen')
 ORPHAN_GRACE_SECONDS = 60

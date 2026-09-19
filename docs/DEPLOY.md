@@ -264,3 +264,9 @@ FROM refund_verification_job WHERE state='running' AND lease_until <= now();
 完整部署/恢复配方见[核验运行手册](REFUND_OPERATIONS.md)。新增--status-file与独立refund_health检查器，无新schema/依赖/API。私有本机runtime目录与商品storage隔离，不进入镜像构建上下文或Git；一个路径一个写者，不要删除.lock“解锁”。默认120秒freshness不是进程即时探活或商户成功证明。
 
 Compose新增opt-in refund-verifier profile，固定示例db、SEND/AUTO_RECORD=false、无端口，VERIFY仍需显式授权；有限失败重启，覆盖镜像Web健康探针。模板未在本沙箱实际Docker执行，unhealthy本身不触发Docker重启。--alerts的业务attention也不得作为自动重启条件。生产仍需选择接收人/检查周期并实测权限、时钟、磁盘、恢复与真实TLS/商户；本次没有替你启动业务worker或外部告警。
+
+## 第十六批：渠道关单门禁仍默认关闭
+
+新增WX_ORDER_CLOSE_ENABLED=false，独立于退款SEND/VERIFY/AUTO_RECORD；不增迁移/依赖，完整账本仍0017。更新Web及前端产物后，原local closed不会自动触发渠道请求；核验worker也不调用关单。未完成专用商户/HTTPS/恢复验收，不开启业务门禁；本批没有真实关单或业务库操作。
+
+开启只允许符合条件的管理员按钮，仍须原单最新5分钟内可信NOTPAY、手动原单/金额及确认。超时/未知先核原事件，同key仅恢复首次；新key需重新查询、距旧start至少60秒，已ack不再发送。更新/回滚都保留PaymentEvent与原收款/退款全历史，不用删start修复。见[管理手册](PAYMENTS_ADMIN_GUIDE.md)。

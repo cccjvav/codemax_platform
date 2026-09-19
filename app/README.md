@@ -103,7 +103,7 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `1e3191d1b8b2` | L1–L141 |
+| [`app/config.py`](config.py) | `7fcdc969a566` | L1–L142 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
@@ -111,9 +111,10 @@ pending → closed → paid
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
 | [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
+| [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
-| [`app/payment_review.py`](payment_review.py) | `c05c59bffd24` | L1–L144 |
+| [`app/payment_review.py`](payment_review.py) | `a26a38f6658e` | L1–L144 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
 | [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
@@ -128,7 +129,7 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `8d6ddfeb4f1b` | L1–L453 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `706358db4def` | L1–L466 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -261,3 +262,9 @@ begin_send/stop_sending按显式版本定位；新发送另核当前叶子/未�
 refund_worker.run保留默认关闭/完整0017账本验证和原run_once权限参数，增加启动15秒、循环60秒预算，SIGTERM取消不清持久租约。--status-file启用Publisher，先starting、完整周期后running、单次completed；取消stopped、异常failed并非零退出。模块导入错误与运行错误均不打印原始异常。--once不算常驻，Web没有新后台任务或健康API。
 
 refund_health.queue_snapshot用DB时钟只读聚合活动队列，alarms返回固定操作代码，不返回订单/商户/token。Publisher的UUID/序号/时间仅本机状态，OS单写锁自动随进程释放，临时0600文件fsync+replace，不改数据库。check最多读4097字节并严格验格式/状态/时间/计数；main是stdlib独立检查器，即使.env配置坏也能检查，不能确认远端或资金成功。freshness最多滞后120秒，带--alerts检查人工/退避/积压但不应自动重启。细节见[运行手册](../docs/REFUND_OPERATIONS.md)。
+
+## 显式渠道关单（第十六批）
+
+order_closures复用PaymentEvent的channel_close_started/acknowledged/unknown，不新建付款/退款凭证。eligibility只读原closed合同/无收款、最新可信NOTPAY≤300秒、重试距start≥60秒且新查询在start后；已ack挡新关单。begin在调用者用户锁后锁订单，same-key原人/内容先恢复，再验新动作，started必须先commit；返回原单号标量才可网络POST。finish只追加原发起人观察，不修改状态/下载，失权在途也记录观察而不新增财务权限。
+
+wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_json仅此调用明确选择204空体，原下单/查询/退款仍严格200对象。所有应答先验原字节/平台身份/时效/签名，错误脱敏归未知。shop ledger独立于事件分页展示当前关单提示/最近尝试，GET不关单。管理页先单独查单、再确认金额/原号；不会自动发送/查询/关单。完整操作见PAYMENTS_ADMIN_GUIDE。

@@ -1,6 +1,6 @@
 """Administrator payment workbench: read-only inventory and explicit signed reconciliation.
 
-No charge, close-order or refund request is sent here. Reconciliation is operator initiated,
+No charge or refund request is sent here. Channel close is separately gated and explicitly confirmed. Reconciliation is operator initiated,
 not a scheduled accounting system. Existing receipt/snapshot contracts remain authoritative.
 """
 from __future__ import annotations
@@ -10,19 +10,21 @@ from datetime import datetime, timezone
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
-from pydantic import Field, StrictInt
+from pydantic import ConfigDict, Field, StrictInt
 from sqlalchemy import exists, select, update
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..database import get_db
+from .. import order_closures
+from ..config import settings
+from ..database import get_db, lock_user
 from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..payment_ledger import PaymentConflict, lock_order, settle
 from ..payment_review import ISSUES, REVIEW_KIND, review_candidates, review_payload, review_states
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
-from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_order
+from ..wechat_pay import WeChatPayError, assert_notify_configuration, close_order, pay_config, query_order
 from .shop import EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
@@ -222,3 +224,46 @@ async def review_order(order_no: str, proof: ReviewIn, db: AsyncSession = Depend
         await db.rollback()
         raise HTTPException(409, '复核请求标识发生竞争，请刷新核对记录') from None
     return {'saved': True, 'review_id': entry.id, 'replayed': False}
+
+
+class CloseChannelIn(ReconcileIn):
+    model_config = ConfigDict(extra='forbid')
+    request_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    query_attempt_id: str = Field(pattern=r'^[0-9a-f]{32}$')
+    amount: StrictInt = Field(gt=0, le=2147483647)
+    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+
+
+@router.post('/shop/admin/orders/{order_no}/close-channel',
+             dependencies=[Depends(require_finance_origin), Depends(rate_limit('payment-close', 'RATE_LIMIT_TOOLS'))])
+async def close_channel(order_no: str, proof: CloseChannelIn, response: Response,
+                        db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
+    """Explicit close, not refund or receipt mutation. Same key only reads; no automatic retries."""
+    response.headers['Cache-Control'] = 'no-store'
+    revision = admin.credential_version
+    current = await lock_user(db, admin.id)
+    if current is None or current.role != 1 or current.status != 1 or current.credential_version != revision:
+        raise HTTPException(403, '权限已变更，请重新登录')
+    if proof.confirm_order_no != order_no:
+        raise HTTPException(409, '确认单号与目标不一致')
+    order = await db.scalar(select(Order).where(Order.order_no == order_no))
+    if order is None:
+        raise HTTPException(404, '订单不存在')
+    cfg = pay_config()
+    try:
+        attempt, packet = await order_closures.begin(db, order, actor=current, key=proof.request_id,
+            query_key=proof.query_attempt_id, amount=proof.amount, evidence=proof.evidence,
+            cfg=cfg, enabled=settings.WX_ORDER_CLOSE_ENABLED)
+        if packet is not None:
+            acknowledged = False
+            try:
+                await close_order(cfg, out_trade_no=packet)
+                acknowledged = True
+            except WeChatPayError:
+                pass  # Includes signed business errors, not an unpaid/closed conclusion.
+            attempt = await order_closures.finish(db, order, proof.request_id, acknowledged)
+        return {'attempt': attempt, 'warning': '仅记录渠道关单观察，不改变本地收款/下载。请单独核查原单；迟到可信SUCCESS仍须入账。'}
+    except PaymentConflict as exc:
+        raise HTTPException(409, str(exc)) from None
+    except SQLAlchemyError:
+        raise HTTPException(503, '关单或保存结果未知；保留原请求ID和完整内容恢复，不能自动重发') from None

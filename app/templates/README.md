@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `711bac259ede` | L1–L131 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `fb1bd213c1a8` | L1–L137 |
 | [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -86,3 +86,5 @@ payments-admin新增verification-control-view和verification-control表单（任
 ## 第十四批管理表单
 
 payments-admin新增不可覆盖授权历史details与独立重新授权表单；客户原因输入置于两个授权表单之外由JS显式读取验证，共用确认单号/原退款号/全额/依据。停止说明限定原版本，不误称解除停止或召回渠道；模板只提供壳，权限/可更正条件在服务器重查。
+
+管理页渠道关单分区与退款分开：显示本地closed不等于渠道关闭、先独立查单和手输合同金额，按钮只提交用户确认的close-channel；未知恢复另由源码保留原命令。

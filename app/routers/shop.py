@@ -20,6 +20,7 @@ from ..delivery import snapshot_product, verify_snapshot
 from ..deps import get_current_user, require_admin, require_finance_origin
 from ..middleware import public_base_url
 from ..models import Order, PaymentEvent, PaymentReceipt, RefundReceipt, User
+from ..order_closures import view as closure_view
 from ..order_state import (
     CLOSED,
     DOWNLOADED,
@@ -667,6 +668,7 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
     return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
             'refund_auto_record_enabled': settings.WX_REFUND_AUTO_RECORD_ENABLED,
             'refund_verification': await jobs_view(db, order.id), 'refund_verify_enabled': settings.WX_REFUND_VERIFY_ENABLED,
+            'channel_close': await closure_view(db, order, cfg=pay_config(), enabled=settings.WX_ORDER_CLOSE_ENABLED),
             'refund_submission': await submission_view(db, prepared), 'refund_send_enabled': settings.WX_REFUND_SEND_ENABLED,
             'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
             'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,

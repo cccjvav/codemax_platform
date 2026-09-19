@@ -100,10 +100,10 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `d472fca1a3b4` | L1–L224 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `dd95a6c252ee` | L1–L689 |
+| [`app/routers/shop.py`](shop.py) | `24ee71fc3545` | L1–L691 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
@@ -196,3 +196,5 @@ POST /shop/admin/orders/{order_no}/refunds/verification/control接收Verificatio
 ## 发送前重新授权端点
 
 RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘要且拒额外字段；POST refunds/reauthorize有管理员、来源及限流，active_actor在用户锁内重查角色/凭据版本，再交服务订单锁。返回authorization为该key首笔、submission为当前叶子，503不证明未提交。初始authorize也新增首笔authorization响应，重放旧根不冒充当前新版；GET ledger仅投影，无自动操作。
+
+第十六批payments_admin新增POST `/shop/admin/orders/{order_no}/close-channel`：严格输入/来源/限流/活跃管理员凭据复核，默认门禁关闭。显式原订单/金额/查询attempt/请求key/依据；同key仅读，首次started提交后才向渠道POST。不能由reconcile或GET自动关单，finish不改原收款，503保留未知恢复内容。

@@ -869,3 +869,16 @@ echo %ERRORLEVEL%
 预期worker退出1（关闭，未查商户），checker也退出1（没有运行中的健康状态）；不要为了把这个故意的反例变绿而开启VERIFY。两者输出不应有真实密码/DSN。若环境尚不能导入依赖，也会非零，此时不能仅看非零就认定关闭门禁通过，应结合提示与自动测试核对；通用“disabled or failed”文案本身不区分所有故障原因。关闭当前终端即可撤销这里临时set，不要在别的业务终端复制启用命令。
 
 3. 文件在私有runtime目录，不上传、不放商品storage或static；不要删除.lock解除“占用”。同路径只能有一个写者，Windows ACL/字节锁、实际服务退出重启仍需在本机签收。常驻与告警解释、Compose可选模板、120秒滞后限制见[运行手册](docs/REFUND_OPERATIONS.md)。正常运行--once也会结束为completed，不该冒充后台在线。本沙箱Linux测试不代表你的Windows/容器/商户或备份恢复已通过。
+
+
+## 第十六批：渠道关单（仅先跑合成测试）
+
+VS Code集成CMD先激活原Conda环境，系统Node保持可用；只用前文独立测试库，不指向业务库。执行：
+
+```cmd
+python -m pytest -q tests/test_order_closures.py tests/test_payments_admin.py tests/test_payment_queries.py
+npm run build
+python -m pytest -q tests/test_payments_frontend.py
+```
+
+保持业务WX_ORDER_CLOSE_ENABLED=false，不能为通过测试而开真实关单。专用商户环境另经授权才验证：原单本站closed→独立查单最新NOTPAY→手输单号/金额/依据→单独确认关单→另行查原单；未知按原key恢复，不能换号，迟到SUCCESS仍须入账。Windows浏览器另验取消/未知/账号切换，不拿Linux/Node结果代签；渠道日账/批量对账仍未实现。

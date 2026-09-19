@@ -284,7 +284,7 @@ def assert_notify_configuration(cfg: PayConfig) -> None:
     assert_notify_identity(cfg, serial)
 
 
-async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", *, transport=None) -> dict:
+async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", *, transport=None, empty_success=False) -> dict:
     """Bounded APIv3 exchange: exact request bytes, no redirects/compression, authenticated response.
 
     Every response, including HTTP errors, must pass platform identity/time/signature checks.
@@ -311,10 +311,14 @@ async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", 
                     raise WeChatPayError('微信支付应答过大')
                 response_body.extend(chunk)
             assert_response_signature(cfg, response.headers, bytes(response_body), response.status_code)
-            if response.status_code != 200:
+            if response.status_code != (204 if empty_success else 200):
                 raise WeChatPayError(f'微信支付请求失败：HTTP {response.status_code}；不得推断未付款')
     except (httpx.HTTPError, TimeoutError, UnicodeError):
         raise WeChatPayError('微信支付网络请求失败；结果未知，请核查原订单') from None
+    if empty_success:
+        if response_body:
+            raise WeChatPayError('关单204应答必须为空；结果未知')
+        return {}
     try:
         data = json.loads(response_body)
     except (ValueError, UnicodeError, RecursionError):
@@ -451,3 +455,12 @@ async def submit_full_refund(cfg: PayConfig, *, body: str, out_trade_no: str, tr
     data = await _request_json(cfg, 'POST', '/v3/refund/domestic/refunds', body, transport=transport)
     return parse_full_refund(data, out_refund_no=request['out_refund_no'], out_trade_no=out_trade_no,
                              transaction_id=transaction_id, total=total)
+
+
+async def close_order(cfg: PayConfig, *, out_trade_no: str, transport=None) -> None:
+    """Only a signed empty 204 acknowledges close; errors/timeouts never prove unpaid or closed."""
+    if not re.fullmatch(r'[A-Za-z0-9_-]{1,32}', out_trade_no):
+        raise WeChatPayError('关单商户订单号格式无效')
+    path = '/v3/pay/transactions/out-trade-no/' + quote(out_trade_no, safe='') + '/close'
+    body = json.dumps({'mchid': cfg.mchid}, separators=(',', ':'))
+    await _request_json(cfg, 'POST', path, body, transport=transport, empty_success=True)

@@ -1,4 +1,6 @@
-> 第十五批当前：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
+> 第十六批当前：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
+
+> 第十五批历史：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
 
 > 第十四批历史：[发送前纠错与显式重新授权](review/RELEASE_BLOCKERS_PHASE14.md)。0017；旧版先停止、本站从未开始发送且无退款观察，才可同号同额建立新授权；不发送资金。
 
@@ -233,7 +235,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `35521916c620` | L1–L28 |
-| [`.env.example`](.env.example) | `e633d19f151c` | L1–L123 |
+| [`.env.example`](.env.example) | `3792181f0f2c` | L1–L126 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |

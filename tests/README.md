@@ -62,7 +62,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `5d94497dd12e` | L1–L469 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `2fedc26f3d76` | L1–L469 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -79,12 +79,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `489ffbede4ec` | L1–L539 |
+| [`tests/test_order_closures.py`](test_order_closures.py) | `7832a0b2f1c3` | L1–L249 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `9a2e75439553` | L1–L339 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `c950e407ee73` | L1–L527 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `161b0f76e53b` | L1–L569 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
@@ -226,3 +227,5 @@ full_init维护函数继续增长，ER与Word改用conftest.project_ddl_for_api�
 ## 核验监督与恢复测试
 
 `test_refund_health.py`以临时私有文件检查原子替换/锁/坏状态/告警和脱敏；只读聚合用真实隔离会话，PG maintenance夹具验证完整DDL/账本启动与拒漂移。POSIX子进程SIGTERM/SIGKILL及重启真实执行，合成阻塞出站边界不触商户；未过期租约不偷领、过期新token拒旧结果、无退款凭证。另有真实空队列daemon和OS锁恢复。Windows信号项显式跳过，不算Windows服务签收；Compose文本回归不等于Docker部署。新组与全量均不能指向业务库。
+
+第十六批test_order_closures验证真实合成RSA签名POST/204空体、开始/结果故障、同key/并发、旧查询拒绝、权限/来源/限流与迟到支付不覆盖；前端源码/bundle另验冻结未知请求和账号隔离。无真实关单，完整PG轮次用独立连接重跑竞态，不增schema或改历史迁移。

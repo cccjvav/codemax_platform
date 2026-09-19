@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `a64554ab357a` | L1–L312 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `b66b6ae8c75b` | L1–L328 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
 | [`app/frontend/support-page.js`](support-page.js) | `dc4dd3149064` | L1–L127 |
 
@@ -130,3 +130,5 @@ payments-admin从ledger读取refund.recorded_by及verification_event_id，以tex
 新增refund-reauthorize表单，仅服务端允许时显示；共用手动原号/全额/客户原因，确认前版ID/摘要后POST一次，不调用send。pendingReauthorization保留完整未知body/key，修改原因/依据/前版会拒绝盲重试；详情读到历史中该key才视作可恢复记录。新授权成功后仍需单独发送。
 
 authorization-history用textContent显示有界历史/截断、前版/首笔人/正文/停止，账号和详情隔离沿用epoch/viewSeq，clearDetail同时清历史和未知请求。Node源码/bundle覆盖save/unknown/changed/denied/race，不冒充浏览器。
+
+第十六批新增第十三类channel-close显式表单：本地closed+可信NOTPAY只是显示条件，后端锁内重查；输入原合同金额，弹窗警告旧码可能失效但不是退款。pendingClose冻结原query_attempt/key/body，刷新新查询不偷换未知命令，恢复不重发；改未知依据拒绝。换账号清屏/拒迟到，关单观察仅textContent展示，没有自动reconcile/POST或localStorage财务正文。
