@@ -204,7 +204,7 @@
 
 这里的“自动登记”只是确认**已经完成**的全额原路退款并停止该订单后续领链，不是发起转账。三个开关分开：SEND控制既有显式人工发送入口；VERIFY允许独立worker GET查询；AUTO_RECORD允许本次可信SUCCESS查询登记系统凭证。三个默认均false，AUTO_RECORD不能越过VERIFY或给SEND授权。
 
-先停旧Web/worker写入，备份数据库和storage并验证恢复，使用原CLI status/migrate到0016，历史SQL不得修改；本批未替你操作业务库。保持`WX_REFUND_AUTO_RECORD_ENABLED=false`是默认安全行为。只有运维明确接受系统登记会停止原订单后续下载授权、完成专用环境验收后，才在该环境将VERIFY和AUTO_RECORD设true，分别重启Web与**独立worker**；只重启Web不会更新worker配置。运行命令仍是`python -m app.refund_worker --once`或无--once常驻，未接外部监督/告警。此部署授权不记录一个虚构管理员，不是页面上的开关或管理员会话授权；管理页显示Web配置，不代表工作进程在线/一致。
+先停旧Web/worker写入，备份数据库和storage并验证恢复，该子项新增0016，现行使用原CLI status/migrate到0017，历史SQL不得修改；本批未替你操作业务库。保持`WX_REFUND_AUTO_RECORD_ENABLED=false`是默认安全行为。只有运维明确接受系统登记会停止原订单后续下载授权、完成专用环境验收后，才在该环境将VERIFY和AUTO_RECORD设true，分别重启Web与**独立worker**；只重启Web不会更新worker配置。运行命令仍是`python -m app.refund_worker --once`或无--once常驻，第十五批提供本地监测/监督模板，仍未接外部告警送达。此部署授权不记录一个虚构管理员，不是页面上的开关或管理员会话授权；管理页显示Web配置，不代表工作进程在线/一致。
 
 凭证显示“系统核验（非管理员代办）”及验证开始事件ID；数据库actor_id为空、固定system:refund-verifier、verification_event_id指向本次不可变开始事件。人工凭证保留真实管理员。系统凭证、success_recorded观察和verified任务同提交；同事实重复success_already_recorded不改变首次人/时间，冲突receipt_conflict转人工且不覆盖。原收款/paid或downloaded事实保留，另一个未退款订单仍可下载，已交付副本和已接纳传输不能召回。
 
@@ -222,3 +222,7 @@
 5. 响应未知时保留原ID、前版本ID/摘要、原号/全额、原因和依据重试；后端先找首次记录，不随当前域名或后续版本进展重写它。响应authorization表示该原请求的记录，submission表示当前版本，两者可能不同。原初始授权/停止也能按原key读回，不影响新版本。
 
 历史区独立于事件翻页，显示当前及最近50版/截断提示，更早操作看事件历史；这不是全历史正文下载器。换账号清空正文/输入/未知请求并拒绝迟到响应。只要发送开始曾提交，即使提交回执丢失且实际上尚未触网，也按未知拒绝改正文；继续原号独立核验，不凭“我没看到请求”重新授权。错误金额/原付款/成功凭证、部分退款、发送后纠错和渠道取消仍不支持。
+
+## 第十五批：健康与告警不是财务结案
+
+[核验运行手册](REFUND_OPERATIONS.md)提供本地状态/告警命令及可选监督模板。管理页仍不能证明worker在线；检测默认120秒滞后，不表示商户配置、队列清空或成功凭证。needs_operator可能来自你主动hold，query_retry可能仅是正常退避，均需按原单核查；不要自动重排或不断重启。没有短信/邮件或外部报警送达。本次新增监测不改变原号、授权历史、8次总预算或下载权益。

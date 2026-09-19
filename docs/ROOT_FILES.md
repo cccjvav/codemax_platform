@@ -32,3 +32,5 @@
 ## 2026-09-15 交叉审查增量
 
 Docker入口禁用默认Uvicorn access log，防签名下载查询串进入第二套日志；其他启动方式和代理需单独设置。Vite入口固定名，拆分chunk逻辑名可含hash；不能对所有固定资源宣称immutable安全。
+
+第十五批为Docker镜像增加独立runtime目录，Compose增加默认不启动的refund-verifier profile（有限失败重启、无HTTP端口、专用本地探针）；Git/镜像均排除主机runtime。详见[运行手册](REFUND_OPERATIONS.md)，配置模板不等于实际容器验收。

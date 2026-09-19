@@ -225,3 +225,11 @@ snapshot把订单控制事件ID也算入，避免同秒hold/retry回到看似相
 代码链路：管理页显式reauthorize → 来源/限流/严格schema → active_actor锁用户并重查凭据版本 → reauthorize锁订单、原key重放先行 → 验最新已停止叶子及全单无发送/查询/通知等事实 → 固定新正文与supersedes_id → 新授权和refund_reauthorized审计一次commit。初始authorize仍只能建唯一根；begin_send先按显式授权ID定位，旧尝试重放仅读，新的发送必须是当前叶子且未停止。stop按原授权ID保存/恢复，不误停止新版本。没有网络锁、自动POST或新的系统资金权限。
 
 0017的唯一根+每前版最多一个后继和只追加形成链，不用覆盖旧行来纠错。authorization_for按无后继判当前，不靠最大ID猜；submission_view有界50版含首次人/正文/前版/停止，事件翻页不藏当前；review_states把所有授权/停止的排序事实纳入指纹，保留单版本旧摘要格式。术语：supersedes是“另版替代”，不是撤销历史；幂等重放返回首次请求，当前投影可能已更新。只认本站从未开始，不保证外部未办理；固定原号仍是渠道重复保护。
+
+## 第十五批：值班牌不是退款凭证
+
+大白话：独立核验员每完成一轮，就更新私有“最近值班”牌；队列有待人工或排队太久，另外亮警示灯。牌新不代表每一笔核账都成功，灯亮也不代表要不断把核验员赶走重启。
+
+代码链路：refund_worker启动写starting→限时核完整账本→run_once原GET/租约流程→queue_snapshot按DB时间只读汇总→Publisher临时文件fsync/replace→独立refund_health命令仅读本机文件。单写OS锁在崩溃后释放，SIGTERM取消保留原租约；过期恢复仍由既有CAS/token/总次数负责，而非读取JSON重排。状态日志只记固定状态/告警变化，没有外部发送器或新财务权限。
+
+术语：heartbeat是有时效的进度证据，默认120秒内可能滞后；liveness/freshness与业务attention分开。Compose profile默认不启动，非零退出最多重试5次，unhealthy不会自动重启；没有把容器配置文本验收当成真实监督上线。新模块不加schema、路由或依赖，不改0017及资金默认门禁。

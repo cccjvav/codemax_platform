@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `0fc1b7f1608c` | L1–L11249 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `e2b034bee70c` | L1–L11418 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -66,3 +66,5 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 
 第十四批发送前更正/重授权见[管理手册](PAYMENTS_ADMIN_GUIDE.md)、[0017部署](DEPLOY.md)与[阶段证据](../review/RELEASE_BLOCKERS_PHASE14.md)。
+
+第十五批[核验运行手册](REFUND_OPERATIONS.md)：私有heartbeat/告警检查、Compose模板、信号恢复与未签收边界。

@@ -1,4 +1,6 @@
-> 第十四批当前：[发送前纠错与显式重新授权](review/RELEASE_BLOCKERS_PHASE14.md)。0017；旧版先停止、本站从未开始发送且无退款观察，才可同号同额建立新授权；不发送资金。
+> 第十五批当前：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
+
+> 第十四批历史：[发送前纠错与显式重新授权](review/RELEASE_BLOCKERS_PHASE14.md)。0017；旧版先停止、本站从未开始发送且无退款观察，才可同号同额建立新授权；不发送资金。
 
 > 第十三批历史：[系统自动登记授权与审计](review/RELEASE_BLOCKERS_PHASE13.md)。默认关闭；仅独立验签全额原路成功查询可登记，不发送资金、不冒用管理员；需0016。
 
@@ -230,12 +232,12 @@ start docs\site\index.html
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
-| [`.dockerignore`](.dockerignore) | `57d5af08af42` | L1–L25 |
+| [`.dockerignore`](.dockerignore) | `35521916c620` | L1–L28 |
 | [`.env.example`](.env.example) | `e633d19f151c` | L1–L123 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
-| [`.gitignore`](.gitignore) | `903ed8828eee` | L1–L48 |
-| [`Dockerfile`](Dockerfile) | `36256c67a82d` | L1–L42 |
-| [`docker-compose.yml`](docker-compose.yml) | `ae5824d81626` | L1–L39 |
+| [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
+| [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |
+| [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
 | [`main.py`](main.py) | `6a59207cda6d` | L1–L86 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
@@ -264,3 +266,5 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 ## 第六批资金/交付更新
 
 已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0017授权版本迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。
+
+核验进程的本地监督/告警与恢复命令见[运行手册](docs/REFUND_OPERATIONS.md)。Compose profile默认不启动，实际容器/Windows服务需独立验收。

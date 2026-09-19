@@ -258,3 +258,9 @@ FROM refund_verification_job WHERE state='running' AND lease_until <= now();
 0017撤掉preparation_id的全局单行唯一，新增唯一supersedes_id自外键及每准备一个NULL根的部分唯一索引。新版插入在用户→订单锁下核活跃管理员/正文/摘要、同准备已停止叶子、全单无发送开始/观察/查询/通知/核验/成功凭证，禁止分叉与删改。旧行supersedes_id为空且不回填新授权/停止，不发网络。原号、金额、商户与付款不可更改；新notify_url仍从正式SITE_BASE_URL派生，配置更改不会重写旧正文。
 
 恢复演练只用专用测试库：commit前故障应无后继和审计；commit后丢ACK按原key读首次，不能新增另一后继。仅发送开始丢ACK也必须拒绝改正文。备份须覆盖全部版本、停止及事件，不能只导出当前叶子。进程监督/报警、真实网络/商户/Windows恢复验收仍未代办，不将合成回归当成生产演练。
+
+## 第十五批：可选核验监督与告警检查
+
+完整部署/恢复配方见[核验运行手册](REFUND_OPERATIONS.md)。新增--status-file与独立refund_health检查器，无新schema/依赖/API。私有本机runtime目录与商品storage隔离，不进入镜像构建上下文或Git；一个路径一个写者，不要删除.lock“解锁”。默认120秒freshness不是进程即时探活或商户成功证明。
+
+Compose新增opt-in refund-verifier profile，固定示例db、SEND/AUTO_RECORD=false、无端口，VERIFY仍需显式授权；有限失败重启，覆盖镜像Web健康探针。模板未在本沙箱实际Docker执行，unhealthy本身不触发Docker重启。--alerts的业务attention也不得作为自动重启条件。生产仍需选择接收人/检查周期并实测权限、时钟、磁盘、恢复与真实TLS/商户；本次没有替你启动业务worker或外部告警。

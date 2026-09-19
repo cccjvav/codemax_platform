@@ -820,7 +820,7 @@ npm run build
 python -m pytest -q tests/test_payments_frontend.py
 ```
 
-2. 保持真实环境`WX_REFUND_AUTO_RECORD_ENABLED=false`与SEND关闭。本批没有替你升级库、重启或开启开关。单独试验环境先按数据库指南备份/停写，用status/migrate至0016，不重跑init。
+2. 保持真实环境`WX_REFUND_AUTO_RECORD_ENABLED=false`与SEND关闭。本批没有替你升级库、重启或开启开关。单独试验环境先按数据库指南备份/停写，该子项引入0016，现行用status/migrate至0017，不重跑init。
 3. 若尚无真实查询验收授权，不执行联网worker测试，记录未执行。获得授权后仅在指定验收环境另开CMD并激活同一Conda环境；按管理手册配置VERIFY和AUTO_RECORD，再分别重启Web和独立worker。CMD进程临时变量语法是`set WX_REFUND_AUTO_RECORD_ENABLED=true`，仅影响该CMD启动的子进程；私有.env仍须统一核对，不在网页随意填写。
 4. 用`python -m app.refund_worker --once`只跑一次有界周期。核实凭证显示“系统核验（非管理员代办）”及事件ID，原付款事实保留，该订单后续领链/旧链接拒绝，另一未退款单正常。不要在真实订单伪造退款通知/成功时间，不把本步当自动转账。
 5. 老的verified/attention不会仅因开关开启重跑；管理员仍可原号独立查询。hold不召回已领GET，改.env不是在途撤销。实际Windows/浏览器/商户/备份恢复验收须分别记录，Linux结果不能代替。
@@ -840,3 +840,32 @@ python -m pytest -q tests/test_payments_frontend.py tests/test_er_page.py tests/
 3. 管理页选原微信已付单，核对原准备/授权后先停止。只有本站从未开始发送、无查询/通知等记录，才显示重新授权；手动填原号、全额、依据与客户原因。确认仅保存新版本，不发退款、不改变下载。
 4. 展开历史，旧版正文/人/停止仍在，新版标前版ID；改正式回调须按部署手册先核配置，而不是在表单自行填URL。断网先刷新，保留原完整内容恢复。已经started哪怕没看到HTTP也不能改正文，继续原号核验；真实渠道取消不在此入口。
 5. 换账号必须清历史/输入并丢旧响应；只有另有真实资金授权及商户验收时才测试发送按钮，别为本步骤开启SEND。Linux/Node的通过不是Windows浏览器、实际商户或备份恢复签收。
+
+
+## 第十五批：核验进程健康检查（不要开启真实查询来测试）
+
+仍用VS Code集成**CMD + 原Conda环境 + 系统Node**。本节不是Windows服务安装教程，也不需要先安装Docker。先进入项目根目录并确认上一节测试库是独立可丢弃库；pytest会重建表，绝不能用业务库。
+
+1. 运行自动化：
+
+```cmd
+python -m pytest -q tests/test_refund_health.py tests/test_refund_verification.py tests/test_system_refunds.py
+```
+
+POSIX信号项在Windows会明确skip，pgserver不可用也可能跳过；不把skip当Windows服务通过。其余CLI/格式/告警项应通过，失败时保留输出，不连接真实商户补测。
+
+2. 在这个CMD里临时强制关闭查询/发送/登记，验证“关闭就拒绝”，不编辑.env：
+
+```cmd
+set WX_REFUND_VERIFY_ENABLED=false
+set WX_REFUND_SEND_ENABLED=false
+set WX_REFUND_AUTO_RECORD_ENABLED=false
+python -m app.refund_worker --once --status-file runtime\refund-verifier.json
+echo %ERRORLEVEL%
+python -m app.refund_health --status-file runtime\refund-verifier.json --alerts
+echo %ERRORLEVEL%
+```
+
+预期worker退出1（关闭，未查商户），checker也退出1（没有运行中的健康状态）；不要为了把这个故意的反例变绿而开启VERIFY。两者输出不应有真实密码/DSN。若环境尚不能导入依赖，也会非零，此时不能仅看非零就认定关闭门禁通过，应结合提示与自动测试核对；通用“disabled or failed”文案本身不区分所有故障原因。关闭当前终端即可撤销这里临时set，不要在别的业务终端复制启用命令。
+
+3. 文件在私有runtime目录，不上传、不放商品storage或static；不要删除.lock解除“占用”。同路径只能有一个写者，Windows ACL/字节锁、实际服务退出重启仍需在本机签收。常驻与告警解释、Compose可选模板、120秒滞后限制见[运行手册](docs/REFUND_OPERATIONS.md)。正常运行--once也会结束为completed，不该冒充后台在线。本沙箱Linux测试不代表你的Windows/容器/商户或备份恢复已通过。

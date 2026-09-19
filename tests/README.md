@@ -90,6 +90,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
+| [`tests/test_refund_health.py`](test_refund_health.py) | `67132d41ebe0` | L1–L407 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `a1894e966c2d` | L1–L302 |
 | [`tests/test_refund_requests.py`](test_refund_requests.py) | `75cd3afc6d27` | L1–L320 |
@@ -221,3 +222,7 @@ test_system_refunds.py用既有合成签名GET/通知及独立会话，覆盖显
 test_refund_reauthorization用真实ASGI、独立连接及合成签名发送替身，验证已停止/无活动限定、同号全额/只更正reason及正式回调、首笔/旧根/旧停止恢复、并发单后继、未知commit与审计失败、已started但未触网仍拒绝、角色/凭据/Origin、历史50上限和独立财务指纹；一次性非超级用户PG另验0016→0017、根/后继唯一及不能越过停止/开始/只追加。前端源码/bundle补独立确认、未知不改body、隐藏入口零POST、账号迟到清屏。
 
 full_init维护函数继续增长，ER与Word改用conftest.project_ddl_for_api提取全部CREATE TABLE并断言与原始SQL完整解析图相等（每表/字段/FK及解析器支持的注释）；不截断表，不提高20000公开字符预算。过程触发器由真实PG验证，不拿可视化图认证迁移。旧迁移夹具先legacy_0016拆0017且恢复旧授权函数；仅可丢弃库。
+
+## 核验监督与恢复测试
+
+`test_refund_health.py`以临时私有文件检查原子替换/锁/坏状态/告警和脱敏；只读聚合用真实隔离会话，PG maintenance夹具验证完整DDL/账本启动与拒漂移。POSIX子进程SIGTERM/SIGKILL及重启真实执行，合成阻塞出站边界不触商户；未过期租约不偷领、过期新token拒旧结果、无退款凭证。另有真实空队列daemon和OS锁恢复。Windows信号项显式跳过，不算Windows服务签收；Compose文本回归不等于Docker部署。新组与全量均不能指向业务库。

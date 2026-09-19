@@ -115,11 +115,12 @@ pending → closed → paid
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
 | [`app/payment_review.py`](payment_review.py) | `c05c59bffd24` | L1–L144 |
 | [`app/ratelimit.py`](ratelimit.py) | `968a3f9ac373` | L1–L128 |
+| [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `fb4b59cc4e4d` | L1–L316 |
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
-| [`app/refund_worker.py`](refund_worker.py) | `aba70b0625b0` | L1–L43 |
+| [`app/refund_worker.py`](refund_worker.py) | `f6dd3bcf022e` | L1–L89 |
 | [`app/refunds.py`](refunds.py) | `6701c38ac7f2` | L1–L88 |
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
@@ -254,3 +255,9 @@ RefundAuthorization.supersedes_id自外键唯一；NULL根按preparation_id部�
 reauthorization_activity保守检查send started/observed、notify及refund_query_/refund_verify_前缀，孤立终态也挡编辑。reauthorize调用方先锁重查用户，再取订单锁，严格校对parent ID/摘要/原准备号/全额。相同key先核归属/首次人/内容并恢复旧正文（域名变化不重建）；新key必须是最新已停止且无活动/成功的前版。build_body保持原金额/流水/号，只重新冻结客户原因和正式回调；后继+审计单事务，异常rollback。
 
 begin_send/stop_sending按显式版本定位；新发送另核当前叶子/未停止，旧发送重放仍仅读。初始authorize拒绝拿后继key冒充根重放。没有新增自动发送器，三个默认关闭开关不变；错误停止不删除，发送后未知不支持正文纠错。
+
+## 核验监督与本地告警（第十五批）
+
+refund_worker.run保留默认关闭/完整0017账本验证和原run_once权限参数，增加启动15秒、循环60秒预算，SIGTERM取消不清持久租约。--status-file启用Publisher，先starting、完整周期后running、单次completed；取消stopped、异常failed并非零退出。模块导入错误与运行错误均不打印原始异常。--once不算常驻，Web没有新后台任务或健康API。
+
+refund_health.queue_snapshot用DB时钟只读聚合活动队列，alarms返回固定操作代码，不返回订单/商户/token。Publisher的UUID/序号/时间仅本机状态，OS单写锁自动随进程释放，临时0600文件fsync+replace，不改数据库。check最多读4097字节并严格验格式/状态/时间/计数；main是stdlib独立检查器，即使.env配置坏也能检查，不能确认远端或资金成功。freshness最多滞后120秒，带--alerts检查人工/退避/积压但不应自动重启。细节见[运行手册](../docs/REFUND_OPERATIONS.md)。

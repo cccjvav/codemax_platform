@@ -21,7 +21,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # 本地存储后端的目录（STORAGE_LOCAL_ROOT），要可写
-RUN mkdir -p storage && chown -R app:app /srv/app
+RUN mkdir -p storage runtime && chown -R app:app /srv/app
 USER app
 
 EXPOSE 8000

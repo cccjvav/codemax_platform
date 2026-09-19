@@ -15,7 +15,7 @@
     },
     {
       "path": ".dockerignore",
-      "sha256": "57d5af08af42292ea0b78ee5d19c131ffc5e2eb1f6964cf2853978a31511f8b4",
+      "sha256": "35521916c6204b60ab6019a39bc9052802057a497ee5be74029c17237be7e7cf",
       "method": "manual",
       "blocks": [
         {
@@ -27,6 +27,11 @@
           "end": 25,
           "title": "不把测试与临时输出带进镜像",
           "explanation": "tests/htmlcov/coverage和CI日志排除，运行CMD不需要测试源。依赖仍由完整requirements安装，不要把“排除tests目录”等同“未装pytest”。"
+        },
+        {
+          "end": 28,
+          "title": "私有运行状态排除",
+          "explanation": "第十五批runtime保存本机heartbeat/锁，不是源码/商品/财务记录；排除主机运行数据，不能把状态文件复制到镜像或Git。既有已跟踪文件仍需单独审查。"
         }
       ]
     },
@@ -150,7 +155,7 @@
     },
     {
       "path": ".gitignore",
-      "sha256": "903ed8828eee8a5d1d5d6564389b454651d75877d70c7f98113538b864bb8331",
+      "sha256": "84527fb1930384b2326e10d8a5684d02adcff5d9f4404a6f29f69e336ba78ca1",
       "method": "manual",
       "blocks": [
         {
@@ -167,12 +172,17 @@
           "end": 48,
           "title": "文档站输出与源码分离",
           "explanation": "只忽略具体生成页面/d/s/data，保留手写site.js/style.css；CI文本日志精确排除，不用*.txt把未来文档源码整体藏掉。"
+        },
+        {
+          "end": 51,
+          "title": "私有运行状态排除",
+          "explanation": "第十五批runtime保存本机heartbeat/锁，不是源码/商品/财务记录；排除主机运行数据，不能把状态文件复制到镜像或Git。既有已跟踪文件仍需单独审查。"
         }
       ]
     },
     {
       "path": "Dockerfile",
-      "sha256": "36256c67a82dc37084166f756958c4578bbcc95e6ed2df8bfbbcb11a50958e3e",
+      "sha256": "ee888a210f3973ae1336fbfe605e18df05eff8ea57fd7f071ccae4df60c524e4",
       "method": "manual",
       "blocks": [
         {
@@ -183,7 +193,7 @@
         {
           "end": 28,
           "title": "文件复制、可写目录与运行用户",
-          "explanation": "COPY . .受.dockerignore控制；创建storage并chown，USER app之后进程无root权限。EXPOSE只声明端口，不自动向宿主发布，需要Compose或docker -p。"
+          "explanation": "COPY受.dockerignore控制；创建storage及独立runtime并chown app，非root运行。runtime给可选worker状态卷，不复用商品storage；Compose卷权限仍需实机验收，EXPOSE不自动发布端口。"
         },
         {
           "end": 42,
@@ -2707,7 +2717,7 @@
     },
     {
       "path": "docker-compose.yml",
-      "sha256": "ae5824d81626f832cff1ad667023607eb8697aa70652d219dd3705720056c3a0",
+      "sha256": "4198d2b2db190c1c3a0375d074b4ca3da1c9961e0d2adca29b81a62233b00052",
       "method": "manual",
       "blocks": [
         {
@@ -2721,9 +2731,14 @@
           "explanation": "应用依赖db健康，仍挂storage卷、默认回环发布端口。示例固定DB_HOST/PORT/NAME/USER并清空DATABASE_URL，避免.env外部DSN误连业务库；不是任意生产部署适配器。production须先建账本/bootstrap，容器真实运行未被配置文本检查替代。"
         },
         {
-          "end": 39,
+          "end": 67,
+          "title": "可选核验进程监督",
+          "explanation": "profile默认不启动，init转发信号、15秒停机宽限、非零最多重试5次。复用同镜像和示例db、清DATABASE_URL防误连，无HTTP端口/商品卷。SEND/AUTO强制false，VERIFY仍由显式配置；command与health用同本机私有状态路径。覆盖镜像Web探针仅freshness，无业务alerts；unhealthy自身不自动重启，不宣称Docker已实际验收。"
+        },
+        {
+          "end": 71,
           "title": "命名卷不是备份",
-          "explanation": "pgdata与uploads与容器生命周期分离，但docker compose down -v会删卷，主机丢失也会丢数据；还需异机备份/恢复演练。"
+          "explanation": "原pgdata/uploads外新增verifier-status仅本机状态；保留卷不等于备份，down -v会删数据库/商品，不能拿该命令恢复。状态也不是财务凭证，重启由starting覆盖旧状态。"
         }
       ]
     },
@@ -2959,7 +2974,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "0f41745e44c6833fceb0295d37487a2d5bbe001b7f7b4d83ee93c8ffc6116b6e",
+      "sha256": "84298f0a75b09c7ce7595aca4fa0a3475d562d8d48868187ad7dcdde47b93c18",
       "method": "manual",
       "blocks": [
         {
@@ -3010,7 +3025,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。 DOC_GROUPS新增第十一批报告；只是构建文档导航，不触发worker。 DOC_GROUPS增加第十二批报告，必须有实际tracked文件，不能用历史报告计作当前验收。 明确登记第十四批报告进入DOC_GROUPS；不自动加载任意Markdown。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。 DOC_GROUPS新增第十一批报告；只是构建文档导航，不触发worker。 DOC_GROUPS增加第十二批报告，必须有实际tracked文件，不能用历史报告计作当前验收。 明确登记第十四批报告进入DOC_GROUPS；不自动加载任意Markdown。 第十五批仅在后续DOC_GROUPS常量同一行登记运行手册与阶段报告，函数行为不变；全部tracked Markdown双向测试。"
         },
         {
           "end": 338,
@@ -10806,23 +10821,28 @@
     },
     {
       "path": "app/refund_worker.py",
-      "sha256": "aba70b0625b0142c727157c221ab4cee377b635d1f58677e9f93856d07987493",
+      "sha256": "f6dd3bcf022ed22b3626ae27c9fdf499c6d31a91ce8320bf823d2377a071fa09",
       "method": "manual",
       "blocks": [
         {
-          "end": 14,
-          "title": "模块依赖与边界",
-          "explanation": "独立CLI复用可信GET核验服务，无发送器、服务账号或Web临时任务。系统落本地凭证需要另一个默认关闭开关，不把GET-only误写成永远不能登记。"
+          "end": 24,
+          "title": "装配与边界",
+          "explanation": "独立CLI不随Web启动；导入配置/引擎错误在CLI也脱敏，作为模块导入时保留异常供调用者处理。完整schema仍0017，60秒是协作周期预算，不是远程召回/OS强杀。旧默认开关保持。"
         },
         {
-          "end": 29,
+          "end": 56,
           "title": "run",
-          "explanation": "CLI先拒绝关闭开关，再验证完整schema账本/所有迁移摘要，绝不自动DDL。循环每周期读取配置快照调用一次有界任务，再至少睡5秒；--once只一周期，不保证清空队列，外部监督负责进程重启。 每周期显式传AUTO_RECORD，VERIFY关闭仍拒绝；完整清单最低0016，配置只在进程导入时读取。"
+          "explanation": "可选Publisher先starting使旧健康失效；关闭VERIFY立即拒绝且不查DB。15秒内核全迁移账本，60秒内调用原run_once明确传VERIFY/AUTO再只读汇总；完整周期才running，--once为completed并退出，常驻至少睡5秒。取消写stopped再传播，不清持久租约/次数；其他异常failed传播到main非零。同步磁盘阻塞不受asyncio.timeout保证，旧文件最终过期不是瞬间探活。"
         },
         {
-          "end": 43,
+          "end": 73,
+          "title": "serve",
+          "explanation": "仅CLI层安装SIGTERM→当前任务cancel，finally移除handler；POSIX可协作取消，Windows/非主线程不支持时不伪造保证。run保持原数据库fencing，不重新入队、不生成退款号或凭证；asyncio.run的Ctrl+C同样保留未知。"
+        },
+        {
+          "end": 89,
           "title": "main",
-          "explanation": "argparse仅提供--once；asyncio.run驱动独立进程。配置/数据库拒绝只输出固定脱敏错误并退出1；Ctrl+C结束保留未完成租约，不假装已保存渠道结果。"
+          "explanation": "argparse兼容--once，新增私有--status-file。Publisher上下文取本机单写锁，第二写者失败不污染原文件；不用文件时nullcontext兼容旧调用。普通失败输出固定文案退出1，取消/Ctrl+C正常结束；没有自动开启业务权限/建表或调用发送器。"
         }
       ]
     },
@@ -11242,6 +11262,155 @@
           "end": 302,
           "title": "test_history_is_bounded_and_not_hidden_by_event_pagination",
           "explanation": "隔离ORM库构造长链仅供投影，明确非生产触发器验收；ledger before=1仍返回当前叶子、最近50与has_more，不无界吐全历史。"
+        }
+      ]
+    },
+    {
+      "path": "app/refund_health.py",
+      "sha256": "eb32bbe426c88820b3a2fcbdefe5abae6059fe2d1a727c956ba641e33794a484",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 22,
+          "title": "装配与边界",
+          "explanation": "顶层只有stdlib，checker不加载Settings/.env或建立DB/网络连接；DB相关依赖只在worker的queue_snapshot内导入。固定七类非负数字和120秒过期界线，不含订单、商户或token；路径须受信本机私有目录，不是共享集群健康。"
+        },
+        {
+          "end": 43,
+          "title": "queue_snapshot",
+          "explanation": "传入会话工厂，按DB时钟算到期pending/retry与过期running，条件count及最早到期单条聚合；排除verified，future retry仍计retry但不算due。返回七个整数，不读取客户正文、不commit/写事件/调商户；大队列仍需容量验收，worker总预算涵盖此查询。"
+        },
+        {
+          "end": 54,
+          "title": "alarms",
+          "explanation": "纯函数把attention、expired、retry、due≥50、最早到期等待≥300秒映射固定代码。主动hold也是needs_operator，正常退避也会query_retry，不能拿这些码自动重启或解除接管；未提供外部通知。"
+        },
+        {
+          "end": 109,
+          "title": "Publisher",
+          "explanation": "构造实例UUID/序号/日志状态。__enter__建私有父目录、打开0600 .lock（POSIX拒跟随末级符号链），用fcntl非阻塞整文件锁或Windows首字节锁；冲突关闭描述符并失败。__exit__关闭释放OS锁但不删inode，崩溃同样释放，受信目录前提不可省。publish写版本/PID/序号/墙钟/状态/聚合，临时0600文件flush/fsync后同目录replace，finally清临时；没有半JSON窗口但不保证断电目录持久性，也不是财务证据。固定状态/告警组合变化才stdout，持续同状态不刷屏；失败可能保留旧文件至过期。"
+        },
+        {
+          "end": 137,
+          "title": "check",
+          "explanation": "本机仅读最多4097字节，拒超4096；严格校版本、32hex实例、正整数PID/序号、有限数时间（拒bool/NaN/Inf）。未来>5秒或超max_age拒绝，只有running+精确七项非负整数队列才有效；可选alerts再调用固定映射。返回退出码/固定原因，不回显不可信文本/异常；异常/缺文件fail closed。没有PID探活，硬杀后的freshness最多滞后120秒。"
+        },
+        {
+          "end": 153,
+          "title": "main",
+          "explanation": "必填status-file，--alerts选择业务告警，max-age限1..3600。固定JSON报告check种类/ok/reasons，退出0健康、1异常/告警、2参数错；不自动启worker/重排队列或访问外部接收方。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_refund_health.py",
+      "sha256": "67132d41ebe0d016345e1858cd462441ea8ab76b8860c5145c764eed45e99711",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 28,
+          "title": "装配与边界",
+          "explanation": "隔离文件、真实会话和POSIX子进程演练，复用合成通知与非超级用户maintenance夹具；没有真实商户、Docker、Windows服务或生产恢复证明。EMPTY只表示七项0聚合，不能当虚构成功退款。"
+        },
+        {
+          "end": 50,
+          "title": "test_atomic_private_status_lock_and_transition_logs",
+          "explanation": "starting不健康，running有效且每轮序号递增；第二Publisher同路径须抛OSError；POSIX权限0600，退出新进程可取锁/新UUID，持续running不刷日志，仅两个最终文件。去锁变异由明确pytest.fail检出。"
+        },
+        {
+          "end": 66,
+          "title": "test_status_fails_closed_on_malformed_or_non_running",
+          "explanation": "13种坏版本/布尔/零序号/实例/NaN/Inf/负值/额外秘密键/非running输入均非零且固定原因不回显秘密。不是仅验证理想JSON。"
+        },
+        {
+          "end": 74,
+          "title": "test_missing_partial_oversized_status_is_not_healthy",
+          "explanation": "缺失、空/残缺JSON、错误UTF8、非对象、超过4096及深嵌套均固定status_unavailable；不容忍解析异常变健康。"
+        },
+        {
+          "end": 87,
+          "title": "test_stale_future_alarm_and_clear_are_distinct",
+          "explanation": "固定已写墙钟验证120秒边界、121秒过期、未来6秒拒绝；默认freshness不因业务attention失败，alerts含全部五码；49项/299秒低于阈值，告警清除恢复0。去过期判断会断言失败。"
+        },
+        {
+          "end": 101,
+          "title": "test_failed_atomic_replace_retains_old_snapshot_and_cleans_temporary",
+          "explanation": "注入os.replace失败，必须保留原字节，清临时但留锁inode；旧健康仅依赖自然过期，不能声称故障时已更新failed。"
+        },
+        {
+          "end": 115,
+          "title": "test_check_cli_ignores_configuration_and_never_connects",
+          "explanation": "真实CLI在坏端口/DSN/VERIFY环境仍检查本地文件；freshness0、attention alerts1，非法max-age参数2，固定输出不漏坏配置。去attention映射会红。"
+        },
+        {
+          "end": 139,
+          "title": "test_queue_snapshot_uses_due_clock_and_never_changes_evidence",
+          "explanation": "真实ASGI通知建任务、设过去到期，用DB时钟聚合；领取后running不再due，过期标expired，旧结果不能finish。独立查询事件只多原claim一条，无健康审计或退款凭证。"
+        },
+        {
+          "end": 163,
+          "title": "fake_worker",
+          "explanation": "仅单元编排替身：假schema会话/校验、真实Publisher，cycle核权限参数仍VERIFY true/AUTO false；不把该夹具当真实账本验证，后文另有maintenance用例。"
+        },
+        {
+          "end": 171,
+          "title": "test_once_is_not_daemon_health",
+          "explanation": "一轮完成文件状态completed，checker必须非零；已退出不是在线服务。"
+        },
+        {
+          "end": 195,
+          "title": "test_failed_cycle_cannot_refresh_healthy_status",
+          "explanation": "参数化cycle/summary/schema/timeout/disabled，预写旧running再run；所有故障最终failed且checker1，不存私密异常。短周期预算只在测试monkeypatch。"
+        },
+        {
+          "end": 212,
+          "title": "test_cancel_writes_stopped_and_does_not_invent_completion",
+          "explanation": "Event确认进入阻塞cycle才取消，取消传播且文件stopped，不把未完成写为completed/running；这是协程层测试，与后面真进程分开。"
+        },
+        {
+          "end": 245,
+          "title": "test_main_redacts_unexpected_error_and_lock_conflict",
+          "explanation": "子进程入口遇私密RuntimeError只退出1无Traceback/DSN；父进程持Publisher锁时第二CLI失败且原状态字节不变。随后PROCESS_SCRIPT是仅测试出站边界替身，真实claim/finish但不提供签名凭证。"
+        },
+        {
+          "end": 253,
+          "title": "child",
+          "explanation": "异步启动独立Python，以父测试专用TEST_DATABASE_URL连接，显式VERIFY开、AUTO/SEND关；脚本替换网络边界且跳过ORM夹具不具备的生产账本校验，仅供领取/进程恢复；完整账本另验。"
+        },
+        {
+          "end": 261,
+          "title": "wait_claim",
+          "explanation": "10秒内读子进程stdout直到CLAIMED，即实际claim已提交才发信号；提前退出或未准备不算演练通过。"
+        },
+        {
+          "end": 302,
+          "title": "test_real_process_exit_and_restart_preserve_lease_and_fence_old_result",
+          "explanation": "POSIX参数化SIGTERM/SIGKILL，独立子进程提交claim后真实退出；finally清残留。父独立会话核running/次数1、未到期不能偷领；测试专用前移租约后第二进程拿新token次数2，旧Ticket不能覆盖，金融凭证仍空。不是Docker/签名GET验收，不推广业务改表。"
+        },
+        {
+          "end": 328,
+          "title": "test_real_migration_startup_once_disabled_and_db_outage",
+          "explanation": "maintenance独立低权限PG完整init后真实CLI一次空轮completed且不在线；关闭开关、断连、0017校验和漂移均非零/failed，DSN密码不输出。没有对原应用库操作或放宽账本。"
+        },
+        {
+          "end": 340,
+          "title": "test_supervision_template_is_opt_in_and_overrides_web_probe",
+          "explanation": "文本回归钉profile/有限失败重启、worker本机health代Web、无端口、SEND/AUTO关闭且不强开VERIFY；业务--alerts不得进重启探针，runtime须双忽略。仅文本断言不是Docker实际运行。"
+        },
+        {
+          "end": 350,
+          "title": "test_import_time_configuration_failure_is_redacted",
+          "explanation": "坏DSN/端口在模块导入阶段即失败，真实CLI必须固定startup文案、1且无输入秘密/Traceback，不能只脱敏主循环错误。"
+        },
+        {
+          "end": 362,
+          "title": "test_future_retry_hold_and_verified_are_not_due",
+          "explanation": "pending/retry/attention/verified四状态设未来时间，真实聚合不误报due/overdue；retry/attention仍亮相应业务码，verified不占活动数。"
+        },
+        {
+          "end": 407,
+          "title": "test_real_idle_daemon_freshness_exit_and_lock_recovery",
+          "explanation": "低权限PG完整DDL/账本，实际未替换的空队列daemon完成周期后健康0；SIGTERM即stopped，SIGKILL旧running尚新仍可能0但121秒检查1。新进程--once取回OS锁/newUUID且completed不在线；cleanup不留后台进程，无外部HTTP。"
         }
       ]
     }
