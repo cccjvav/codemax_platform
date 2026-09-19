@@ -27,3 +27,5 @@
 第十五批监督/告警/恢复的阶段证据见[统一报告](../review/RELEASE_BLOCKERS_PHASE15.md)，运维配方见[运行手册](../docs/REFUND_OPERATIONS.md)。
 
 第十六批[显式渠道关单](../review/RELEASE_BLOCKERS_PHASE16.md)：本地closed、渠道观察、收款及日账对账分开验收。
+
+第十七批[只读日账与差异报告](../review/RELEASE_BLOCKERS_PHASE17.md)：默认关闭CLI、退款仅观察；正式结算/真实商户与Windows权限验收另列。

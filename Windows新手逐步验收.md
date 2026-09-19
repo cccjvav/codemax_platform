@@ -881,4 +881,29 @@ npm run build
 python -m pytest -q tests/test_payments_frontend.py
 ```
 
-保持业务WX_ORDER_CLOSE_ENABLED=false，不能为通过测试而开真实关单。专用商户环境另经授权才验证：原单本站closed→独立查单最新NOTPAY→手输单号/金额/依据→单独确认关单→另行查原单；未知按原key恢复，不能换号，迟到SUCCESS仍须入账。Windows浏览器另验取消/未知/账号切换，不拿Linux/Node结果代签；渠道日账/批量对账仍未实现。
+保持业务WX_ORDER_CLOSE_ENABLED=false，不能为通过测试而开真实关单。专用商户环境另经授权才验证：原单本站closed→独立查单最新NOTPAY→手输单号/金额/依据→单独确认关单→另行查原单；未知按原key恢复，不能换号，迟到SUCCESS仍须入账。Windows浏览器另验取消/未知/账号切换，不拿Linux/Node结果代签；只读日账差异CLI见下一节，不是网页批量财务处理。
+
+## 第十七批：先验只读日账工具，不连接真实商户
+
+仍用VS Code集成**CMD＋原Conda环境＋系统Node**，在项目根目录操作。pytest只接前文专用可丢弃库；不要把业务DATABASE_URL复制给TEST_DATABASE_URL。
+
+1. 先运行合成测试与帮助：
+
+```cmd
+python -m pytest -q tests/test_wechat_bills.py
+python -m app.bill_reconcile --help
+```
+
+HTTP请求是本地签名替身，不需要真实商户key。PG一致性项在SQLite轮次跳过，pgserver在本机不可用时完整PG链路也可能跳过；另在专用PG环境补跑，不能把skip当通过。Windows符号链接权限、NTFS硬链接和私有ACL仍需本机验收。
+
+2. 在当前CMD明确关闭开关，测试应拒绝，使用无业务意义的占位值：
+
+```cmd
+set WX_BILL_READ_ENABLED=false
+python -m app.bill_reconcile --bill-date 2000-01-01 --confirm-target example.invalid:5432/not_a_database --confirm-merchant NOT_A_MERCHANT
+echo %ERRORLEVEL%
+```
+
+预期提示账单读取默认关闭，退出1；不会连接占位地址，不会下载账单。若只得到通用配置错误，先修依赖/配置，再用专项测试验证，不能仅凭非零判定门禁通过。无需为测试开真实BILL/退款/关单开关。
+
+3. 真实读取必须另经业务授权，再遵照[日账指南](docs/WECHAT_BILLS_GUIDE.md)确认日期、实际数据库目标和商户；这里没有替你执行。报告在私有runtime/wechat-bills，保留旧报告，不放storage/static、不上传Git或聊天。退款快照不能当到账证明；退出0不是财务结案，退出2且输出报告路径才表示报告需要人工处理。

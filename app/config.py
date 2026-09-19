@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     SITE_BASE_URL: str = "https://codemax.top"
 
     # 微信支付 APIv3（S3-01）：下单六项及平台回调凭据均须校验，不合格下单接口直接 503
+    WX_BILL_READ_ENABLED: bool = False  # Explicit read-only operator daily bill report; no settlement.
     WX_ORDER_CLOSE_ENABLED: bool = False  # Explicit admin Native close only; never a scheduler or refund.
     WX_REFUND_AUTO_RECORD_ENABLED: bool = False  # Separate system receipt authority, never outgoing money.
     WX_REFUND_VERIFY_ENABLED: bool = False  # Worker GET opt-in; automatic receipt authority has a separate default-off gate.

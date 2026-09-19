@@ -42,6 +42,10 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 表内省略 `.py`；自动清单列出全部真实文件。测试不能只断言 HTTP 200：还要核验返回字段、库内状态、未发生的副作用以及重复/失败路径。
 
+## 第十七批：日账与只读快照
+
+`test_wechat_bills.py`覆盖合成已验签元数据→无签名文件哈希→严格现代ALL解析→付款双向比对→私有报告链路。独立Decimal造汇总、签名验证实际GET字节、合法内容篡改、固定URL/token脱敏、压缩/截断/预算/重复拒绝、券额/发起退款/UTC+8跨日、源/合同/流水冲突和不写财务均有反例。真实可丢弃完整PG以非超级用户执行CLI，PG轮次再验证独立连接并发下只读重复读；SQLite对应skip不是替代证明。私有文件0600/独占发布、故障清临时文件、默认关闭/实际目标覆盖和CLI错误脱敏都有执行测试，不连接真实商户。Windows符号链接权限不足可明确skip，其ACL/NTFS及商户原始账单仍需另行签收。
+
 <!-- doc-contract:files:start -->
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
@@ -115,6 +119,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
+| [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `efb4d957c00b` | L1–L454 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
 | [`tests/test_word_export.py`](test_word_export.py) | `768f2e4799cf` | L1–L95 |

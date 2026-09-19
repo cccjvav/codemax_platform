@@ -37,7 +37,7 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `a709af0e6fa2` | L1–L11542 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `5fcb98a40fc9` | L1–L11828 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -70,3 +70,5 @@ TECH_DECISIONS、ROADMAP 与原始审查报告按日期理解，不能用其旧�
 第十五批[核验运行手册](REFUND_OPERATIONS.md)：私有heartbeat/告警检查、Compose模板、信号恢复与未签收边界。
 
 第十六批显式渠道关单与单笔核查边界见[管理手册](PAYMENTS_ADMIN_GUIDE.md)，仍无渠道日账/批量对账。
+
+[只读微信日账与差异报告](WECHAT_BILLS_GUIDE.md)：显式运维权限、可信下载、金额/时区口径、私有输出及异常交接；不是网页批量记账。

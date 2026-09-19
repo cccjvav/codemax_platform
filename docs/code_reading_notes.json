@@ -37,7 +37,7 @@
     },
     {
       "path": ".env.example",
-      "sha256": "3792181f0f2ced3f1d72fb44678065d36aff58296811d0a0181e8279bba635fb",
+      "sha256": "109b3ed4da5edc51796cc053aaad53c5802a872ee28190bcfa5a73215e0dff75",
       "method": "manual",
       "blocks": [
         {
@@ -71,9 +71,9 @@
           "explanation": "工具/模型/认证/留言不同scope上限，共用窗口；限流为进程内。只在真实代理对端CIDR可信时采用转发头，不能仅打开开关就信任任意XFF。"
         },
         {
-          "end": 126,
+          "end": 128,
           "title": "生产开关、凭据与剩余预算",
-          "explanation": "ENV只能development/production；production额外做配置与DB安全检查。OAUTH_TRUSTED_CLIENT_IDS默认空JSON数组，必须确认自有客户端会获得完整站点JWT后才允许。保留原secret/CPU/图表配额示例，不等于已验收部署。 第九批末尾明确默认关闭真实退款发送；不得为测试随意开启业务环境，历史准备/授权永不自动消费。 VERIFY与AUTO_RECORD独立默认false，AUTO只登记成功事实不发资金，启用须0016并单独重启worker；旧终态不自动复活。 末尾新增WX_ORDER_CLOSE_ENABLED=false，只有专用验收授权后考虑开启，不因填好商户key自动关单。"
+          "explanation": "ENV只能development/production；production额外做配置与DB安全检查。OAUTH_TRUSTED_CLIENT_IDS默认空JSON数组，必须确认自有客户端会获得完整站点JWT后才允许。保留原secret/CPU/图表配额示例，不等于已验收部署。 第九批末尾明确默认关闭真实退款发送；不得为测试随意开启业务环境，历史准备/授权永不自动消费。 VERIFY与AUTO_RECORD独立默认false，AUTO只登记成功事实不发资金，启用须0016并单独重启worker；旧终态不自动复活。 末尾新增WX_ORDER_CLOSE_ENABLED=false，只有专用验收授权后考虑开启，不因填好商户key自动关单。 WX_BILL_READ_ENABLED=false保持日账工具关闭；私有运维确认日期/实际库/商户后才可读取，参数和报告目录见WECHAT_BILLS_GUIDE，不与关单/退款开关混用。"
         }
       ]
     },
@@ -204,7 +204,7 @@
     },
     {
       "path": "app/config.py",
-      "sha256": "7fcdc969a566a56c01a7b1ad47a12c2fa71e91252edf9f72112ed4a3158a7b87",
+      "sha256": "7a5d9215b9626b7c37f6656e8331b3d2a659385f18e360546c47eccaf6774994",
       "blocks": [
         {
           "end": 22,
@@ -217,37 +217,37 @@
           "explanation": "Settings 集中保存 Agnes 聊天基址和模型，私有 .env/进程变量仍可显式覆盖。新增布尔 LLM_EMBED_ENABLED 默认 false、向量模型为空，避免填写聊天 key 就调用未知向量接口；阈值仍限制在 0 到 1，启用增强前须实测标定。后续 SITE_BASE_URL 用于站点链接而不是模型 API 基址，两者不能混用。"
         },
         {
-          "end": 50,
+          "end": 51,
           "title": "微信下单与回调材料",
-          "explanation": "appid/mchid、商户私钥/serial签出站，平台证书或公钥ID验证入站，APIv3密钥解密通知。SEND/VERIFY/AUTO_RECORD三个布尔默认false；SEND仍逐次人工确认，VERIFY仅独立worker查询，AUTO仅可信完成查询落系统凭证，不能单独越过VERIFY或授予发送权。配置加载不等于联网或启动worker。 新WX_ORDER_CLOSE_ENABLED默认false，与退款SEND/VERIFY/AUTO独立，仅显式管理员Native关单使用，不自动过期关渠道。"
+          "explanation": "appid/mchid、商户私钥/serial签出站，平台证书或公钥ID验证入站，APIv3密钥解密通知。SEND/VERIFY/AUTO_RECORD三个布尔默认false；SEND仍逐次人工确认，VERIFY仅独立worker查询，AUTO仅可信完成查询落系统凭证，不能单独越过VERIFY或授予发送权。配置加载不等于联网或启动worker。 新WX_ORDER_CLOSE_ENABLED默认false，与退款SEND/VERIFY/AUTO独立，仅显式管理员Native关单使用，不自动过期关渠道。 第十七批WX_BILL_READ_ENABLED也是默认false，仅显式运维CLI读取日账，不增加Web/财务权限，不自动开worker或真实下载。"
         },
         {
-          "end": 72,
+          "end": 73,
           "title": "商品与支付模式",
           "explanation": "商品金额以分存储且必须正数；订单有效分钟数同样为正。wechat/manual/mock 决定后端支付路径；manual 收款码只是一张图片，管理员仍要核账；mock 不收真钱且生产禁止。这里只有一个可配置固定商品，不是完整多 SKU 目录。 SHOP_PAY_MODE改为Literal(wechat/mock/manual)，配置加载即拒绝拼错模式；不代表真实收款发布条件已经满足。"
         },
         {
-          "end": 84,
+          "end": 85,
           "title": "存储与图配额",
           "explanation": "storage backend 名称不是已实现云适配器；当前只用 local。商品 key 相对本地根目录，下载 TTL 是链接时间。图预算区分活跃数、含回收站总数和 UTF-8 字节；活跃额度可以为 0，其他总预算必须为正。"
         },
         {
-          "end": 97,
+          "end": 98,
           "title": "限流与可信代理",
           "explanation": "各类请求分别设频率，窗口为正。TRUST_PROXY_HEADERS 默认 false；开启后仍要核对直接对端是否在 CIDR 中。字段集中在此不意味着限流状态跨进程共享，真正的 Limiter 当前放在进程内存。"
         },
         {
-          "end": 112,
+          "end": 113,
           "title": "环境枚举、日志与加载方式",
           "explanation": "production枚举防拼写失效。OAUTH_TRUSTED_CLIENT_IDS是默认空tuple，dotenv写JSON数组，仅限制生产受信第一方SSO。日志/HSTS配置保留；model_config使用__file__固定根.env，未知字段继续忽略。"
         },
         {
-          "end": 139,
+          "end": 140,
           "title": "sqlalchemy_url：两条不同来源",
           "explanation": "property 在读取属性时返回字符串。有 DATABASE_URL 就原样返回，不二次编码；否则对用户名/密码 quote(safe=空串)，再拼 host/port/DB_NAME。DB_NAME 当前原样进入路径，没有代码对它编码，所以 README 不能说所有连接字段都被转义。不要输出真实完整 URL 到日志。"
         },
         {
-          "end": 142,
+          "end": 143,
           "title": "模块级 settings 的生命周期",
           "explanation": "Settings在导入时创建，读取固定根.env与环境变量。编辑文件不热加载，Web和独立worker各自重启；维护CLI也复用Settings，不再单独猜DB字段。"
         }
@@ -2969,7 +2969,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "7f578d19b19345f94a487d4736a457ca2ceac0e1a86a29a1a8e7e13e17efec62",
+      "sha256": "7bdc90729fce4cb989c36c46bb2489beae6fa63da7ca4d39373bce8606e4f6e7",
       "method": "manual",
       "blocks": [
         {
@@ -3020,7 +3020,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。 DOC_GROUPS新增第十一批报告；只是构建文档导航，不触发worker。 DOC_GROUPS增加第十二批报告，必须有实际tracked文件，不能用历史报告计作当前验收。 明确登记第十四批报告进入DOC_GROUPS；不自动加载任意Markdown。 第十五批仅在后续DOC_GROUPS常量同一行登记运行手册与阶段报告，函数行为不变；全部tracked Markdown双向测试。 DOC_GROUPS登记第十六批报告，所有tracked文档双向核对，未增公开API文档保留权限。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；DOC_GROUPS明确登记第八批本地准备报告与历次证据，不自动收录任意Markdown。 第九批报告显式登记DOC_GROUPS，不自动收任意Markdown。 第十批报告显式登记DOC_GROUPS。 DOC_GROUPS新增第十一批报告；只是构建文档导航，不触发worker。 DOC_GROUPS增加第十二批报告，必须有实际tracked文件，不能用历史报告计作当前验收。 明确登记第十四批报告进入DOC_GROUPS；不自动加载任意Markdown。 第十五批仅在后续DOC_GROUPS常量同一行登记运行手册与阶段报告，函数行为不变；全部tracked Markdown双向测试。 DOC_GROUPS登记第十六批报告，所有tracked文档双向核对，未增公开API文档保留权限。 DOC_GROUPS新增第十七批报告及WECHAT_BILLS_GUIDE，让CLI范围/Windows与私有文件边界可从同一离线站检索；不注册实际业务账单或runtime文件。"
         },
         {
           "end": 338,
@@ -11535,6 +11535,292 @@
           "end": 249,
           "title": "test_origin_and_rate_limit_before_close",
           "explanation": "实际Cookie登录后跨Origin403；临时启用实际Limiter并设整数阈值1，同原key第二次也429。只一次渠道调用，不能用未登录401冒充来源测试。"
+        }
+      ]
+    },
+    {
+      "path": "app/wechat_bills.py",
+      "sha256": "fdb132bebf41ad30180390b39fa64e05314292878960447eb23881d021d34354",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 32,
+          "title": "模块装配、输入来源与边界",
+          "explanation": "只处理普通直连商户现代ALL格式，标准库负责哈希/定点/时间/URL，HTTPX负责有界网络；PayConfig只在类型检查时导入，纯解析和CLI帮助不触发Settings。UTC+8、4MiB、5000行、45秒和两个官方路径是明确的保守边界，不是运行者时区或任意下载源。27列/7项汇总及6个金额索引逐项来自官方字段说明，后续变更必须连同反例和文档评审。"
+        },
+        {
+          "end": 36,
+          "title": "BillError",
+          "explanation": "安全固定诊断类型；调用点不能把单元格、商户原始错误、URL或密钥拼入message。CLI可显示此类型消息，未知第三方异常只显示通用提示。它不代表渠道没有交易，也不触发财务写入。"
+        },
+        {
+          "end": 49,
+          "title": "_HideBillURL",
+          "explanation": "HTTPX的INFO日志通常带完整请求URL。filter检查两个下载路径，只把命中的日志msg/args替换成固定文案，不临时改整个服务的日志级别、不影响其他请求。过滤器永久装到httpx logger；CLI另屏蔽第三方诊断。合成请求在INFO级别实测token不出现；不是所有库/代理日志的全局脱敏保证。"
+        },
+        {
+          "end": 66,
+          "title": "BillRow",
+          "explanation": "frozen数据类只保存行号、带时区时间、app/订单/交易类型/状态/CNY与原合同金额、退款参考/申请额/快照状态。不保存openid、商品、设备、附加文本。退款at是发起时刻，total在退款行是0，不能把refund_state当现在的渠道成功凭证。"
+        },
+        {
+          "end": 75,
+          "title": "Bill",
+          "explanation": "文件级只读值保存指定日、目标商户、原始字节SHA256、解析行与汇总整数分。纯解析器也能构造此对象，因此对象本身不等于平台签名证明；CLI必须只从fetch_bill认证链取得它，报告只作快照线索。"
+        },
+        {
+          "end": 89,
+          "title": "bill_day",
+          "explanation": "要求ASCII YYYY-MM-DD及真实日历日期，把当前UTC时刻转UTC+8后只收过去1至90日。禁止今天/未来、过老或注入样式日期；实现比官方近3个月更保守，固定提示不回显输入。now仅给测试可控边界，不使用丹麦机器日期。"
+        },
+        {
+          "end": 109,
+          "title": "download_path",
+          "explanation": "在签名之前校验值类型/长度/ASCII/反斜线，urlsplit后精确HTTPS主站且无显式端口、userinfo、片段，路径只认两个官方示例。query严格一个非空token，检查原始字符及百分号编码、拒decoded控制字符；不接tar_type或重复参数。返回HTTPX最终raw_path，签名与真实发送的百分号字节一致，所有失败隐藏原URL。"
+        },
+        {
+          "end": 149,
+          "title": "fetch_bill",
+          "explanation": "局部导入现有支付协议，先校验明确日期，再在45秒总预算内用已有_request_json申请ALL，必须经过平台身份/时间/RSA验证。检查SHA1类型/40位摘要，先白名单URL后签空GET，不重定向、不用环境代理下载、不接受压缩。预检Content-Length并逐块限制4MiB，结束再核声明长度；下载端点按官方不带微信签名，hmac比较签名元数据中的SHA1是必需门禁。最后才parse_bill；HTTP/总期限/签名/编码错误转固定BillError，未生成可信报告不能称零交易。"
+        },
+        {
+          "end": 157,
+          "title": "_money",
+          "explanation": "正则限定普通十进制两位小数和整数位预算，只有fee允许负号。拆整数/小数后乘100并取符号，不经float或宽松Decimal舍入。用于逐行和尾部汇总；金额格式错误整份拒绝，不能把科学计数/多小数截成合法分值。"
+        },
+        {
+          "end": 165,
+          "title": "_cells",
+          "explanation": "严格按英文逗号拆列，每一值必须以一个格式反引号开始且不超4096字符，然后只剥掉格式前缀。商户文本的逗号在渠道侧已转义，不使用Excel宽松引号规则吞并坏列；正文不被反解输出。"
+        },
+        {
+          "end": 232,
+          "title": "parse_bill",
+          "explanation": "纯函数无网络/数据库，先总字节与UTF8/BOM/CRLF检查，拒未转义控制字符；表头、尾部、行数必须完整准确。逐行按UTC+8精确时间绑定指定日、当前商户/普通子商户0，校验身份/状态/币种和整数金额。分别累计6项汇总；SUCCESS必须正原价、退款额0、两个退款号为0且状态/类型空；退款/撤销原价与应结为0、申请额正且有合法号/冻结状态。付款号和退款号用独立命名空间去重，允许原付款+不同部分退款。末尾验证笔数及每项总额才返回Bill；本地匹配用订单金额索引24而非应结索引12，任何格式/完整性错都不返回部分列表。"
+        }
+      ]
+    },
+    {
+      "path": "app/bill_reconcile.py",
+      "sha256": "9750db145474aee3fe6b2520cc488482d68dfe26058033fb111848e58b20138a",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 25,
+          "title": "模块装配、输入来源与边界",
+          "explanation": "这是python -m显式运维命令，不装配Web路由或网站管理员会话。顶层只装标准库与不加载Settings的BillError，因此--help不需要有效数据库配置。ROOT固定仓库根，UUID用于报告名而非资金幂等key；本模块没有settle/退款/队列写入入口。"
+        },
+        {
+          "end": 32,
+          "title": "_SafeParser",
+          "explanation": "继承ArgumentParser只替换error：忽略原错误message，固定退出2和帮助提示，不回显未知参数。即使运行者误贴了带密码DSN/密钥也不能被argparse默认unrecognized arguments输出到日志；--help仍走正常格式和0退出，参数失败在Settings导入/所有外部I/O之前。"
+        },
+        {
+          "end": 99,
+          "title": "snapshot",
+          "explanation": "从账单日UTC+8零点转UTC查询半开区间，分别按原合同与凭证的wechat/商户/app身份选当天或未知paid_at；不使用received_at。当前app Native CNY付款另按订单号和全局微信交易号分400条查，可发现跨日/跨单冲突。PG连接先REPEATABLE READ、READ ONLY和10秒语句预算，SQLite显式BEGIN只供测试；总快照20秒，完整CLI还在同快照核对迁移账本。day与引用集合合并后超过5000整次失败，不能分页截断装作匹配。内部fact仅投影必要字段并统一无时区UTC读回，排除用户/交付/依据；上下文关闭回滚，无commit、行写锁或外部HTTP。"
+        },
+        {
+          "end": 163,
+          "title": "compare",
+          "explanation": "纯比较先限定app/Native/CNY，其余行只计排除并要求核查；退款始终输出发起观察，不查询或构造完成凭证。付款按交易号归属、订单存在、原合同、凭证合同、订单状态及精确时间逐层分类，任一差异不修改原数据。再遍历本地日集合找未出现在付款行的凭证/旧已付单，未知时间独立分类，避免只有单向匹配。返回counts/items/范围/源SHA和受限本地快照，needs_review含任何差异/退款/排除；financial_writes/accounting_closed固定false。随机新run_id保证重跑不覆盖旧报告，快照摘要只作定位。"
+        },
+        {
+          "end": 175,
+          "title": "report_directory",
+          "explanation": "固定ROOT/runtime/wechat-bills，先拒runtime或子目录符号链接，再resolve并禁止落入当前商品storage、static或文档站。STORAGE_LOCAL_ROOT可以是绝对路径，ROOT拼接仍按Path语义解析；不开放任意输出URL或下载接口。受信目录所有权/ACL仍是运维前提，不能防恶意同权限账户改代码或在检查后换目录。"
+        },
+        {
+          "end": 195,
+          "title": "publish",
+          "explanation": "只接内部生成报告和受信目录，mkdir保护新目录，mkstemp默认0600；完整JSON写完flush/fsync后os.link独占发布，已有目标EEXIST而非replace覆盖。finally只删本次临时文件，故障不留下部分JSON目标。原子可见不等于WORM、目录持久备份或Windows ACL；本地硬链接不可用时明确失败，不降级成非原子覆盖。"
+        },
+        {
+          "end": 213,
+          "title": "connection_target",
+          "explanation": "从SQLAlchemy URL确定有效单主机/socket、端口和数据库，包含允许的host/port覆盖；要求postgresql+asyncpg，限制查询键、端口范围、单主机与非控制字符。拒绝database等隐性覆盖和多主机，避免只确认DB_NAME却连接别处。只返回无密码target给内部比较，异常固定提示不打印原始URL。"
+        },
+        {
+          "end": 225,
+          "title": "ledger_ready",
+          "explanation": "预检只SELECT版本/校验和，verify_ledger对照仓库完整迁移清单；10秒内完成并关闭会话后才允许网络。不会init/migrate/bootstrap，业务库未升级则失败而不是下载后猜表结构。最终快照还复核一次，防部署切换后用旧模式生成报告。"
+        },
+        {
+          "end": 257,
+          "title": "run",
+          "explanation": "局部读中央Settings/支付配置，默认关闭先拒绝，原平台凭据、有效PG目标/商户和明确日必须通过；随后才导入会话并预检。80秒协作预算内按迁移→可信下载→无网络只读快照→纯比较→线程私有发布顺序执行，finally释放此CLI进程engine。文件系统线程不是可强杀任务，超时/中断应核对私有目录；不自动重试或使用网站用户身份。"
+        },
+        {
+          "end": 287,
+          "title": "main",
+          "explanation": "argparse要求三个显式参数，帮助先于Settings；专用CLI屏蔽第三方日志以免SQL/传输诊断泄露。仅BillError固定消息可直显，未知异常统一提示且返回1，键盘中断130；成功只打印随机文件名，0为限定范围无差异、2为有报告需核查。argparse用法错误也退出2但没有报告路径，文档要求区分。模块启动才SystemExit(main)，导入不出网或运行。 参数解析使用_SafeParser，坏用法不会回显未知值，命令执行的配置/业务错误仍分别处理。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_wechat_bills.py",
+      "sha256": "2209bd1c14bd5d152dac2422c2322dbe5ed3a62cd8c8e7ec1bde5fc546725b86",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 32,
+          "title": "模块装配、输入来源与边界",
+          "explanation": "用现有合成RSA商户/平台配置与HTTPX替身，不读真实key；DAY按UTC+8昨天，AT存成UTC供双数据库。URL中PRIVATE是泄露哨兵，不是真token。fixture只用TestSession可丢弃库，Decimal独立汇总而不复用生产金额转换；不同层的测试不能合称真实商户/Windows验收。"
+        },
+        {
+          "end": 42,
+          "title": "row",
+          "explanation": "构造固定现代ALL付款行：原价10、应结8、券2、手续费0.04，退款ID按官方填0。用字段名替换坏输入，私有openid/商品/attach哨兵用于断言不会进入报告；不是渠道真实样本或商品销售记录。"
+        },
+        {
+          "end": 48,
+          "title": "refund",
+          "explanation": "在付款夹具上明确改成退款发起快照，原价/应结/券归零，申请5元、应结退款4元和负手续费。默认PROCESSING且可替换冻结状态，刻意不是本地支持的全额完成凭证。"
+        },
+        {
+          "end": 56,
+          "title": "raw_bill",
+          "explanation": "构造逗号/反引号与CRLF格式，独立Decimal加总相应字段后生成尾部，不调用_money。每个行/尾值保留反引号，允许零行完整样本；这样摘要/解析/汇总断言不会全靠生产函数自证。"
+        },
+        {
+          "end": 60,
+          "title": "parse",
+          "explanation": "固定指定日和合成商户的纯解析包装，不冒称已验签。真实可信入口仍由fetch链路测试覆盖，不能把任意上传文件当渠道证据。"
+        },
+        {
+          "end": 64,
+          "title": "metadata",
+          "explanation": "对指定原始字节计算官方SHA1并加固定安全下载URL，可覆盖元数据字段制造错格式/路径。签名在调用方用独立平台合成密钥产生，哈希值自身不是来源认证。"
+        },
+        {
+          "end": 73,
+          "title": "fetch",
+          "explanation": "MockTransport按第一次申请返回签名元数据、第二次返回无签名文件；可注入坏响应，最后执行真正fetch_bill。无任何真实联网，传输/解析异常仍来自实际代码。"
+        },
+        {
+          "end": 96,
+          "title": "test_signed_metadata_unsigned_file_exact_get_bytes_and_token_redaction",
+          "explanation": "两个官方路径分别运行，验证GET空body、identity编码、实际raw_path/查询串RSA签名和恰好两次请求；无签名文件应该能靠可信哈希通过。优惠券原价1000/应结800及退款申请500/应结400分别断言，SHA256绑定原字节，INFO日志不能带PRIVATEtoken。"
+        },
+        {
+          "end": 127,
+          "title": "test_bad_metadata_never_downloads",
+          "explanation": "参数化未签/过期/错误平台/篡改/重复头/无账单错误/坏哈希和URL；必须仅发一次申请且抛固定BillError。没有因HTTP错误合成空Bill，也不能在认证失败后继续签下载。"
+        },
+        {
+          "end": 138,
+          "title": "test_download_url_pin_rejects_before_signing",
+          "explanation": "覆盖非HTTPS、IP/伪后缀/userinfo/显式端口、财务路径、片段、重复token/压缩参数、decoded控制字符、坏百分号/空白/路径跳转/长度。纯白名单函数须抛BillError，不能签任意商户GET或SSRF地址。"
+        },
+        {
+          "end": 168,
+          "title": "test_download_failures_never_become_empty_reports",
+          "explanation": "合法账单改订单号但保留旧哈希，必须由完整性门禁拒绝而非格式偶然失败；另测重定向/404/压缩、长度负值/过大/不符、无Content-Length逐块超限和超时。最多两次请求，错误不含PRIVATE，失败不返回空账。"
+        },
+        {
+          "end": 177,
+          "title": "test_overall_deadline",
+          "explanation": "缩短总预算并让申请替身睡过截止，应该被取消并转换BillError；若继续到pytest.fail说明预算无效。此例针对总期限而非HTTPX单次read timeout。"
+        },
+        {
+          "end": 211,
+          "title": "test_strict_parser_rejects_bad_or_ambiguous_whole_file",
+          "explanation": "现代头/历史别名、尾部/多行/截断、笔数/合计、反引号/列数、重复付款/退款、NUL/UTF8、科学计数/负价、错日/商户/子商户和退款状态金额/付款退款号逐个构造。要求整个解析失败且不回显私有单元格，不删坏行返回部分成功。"
+        },
+        {
+          "end": 221,
+          "title": "test_bom_empty_totals_and_parser_budgets",
+          "explanation": "允许合法BOM和有完整零汇总的零行文件，不能等同API无账单错误。降低行/字节预算验证超额整次失败，不靠巨大真实数据压测或调高生产限制。"
+        },
+        {
+          "end": 229,
+          "title": "test_beijing_day_not_machine_or_operator_day",
+          "explanation": "固定UTC16点正好跨北京日，昨天选择应独立于本地时区；今天/未来/过老/不补零/查询注入/全角数字均拒绝。没有使用丹麦机器日历悄悄筛掉凌晨付款。"
+        },
+        {
+          "end": 248,
+          "title": "seed",
+          "explanation": "仅可丢弃ORM夹具，创建独立用户、原订单和可选凭证并真实commit供独立连接读取；存UTC时间，金额1000，带私有商品/交付哨兵。可制造应用不该自然出现的冲突，不能拿ORM create_all冒充生产迁移触发器保护。"
+        },
+        {
+          "end": 254,
+          "title": "read_report",
+          "explanation": "把严格解析、独立会话快照与纯compare串起来测试本地行为，不调用真实fetch或用业务数据库。返回实际report用于分类及无写入断言。"
+        },
+        {
+          "end": 278,
+          "title": "test_bidirectional_payment_coupon_and_refund_snapshot_without_writes",
+          "explanation": "已有匹配和本地缺渠道两单，加退款快照，精确断言三类结果；监听真实SQL拒INSERT/UPDATE/DELETE/COMMIT，再用独立连接核对状态/交付/两凭证不变且退款/事件为空。输出不得包含私有标识/证据键/token，scope文案中的普通evidence单词不算泄露。"
+        },
+        {
+          "end": 311,
+          "title": "test_difference_classifications_and_receipt_binding",
+          "explanation": "分别造正常、未知单、无凭证、原合同/渠道、凭证流水/金额、订单状态/流水、跨日/未知时间、跨单归属冲突。逐一断言具体code及needs_review，不接受所有异常都以模糊“成功”结束，唯一正常情景才不需核查。"
+        },
+        {
+          "end": 323,
+          "title": "test_scope_and_utc_midnight_reverse_scan_uses_paid_not_received",
+          "explanation": "设置北京日边界前1秒/零点/次日零点、未知日期与无凭证历史已付单；外app账单排除但必须needs_review。反向集合精确包含当天、未知与legacy，排除日期外，不依赖自动received_at时间。"
+        },
+        {
+          "end": 331,
+          "title": "test_both_channel_and_local_limits_fail_not_partial_success",
+          "explanation": "本地两单把预算降成1，零行渠道文件也不能截成无差异；必须报本地快照超额。确保反向读取同样受预算约束，不只限制下载文件。"
+        },
+        {
+          "end": 336,
+          "title": "test_missing_migration_ledger_refuses_cli_snapshot",
+          "explanation": "ORM建表没有正式迁移账本，check_schema必须失败；不为测试填虚构完整迁移来绕开门禁。完整SQL链路另在独立PG用真实初始化验证。"
+        },
+        {
+          "end": 344,
+          "title": "test_partial_refund_states_never_mean_completed_receipt",
+          "explanation": "SUCCESS/PROCESSING/FAIL/CHANGE四种冻结状态都是观察，申请500分与needs_review不变，RefundReceipt仍空。不能用账单状态或部分额冒充当前全额完成。"
+        },
+        {
+          "end": 362,
+          "title": "test_atomic_private_report_no_overwrite_and_failed_publish_cleanup",
+          "explanation": "真实临时文件验证JSON内容与POSIX0600；相同名字第二次发布必须FileExistsError且原字节不变。注入fsync失败后不能出现新目标或临时残留，不用mock替代原子文件发布核心。"
+        },
+        {
+          "end": 378,
+          "title": "test_report_directory_not_downloadable_or_symlinked",
+          "explanation": "固定临时ROOT，正常私有目录可用，storage覆盖runtime与目录符号链接都拒绝。Windows无创建symlink权限时明确skip这一分支，不能说已证明Windows ACL；前面普通路径断言仍实际执行。"
+        },
+        {
+          "end": 393,
+          "title": "test_cli_gates_precede_all_external_io",
+          "explanation": "合成配置与无业务意义DSN下分别禁用/错商户/错目标/坏日，出站函数是pytest.fail哨兵。必须在触外部之前BillError，不能为测试开真实账单读取。"
+        },
+        {
+          "end": 407,
+          "title": "test_cli_exit_codes_and_secret_safe_errors",
+          "explanation": "注入正常无差异/需核查/含私有DSN异常三类run结果，执行main和argparse，断言0/2/1与仅成功有文件名。恢复日志设置通过monkeypatch隔离，不影响后续套件，异常原文不得出现。"
+        },
+        {
+          "end": 421,
+          "title": "test_real_cli_help_and_invalid_environment_are_secret_safe",
+          "explanation": "子进程设置坏DB_PORT及开关，不提供可用商户。--help无需有效Settings；实际命令配置失败必须1且不出现PRIVATE或Traceback，证明脱敏包含导入期而不只是正常函数异常。 另在齐全必需参数后追加带PRIVATE哨兵的未知参数，确保不被缺参检查提前短路；真实子进程必须退出2且不回显。恢复默认argparse的受控变异会被此断言捕获。"
+        },
+        {
+          "end": 449,
+          "title": "test_consistent_pg_snapshot_does_not_see_mid_read_receipt",
+          "explanation": "仅PG执行，在真实SET READ ONLY后SHOW验证on/repeatable read；第一条读完成后由另一会话提交新凭证。当前快照必须仍报渠道无本地订单，下一快照才匹配，证明不跨读取拼接两个时间的事实。SQLite明确skip，不用单连接模拟隔离。"
+        },
+        {
+          "end": 469,
+          "title": "test_confirmation_cannot_hide_database_url_overrides",
+          "explanation": "检验正常主机、有效socket/port覆盖返回实际target，拒database覆盖、多host、零端口、逗号主机、SQLite与非asyncpg。确认口径必须跟真实DSN一致，不打印PRIVATE密码。"
+        },
+        {
+          "end": 490,
+          "title": "test_streamed_hash_and_download_phase_deadline",
+          "explanation": "真实AsyncByteStream分两段传输也须得到原SHA256；第二个替身在下载阶段阻塞，45秒总预算被测试降至0.1后应取消且已发生两请求。补申请阶段期限测试，不能只验证第一跳。"
+        },
+        {
+          "end": 539,
+          "title": "test_full_cli_pipeline_on_complete_disposable_pg",
+          "explanation": "自行创建pgserver临时库与非超级用户角色，用closing保证psycopg初始化不重复进入已有事务；执行真实完整SQL/账本，不用ORM伪造版本。中央配置/SessionLocal只替换到此可丢弃库，真实fetch使用签名MockTransport，完整run须生成未知订单报告且数据库仍无订单/凭证。finally清服务器，绝不接受业务DSN或真实商户；这不是Windows或生产恢复签收。"
         }
       ]
     }

@@ -270,3 +270,7 @@ Compose新增opt-in refund-verifier profile，固定示例db、SEND/AUTO_RECORD=
 新增WX_ORDER_CLOSE_ENABLED=false，独立于退款SEND/VERIFY/AUTO_RECORD；不增迁移/依赖，完整账本仍0017。更新Web及前端产物后，原local closed不会自动触发渠道请求；核验worker也不调用关单。未完成专用商户/HTTPS/恢复验收，不开启业务门禁；本批没有真实关单或业务库操作。
 
 开启只允许符合条件的管理员按钮，仍须原单最新5分钟内可信NOTPAY、手动原单/金额及确认。超时/未知先核原事件，同key仅恢复首次；新key需重新查询、距旧start至少60秒，已ack不再发送。更新/回滚都保留PaymentEvent与原收款/退款全历史，不用删start修复。见[管理手册](PAYMENTS_ADMIN_GUIDE.md)。
+
+## 第十七批：日账CLI与私有报告
+
+`WX_BILL_READ_ENABLED=false`保持默认，不加入Web启动/定时器/退款worker。授权操作另按[日账指南](WECHAT_BILLS_GUIDE.md)确认真实DATABASE_URL生效目标、商户、日期与0017完整账本；只读DB权限/OS账户与网站角色分开。报告保存在私有runtime/wechat-bills，既有Git/Docker忽略规则已排除runtime；不能通过反向代理映射、商品目录、镜像或日志导出这些文件。备份/保留期限与Windows ACL/NTFS硬链接需部署验收；不宣称已完成真实商户、银行结算或生产恢复。

@@ -98,12 +98,19 @@ pending → closed → paid
 | `enforce_production_settings` | 记录告警，有硬错误抛 ProductionConfigError；由 main 在导入装配阶段调用 |
 | `Tool` / `page_title` / `page_context` | 统一页面元数据与模板上下文；auth_ui 控制登录界面是否装配，不授予 API 权限 |
 
+### 只读渠道日账模块
+
+`wechat_bills.bill_day/download_path`先限定日期与签名目标；`fetch_bill`只发已认证申请和哈希约束下载两个GET，不把无签名文件交给JSON验签器。`parse_bill`纯解析现代ALL、校验完整文件和商户/日期/重复/汇总，只保留必要字段，退款始终观察。订单金额与应结金额分开，不做浮点计算。
+
+`bill_reconcile.connection_target/ledger_ready/run/main`是显式运维CLI门禁/只读迁移预检/流程/退出码，Settings默认关闭，导入配置错误脱敏；不是Web管理员授权。`snapshot`拥有短只读一致事务，无HTTP或commit，双向有界取当天/原号并保留未知日期；`compare`纯生成差异和有限本地事实，不调用settle/退款/队列。`report_directory/publish`只向受信私有目录发布不可覆盖JSON，不留原账单或token；摘要不是签名存证，文件系统权限和保留政策仍由运维负责。操作入口见[日账指南](../docs/WECHAT_BILLS_GUIDE.md)，异常/预算必须整次失败，不能返回截断的“账平”。
+
 <!-- doc-contract:files:start -->
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/config.py`](config.py) | `7fcdc969a566` | L1–L142 |
+| [`app/bill_reconcile.py`](bill_reconcile.py) | `9750db145474` | L1–L287 |
+| [`app/config.py`](config.py) | `7a5d9215b962` | L1–L143 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
@@ -129,6 +136,7 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
+| [`app/wechat_bills.py`](wechat_bills.py) | `fdb132bebf41` | L1–L232 |
 | [`app/wechat_pay.py`](wechat_pay.py) | `706358db4def` | L1–L466 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

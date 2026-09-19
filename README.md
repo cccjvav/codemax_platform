@@ -1,4 +1,6 @@
-> 第十六批当前：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
+> 第十七批当前：[只读渠道日账与差异报告](review/RELEASE_BLOCKERS_PHASE17.md)。默认关闭的运维CLI，可信有界下载、付款双向差异、退款仅观察；不自动改账或结案。
+
+> 第十六批历史：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
 
 > 第十五批历史：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
 
@@ -24,7 +26,7 @@
 
 > 当前交叉审查：[2026-09-15 修复台账与未结项](review/README.md)。已修一批明确边界缺陷，但真实资金闭环仍有发布阻断；开放第三方 OAuth 属条件扩展；初始化/迁移进展见[第二批交付](review/RELEASE_BLOCKERS_PHASE2.md)；不是“全部已审完、可以直接上线”。
 
-学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，但没有完整支付日账对账、远端关单/退款申请及定制服务生命周期。
+学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，已有默认关闭的显式渠道关单/退款申请和只读日账差异CLI；仍没有完整会计结算对账、部分退款处理及定制服务生命周期。
 
 ## 从零理解代码
 
@@ -235,7 +237,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `35521916c620` | L1–L28 |
-| [`.env.example`](.env.example) | `3792181f0f2c` | L1–L126 |
+| [`.env.example`](.env.example) | `109b3ed4da5e` | L1–L128 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |

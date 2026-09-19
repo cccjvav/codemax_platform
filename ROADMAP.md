@@ -1,4 +1,6 @@
-> 第十六批当前：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
+> 第十七批当前：[只读渠道日账与差异报告](review/RELEASE_BLOCKERS_PHASE17.md)。默认关闭的运维CLI，可信有界下载、付款双向差异、退款仅观察；不自动改账或结案。
+
+> 第十六批历史：[显式渠道关单与单笔核查衔接](review/RELEASE_BLOCKERS_PHASE16.md)。默认关闭、仅本站closed且最新可信NOTPAY；不退款、不改收款，日账/批量对账另做。
 
 > 第十五批历史：[核验监督、本地告警与恢复演练](review/RELEASE_BLOCKERS_PHASE15.md)。无新迁移/资金权限，默认关闭；健康不等于退款成功，Compose模板与真实部署签收分开。
 
