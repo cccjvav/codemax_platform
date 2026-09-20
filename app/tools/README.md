@@ -28,7 +28,7 @@
 | 入口 | 契约 | 失败与注意事项 |
 | --- | --- | --- |
 | `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、网络/HTTP 异常、响应结构错误抛 LLMError；不证明模型内容事实正确 |
-| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查条数、index 完整唯一、维度一致、非空及有限数值；不允许错位向量进入检索 |
+| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查条数、index 完整唯一、维度一致、非空及有限数值；index 必须严格是 `int`（`type(...) is int`，拒绝 bool/float/字符串——`False == 0`、`0.0 == 0` 的类型混淆会让向量静默错位）；不允许错位向量进入检索 |
 | `get_llm()` | 返回默认客户端，供 FastAPI 注入 | 默认客户端在导入时从 settings 构造；运行中改 settings 不会自动重建它；测试用 dependency_overrides |
 | `generate_mermaid` / `_strip_fence` | 用户描述 → 去围栏的 Mermaid 文本 | 首关键字检查不是完整 Mermaid 解析；实际渲染仍可能报语法错。前端 strict 模式也不能替代后端响应结构校验 |
 
@@ -89,7 +89,7 @@
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
-| [`app/tools/llm.py`](llm.py) | `cefd84c87b86` | L1–L162 |
+| [`app/tools/llm.py`](llm.py) | `98a9dbe640fd` | L1–L167 |
 | [`app/tools/politeness.py`](politeness.py) | `4b94dd8abb6e` | L1–L184 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |

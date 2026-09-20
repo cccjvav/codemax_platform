@@ -3,7 +3,7 @@
 ## 当前：第十八批 —— 公开接口边界（G1），首发定位演示/免费工具
 
 - 工作分支 `arena/01a0ba44-codemax-platform`（自 `arena/01a08bf5-codemax-platform` 的 `ea11619` 分出）。G0 的 H-02/H-03 已于 2026-09-19 关闭：独立复核见[全面检查报告](../../review/01a08bf5-全面检查报告_2026-09-19.md)，发布核实见 HANDOVER「已核实的上轮发布」。
-- 本批顺序：零风险文本修正（已提交）→ A-01（已实现）→ A-05 → A-02 → A-03 → A-04；目标、验收标准与环境只在 [ROADMAP](../../ROADMAP.md) 维护，阶段证据/阻塞见 [g1-public-boundaries.md](g1-public-boundaries.md)。
+- 本批顺序：零风险文本修正（已提交）→ A-01（已提交）→ A-05（已提交）→ A-02 → A-03 → A-04；目标、验收标准与环境只在 [ROADMAP](../../ROADMAP.md) 维护，阶段证据/阻塞见 [g1-public-boundaries.md](g1-public-boundaries.md)。
 - 首发类型已确认为演示 / 免费工具（TD-259）：L-00/L-02/L-03 延后到决定收费前；L-01/L-04 在公开演示前仍适用。
 
 ## 历史阶段

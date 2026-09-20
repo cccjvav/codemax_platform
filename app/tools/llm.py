@@ -115,6 +115,11 @@ class LLMClient:
             rows = resp.json()["data"]
             if len(rows) != len(texts):
                 raise ValueError(f"向量化接口返回 {len(rows)} 条，输入是 {len(texts)} 条")
+            # 类型必须严格是 int：`False == 0`、`0.0 == 0`，按值比较会把 JSON 里的
+            # `false`/`0.0` 当成合法下标接受，向量与语料就静默错位（A-05）。bool 是
+            # int 的子类，所以用 `type(...) is int` 而不是 isinstance。
+            if any(type(row["index"]) is not int for row in rows):
+                raise ValueError("embedding index 必须是整数（不接受 bool/float/字符串）")
             ordered = sorted(rows, key=lambda r: r["index"])
             if [r["index"] for r in ordered] != list(range(len(texts))):
                 raise ValueError("embedding index 必须完整且唯一")

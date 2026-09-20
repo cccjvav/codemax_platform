@@ -2226,7 +2226,7 @@
     },
     {
       "path": "app/tools/llm.py",
-      "sha256": "cefd84c87b86a37c915c3c0c20ccbaec858edbf996d2314a5b9df7fad98836ed",
+      "sha256": "98a9dbe640fdbabdbb3b6433217a3497287c56e1fa9b8ab4c7fe50253ef30860",
       "method": "guided",
       "blocks": [
         {
@@ -2250,24 +2250,24 @@
           "explanation": "缺 key 在请求前抛 configuration。用 AsyncClient 发一次 POST 到基址/chat/completions，Bearer 和 JSON 的 model、temperature=0.2、stream=False、system/user messages 对照官方协议；没有 models 前置请求、自动重试或付费模型回退。网络异常分类 network 并仅在摘要写原因类型，原异常作为 cause；非 200 分类 http，保留状态但不回显正文。成功解析 choices[0].message.content，要求字符串、非空且不超过 100000 字符；结构错误抛 LLMError，不能把 HTTP 200 当事实正确。"
         },
         {
-          "end": 144,
-          "title": "LLMClient.embeddings",
-          "explanation": "空输入返回 [] 不触网；非空输入先验 key，再要求 embed_model 非空，避免发送空 ID。此底层方法支持显式客户端测试，FAQ/CLI 的功能开关在调用方检查。请求发送 model/input，一次返回后按 index 排序，必须完整唯一且对应输入数量；验证非空、同维、有限且非 bool 的数值向量。HTTP/网络错误用安全分类与状态，不回显上游正文；结构失败给 LLMError。段尾 default_llm 从中央 Settings 绑定配置，修改 .env 后要重启，而不是以为实例会自动刷新。"
-        },
-        {
           "end": 149,
-          "title": "get_llm",
-          "explanation": "功能契约：FastAPI 依赖返回默认对象，可在测试用 dependency_overrides 替换，不每请求创建新配置。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：LLMClient。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL147 结束当前函数，返回 default_llm；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "title": "LLMClient.embeddings",
+          "explanation": "空输入返回 [] 不触网；非空输入先验 key，再要求 embed_model 非空，避免发送空 ID。此底层方法支持显式客户端测试，FAQ/CLI 的功能开关在调用方检查。请求发送 model/input，一次返回后按 index 排序，必须完整唯一且对应输入数量；验证非空、同维、有限且非 bool 的数值向量。HTTP/网络错误用安全分类与状态，不回显上游正文；结构失败给 LLMError。段尾 default_llm 从中央 Settings 绑定配置，修改 .env 后要重启，而不是以为实例会自动刷新。\n\n第十八批 A-05：排序之前新增 `type(row[\"index\"]) is not int` 的显式校验（不吃值相等的便宜：`False == 0`、`0.0 == 0`，旧实现会把 JSON 的 `false`/`0.0` 当合法下标，同批里再有别的不整型 index 时向量与语料静默错位）。bool 是 int 子类，所以写 `type(...) is int` 而不是 isinstance；失败转 LLMError 且消息含“index 必须是整数”。缺失（KeyError）、重复/越界（排序后集合比较）沿用原有 LLMError。保护性回归在 tests/test_faq_semantic.py；不猜提供方模型能力（L-05）。"
         },
         {
-          "end": 158,
+          "end": 154,
+          "title": "get_llm",
+          "explanation": "功能契约：FastAPI 依赖返回默认对象，可在测试用 dependency_overrides 替换，不每请求创建新配置。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：LLMClient。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL152 结束当前函数，返回 default_llm；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 163,
           "title": "generate_mermaid",
           "explanation": "复用聊天客户端后剥离围栏，检查认可的图类型前缀；不符合就抛安全摘要，不再把模型输出片段带进错误日志。通过则返回图源码，仍需前端 Mermaid 做真正解析/渲染，不能把这个检查叫语法认证。"
         },
         {
-          "end": 162,
+          "end": 167,
           "title": "_strip_fence",
-          "explanation": "功能契约：提取首个支持的 Markdown 围栏内容，否则 strip 原串；不执行内容。\n\n输入签名：reply: str；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL161 计算右侧并赋给 `m`：调用 _FENCE.search(reply)。\nL162 结束当前函数，返回 调用 (m.group(1) if m else reply).strip()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：提取首个支持的 Markdown 围栏内容，否则 strip 原串；不执行内容。\n\n输入签名：reply: str；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL166 计算右侧并赋给 `m`：调用 _FENCE.search(reply)。\nL167 结束当前函数，返回 调用 (m.group(1) if m else reply).strip()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -5331,7 +5331,7 @@
     },
     {
       "path": "tests/test_faq_semantic.py",
-      "sha256": "d92fb77c23fcaf540b4cc196416b2309aa217b5457868fec8eef3b70fb9e8059",
+      "sha256": "2c8de5de224e50f6c0aaee5179ff02072509d156698b2de496415198ba27e7fd",
       "method": "guided",
       "blocks": [
         {
@@ -5400,227 +5400,242 @@
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL108 结束当前函数，返回 调用 _embed_response([[1.0]])；不会自动commit未提交事务。\nL110 进入 pytest.raises(LLMError, match='1 条.*2 条')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL111 await 调用 _client(handler).embeddings(['a', 'b'])；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 115,
+          "end": 132,
+          "title": "test_embeddings_rejects_bool_and_float_indices",
+          "explanation": "功能契约（A-05）：把同一批两条向量里的某一条 index 换成与位置数值相等的 bool/float（False→0、True→1、0.0、1.0），必须抛 LLMError 且消息含 index。为什么：Python 里 `False == 0`、`0.0 == 0`，旧实现的排序后逐位比较会把这些 JSON 值当成合法下标接受；一旦同批还有别的不整型 index，向量与语料就静默错位。参数化给出 4 个组合，(slot, bad_index) 决定替换哪一条。\n\nAST语句导读：L123 构造两条合法行；L124 把 slot 位置替换成 bad_index；L126 def handler（L127 固定返回这两条）；L129 进入 `pytest.raises(LLMError, match=\"index\")` 并在 L130 await 调用。\n\n阅读边界：替身只在 handler 层，走的仍是真实 LLMClient.embeddings；断言建立在“必须抛错”上，不检查消息全文。"
+        },
+        {
+          "end": 149,
+          "title": "test_embeddings_rejects_non_numeric_indices",
+          "explanation": "功能契约（A-05 锁定例）：字符串、None、list、dict 形式的 index 必须抛 LLMError。旧实现已经会抛（排序/比较时 TypeError，或被外层捕获成不符合预期），这条防止将来用 int(index) 之类“容错”把它们悄悄转成合法下标——那比报错更危险。\n\nAST语句导读：L140 def handler（L141–L144 固定返回一条坏 index + 一条正常 index）；L146 进入 pytest.raises(LLMError)，L147 await 调用，不限定消息。"
+        },
+        {
+          "end": 168,
+          "title": "test_embeddings_rejects_missing_duplicate_or_out_of_range_indices",
+          "explanation": "功能契约（A-05 验收的另一半）：缺失 index 字段、跳号（越界）与重复 index 都必须 LLMError。三者在旧实现里已经由 KeyError 与排序后的集合比较拒绝，这里把行为锁死，避免将来“补默认 0”或“跳过重复项”把错位变成静默。\n\nAST语句导读：L155 参数化三组 rows；L162 def handler（L163 原样返回）；L165 进入 pytest.raises(LLMError)，L166 await 调用。"
+        },
+        {
+          "end": 170,
           "title": "test_embeddings_rejects_empty_vector",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 122,
+          "end": 177,
           "title": "test_embeddings_rejects_empty_vector.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL117 结束当前函数，返回 调用 _embed_response([[]])；不会自动commit未提交事务。\nL119 进入 pytest.raises(LLMError, match='空向量')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL120 await 调用 _client(handler).embeddings(['a'])；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 123,
+          "end": 178,
           "title": "test_embeddings_network_error_wrapped_as_llm_error",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 133,
+          "end": 188,
           "title": "test_embeddings_network_error_wrapped_as_llm_error.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL125 抛出 httpx.ConnectError('连不上')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL127 进入 pytest.raises(LLMError, match='调用向量化接口失败')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL128 await 调用 _client(handler).embeddings(['a'])；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 134,
+          "end": 189,
           "title": "test_warm_semantic_index_caches_every_faq",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 142,
+          "end": 197,
           "title": "test_warm_semantic_index_caches_every_faq.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL136 计算右侧并赋给 `body`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL137 结束当前函数，返回 调用 _embed_response([[1.0, 0.0] for _ in body['input']])；不会自动commit未提交事务。\nL139 核对 `await warm_semantic_index(_client(handler)) is True`：此条件为假即测试失败；不是生产输入校验。\nL140 核对 `semantic_ready() is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 144,
+          "end": 199,
           "title": "test_warm_semantic_index_swallows_llm_error",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 206,
           "title": "test_warm_semantic_index_swallows_llm_error.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL146 抛出 httpx.ConnectError('连不上')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL148 核对 `await warm_semantic_index(_client(handler)) is False`：此条件为假即测试失败；不是生产输入校验。\nL149 核对 `semantic_ready() is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 152,
+          "end": 207,
           "title": "test_warm_semantic_index_rejects_count_mismatch",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 159,
+          "end": 214,
           "title": "test_warm_semantic_index_rejects_count_mismatch.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL154 结束当前函数，返回 调用 _embed_response([[1.0]])；不会自动commit未提交事务。\nL156 核对 `await warm_semantic_index(_client(handler)) is False`：此条件为假即测试失败；不是生产输入校验。\nL157 核对 `semantic_ready() is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 162,
+          "end": 217,
           "title": "test_warm_semantic_index_is_idempotent",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL161 计算右侧并赋给 `calls`：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 173,
+          "end": 228,
           "title": "test_warm_semantic_index_is_idempotent.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL164 计算右侧并赋给 `body`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL165 调用 calls.append(len(body['input']))。\nL166 结束当前函数，返回 调用 _embed_response([[1.0] for _ in body['input']])；不会自动commit未提交事务。\nL168 计算右侧并赋给 `c`：调用 _client(handler)。\nL169 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL170 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL171 核对 `calls == [len(FAQS)]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 182,
+          "end": 237,
           "title": "test_semantic_search_returns_none_before_warm_up",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL176 核对 `await semantic_search('怎么收费') is None`：此条件为假即测试失败；不是生产输入校验。\nL177 核对 `semantic_ready() is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 204,
+          "end": 259,
           "title": "_space",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：text: str；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL193 计算右侧并赋给 `table`：{FAQS[0].q: [1.0, 0.0, 0.0], '贵不贵': [0.96, 0.12, 0.0], '怎么算钱': [0.94, 0.1, 0.05], 'python 部署报错': [0.0, 0.05, 1.0]}。\nL199 判断 `text in table`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL200 结束当前函数，返回 table[text]；不会自动commit未提交事务。\nL201 计算右侧并赋给 `i`：调用 next((n for n, f in enumerate(FAQS) if f.q == text), 0)。\nL202 结束当前函数，返回 [0.0, 1.0, 0.01 * i]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 209,
+          "end": 264,
           "title": "_semantic_handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL206 计算右侧并赋给 `body`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL207 结束当前函数，返回 调用 _embed_response([_space(t) for t in body['input']])；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 230,
+          "end": 285,
           "title": "test_semantic_search_rescues_a_paraphrase_the_lexical_index_misses",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL212 导入 from app.tools.faq import search；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL214 计算右侧并赋给 `lexical`：调用 search('贵不贵', k=1)。\nL215 核对 `not lexical or lexical[0].faq is not FAQS[0]`：此条件为假即测试失败；不是生产输入校验。\nL221 计算右侧并赋给 `c`：调用 _client(_semantic_handler)。\nL222 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL223 计算右侧并赋给 `hits`：await 调用 semantic_search('贵不贵', k=1, client=c)；等待期间可让出事件循环，恢复后才执行下一句。\nL224 核对 `hits is not None`：此条件为假即测试失败；不是生产输入校验。\nL225 核对 `hits[0].faq is FAQS[0]`：此条件为假即测试失败；不是生产输入校验。\nL226 核对 `hits[0].semantic is True`：此条件为假即测试失败；不是生产输入校验。\nL227 核对 `hits[0].bm25 == 0.0`：此条件为假即测试失败；不是生产输入校验。\nL228 核对 `0.9 < hits[0].confidence <= 1.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 238,
+          "end": 293,
           "title": "test_semantic_search_ranks_by_similarity_not_by_order",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL232 计算右侧并赋给 `c`：调用 _client(_semantic_handler)。\nL233 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL234 计算右侧并赋给 `hits`：await 调用 semantic_search('python 部署报错', k=len(FAQS), client=c)；等待期间可让出事件循环，恢复后才执行下一句。\nL235 核对 `hits is not None`：此条件为假即测试失败；不是生产输入校验。\nL236 核对 `hits[0].faq is not FAQS[0]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 242,
+          "end": 297,
           "title": "test_semantic_search_query_embedding_failure_falls_back",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL241 计算右侧并赋给 `calls`：{'n': 0}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 252,
+          "end": 307,
           "title": "test_semantic_search_query_embedding_failure_falls_back.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL244 累积修改 `calls['n']`：执行 `calls['n'] += 1`，新值供下一轮/后续分支使用。\nL245 判断 `calls['n'] == 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL246 结束当前函数，返回 调用 _semantic_handler(request)；不会自动commit未提交事务。\nL247 抛出 httpx.ConnectError('查询时断网')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL249 await 调用 warm_semantic_index(_client(handler))；等待期间可让出事件循环，恢复后才执行下一句。\nL250 核对 `await semantic_search('贵不贵', client=_client(handler)) is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 258,
+          "end": 313,
           "title": "test_semantic_search_empty_query_short_circuits",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL254 计算右侧并赋给 `c`：调用 _client(_semantic_handler)。\nL255 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL256 核对 `await semantic_search('   ', client=c) is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 301,
+          "end": 356,
           "title": "test_reset_semantic_index_isolates_cases",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL260 计算右侧并赋给 `c`：调用 _client(_semantic_handler)。\nL261 await 调用 warm_semantic_index(c)；等待期间可让出事件循环，恢复后才执行下一句。\nL262 核对 `semantic_ready() is True`：此条件为假即测试失败；不是生产输入校验。\nL263 调用 reset_semantic_index()。\nL264 核对 `semantic_ready() is False`：此条件为假即测试失败；不是生产输入校验。\nL265 核对 `await semantic_search('贵不贵', client=c) is None`：此条件为假即测试失败；不是生产输入校验。\nL280 计算右侧并赋给 `_CALIBRATION_POSITIVES`：[('贵不贵', '毕业设计服务怎么收费'), ('怎么算钱', '毕业设计服务怎么收费'), ('能开发票吗', '可以开发票吗'), ('发票怎么开', '可以开发票吗'), ('做完要多久', '交付周期是多久'), ('源代码给不给', '会给源码吗'), ('是不是抄的', '怎么保证不是抄袭'), ('密码忘了', '账号忘记密码怎么办'), ('买完的文件在哪下', '怎么下载已购买的文件')]。\nL293 计算右侧并赋给 `_CALIBRATION_NEGATIVES`：['今天天气怎么样', '推荐一部好看的电影', '帮我写一首关于秋天的诗', '股票现在能不能买', '怎么把 Excel 转成 PDF']。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 306,
+          "end": 361,
           "title": "test_calibrate_threshold_picks_the_gap_midpoint",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL304 核对 `calibrate_threshold([0.82, 0.79, 0.75], [0.41, 0.35, 0.28]) == 0.58`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 317,
+          "end": 372,
           "title": "test_calibrate_threshold_rejects_overlapping_distributions",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL314 进入 pytest.raises(ValueError, match='重叠')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL315 调用 calibrate_threshold([0.6, 0.58], [0.59, 0.3])。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 323,
+          "end": 378,
           "title": "test_calibrate_threshold_rejects_a_gap_too_narrow_to_be_stable",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL320 进入 pytest.raises(ValueError, match='间隙')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL321 调用 calibrate_threshold([0.605], [0.6], margin=0.02)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 330,
+          "end": 385,
           "title": "test_calibrate_threshold_needs_both_sides",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL325 进入 pytest.raises(ValueError, match='不能为空')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL326 调用 calibrate_threshold([0.8], [])。\nL327 进入 pytest.raises(ValueError, match='不能为空')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL328 调用 calibrate_threshold([], [0.3])。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 341,
+          "end": 396,
           "title": "test_semantic_threshold_reads_settings_so_recalibration_needs_no_code_change",
           "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL338 调用 monkeypatch.setattr(settings, 'LLM_SEMANTIC_THRESHOLD', 0.71)：仅在本测试替换属性，fixture结束恢复。\nL339 核对 `semantic_threshold() == 0.71`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 369,
+          "end": 424,
           "title": "test_support_cascade_honours_the_configured_threshold",
           "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL349 导入 from app.tools import support；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL351 计算右侧并赋给 `client`：调用 _client(_calibration_handler)。\nL352 await 调用 warm_semantic_index(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL356 调用 monkeypatch.setattr(settings, 'LLM_SEMANTIC_THRESHOLD', 0.999)：仅在本测试替换属性，fixture结束恢复。\nL357 计算右侧并赋给 `(verdict, hit)`：await 调用 support._second_opinion('贵不贵', _low_rule(), client)；等待期间可让出事件循环，恢复后才执行下一句。\nL358 核对 `hit is None`：此条件为假即测试失败；不是生产输入校验。\nL359 核对 `'语义检索命中' not in verdict.reason`：此条件为假即测试失败；不是生产输入校验。\nL361 调用 monkeypatch.setattr(settings, 'LLM_SEMANTIC_THRESHOLD', 0.5)：仅在本测试替换属性，fixture结束恢复。\nL362 计算右侧并赋给 `(verdict, hit)`：await 调用 support._second_opinion('贵不贵', _low_rule(), client)；等待期间可让出事件循环，恢复后才执行下一句。\nL363 核对 `hit is not None`：此条件为假即测试失败；不是生产输入校验。\nL364 核对 `verdict.intent is Intent.FAQ`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 382,
+          "end": 437,
           "title": "_calibration_handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL377 判断 `request.url.path.endswith('/chat/completions')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL378 结束当前函数，返回 调用 httpx.Response(500, json={'error': '本用例只测语义那一层'})；不会自动commit未提交事务。\nL379 计算右侧并赋给 `body`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL380 结束当前函数，返回 调用 _embed_response([_space(x) for x in body['input']])；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 387,
+          "end": 442,
           "title": "_low_rule",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL385 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.2, '规则层没把握（测试构造）')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 392,
+          "end": 447,
           "title": "_report_and_check",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：scores: dict[str, float], label: str；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL389 逐项遍历 `scores.items()`，绑定 `(text, score)`；循环体按缩进执行，break可提前结束。\nL390 调用 print(f'  [{label}] {text} → {score:.3f}')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 442,
+          "end": 497,
           "title": "_run_calibration",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：client: LLMClient；异步调用需await才推进。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL400 核对 `await warm_semantic_index(client)`：此条件为假即测试失败；不是生产输入校验。\nL402 计算右侧并赋给 `positives`：{}。\nL403 逐项遍历 `_CALIBRATION_POSITIVES`，绑定 `(paraphrase, expected_q)`；循环体按缩进执行，break可提前结束。\nL406 计算右侧并赋给 `hits`：await 调用 semantic_search(paraphrase, k=1, client=client)；等待期间可让出事件循环，恢复后才执行下一句。\nL407 核对 `hits is not None`：此条件为假即测试失败；不是生产输入校验。\nL408 计算右侧并赋给 `got`：hits[0].faq.q。\nL409 核对 `got == expected_q`：此条件为假即测试失败；不是生产输入校验。\nL413 计算右侧并赋给 `positives[paraphrase]`：hits[0].confidence。\nL415 计算右侧并赋给 `negatives`：{}。\nL416 逐项遍历 `_CALIBRATION_NEGATIVES`，绑定 `text`；循环体按缩进执行，break可提前结束。\nL417 计算右侧并赋给 `hits`：await 调用 semantic_search(text, k=1, client=client)；等待期间可让出事件循环，恢复后才执行下一句。\nL418 核对 `hits is not None`：此条件为假即测试失败；不是生产输入校验。\nL419 计算右侧并赋给 `negatives[text]`：hits[0].confidence。\nL421 调用 print('\\n实测余弦分布：')。\nL422 调用 _report_and_check(positives, '同义')。\nL423 调用 _report_and_check(negatives, '无关')。\nL425 计算右侧并赋给 `suggested`：调用 calibrate_threshold(list(positives.values()), list(negatives.values()))。\nL426 调用 print(f'\\n  当前配置 LLM_SEMANTIC_THRESHOLD = {semantic_threshold()}')。\nL427 调用 print(f'  实测建议值                     = {suggested}')。\nL428 调用 print('  → 把建议值写进 .env 后，更新 TD-206 划掉「尚未标定」')。\nL430 计算右侧并赋给 `(floor, ceil_)`：(min(positives.values()), max(negatives.values()))。\nL431 核对 `ceil_ < semantic_threshold() <= floor`：此条件为假即测试失败；不是生产输入校验。\nL435 结束当前函数，返回 suggested；不会自动commit未提交事务。\nL440 计算右侧并赋给 `_SYNTH_DIM`：20。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 451,
+          "end": 506,
           "title": "_synth_vec",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：kw: dict[int, float]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL446 计算右侧并赋给 `x`：[0.25] * _SYNTH_DIM。\nL447 逐项遍历 `kw.items()`，绑定 `(i, w)`；循环体按缩进执行，break可提前结束。\nL448 累积修改 `x[i]`：执行 `x[i] += w`，新值供下一轮/后续分支使用。\nL449 结束当前函数，返回 x；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 469,
+          "end": 524,
           "title": "_synth_space",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：text: str, *, break_identity: str | None=None；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL453 计算右侧并赋给 `idx`：{f.q: i for i, f in enumerate(FAQS)}。\nL454 判断 `text == break_identity`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL456 计算右侧并赋给 `wrong`：(idx[_CALIBRATION_POSITIVES[0][1]] + 5) % len(FAQS)。\nL457 结束当前函数，返回 调用 _synth_vec({wrong: 0.72, (wrong + 1) % 12: 0.18})；不会自动commit未提交事务。\nL458 判断 `text in idx`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL459 结束当前函数，返回 调用 _synth_vec({idx[text]: 1.0})；不会自动commit未提交事务。\nL460 逐项遍历 `_CALIBRATION_POSITIVES`，绑定 `(paraphrase, expected)`；循环体按缩进执行，break可提前结束。\nL461 判断 `text == paraphrase`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL462 计算右侧并赋给 `j`：idx[expected]。\nL463 结束当前函数，返回 调用 _synth_vec({j: 0.72, (j + 1) % 12: 0.18})；不会自动commit未提交事务。\nL464 判断 `text in _CALIBRATION_NEGATIVES`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL466 结束当前函数，返回 调用 _synth_vec({14 + _CALIBRATION_NEGATIVES.index(text): 1.0})；不会自动commit未提交事务。\nL467 结束当前函数，返回 调用 _synth_vec({})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 470,
+          "end": 525,
           "title": "_synth_handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：break_identity: str | None=None；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 477,
+          "end": 532,
           "title": "_synth_handler.handler",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL472 计算右侧并赋给 `body`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL473 结束当前函数，返回 调用 _embed_response([_synth_space(x, break_identity=break_identity) for x in body['input']])；不会自动commit未提交事务。\nL475 结束当前函数，返回 handler；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 493,
+          "end": 548,
           "title": "test_calibration_harness_has_teeth",
           "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL488 调用 monkeypatch.setattr(settings, 'LLM_SEMANTIC_THRESHOLD', 0.75)：仅在本测试替换属性，fixture结束恢复。\nL489 计算右侧并赋给 `suggested`：await 调用 _run_calibration(_client(_synth_handler()))；等待期间可让出事件循环，恢复后才执行下一句。\nL491 核对 `suggested == 0.81`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 505,
+          "end": 560,
           "title": "test_calibration_harness_rejects_an_out_of_band_threshold",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL501 核对 `semantic_threshold() == 0.55`：此条件为假即测试失败；不是生产输入校验。\nL502 进入 pytest.raises(AssertionError, match='不在实测间隙')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL503 await 调用 _run_calibration(_client(_synth_handler()))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 516,
+          "end": 571,
           "title": "test_calibration_harness_catches_a_paraphrase_matching_the_wrong_faq",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL512 计算右侧并赋给 `victim`：_CALIBRATION_POSITIVES[0][0]。\nL513 进入 pytest.raises(AssertionError, match='命中了')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL514 await 调用 _run_calibration(_client(_synth_handler(break_identity=victim)))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 545,
+          "end": 600,
           "title": "test_calibrate_semantic_threshold",
           "explanation": "收集时必须同时具备显式增强开关、key 和非空向量模型，才允许运行真实标定；仅配置聊天 key 不会触发。调用 _run_calibration 检查同义句 FAQ 身份、正负分布间隙及当前阈值；不降低阈值来掩盖错配。文末关于短超时的历史测试说明仍适用：MockTransport 不执行真实 I/O 超时，须用实际生效的 timeout 断言。"
         },
         {
-          "end": 554,
+          "end": 609,
           "title": "_TimeoutSpyClient",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n登记/装饰：dataclass。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 _TimeoutSpyClient，基类 LLMClient；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 562,
+          "end": 617,
           "title": "_TimeoutSpyClient.embeddings",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, texts: list[str]；异步调用需await才推进。 返回类型标注：list[list[float]]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL556 调用 _SEEN_TIMEOUTS.append(self.timeout)。\nL557 结束当前函数，返回 [[1.0, 0.0] for _ in texts]；不会自动commit未提交事务。\nL560 计算右侧并赋给 `_SEEN_TIMEOUTS`：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 569,
+          "end": 624,
           "title": "_clear_seen_timeouts",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n登记/装饰：pytest.fixture(autouse=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL565 调用 _SEEN_TIMEOUTS.clear()。\nL566 yield 交出 None；生成器下次恢复才继续后续清理。\nL567 调用 _SEEN_TIMEOUTS.clear()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 589,
+          "end": 644,
           "title": "test_warm_up_uses_a_short_timeout_not_the_60s_default",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL578 导入 from app.tools.faq import WARM_UP_TIMEOUT；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL580 计算右侧并赋给 `client`：调用 _TimeoutSpyClient(api_key='k', base_url='http://llm.test/v1', timeout=60.0)。\nL581 核对 `await warm_semantic_index(client) is True`：此条件为假即测试失败；不是生产输入校验。\nL583 核对 `_SEEN_TIMEOUTS == [WARM_UP_TIMEOUT]`：此条件为假即测试失败；不是生产输入校验。\nL587 核对 `WARM_UP_TIMEOUT <= 5.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 600,
+          "end": 655,
           "title": "test_warm_up_does_not_shrink_the_callers_client",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL596 计算右侧并赋给 `client`：调用 _TimeoutSpyClient(api_key='k', base_url='http://llm.test/v1', timeout=60.0)。\nL597 await 调用 warm_semantic_index(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL598 核对 `client.timeout == 60.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 607,
+          "end": 662,
           "title": "test_warm_up_keeps_an_already_short_timeout",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL603 导入 from app.tools.faq import WARM_UP_TIMEOUT；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL605 计算右侧并赋给 `client`：调用 _TimeoutSpyClient(api_key='k', base_url='http://llm.test/v1', timeout=1.0)。\nL606 await 调用 warm_semantic_index(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL607 核对 `_SEEN_TIMEOUTS == [1.0]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
@@ -11876,36 +11891,31 @@
     },
     {
       "path": "tests/audit_handoff_probes.py",
-      "sha256": "e05d3b911458d0e9ca4593b45bf9f24779869f7602754cdec75c9aa0236579a9",
+      "sha256": "5eef2279fac0c661f94d01fca3c3c518011ea1158c7bf450fad0d4eb69a59208",
       "method": "manual",
       "blocks": [
         {
-          "end": 27,
+          "end": 28,
           "title": "独立诊断装配与危险边界",
-          "explanation": "此文件不以test_命名，默认pytest不收集；显式执行时PASS表示复现基线7f2e125的待修行为，不是安全验收。fixture会重建表，TEST_DATABASE_URL只能指专用可丢弃库；合成API配置/MockTransport/函数替身不访问真实商户或模型。导入已有测试辅助保持调用契约，不新增生产功能。 文档字符串末尾登记已退役探针：F-01 已由 A-01 修复，保护性回归在默认套件 tests/test_request_body_budget.py；本文件不再包含它的复现，避免\"修复后诊断仍通过\"的假象。"
+          "explanation": "此文件不以test_命名，默认pytest不收集；显式执行时PASS表示复现基线7f2e125的待修行为，不是安全验收。fixture会重建表，TEST_DATABASE_URL只能指专用可丢弃库；合成API配置/MockTransport/函数替身不访问真实商户或模型。导入已有测试辅助保持调用契约，不新增生产功能。 文档字符串末尾登记已退役探针：F-01 已由 A-01 修复、F-05（bool/float 向量索引被当成 0/1）已由 A-05 修复，保护性回归分别在默认套件 tests/test_request_body_budget.py 与 tests/test_faq_semantic.py；本文件不再包含它的复现，避免\"修复后诊断仍通过\"的假象。"
         },
         {
-          "end": 45,
+          "end": 48,
           "title": "LLM响应缓冲诊断",
           "explanation": "MockTransport返回短合法回答加2MiB无关padding，响应流计数证实chat读取全部字节后返回ok。URL可能沿用配置但transport没有真实网络；此断言展示缺少HTTP字节预算，不代表模型输出安全或供应商实测。"
         },
         {
-          "end": 54,
+          "end": 57,
           "title": "深嵌套JSON异常分类",
           "explanation": "1200层列表总2401字节，本地响应进入json解析后RecursionError未归一为LLMError。pytest.raises在此恰是待修行为的复现，不应转成永久发布门禁；真实慢读或上游实际行为未测试。"
         },
         {
-          "end": 68,
-          "title": "向量index类型严格性",
-          "explanation": "逐次以False和0.0作为index，合法有限二维向量被接受；lambda默认参数绑定本轮index，避免闭包后续漂移。只证明等值比较未区分bool/float/int，不否定已有同维/有限数值校验。"
-        },
-        {
-          "end": 101,
+          "end": 90,
           "title": "同单预支付在途诊断",
           "explanation": "使用临时商品、测试账户与虚构微信配置，打开限流但不假定工具额度适用于shop。两个并发POST在替代native_prepay的事件屏障同时停留，finally释放并gather所有任务；断言两次200、同一原单号、一订单零收款凭证。该诊断不访问商户或证明重复扣款；修复后须转换为默认套件的单飞/退避保护性回归。"
         },
         {
-          "end": 113,
+          "end": 100,
           "title": "登录来源服务端诊断",
           "explanation": "合成注册后带显式外站Origin和Sec-Fetch-Site提交合法凭据，断言200并设置Cookie。这里只证明服务端接受，不执行浏览器导航、SameSite/CORS或账户混淆PoC，不得宣称已盗取密码或成功利用login-CSRF。"
         }

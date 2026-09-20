@@ -111,6 +111,61 @@ async def test_embeddings_rejects_count_mismatch():
         await _client(handler).embeddings(["a", "b"])
 
 
+@pytest.mark.parametrize(("slot", "bad_index"), [(0, False), (1, True), (0, 0.0), (1, 1.0)])
+async def test_embeddings_rejects_bool_and_float_indices(slot, bad_index):
+    """`False`/`True`/`0.0`/`1.0` 与整数按值相等，`sorted` 和 `!=` 都看不出差别。
+
+    供应商把 JSON 里的 `index` 写成 `false` 或 `0.0` 时，旧实现会把它当成下标
+    0 接受：如果同一批里还有别的不整型 index，向量与语料的对应关系就会静默
+    错位（最坏的一类 bug：不报错，只是永远检索错）。`isinstance(True, int)`
+    为真，所以 bool 也必须显式拒绝。
+    """
+    rows = [{"index": i, "embedding": [float(i + 1)]} for i in range(2)]
+    rows[slot] = {"index": bad_index, "embedding": [float(slot + 1)]}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": rows})
+
+    with pytest.raises(LLMError, match="index"):
+        await _client(handler).embeddings(["a", "b"])
+
+
+@pytest.mark.parametrize("bad_index", ["0", None, [0], {"i": 0}])
+async def test_embeddings_rejects_non_numeric_indices(bad_index):
+    """字符串/None/容器形式的下标本来就会在排序或比较时抛错，这里锁住它保持 LLMError。
+
+    这条不是新修复，而是防止将来「顺手」把它们强制转换（`int(index)`）——
+    那样会把错误的下标悄悄变成合法下标。
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": [
+            {"index": bad_index, "embedding": [1.0]},
+            {"index": 1, "embedding": [2.0]},
+        ]})
+
+    with pytest.raises(LLMError):
+        await _client(handler).embeddings(["a", "b"])
+
+
+@pytest.mark.parametrize("rows", [
+    [{"embedding": [1.0]}, {"index": 1, "embedding": [2.0]}],                # 缺 index 字段
+    [{"index": 0, "embedding": [1.0]}, {"index": 2, "embedding": [2.0]}],    # 跳号（越界）
+    [{"index": 1, "embedding": [1.0]}, {"index": 1, "embedding": [2.0]}],    # 重复
+])
+async def test_embeddings_rejects_missing_duplicate_or_out_of_range_indices(rows):
+    """A-05 验收的另一半：缺失、重复、越界都必须报 LLMError，不能只丢顺序。
+
+    这三类旧实现已经会抛错（KeyError→LLMError、集合比较不等），这里锁住它们
+    不被将来的「容错」改写掉——例如补默认 0 或跳过重复项，都会让向量和语料
+    重新对不上而不报错。
+    """
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"data": rows})
+
+    with pytest.raises(LLMError):
+        await _client(handler).embeddings(["a", "b"])
+
+
 async def test_embeddings_rejects_empty_vector():
     """维度为 0 的向量算模长会除零，必须在这里就挡掉。"""
     def handler(request: httpx.Request) -> httpx.Response:

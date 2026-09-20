@@ -11,7 +11,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ### 交接诊断，不是安全验收
 
-`audit_handoff_probes.py` 保留基线 7f2e125 的有界合成复现（现余五项：LLM大无关字段、深嵌套JSON异常、bool/float向量索引、同单双预支付、跨站来源表单登录；F-01「分块请求读完/422回显」已在 A-01 修复后退役，保护性回归改在默认套件的 `test_request_body_budget.py`）。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
+`audit_handoff_probes.py` 保留基线 7f2e125 的有界合成复现（现余四项：LLM大无关字段、深嵌套JSON异常、同单双预支付、跨站来源表单登录；F-01「分块请求读完/422回显」与 F-05「bool/float 向量索引被接受」分别在 A-01、A-05 修复后退役，保护性回归改在默认套件的 `test_request_body_budget.py` 与 `test_faq_semantic.py`）。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
 
 显式执行 `python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s`。文件不命名为 test_*.py，因此默认套件不收集：**PASS代表观察到待修行为，不表示安全通过**。修复某项后应替换成默认套件里的保护性回归，不能为维持诊断绿色保留旧行为。来源、评级与环境局限见[全仓交接报告](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)。
 
@@ -59,7 +59,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `e05d3b911458` | L1–L113 |
+| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `5eef2279fac0` | L1–L100 |
 | [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
@@ -83,7 +83,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
-| [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
+| [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `2c8de5de224e` | L1–L662 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `6fbd35d188c3` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |

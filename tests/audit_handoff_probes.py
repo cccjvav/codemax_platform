@@ -8,6 +8,7 @@ After fixing a finding, replace its reproduction with a protective test in the n
 
 Retired probes (fixed; the protective regression now lives in the default suite):
 - F-01 body consumed/echoed before field rejection -> tests/test_request_body_budget.py (A-01).
+- F-05 bool/float embedding index accepted as 0/1 -> tests/test_faq_semantic.py (A-05).
 """
 
 import asyncio
@@ -52,20 +53,6 @@ async def test_deep_json_is_not_normalized():
     with pytest.raises(RecursionError):
         await client.chat("probe", "probe")
     print("LLM nesting=1200 escapes as RecursionError rather than LLMError")
-
-
-@pytest.mark.asyncio
-async def test_non_integer_embedding_indices_are_accepted():
-    for index in [False, 0.0]:
-        client = LLMClient(
-            api_key="synthetic",
-            embed_model="synthetic",
-            transport=httpx.MockTransport(
-                lambda r, index=index: httpx.Response(200, json={"data": [{"index": index, "embedding": [0.1, 0.2]}]})
-            ),
-        )
-        assert await client.embeddings(["probe"]) == [[0.1, 0.2]]
-        print(f"EMBED accepted index type={type(index).__name__}")
 
 
 @pytest.mark.asyncio

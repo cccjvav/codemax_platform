@@ -27,7 +27,7 @@
 | A-02 / P1（启用 LLM 时） | LLM 下载/内容/总时限/并发预算；F-02 | stream 后累计字节限制，压缩/分块/大无关字段/异常 JSON/深嵌套/取消均受控；统一脱敏错误；明确总 deadline 和排队/额度策略 | MockTransport 验结构，慢读须真实本地 HTTP 服务；不向实际提供方压测 |
 | A-03 / P2 | 同单预支付并发与配额；F-03 | 用户/订单合理限流，跨会话同单单飞或持久租约/退避；未知结果可按原号恢复，不持数据库锁等待网络 | SQLite + 非超级用户 PG 并发；不是重复扣款修复声明 |
 | A-04 / P2 | 登录来源策略；F-04 | 先做 HTTPS 浏览器双来源 PoC；决定 Origin/Fetch-Metadata/CSRF 组合，拒绝恶意跨站表单而保留合法第一方及约定 API 客户端 | 真实浏览器；ASGI 200 只能证明服务端接受 |
-| A-05 / P3 | 严格 embedding index；F-05 | `type(index) is int` 或等价严格校验；拒绝 bool/float、重复/缺失/越界，正常向量无退化 | 本地合成；不猜供应商模型能力 |
+| A-05 / P3 | **已完成（2026-09-20，TD-261）**：严格 embedding index；报告 F-05 | `LLMClient.embeddings` 排序前要求 `type(index) is int`，bool/float/字符串一律 `LLMError`；缺失（KeyError）、重复/越界（集合比较）保持拒绝；`tests/test_faq_semantic.py` 保护性回归（bool/float 四例在旧实现下全部被接受），F-05 探针退役；正常乱序整数向量仍按 index 还原 | 已做：本地合成 / `httpx.MockTransport`；未做：真实提供方模型能力（L-05） |
 | A-06 / P2（扩展收银台前） | 网页支付展示/轮询；审计9.4 | 保留无重叠/终态停止/换账号隔离；测后台暂停、退避/抖动、等待上限与恢复；新增HTTPS收银台前建立按渠道URL白名单，回跳不直接授予权益 | 当前Native扫码，不伪装H5/JSAPI已接入；SSE/WebSocket先有SLO依据 |
 
 退出条件：保护性回归进入默认套件，诊断旧行为断言被替换/注明已失效；模块 README、精读、配置/部署指南同步；精确 SHA 全 CI。可以拆小批次，不能为保持诊断绿色保留缺陷。
