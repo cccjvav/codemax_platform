@@ -18,6 +18,7 @@
 这个现象会测不出来（本项目实测踩过，第一版基准就是这么错的）。
 """
 import asyncio
+import json
 import os
 import tempfile
 import threading
@@ -350,11 +351,26 @@ async def test_concurrent_big_ddl_requests_all_succeed(perf_client):
 
 @pytest.mark.asyncio
 async def test_rejects_oversized_ddl_before_parsing(perf_client):
-    """超上限的输入应在**解析之前**就被挡掉（pydantic 422），不消耗 CPU。
+    """超上限的输入在**解析之前**就被挡掉，不消耗 CPU。
 
     这条同时解释了为什么事件循环阻塞的上限是可控的：接口把输入限制在
     20000 字符，单次 parse 最多约 33 ms，不会有人拿 100 万字符的 DDL 打进来。
+
+    两道闸分别在两层（A-01 之后）：
+    - 超过 `ErDiagramIn.max_length`（20000 字符）、但请求体仍在预算内的，由 pydantic 以 422 拒绝，
+      应答不回显输入；
+    - 体量本身超过 `/tools/er-diagram` 预算（128 KiB）的，由 `RequestBodyBudgetMiddleware`
+      在读体之前以 413 拒绝——`make_ddl(160)` 的 JSON 转义后是 133 386 字节，正落在这条上。
+    两道闸都保证超上限输入不进入 `parse_ddl`。
     """
-    r = await perf_client.post("/tools/er-diagram", json={"ddl": make_ddl(160)})
+    too_long = make_ddl(30)
+    assert len(too_long) > 20000  # 超过字段上限，但 JSON 只有 ~25 KB，在 128 KiB 预算内
+    r = await perf_client.post("/tools/er-diagram", json={"ddl": too_long})
     assert r.status_code == 422
-    assert len(make_ddl(160)) > 20000
+    assert len(r.content) < 1024  # 422 只给 loc/msg/type，不回显 20 KB 的 DDL
+
+    huge = make_ddl(160)
+    assert len(huge) > 20000
+    assert len(json.dumps({"ddl": huge}).encode()) > 128 * 1024  # 中文字段名转义后翻倍
+    r = await perf_client.post("/tools/er-diagram", json={"ddl": huge})
+    assert r.status_code == 413

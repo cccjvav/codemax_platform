@@ -96,6 +96,15 @@ class Settings(BaseSettings):
     TRUSTED_PROXY_CIDRS: str = "127.0.0.1/32,::1/128"
     TRUST_PROXY_HEADERS: bool = False  # 只在可信反向代理之后才打开（TD-142）
 
+    # 请求体预算（A-01）：在 FastAPI 读体/解析**之前**按字节和时间设硬上限，
+    # 反向代理的 client_max_body_size 只保护走代理的流量，不能替代应用自身的直连策略。
+    # 三档预算由 app/middleware.py::body_budget_for 按路径选择；默认档要装得下除 drawio、
+    # DDL 以外所有 schema 的最大合法体（含 JSON \uXXXX 转义的最坏情况，测试有核对）。
+    MAX_REQUEST_BODY_BYTES: int = Field(65536, ge=4096)  # 默认档：64 KiB
+    MAX_TOOL_BODY_BYTES: int = Field(131072, ge=4096)  # /tools/er-diagram、/tools/word-export：DDL 上限 20000 字符
+    MAX_DIAGRAM_BODY_BYTES: int = Field(4194304, ge=4096)  # /diagrams 新建/保存：content 上限 500000 字符
+    REQUEST_BODY_TIMEOUT_SECONDS: float = Field(60.0, gt=0)  # 从收到请求头起，读完请求体的总时限
+
     # ---- 部署与运维（S5-03）----
     # development / production。production 下会强制若干安全检查，见 app/startup_checks.py
     # **必须是 Literal 而不是自由字符串**：`startup_checks.py` 与登录 Cookie 的 `secure`

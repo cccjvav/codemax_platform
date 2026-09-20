@@ -286,7 +286,7 @@ DOC_GROUPS = [
     ("审计入口与历史阶段", ["review/README.md", "review/FULL_REPOSITORY_HANDOFF_2026-09-19.md", "review/01a08bf5-全面检查报告_2026-09-19.md", "review/RELEASE_BLOCKERS_PHASE2.md", "review/RELEASE_BLOCKERS_PHASE3.md", "review/RELEASE_BLOCKERS_PHASE4.md", "review/RELEASE_BLOCKERS_PHASE5.md", "review/RELEASE_BLOCKERS_PHASE6.md", "review/RELEASE_BLOCKERS_PHASE7.md", "review/RELEASE_BLOCKERS_PHASE8.md", "review/RELEASE_BLOCKERS_PHASE9.md", "review/RELEASE_BLOCKERS_PHASE10.md", "review/RELEASE_BLOCKERS_PHASE11.md", "review/RELEASE_BLOCKERS_PHASE12.md", "review/RELEASE_BLOCKERS_PHASE13.md", "review/RELEASE_BLOCKERS_PHASE14.md", "review/RELEASE_BLOCKERS_PHASE15.md", "review/RELEASE_BLOCKERS_PHASE16.md", "review/RELEASE_BLOCKERS_PHASE17.md", "review/01a08bf5-review-report.md", "review/CodeMax_Platform_全面只读审计_01a08bf5_2026-09-15.md"]),
     ("历史审查与验收快照", ["docs/SECOND_REPAIR_ACCEPTANCE.md"]),
     ("项目", ["README.md", "AGENTS.md", "HANDOVER.md", "ROADMAP.md", "TECH_DECISIONS.md"]),
-    ("项目管理", ["manager/README.md", "manager/SKILL.md", "manager/experience.md", "manager/stages/README.md", "manager/stages/windows-acceptance.md", "manager/stages/agnes-integration.md"]),
+    ("项目管理", ["manager/README.md", "manager/SKILL.md", "manager/experience.md", "manager/stages/README.md", "manager/stages/g1-public-boundaries.md", "manager/stages/windows-acceptance.md", "manager/stages/agnes-integration.md"]),
     ("架构讲解", ["docs/AGNES_AI.md", "docs/ARCHITECTURE_GUIDE.md", "docs/DEPLOY.md", "docs/REFUND_OPERATIONS.md", "docs/WECHAT_BILLS_GUIDE.md", "docs/CODE_READING_GUIDE.md", "docs/WINDOWS_LOCAL_RUN.md", "docs/WINDOWS_CONDA.md", "docs/ACCEPTANCE_GUIDE.md", "docs/PAYMENTS_ADMIN_GUIDE.md", "docs/ROOT_FILES.md"]),
     (
         "代码级说明书",

@@ -79,9 +79,18 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;   # ← HSTS 靠它判断
         proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Request-ID      $request_id;  # ← 与应用的 request id 串起来
+        # 请求体上限：代理层可以再收紧（例如 client_max_body_size 5m），但它只保护走代理的流量；
+        # 应用自身另有解析前预算（MAX_REQUEST_BODY_BYTES 等），直连应用端口时同样生效。
     }
 }
 ```
+
+**请求体预算（A-01）**：应用在 FastAPI 读体/解析之前按路径限制请求体——默认 64 KiB，
+`/tools/er-diagram`、`/tools/word-export` 128 KiB，`/diagrams` 新建/保存 4 MiB，微信回调由处理函数自己在 64 KiB
+处按微信格式拒绝；声明超限立即 413 且不读体，无长度分块按实际字节计数，读体超过
+`REQUEST_BODY_TIMEOUT_SECONDS`（默认 60 秒）返回 408，拒绝响应带 `Connection: close`。422 不再回显 `input`。
+代理的 `client_max_body_size` 不能替代它（直连端口、内网调用不经代理），也不要把代理上限调到低于 4 MiB，
+否则 drawio 大图保存会在代理层被 413。真实 h11/代理行为以部署环境实测为准，沙箱只验证了本地 uvicorn。
 
 配好后应用会自动做两件事（都有测试）：
 - 响应带 `Strict-Transport-Security: max-age=31536000; includeSubDomains`

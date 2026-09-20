@@ -37,7 +37,7 @@
     },
     {
       "path": ".env.example",
-      "sha256": "109b3ed4da5edc51796cc053aaad53c5802a872ee28190bcfa5a73215e0dff75",
+      "sha256": "1e420e33fd2fc8e6b4e37a0b7c405c39d1a2d3c2959832c148311b155c25931f",
       "method": "manual",
       "blocks": [
         {
@@ -66,12 +66,17 @@
           "explanation": "当前只local，非实现云后端报503。root/key指服务器文件，TTL只限制每条URL，不耗尽已付订单权益；本地生产需持久卷/备份，不是只能演示。"
         },
         {
-          "end": 79,
+          "end": 70,
+          "title": "请求体预算（A-01）",
+          "explanation": "四个值对应 app/config.py 的同名字段：默认档 64 KiB、DDL 工具档 128 KiB、drawio 档 4 MiB 与读体总时限 60 秒；由 app/middleware.py::body_budget_for 按精确路径选档。它们在 FastAPI 读体之前生效，代理的 client_max_body_size 不能替代（直连端口不经代理）。改小之前先对照 app/schemas.py 的 max_length：默认档必须装下除 drawio/DDL 外所有 schema 的最大合法体，测试 test_request_body_budget 会核对，配置低于 4096 字节会在启动时被拒。"
+        },
+        {
+          "end": 86,
           "title": "限流与可信代理",
           "explanation": "工具/模型/认证/留言不同scope上限，共用窗口；限流为进程内。只在真实代理对端CIDR可信时采用转发头，不能仅打开开关就信任任意XFF。"
         },
         {
-          "end": 128,
+          "end": 135,
           "title": "生产开关、凭据与剩余预算",
           "explanation": "ENV只能development/production；production额外做配置与DB安全检查。OAUTH_TRUSTED_CLIENT_IDS默认空JSON数组，必须确认自有客户端会获得完整站点JWT后才允许。保留原secret/CPU/图表配额示例，不等于已验收部署。 第九批末尾明确默认关闭真实退款发送；不得为测试随意开启业务环境，历史准备/授权永不自动消费。 VERIFY与AUTO_RECORD独立默认false，AUTO只登记成功事实不发资金，启用须0016并单独重启worker；旧终态不自动复活。 末尾新增WX_ORDER_CLOSE_ENABLED=false，只有专用验收授权后考虑开启，不因填好商户key自动关单。 WX_BILL_READ_ENABLED=false保持日账工具关闭；私有运维确认日期/实际库/商户后才可读取，参数和报告目录见WECHAT_BILLS_GUIDE，不与关单/退款开关混用。"
         }
@@ -204,7 +209,7 @@
     },
     {
       "path": "app/config.py",
-      "sha256": "7a5d9215b9626b7c37f6656e8331b3d2a659385f18e360546c47eccaf6774994",
+      "sha256": "5d68c52e19b93df9d4182f82dabbdfd96cfa2d9fd94d32680fb49945295809d1",
       "blocks": [
         {
           "end": 22,
@@ -232,22 +237,22 @@
           "explanation": "storage backend 名称不是已实现云适配器；当前只用 local。商品 key 相对本地根目录，下载 TTL 是链接时间。图预算区分活跃数、含回收站总数和 UTF-8 字节；活跃额度可以为 0，其他总预算必须为正。"
         },
         {
-          "end": 98,
-          "title": "限流与可信代理",
-          "explanation": "各类请求分别设频率，窗口为正。TRUST_PROXY_HEADERS 默认 false；开启后仍要核对直接对端是否在 CIDR 中。字段集中在此不意味着限流状态跨进程共享，真正的 Limiter 当前放在进程内存。"
+          "end": 107,
+          "title": "限流、可信代理与请求体预算",
+          "explanation": "各类请求分别设频率，窗口为正。TRUST_PROXY_HEADERS 默认 false；开启后仍要核对直接对端是否在 CIDR 中。字段集中在此不意味着限流状态跨进程共享，真正的 Limiter 当前放在进程内存。 第十八批 A-01 在同一段增加四个请求体预算字段：MAX_REQUEST_BODY_BYTES（默认 64 KiB）、MAX_TOOL_BODY_BYTES（128 KiB，DDL 工具）、MAX_DIAGRAM_BODY_BYTES（4 MiB，drawio）、REQUEST_BODY_TIMEOUT_SECONDS（60 秒读体总时限）；字节档下限 4096、时限必须为正，由 app/middleware.py::body_budget_for 在每次请求时现读，所以测试改 settings 立即生效。它们约束的是读体前的字节与时间，不是限流也不是代理上限。"
         },
         {
-          "end": 113,
+          "end": 122,
           "title": "环境枚举、日志与加载方式",
           "explanation": "production枚举防拼写失效。OAUTH_TRUSTED_CLIENT_IDS是默认空tuple，dotenv写JSON数组，仅限制生产受信第一方SSO。日志/HSTS配置保留；model_config使用__file__固定根.env，未知字段继续忽略。"
         },
         {
-          "end": 140,
+          "end": 149,
           "title": "sqlalchemy_url：两条不同来源",
           "explanation": "property 在读取属性时返回字符串。有 DATABASE_URL 就原样返回，不二次编码；否则对用户名/密码 quote(safe=空串)，再拼 host/port/DB_NAME。DB_NAME 当前原样进入路径，没有代码对它编码，所以 README 不能说所有连接字段都被转义。不要输出真实完整 URL 到日志。"
         },
         {
-          "end": 143,
+          "end": 152,
           "title": "模块级 settings 的生命周期",
           "explanation": "Settings在导入时创建，读取固定根.env与环境变量。编辑文件不热加载，Web和独立worker各自重启；维护CLI也复用Settings，不再单独猜DB字段。"
         }
@@ -670,68 +675,113 @@
     },
     {
       "path": "app/middleware.py",
-      "sha256": "c18fb3475e6da01f414c16ac0d523d69e448facb50af8f014b69c5e7fe986e8d",
+      "sha256": "05c0a0edaf9e3532d7a8049603cc4bd03e6dfa1989f4e554d34dec90c4626b6c",
       "method": "guided",
       "blocks": [
         {
-          "end": 46,
+          "end": 50,
           "title": "模块装配",
-          "explanation": "导入ipaddress用于代理CIDR、logging记录应用日志、re限制request-ID、time统计耗时、uuid生成替代ID；安全头常量与业务self脚本/开发文档CDN例外仍分开。"
+          "explanation": "导入asyncio（读体时限）、ipaddress用于代理CIDR、json（预算拒绝应答）、logging记录应用日志、re限制request-ID与预算路径、time统计耗时、uuid生成替代ID；从 app.config 取 settings 供请求体预算按次现读。安全头常量与业务self脚本/开发文档CDN例外仍分开。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL6 导入 from __future__ import annotations。\nL8 导入 import asyncio。\nL9 导入 import ipaddress。\nL10 导入 import json。\nL11 导入 import logging。\nL12 导入 import re。\nL13 导入 import time。\nL14 导入 import uuid。\nL16 导入 from starlette.datastructures import MutableHeaders。\nL18 导入 from .config import settings；config 不反向导入本模块，没有循环导入。\nL20 计算右侧并赋给 `logger`：logging.getLogger(\"codemax.access\")。\nL23–L24 常量 _CDN、_DRAWIO；L26–L39 拼接 CONTENT_SECURITY_POLICY；L42–L48 预编码 _STATIC_SECURITY_HEADERS。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 53,
+          "end": 57,
           "title": "_header",
-          "explanation": "功能契约：遍历 ASGI 的字节头，按 latin-1 解码首个匹配值；不存在返回空字符串。\n\n输入签名：scope: dict, name: bytes；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL47 逐项遍历 `scope.get('headers', [])`，绑定 `(k, v)`；循环体按缩进执行，break可提前结束。\nL48 判断 `k == name`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL49 结束当前函数，返回 调用 v.decode('latin-1')；不会自动commit未提交事务。\nL50 结束当前函数，返回 ''；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：遍历 ASGI 的字节头，按 latin-1 解码首个匹配值；不存在返回空字符串。\n\n输入签名：scope: dict, name: bytes；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL51 逐项遍历 `scope.get('headers', [])`，绑定 `(k, v)`；循环体按缩进执行，break可提前结束。\nL52 判断 `k == name`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL53 结束当前函数，返回 调用 v.decode('latin-1')；不会自动commit未提交事务。\nL54 结束当前函数，返回 ''；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 65,
+          "end": 69,
           "title": "trusted_proxy",
-          "explanation": "功能契约：配置开关开启且 scope.client 的 IP 落在可信 CIDR 才信任转发头；缺对端或解析错误返回 False。\n\n输入签名：scope: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：bool。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL54 导入 from .config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL56 判断 `not settings.TRUST_PROXY_HEADERS or not scope.get('client')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL57 结束当前函数，返回 False；不会自动commit未提交事务。\nL58 执行try体；捕获 ValueError。\nL59 计算右侧并赋给 `peer`：调用 ipaddress.ip_address(scope['client'][0])。\nL60 结束当前函数，返回 调用 any((peer in ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(',')))；不会自动commit未提交事务。\nL62 结束当前函数，返回 False；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：配置开关开启且 scope.client 的 IP 落在可信 CIDR 才信任转发头；缺对端或解析错误返回 False。\n\n输入签名：scope: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：bool。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL58 导入 from .config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL60 判断 `not settings.TRUST_PROXY_HEADERS or not scope.get('client')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL61 结束当前函数，返回 False；不会自动commit未提交事务。\nL62 执行try体；捕获 ValueError。\nL63 计算右侧并赋给 `peer`：调用 ipaddress.ip_address(scope['client'][0])。\nL64 结束当前函数，返回 调用 any((peer in ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(',')))；不会自动commit未提交事务。\nL66 结束当前函数，返回 False；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 91,
+          "end": 95,
           "title": "public_base_url",
           "explanation": "不触网；生产返回启动校验过的SITE_BASE_URL而不相信请求Host。开发先用request.base_url，仅直接peer符合可信CIDR才接受转发scheme/host；scheme白名单仍是http/https。该函数不是Host allowlist，HSTS另按实际可信HTTPS判断。"
         },
         {
-          "end": 94,
+          "end": 98,
           "title": "SecurityHeadersMiddleware",
           "explanation": "功能契约：包装ASGI应用的可调用对象，单次请求闭包保存本次安全条件；不会读取用户数据库。\n\n结构事实：定义类 SecurityHeadersMiddleware，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 98,
+          "end": 102,
           "title": "SecurityHeadersMiddleware.__init__",
-          "explanation": "功能契约：保留下一层ASGI app，初始化时不处理请求。\n\n输入签名：self, app, hsts_max_age: int=0；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL91 计算右侧并赋给 `self.app`：app。\nL92 计算右侧并赋给 `self.hsts_max_age`：hsts_max_age。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：保留下一层ASGI app，初始化时不处理请求。\n\n输入签名：self, app, hsts_max_age: int=0；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 计算右侧并赋给 `self.app`：app。\nL96 计算右侧并赋给 `self.hsts_max_age`：hsts_max_age。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 117,
+          "end": 121,
           "title": "SecurityHeadersMiddleware.__call__",
-          "explanation": "功能契约：非 HTTP 直接透传；HTTPS 或可信代理确认 HTTPS 时才考虑 HSTS。包装响应开始事件，不缓冲完整响应体。\n\n输入签名：self, scope, receive, send；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 判断 `scope['type'] != 'http'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL96 await 调用 self.app(scope, receive, send)；等待期间可让出事件循环，恢复后才执行下一句。\nL97 结束当前函数，返回 None；不会自动commit未提交事务。\nL102 计算右侧并赋给 `hsts`：None。\nL103 判断 `self.hsts_max_age > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL104 计算右侧并赋给 `proto`：调用 scope.get('scheme', '')。\nL105 判断 `proto != 'https' and trusted_proxy(scope)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL106 计算右侧并赋给 `proto`：调用 _header(scope, b'x-forwarded-proto').split(',')[0].strip().lower()。\nL107 判断 `proto == 'https'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL108 计算右侧并赋给 `hsts`：(b'strict-transport-security', f'max-age={self.hsts_max_age}; includeSubDomains'.encode())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：非 HTTP 直接透传；HTTPS 或可信代理确认 HTTPS 时才考虑 HSTS。包装响应开始事件，不缓冲完整响应体。\n\n输入签名：self, scope, receive, send；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL99 判断 `scope['type'] != 'http'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL100 await 调用 self.app(scope, receive, send)；等待期间可让出事件循环，恢复后才执行下一句。\nL101 结束当前函数，返回 None；不会自动commit未提交事务。\nL106 计算右侧并赋给 `hsts`：None。\nL107 判断 `self.hsts_max_age > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL108 计算右侧并赋给 `proto`：调用 scope.get('scheme', '')。\nL109 判断 `proto != 'https' and trusted_proxy(scope)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL110 计算右侧并赋给 `proto`：调用 _header(scope, b'x-forwarded-proto').split(',')[0].strip().lower()。\nL111 判断 `proto == 'https'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL112 计算右侧并赋给 `hsts`：(b'strict-transport-security', f'max-age={self.hsts_max_age}; includeSubDomains'.encode())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 136,
+          "end": 140,
           "title": "SecurityHeadersMiddleware.__call__.send_with_headers",
-          "explanation": "功能契约：setdefault 保留路由局部 CSP（如 OAuth form-action）；开发 /docs、/redoc 有单独放行，非 /static 默认 no-store。HSTS 条件满足时补头。\n\n输入签名：message；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL114 判断 `message['type'] == 'http.response.start'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL115 计算右侧并赋给 `headers`：调用 MutableHeaders(scope=message)。\nL116 逐项遍历 `_STATIC_SECURITY_HEADERS`，绑定 `(k, v)`；循环体按缩进执行，break可提前结束。\nL117 调用 headers.setdefault(k.decode(), v.decode())。\nL118 判断 `scope.get('path') in ('/docs', '/redoc')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL119 计算右侧并赋给 `headers['content-security-policy']`：CONTENT_SECURITY_POLICY.replace(\"script-src 'self'\", f\"script-src 'self' 'unsafe-inline' {_CDN}\").replace(\"style-src 'self' 'unsafe-inline'\", f\"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com\") + \"; font-src 'self' https://fonts.gstatic.com data:\"。\nL123 判断 `not scope.get('path', '').startswith('/static/')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL124 调用 headers.setdefault('cache-control', 'no-store')。\nL125 判断 `hsts is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL126 调用 headers.setdefault(hsts[0].decode(), hsts[1].decode())。\nL127 await 调用 send(message)；等待期间可让出事件循环，恢复后才执行下一句。\nL129 await 调用 self.app(scope, receive, send_with_headers)；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：setdefault 保留路由局部 CSP（如 OAuth form-action）；开发 /docs、/redoc 有单独放行，非 /static 默认 no-store。HSTS 条件满足时补头。\n\n输入签名：message；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL118 判断 `message['type'] == 'http.response.start'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL119 计算右侧并赋给 `headers`：调用 MutableHeaders(scope=message)。\nL120 逐项遍历 `_STATIC_SECURITY_HEADERS`，绑定 `(k, v)`；循环体按缩进执行，break可提前结束。\nL121 调用 headers.setdefault(k.decode(), v.decode())。\nL122 判断 `scope.get('path') in ('/docs', '/redoc')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL123 计算右侧并赋给 `headers['content-security-policy']`：CONTENT_SECURITY_POLICY.replace(\"script-src 'self'\", f\"script-src 'self' 'unsafe-inline' {_CDN}\").replace(\"style-src 'self' 'unsafe-inline'\", f\"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com\") + \"; font-src 'self' https://fonts.gstatic.com data:\"。\nL127 判断 `not scope.get('path', '').startswith('/static/')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL128 调用 headers.setdefault('cache-control', 'no-store')。\nL129 判断 `hsts is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL130 调用 headers.setdefault(hsts[0].decode(), hsts[1].decode())。\nL131 await 调用 send(message)；等待期间可让出事件循环，恢复后才执行下一句。\nL133 await 调用 self.app(scope, receive, send_with_headers)；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 143,
+          "end": 147,
           "title": "RequestLoggingMiddleware",
           "explanation": "ASGI包装器输出有界文本访问日志，不是JSON或不可篡改财务审计。HTTP响应带关联ID，非HTTP直通；配置其他服务器/代理日志时也必须去掉签名URL查询串。"
         },
         {
-          "end": 146,
+          "end": 150,
           "title": "RequestLoggingMiddleware.__init__",
-          "explanation": "功能契约：只保存后续app，计时与request id在每次__call__重新计算。\n\n输入签名：self, app；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL140 计算右侧并赋给 `self.app`：app。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：只保存后续app，计时与request id在每次__call__重新计算。\n\n输入签名：self, app；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL144 计算右侧并赋给 `self.app`：app。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 159,
+          "end": 163,
           "title": "RequestLoggingMiddleware.__call__",
           "explanation": "非HTTP直接转发。只接受1–128位字母数字点下划线连字符ID，否则生成uuid hex。方法/路径先限长再ascii转义并去外层引号，控制字符不能拆日志行且正常GET路径文案不变。send_with_id加响应ID并记录状态；正常/异常记录耗时，但不读取query_string。"
         },
         {
-          "end": 180,
+          "end": 184,
           "title": "RequestLoggingMiddleware.__call__.send_with_id",
-          "explanation": "功能契约：闭包 nonlocal 更新状态并在响应头写 request ID，然后交给外层 send；不修改正文。\n\n输入签名：message；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL154 nonlocal 修改外层闭包状态：status；不是本函数新建同名局部变量。\nL155 判断 `message['type'] == 'http.response.start'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL156 计算右侧并赋给 `status`：message['status']。\nL157 计算右侧并赋给 `MutableHeaders(scope=message)['X-Request-ID']`：request_id。\nL158 await 调用 send(message)；等待期间可让出事件循环，恢复后才执行下一句。\nL160 执行try体；捕获 Exception。\nL161 await 调用 self.app(scope, receive, send_with_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 调用 logger.exception('%s %s -> 500 (%.1fms) rid=%s', method, path, (time.perf_counter() - start) * 1000, request_id)。\nL168 抛出 当前异常；本路径不再顺序执行后文，由匹配的except/上层处理。\nL169 调用 logger.info('%s %s -> %d (%.1fms) rid=%s', method, path, status, (time.perf_counter() - start) * 1000, request_id, extra={'rid': request_id})。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：闭包 nonlocal 更新状态并在响应头写 request ID，然后交给外层 send；不修改正文。\n\n输入签名：message；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL158 nonlocal 修改外层闭包状态：status；不是本函数新建同名局部变量。\nL159 判断 `message['type'] == 'http.response.start'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL160 计算右侧并赋给 `status`：message['status']。\nL161 计算右侧并赋给 `MutableHeaders(scope=message)['X-Request-ID']`：request_id。\nL162 await 调用 send(message)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 执行try体；捕获 Exception。\nL165 await 调用 self.app(scope, receive, send_with_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL168 调用 logger.exception('%s %s -> 500 (%.1fms) rid=%s', method, path, (time.perf_counter() - start) * 1000, request_id)。\nL172 抛出 当前异常；本路径不再顺序执行后文，由匹配的except/上层处理。\nL173 调用 logger.info('%s %s -> %d (%.1fms) rid=%s', method, path, status, (time.perf_counter() - start) * 1000, request_id, extra={'rid': request_id})。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 196,
+          "title": "请求体预算：回调兜底常量与精确路径分档",
+          "explanation": "功能契约：NOTIFY_BODY_LIMIT = 2×64 KiB 是微信支付/退款回调的兜底上限；处理函数自己边读边数并在 64 KiB 处按微信要求的 {\"code\":\"FAIL\"} 格式返回 413，兜底必须高于它，否则中间件的 {\"detail\":…} 会先应答、改变回调应答格式。三个正则用精确匹配而非前缀：/diagrams 与 /diagrams/{数字} 享受 drawio 档，/diagrams/1/restore、/diagramsX 不享受；/tools/er-diagram、/tools/word-export 用 DDL 档；两个回调路径用兜底常量。\n\nAST语句导读：L191 计算右侧并赋给 `NOTIFY_BODY_LIMIT`：2 * 65536。L194–L196 分别把 re.compile(...) 赋给 `_DIAGRAM_PATHS`、`_TOOL_PATHS`、`_NOTIFY_PATHS`；模块导入时编译一次。"
+        },
+        {
+          "end": 207,
+          "title": "body_budget_for",
+          "explanation": "功能契约：输入路径字符串，返回该路径的请求体字节上限；按 drawio → DDL 工具 → 回调 → 默认的顺序匹配，每次调用现读 settings，因此测试用 monkeypatch 改配置后立即生效，不需要重建应用。它只看路径不看方法：GET 通常没有体，计数为 0 不会触发。\n\n输入签名：path: str。返回类型标注：int。\n\nAST语句导读：L201 若 `_DIAGRAM_PATHS.match(path)` 为真，L202 返回 settings.MAX_DIAGRAM_BODY_BYTES。L203 若 `_TOOL_PATHS.match(path)` 为真，L204 返回 settings.MAX_TOOL_BODY_BYTES。L205 若 `_NOTIFY_PATHS.match(path)` 为真，L206 返回 NOTIFY_BODY_LIMIT。L207 否则返回 settings.MAX_REQUEST_BODY_BYTES。"
+        },
+        {
+          "end": 226,
+          "title": "RequestBodyBudgetMiddleware",
+          "explanation": "功能契约（类文档字符串）：在 FastAPI 读体/解析之前对请求体施加字节上限与读取时限。理由：FastAPI 先 `await request.body()` 再校验，pydantic 的 max_length 对内存没有约束，且默认 422 会回显输入（回显由 main.py 的处理器单独去掉）。三条规则：Content-Length 声明超预算立即 413、不读体，非法值 400；无长度或声明与实际不符时包装 receive 逐块计数，越界即 413 并向应用返回 http.disconnect、丢弃迟到响应；从收到请求头起读体总时长超过 REQUEST_BODY_TIMEOUT_SECONDS 则 408。拒绝响应带 Connection: close，h11 应答后关闭连接。字节原样透传，不改块边界，回调原始报文验签不受影响；它不是限流，也不替代反向代理上限。"
+        },
+        {
+          "end": 230,
+          "title": "RequestBodyBudgetMiddleware.__init__",
+          "explanation": "功能契约：只保存下游 ASGI 应用；没有其它构造参数，预算全部在请求时从 settings 读取。\n\nAST语句导读：L229 把 `app` 存到 `self.app`。"
+        },
+        {
+          "end": 248,
+          "title": "RequestBodyBudgetMiddleware.__call__：非 HTTP 直通与声明长度预检",
+          "explanation": "功能契约：lifespan/websocket 等非 http scope 原样直通；http 请求先按路径取预算，再读 Content-Length：非数字 400、大于预算 413，两者都不调用下游应用、不读任何请求体字节。随后准备读体时限的 deadline（事件循环单调时钟 + 配置秒数）与共享状态 seen/started/responded。\n\n输入签名：scope, receive, send；异步。\n\nAST语句导读：L232 若 scope[\"type\"] != \"http\"，L233 直接 await self.app(...) 并 L234 返回。L236 `limit` = body_budget_for(scope.get(\"path\", \"\"))。L237 `declared` = 取 content-length 头并 strip。L238 若有声明：L239 非 isdigit → L240 await _reject(send, 400, ...) 并 L241 返回；L242 int(declared) > limit → L243 _reject(send, 413, ...) 并 L244 返回。L246 取运行中的事件循环；L247 `deadline` = loop.time() + settings.REQUEST_BODY_TIMEOUT_SECONDS；L248 `state` 字典初始化 seen=0、started=False、responded=False。"
+        },
+        {
+          "end": 257,
+          "title": "RequestBodyBudgetMiddleware.__call__.stop",
+          "explanation": "功能契约：越界或超时时的统一收口。应用尚未开始应答（started 为假）就由中间件直接用 _reject 发出 status/detail 并标记 responded；若应用已经开始应答（边读边发的流式场景，当前仓库没有这类路由），无法再改状态码，只把 started 置真以停止喂数据。无论哪种情况都返回 http.disconnect 消息给调用它的 receive 包装器。\n\nAST语句导读：L252 若 not state[\"started\"]：L253 state[\"responded\"] = True，L254 await _reject(send, status, detail)。L255 state[\"started\"] = True。L256 返回 {\"type\": \"http.disconnect\"}。"
+        },
+        {
+          "end": 271,
+          "title": "RequestBodyBudgetMiddleware.__call__.budgeted_receive",
+          "explanation": "功能契约：替代原 receive 交给下游应用。已应答后每次调用都返回 http.disconnect（Starlette 的 Request.stream 会抛 ClientDisconnect，FastAPI 把它包装成 400，再由 guarded_send 丢弃）；否则在 deadline 之前等待上游 receive，超时走 stop(408)。收到 http.request 消息时累计 body 长度，超过 limit 走 stop(413)；未超限则原样返回消息，字节和块边界都不改。\n\nAST语句导读：L259 若 state[\"responded\"]，L260 返回 http.disconnect。L261–L263 在 `async with asyncio.timeout_at(deadline)` 内 await receive()；L264 捕获 TimeoutError，L265 返回 await stop(408, ...)。L266 若 message[\"type\"] == \"http.request\"：L267 state[\"seen\"] 加上 len(message.get(\"body\", b\"\"))；L268 若 seen > limit，L269 返回 await stop(413, ...)。L270 返回 message。"
+        },
+        {
+          "end": 280,
+          "title": "RequestBodyBudgetMiddleware.__call__.guarded_send 与下游调用",
+          "explanation": "功能契约：包装 send。中间件已替应用应答（responded）后，应用迟到的任何消息都被丢弃，避免一个请求出现两次 http.response.start；否则看到 http.response.start 时记下 started（此后越界只能停止喂数据），然后原样转发。最后一行把包装后的 receive/send 交给下游应用执行。\n\nAST语句导读：L273 若 state[\"responded\"]，L274 直接返回。L275 若 message[\"type\"] == \"http.response.start\"，L276 state[\"started\"] = True。L277 await send(message)。L279 await self.app(scope, budgeted_receive, guarded_send)。"
+        },
+        {
+          "end": 293,
+          "title": "_reject",
+          "explanation": "功能契约：用原生 ASGI 消息发出一条完整的 JSON 错误应答：{\"detail\": detail}，UTF-8 不转义中文，带 content-type、精确 content-length 与 connection: close。它不经过 FastAPI，因此不会触发路由或异常处理器；但它调用的是外层中间件传下来的 send，所以安全头与请求日志仍会附加/记录。Connection: close 让 h11 在应答后关闭连接，而不是继续读完并丢弃剩余请求体。\n\n输入签名：send, status: int, detail: str；异步，返回 None。\n\nAST语句导读：L283 `body` = json.dumps({\"detail\": detail}, ensure_ascii=False).encode()。L284–L292 await send(http.response.start，status 与三个头)。L293 await send(http.response.body，body)。"
         }
       ]
     },
@@ -2855,40 +2905,40 @@
     },
     {
       "path": "main.py",
-      "sha256": "6a59207cda6dabb946baca0e63d587d6fbd20ff2a5aa8de2899278ec4d7c75a9",
+      "sha256": "292a78ed22d423ed08a23edd0046b3d69403fe31b07ba4bab5bdd5d9dabe44ac",
       "blocks": [
         {
-          "end": 28,
+          "end": 31,
           "title": "先装配依赖，不是先接请求",
-          "explanation": "导入各模块后设置日志与生产静态配置检查，再构建FastAPI；新增数据库安全入口只是导入，此处不会自动迁移。路由/模板装配规则不变。\n\n第七批复核：增加refund_notify路由模块导入，它使用独立平台验签，不是管理员免鉴权写。"
+          "explanation": "导入各模块后设置日志与生产静态配置检查，再构建FastAPI；新增数据库安全入口只是导入，此处不会自动迁移。路由/模板装配规则不变。\n\n第七批复核：增加refund_notify路由模块导入，它使用独立平台验签，不是管理员免鉴权写。\n\n第十八批 A-01：多导入 Request、jsonable_encoder、RequestValidationError、JSONResponse 与 RequestBodyBudgetMiddleware，供下方 422 处理器与请求体预算中间件使用；仍是导入，不在此处理请求。"
         },
         {
-          "end": 38,
+          "end": 41,
           "title": "导入时的日志与生产自检",
           "explanation": "basicConfig 设置默认日志级别和格式；已有日志配置时不一定覆盖它。enforce_production_settings 在 app 创建前执行：生产配置硬错误直接阻止启动。它检查配置规则，不证明外部数据库/商户可连接。"
         },
         {
-          "end": 52,
+          "end": 55,
           "title": "lifespan：开店前与正常关店后",
           "explanation": "try内先await生产DB账本/已知演示凭据/管理员检查，通过才可选FAQ预热并yield接请求；finally无论正常退出或启动失败都关闭CPU池并dispose engine。DB检查有总时限且只读，不能拿自愈迁移冒充启动。"
         },
         {
-          "end": 60,
+          "end": 63,
           "title": "创建 ASGI 应用",
           "explanation": "FastAPI 接收生命周期函数和接口文档地址；production 把三个文档地址设成 None。关闭 Swagger 不是关闭业务路由，也不是权限校验。Uvicorn 的 main:app 指向这个变量。"
         },
         {
-          "end": 66,
-          "title": "中间件套在路由外面",
-          "explanation": "后添加的请求日志中间件在外，安全头中间件在内；请求进入顺序与响应返回顺序相反。它们执行日志、头部与缓存策略，不能替代路由的所有权和角色检查。"
+          "end": 82,
+          "title": "中间件套在路由外面，422 不回显输入",
+          "explanation": "后添加的请求日志中间件在外，安全头中间件在内，最先添加的请求体预算中间件（A-01）在最里层：请求进入顺序与响应返回顺序相反，预算中间件自己发出的 413/408 也会经过安全头并被日志记录。它们执行日志、头部、缓存策略与读体前的字节/时间预算，不能替代路由的所有权和角色检查。\n\n同段注册 RequestValidationError 处理器 validation_error_without_echo：默认处理器会把出错字段的 input（以及可能含异常原文的 ctx）原样放回 422 响应，对匿名可达的 /tools、/support 是放大器；现在只保留每条错误的 loc/msg/type，经 jsonable_encoder 后返回 422。字段校验本身仍由 Pydantic 完成，这里只改应答形状。"
         },
         {
-          "end": 80,
+          "end": 96,
           "title": "把子路由接到应用",
           "explanation": "把auth/oauth/shop/payments_admin等子路由挂到同一ASGI应用。payments_admin增加公开无数据登录壳和两个需管理员的数据/核查入口；site循环页仍单独注册。这里include_router是装配，不是当场发网络或查数据库。\n\n第七批复核：新增refund_notify.router公开服务器回调，按原文RSA/AES与原付款认证；refunds_admin的两个受控写入口保持原依赖。"
         },
         {
-          "end": 86,
+          "end": 102,
           "title": "静态资源与模板页面分开",
           "explanation": "/static 映射到仓库 app/static 目录，Path(__file__) 让静态路径不依赖启动目录。HTML 页面主要由 Jinja 路由返回；CSS/构建后的 JS 再由浏览器请求。静态目录不是私有商品目录，商品下载另有鉴权和签名流程。"
         }
@@ -2969,7 +3019,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "549e4f2319660fae5d558c8f0467776430298b84c11b2ced7f481e0cbf31aeb3",
+      "sha256": "9b137a3204f7fff6492e3f1f659f1d16f67359934223e8bad9b0b087f706e3a5",
       "method": "manual",
       "blocks": [
         {
@@ -3020,7 +3070,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；后续DOC_GROUPS人工登记Windows/Conda入口、业务手册、当前交接审计和有独有证据的历史阶段，不自动收录任意Markdown。此前删除四份失效文档注册并加入2026-09-19审计报告；第十八批在同一分组登记针对 ea11619 的独立全面检查报告，必须有真实tracked文件且双向清单/链接通过。此常量只生成离线文档导航，不触发worker、不注册业务HTTP路由，也不公开runtime账单；唯一当前工作队列仍是ROADMAP。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；后续DOC_GROUPS人工登记Windows/Conda入口、业务手册、当前交接审计和有独有证据的历史阶段，不自动收录任意Markdown。此前删除四份失效文档注册并加入2026-09-19审计报告；第十八批在同一分组登记针对 ea11619 的独立全面检查报告，并在项目管理分组登记 G1 阶段文件 manager/stages/g1-public-boundaries.md，必须有真实tracked文件且双向清单/链接通过。此常量只生成离线文档导航，不触发worker、不注册业务HTTP路由，也不公开runtime账单；唯一当前工作队列仍是ROADMAP。"
         },
         {
           "end": 338,
@@ -6496,7 +6546,7 @@
     },
     {
       "path": "tests/test_perf.py",
-      "sha256": "75404eeca36dbf511e10f355934e8319b7871efdb29ca3b791b6a2a942942f5f",
+      "sha256": "5c14d1d2b9dcf9f77025636cc22c037b76aa5104f07176a304f372b234ee788b",
       "method": "guided",
       "blocks": [
         {
@@ -6595,9 +6645,9 @@
           "explanation": "本用例的准备条件：perf_client。涉及接口：/tools/er-diagram。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：perf_client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL341 计算右侧并赋给 `results`：await 调用 asyncio.gather(*[perf_client.post('/tools/er-diagram', json={'ddl': BIG_DDL}) for _ in range(5)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL344 核对 `[r.status_code for r in results] == [200] * 5`：此条件为假即测试失败；不是生产输入校验。\nL345 计算右侧并赋给 `first`：调用 results[0].json()。\nL346 逐项遍历 `results[1:]`，绑定 `r`；循环体按缩进执行，break可提前结束。\nL347 核对 `r.json() == first`：此条件为假即测试失败；不是生产输入校验。\nL348 核对 `len(first['tables']) == BIG_DDL.count('CREATE TABLE')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 360,
+          "end": 376,
           "title": "test_rejects_oversized_ddl_before_parsing",
-          "explanation": "本用例的准备条件：perf_client。涉及接口：/tools/er-diagram。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：perf_client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL358 计算右侧并赋给 `r`：await 调用 perf_client.post('/tools/er-diagram', json={'ddl': make_ddl(160)})；等待期间可让出事件循环，恢复后才执行下一句。\nL359 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\nL360 核对 `len(make_ddl(160)) > 20000`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：perf_client。涉及接口：/tools/er-diagram。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：perf_client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n第十八批 A-01 更新：原来只有一条断言（160 张表的 DDL → 422），现在分两段，覆盖两道不同层级的闸；这不是放宽，而是把「超上限输入不进入 parse_ddl」拆成字段上限与请求体预算两条独立证据。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL366 计算右侧并赋给 `too_long`：make_ddl(30)（20 828 字符，JSON 约 25 KB，仍在 128 KiB 预算内）。\nL367 核对 `len(too_long) > 20000`：保证这一段确实超过 ErDiagramIn 的字段上限；为假即失败。\nL368 计算右侧并赋给 `r`：await 调用 perf_client.post('/tools/er-diagram', json={'ddl': too_long})。\nL369 核对 `r.status_code == 422`：超字段上限但未超预算的输入由 pydantic 拒绝；不满足即失败。\nL370 核对 `len(r.content) < 1024`：应答不含回显的 20 KB DDL 原文（main.py 的 RequestValidationError 处理器）。\nL372 计算右侧并赋给 `huge`：make_ddl(160)。\nL373 核对 `len(huge) > 20000`：同样是超上限输入。\nL374 核对 `len(json.dumps({'ddl': huge}).encode()) > 128 * 1024`：JSON 转义后确实超过 /tools/er-diagram 的 128 KiB 预算（实测 133 386 字节），保证下面的 413 来自预算而不是别的分支。\nL375 计算右侧并赋给 `r`（覆盖前一个 r）：await 调用 perf_client.post('/tools/er-diagram', json={'ddl': huge})。\nL376 核对 `r.status_code == 413`：RequestBodyBudgetMiddleware 在读体之前拒绝。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -11826,41 +11876,36 @@
     },
     {
       "path": "tests/audit_handoff_probes.py",
-      "sha256": "691f12dfc1d41a4c8eb25b61c869734156708d9c7a7d3a47842373ab69643779",
+      "sha256": "e05d3b911458d0e9ca4593b45bf9f24779869f7602754cdec75c9aa0236579a9",
       "method": "manual",
       "blocks": [
         {
-          "end": 24,
+          "end": 27,
           "title": "独立诊断装配与危险边界",
-          "explanation": "此文件不以test_命名，默认pytest不收集；显式执行时PASS表示复现基线7f2e125的待修行为，不是安全验收。fixture会重建表，TEST_DATABASE_URL只能指专用可丢弃库；合成API配置/MockTransport/函数替身不访问真实商户或模型。导入已有测试辅助保持调用契约，不新增生产功能。"
+          "explanation": "此文件不以test_命名，默认pytest不收集；显式执行时PASS表示复现基线7f2e125的待修行为，不是安全验收。fixture会重建表，TEST_DATABASE_URL只能指专用可丢弃库；合成API配置/MockTransport/函数替身不访问真实商户或模型。导入已有测试辅助保持调用契约，不新增生产功能。 文档字符串末尾登记已退役探针：F-01 已由 A-01 修复，保护性回归在默认套件 tests/test_request_body_budget.py；本文件不再包含它的复现，避免\"修复后诊断仍通过\"的假象。"
         },
         {
-          "end": 39,
-          "title": "解析前资源边界诊断",
-          "explanation": "自定义AsyncByteStream以32个64KiB片段发送约2MiB JSON，不提供Content-Length；每次yield累计实际被消费字节。对匿名Mermaid路由断言422但正文已全部读取、响应亦超过2MiB，只输出数字不打印内容。通过表示已有字段上限仍晚于消费/回显；没有调用模型、压测或耗尽内存。"
-        },
-        {
-          "end": 59,
+          "end": 45,
           "title": "LLM响应缓冲诊断",
           "explanation": "MockTransport返回短合法回答加2MiB无关padding，响应流计数证实chat读取全部字节后返回ok。URL可能沿用配置但transport没有真实网络；此断言展示缺少HTTP字节预算，不代表模型输出安全或供应商实测。"
         },
         {
-          "end": 68,
+          "end": 54,
           "title": "深嵌套JSON异常分类",
           "explanation": "1200层列表总2401字节，本地响应进入json解析后RecursionError未归一为LLMError。pytest.raises在此恰是待修行为的复现，不应转成永久发布门禁；真实慢读或上游实际行为未测试。"
         },
         {
-          "end": 82,
+          "end": 68,
           "title": "向量index类型严格性",
           "explanation": "逐次以False和0.0作为index，合法有限二维向量被接受；lambda默认参数绑定本轮index，避免闭包后续漂移。只证明等值比较未区分bool/float/int，不否定已有同维/有限数值校验。"
         },
         {
-          "end": 115,
+          "end": 101,
           "title": "同单预支付在途诊断",
           "explanation": "使用临时商品、测试账户与虚构微信配置，打开限流但不假定工具额度适用于shop。两个并发POST在替代native_prepay的事件屏障同时停留，finally释放并gather所有任务；断言两次200、同一原单号、一订单零收款凭证。该诊断不访问商户或证明重复扣款；修复后须转换为默认套件的单飞/退避保护性回归。"
         },
         {
-          "end": 127,
+          "end": 113,
           "title": "登录来源服务端诊断",
           "explanation": "合成注册后带显式外站Origin和Sec-Fetch-Site提交合法凭据，断言200并设置Cookie。这里只证明服务端接受，不执行浏览器导航、SameSite/CORS或账户混淆PoC，不得宣称已盗取密码或成功利用login-CSRF。"
         }
@@ -11905,6 +11950,58 @@
           "end": 99,
           "title": "不绕过资质且不下发商户密钥",
           "explanation": "三条边界要求商户秘密只留服务端、不以绕过签约为目标、准确说出资格。原文保持字节不改，纠正和采纳决策写报告/ROADMAP，不把原文建议升级为已实现承诺；真实资料不进入Git。当前增补不新建商户、发起支付或迁移运行架构。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_request_body_budget.py",
+      "sha256": "e783818bf9da889c14068ac7f5f2476083f6353c18d781b72ac32a6dd192d075",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 67,
+          "title": "模块说明、计数字节流与最坏体积估算",
+          "explanation": "文档字符串交代背景（审计 F-01 / 报告 P2-9）与本文件钉住的行为，并声明只用 ASGI 合成请求，不证明代理层配置。CountingBody 是 httpx.AsyncByteStream 子类，按块产出请求体、累计实际被消费的字节数，块间可插入延迟以模拟慢体；_max_len 从 pydantic 字段元数据取 MaxLen；_worst_case_json_bytes 按每字符 6 字节（\\\\uXXXX 转义）加 4 KiB 结构开销估算某 schema 的最大合法 JSON 体。它们是本文件的输入构造，不改生产代码。"
+        },
+        {
+          "end": 82,
+          "title": "预算表能装下每条路由的最大合法体",
+          "explanation": "对 DiagramIn.content+name、ErDiagramIn.ddl（ER 与 Word 导出共用）、MermaidIn.text、SupportIn.text、MessageIn.body、RegisterIn 的 username+password 分别计算最坏 JSON 体积，断言不超过 body_budget_for 给出的对应预算；/diagrams/12 与 /diagrams 同档。这条测试防止有人把预算改小后 413 抢在 422 之前误伤合法用户；它只核对已列出的 schema，新增大字段的路由要同步加行。"
+        },
+        {
+          "end": 94,
+          "title": "分档规则：默认、精确路径与回调余量",
+          "explanation": "默认档等于 MAX_REQUEST_BODY_BYTES，未知路径也用默认档；/diagrams 用 MAX_DIAGRAM_BODY_BYTES 且大于默认档；/diagramsX、/diagrams/1/restore 不继承大体档（精确匹配而非前缀）；/tools/er-diagram 用 MAX_TOOL_BODY_BYTES；两个微信回调路径等于 NOTIFY_BODY_LIMIT 且大于 65536，为处理函数自己的 64 KiB 微信格式 413 留出余量。"
+        },
+        {
+          "end": 102,
+          "title": "中间件栈位置",
+          "explanation": "从 app.user_middleware 取类名，断言 RequestBodyBudgetMiddleware 存在且位于 RequestLoggingMiddleware、SecurityHeadersMiddleware 之内（列表顺序为后加在前）；这样它自己发出的 413/408 也带安全头并被日志记录。"
+        },
+        {
+          "end": 130,
+          "title": "声明超限不读体、非法长度 400、预算内照常进入校验",
+          "explanation": "第一条用 CountingBody 配合伪造的 Content-Length=50 MiB 请求 /tools/mermaid：断言 413、上游一个字节都没被消费（read == 0）、connection: close、x-content-type-options 与 x-request-id 存在、响应体小于 512 字节。第二条 Content-Length=12abc → 400 且不读体。第三条正常声明长度的 {\"text\": \"\"} 到达路由并得到字段校验的 422，证明预算不拦合法请求。"
+        },
+        {
+          "end": 168,
+          "title": "实际字节计数：分块、伪造长度、表单登录与慢体",
+          "explanation": "分块无长度的约 2 MiB JSON → 413，且实际消费不超过默认预算加一个 64 KiB 块，响应体小于 512 字节（原诊断探针的反向：以前全读全回显）。Content-Length=10 却发送 512 KiB → 仍按实际字节 413。/auth/login 的 x-www-form-urlencoded 大体同样受预算约束。慢体：把 REQUEST_BODY_TIMEOUT_SECONDS 改成 0.3 秒，第二块延迟 5 秒 → 在 3 秒内得到 408 且 connection: close。这些都在 ASGITransport 内完成，真实 h11 的帧校验与连接关闭另行在本地 uvicorn 手工核对（见 TD-260）。"
+        },
+        {
+          "end": 204,
+          "title": "大体路由与回调保持可用",
+          "explanation": "登录用户以 500000 字符 content 新建 diagram 得到 201；500001 字符得到 422 而不是 413，且 422 正文不含输入；ER 图 18000 个汉字的 DDL 不得 413（JSON 转义最坏 108 KB 仍在 128 KiB 档内）。回调：注入合成微信配置后，65537 字节 → 413 且 JSON 含 code=FAIL（处理函数的微信格式，不是中间件的 detail 格式）；512 KiB 分块 → 413 且消费不超过 NOTIFY_BODY_LIMIT 加一块。"
+        },
+        {
+          "end": 226,
+          "title": "422 只返回 loc/msg/type",
+          "explanation": "20000 个 y 的 text 超过 MermaidIn 上限：422、detail[0] 的键恰为 loc/msg/type、loc 为 [body, text]、响应不含 yyyyyyyy 且小于 1 KiB。截断的非法 JSON（30000 个 z）同样 422，每条错误既无 input 也无 ctx，正文不含 zzzzzzzz。"
+        },
+        {
+          "end": 265,
+          "title": "纯 ASGI 合成：不经 httpx 的直接调用",
+          "explanation": "直接构造 scope/receive/send 调用中间件：Content-Length=99999999 时下游应用不被调用、receive 不被调用，第一条消息是 413 的 http.response.start（含 connection: close），第二条 body 的 detail 以“请求体超过限制”开头。非 http scope（lifespan）原样传给下游。"
         }
       ]
     }

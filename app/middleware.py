@@ -1,17 +1,21 @@
-"""ASGI 安全响应头与请求日志。
+"""ASGI 安全响应头、请求日志与解析前的请求体预算。
 
 业务脚本默认只允许 self；Mermaid/D3 已本地构建。开发 docs/redoc 路径有单独 CDN/样式例外，
 生产不注册这些 API 文档端点。OAuth 同意页可提供精确回调 form-action。
 HSTS 与对外链接生成均使用可信直接代理规则；安全头与日志不等于完整应用安全证明。"""
 from __future__ import annotations
 
+import asyncio
 import ipaddress
+import json
 import logging
 import re
 import time
 import uuid
 
 from starlette.datastructures import MutableHeaders
+
+from .config import settings
 
 logger = logging.getLogger("codemax.access")
 
@@ -178,3 +182,112 @@ class RequestLoggingMiddleware:
             method, path, status, (time.perf_counter() - start) * 1000, request_id,
             extra={"rid": request_id},
         )
+
+
+# ---------------------------------------------------------------- 请求体预算（A-01）
+
+# 微信支付/退款回调的处理函数自己边读边数、在 64 KiB 处按微信要求的 {"code":"FAIL"} 格式拒绝；
+# 这里的兜底要留出余量，否则中间件的 {"detail":…} 413 会抢在处理函数之前，改变回调应答格式。
+NOTIFY_BODY_LIMIT = 2 * 65536
+
+# 大体路由用精确正则，不用前缀：/diagrams/1/restore、/diagramsX 都不该继承 4 MiB 预算。
+_DIAGRAM_PATHS = re.compile(r"^/diagrams(/\d+)?$")
+_TOOL_PATHS = re.compile(r"^/tools/(er-diagram|word-export)$")
+_NOTIFY_PATHS = re.compile(r"^/shop/(pay|refunds)/notify$")
+
+
+def body_budget_for(path: str) -> int:
+    """按路径给出请求体字节上限。每次调用现读 settings，测试改配置后立刻生效。"""
+    if _DIAGRAM_PATHS.match(path):
+        return settings.MAX_DIAGRAM_BODY_BYTES
+    if _TOOL_PATHS.match(path):
+        return settings.MAX_TOOL_BODY_BYTES
+    if _NOTIFY_PATHS.match(path):
+        return NOTIFY_BODY_LIMIT
+    return settings.MAX_REQUEST_BODY_BYTES
+
+
+class RequestBodyBudgetMiddleware:
+    """在 FastAPI 读体/解析之前，对请求体施加字节上限和读取时限。
+
+    为什么必须在这一层：FastAPI 先 `await request.body()` 把整个体读进内存，pydantic 的
+    `max_length` 之后才起作用；一个匿名 POST 带 2 MiB 就能让进程吃 2 MiB，还会在 422 里被
+    原样回显（回显由 main.py 的 RequestValidationError 处理器单独去掉）。
+
+    三条规则：
+    1. `Content-Length` 声明超预算 → 立即 413，一个字节都不读；非法值 → 400。
+    2. 无长度（分块）或声明与实际不符 → 包装 `receive` 逐块计数，越过预算即 413，
+       之后向应用返回 `http.disconnect`、丢弃应用迟到的响应，不再消费上游字节。
+    3. 从收到请求头起，读体总时长超过 REQUEST_BODY_TIMEOUT_SECONDS → 408。
+    拒绝响应带 `Connection: close`：h11 会在应答后关闭连接，而不是继续吞掉剩余请求体。
+
+    字节原样透传（不解码、不改块边界），支付回调的原始报文验签不受影响。
+    本中间件不替代反向代理的上限，也不是限流；只保证单个请求不能靠体积或慢发把应用拖住。
+    """
+
+    def __init__(self, app):
+        self.app = app
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] != "http":
+            await self.app(scope, receive, send)
+            return
+
+        limit = body_budget_for(scope.get("path", ""))
+        declared = _header(scope, b"content-length").strip()
+        if declared:
+            if not declared.isdigit():
+                await _reject(send, 400, "Content-Length 非法")
+                return
+            if int(declared) > limit:
+                await _reject(send, 413, f"请求体超过限制（最大 {limit} 字节）")
+                return
+
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + settings.REQUEST_BODY_TIMEOUT_SECONDS
+        state = {"seen": 0, "started": False, "responded": False}
+
+        async def stop(status: int, detail: str) -> dict:
+            # 应用还没开始应答就由我们应答；已经开始（边读边发的流式场景）只能停止喂数据。
+            if not state["started"]:
+                state["responded"] = True
+                await _reject(send, status, detail)
+            state["started"] = True
+            return {"type": "http.disconnect"}
+
+        async def budgeted_receive():
+            if state["responded"]:
+                return {"type": "http.disconnect"}
+            try:
+                async with asyncio.timeout_at(deadline):
+                    message = await receive()
+            except TimeoutError:
+                return await stop(408, "请求体接收超时")
+            if message["type"] == "http.request":
+                state["seen"] += len(message.get("body", b""))
+                if state["seen"] > limit:
+                    return await stop(413, f"请求体超过限制（最大 {limit} 字节）")
+            return message
+
+        async def guarded_send(message):
+            if state["responded"]:
+                return  # 我们已经替它应答过了（应用此时通常在发 400 "error parsing the body"）
+            if message["type"] == "http.response.start":
+                state["started"] = True
+            await send(message)
+
+        await self.app(scope, budgeted_receive, guarded_send)
+
+
+async def _reject(send, status: int, detail: str) -> None:
+    body = json.dumps({"detail": detail}, ensure_ascii=False).encode()
+    await send({
+        "type": "http.response.start",
+        "status": status,
+        "headers": [
+            (b"content-type", b"application/json; charset=utf-8"),
+            (b"content-length", str(len(body)).encode()),
+            (b"connection", b"close"),
+        ],
+    })
+    await send({"type": "http.response.body", "body": body})

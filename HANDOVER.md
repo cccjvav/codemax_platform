@@ -6,7 +6,7 @@
 
 - 工作分支：`arena/01a0ba44-codemax-platform`，自 `arena/01a08bf5-codemax-platform` 的 `ea11619` 分出；本会话只提交/推送到它。`arena/01a08bf5-codemax-platform` 保持为集成分支，合回它或 `main` 只能经 PR 并取得用户明确授权。
 - 已确认首发类型为**演示 / 免费工具**（TD-259）：mock 支付、资金类开关全关；L-00/L-02 延后到决定收费前。
-- 第十八批顺序：零风险文本修正（本批）→ G1 A-01 → A-05 → A-02 → A-03 → A-04；每批仍按下方证据层次交付。
+- 第十八批顺序：零风险文本修正（已提交）→ G1 A-01（已提交：请求体预算中间件 + 422 不回显，TD-260；F-01 探针退役）→ A-05 → A-02 → A-03 → A-04；每批仍按下方证据层次交付，阶段范围/证据见 [manager/stages/g1-public-boundaries.md](manager/stages/g1-public-boundaries.md)。
 
 ## 上一轮交接范围（2026-09-19 全仓审计，基线 `7f2e125`）
 

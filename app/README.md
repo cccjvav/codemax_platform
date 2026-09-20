@@ -91,6 +91,7 @@ pending → closed → paid
 | `Limiter.allow` / `prune` / `reset` | 滑动窗口返回 (是否允许, Retry-After秒数)；请求最多维护32键，默认16384桶上限，满时拒绝新键；prune为显式全扫描维护，reset清理全部状态 |
 | `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；依赖按 scope + IP 限流，超额 429。内存状态不跨进程共享 |
 | `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；生产链接固定为已校验 SITE_BASE_URL，开发链接可按可信头派生。应用端口仍须阻止绕过代理访问 |
+| `body_budget_for` / `RequestBodyBudgetMiddleware` | 解析前请求体预算（A-01）：按精确路径选 64 KiB / 128 KiB（DDL 工具）/ 4 MiB（drawio）/ 128 KiB（微信回调兜底，处理函数自己在 64 KiB 按微信格式拒绝）；声明超限立即 413 不读体，无长度或伪造长度按实际字节计数越界即 413 并停止消费，读体超时 408；拒绝响应带 Connection: close。字节原样透传，不替代代理上限也不是限流 |
 | `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
 | `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；ID 只接受安全128字符格式，路径转义限长、不含查询；这不是独立防篡改审计存储 |
 | `check_production_settings` / `check_production_warnings` | 分别返回阻断问题／告警列表；配置检查不进行实际商户、文件或模型连通性验收 |
@@ -110,13 +111,13 @@ pending → closed → paid
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/bill_reconcile.py`](bill_reconcile.py) | `9750db145474` | L1–L287 |
-| [`app/config.py`](config.py) | `7a5d9215b962` | L1–L143 |
+| [`app/config.py`](config.py) | `5d68c52e19b9` | L1–L152 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
-| [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
+| [`app/middleware.py`](middleware.py) | `05c0a0edaf9e` | L1–L293 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |

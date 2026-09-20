@@ -2,13 +2,16 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app import cpu_pool
 from app.config import settings
 from app.database import engine
-from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from app.middleware import RequestBodyBudgetMiddleware, RequestLoggingMiddleware, SecurityHeadersMiddleware
 from app.routers import (
     admin,
     auth,
@@ -61,8 +64,21 @@ app = FastAPI(
 
 # 中间件是**后加先执行**（洋葱模型），所以日志放最后加，让它包在最外层，
 # 这样连安全头中间件自己的耗时也算进去，且异常也能被记录到。
+# 请求体预算最先加（最内层）：它自己发出的 413/408 也要经过安全头并被日志记录。
+app.add_middleware(RequestBodyBudgetMiddleware)
 app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE)
 app.add_middleware(RequestLoggingMiddleware)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_error_without_echo(_: Request, exc: RequestValidationError) -> JSONResponse:
+    """422 只返回位置、消息和类型，不回显 `input`/`ctx`（A-01）。
+
+    默认处理器会把整个出错字段原样放回响应：一个刚好卡在预算内的 60 KB 文本换来 60 KB 应答，
+    对匿名可达的 /tools、/support 是放大器；`ctx` 里可能带异常原文，同样不外泄。
+    """
+    detail = [{k: err.get(k) for k in ("loc", "msg", "type")} for err in exc.errors()]
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(detail)})
 
 app.include_router(health.router)  # S5-03-3：存活/就绪探针
 app.include_router(auth.router)

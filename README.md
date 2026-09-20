@@ -227,12 +227,12 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `35521916c620` | L1–L28 |
-| [`.env.example`](.env.example) | `109b3ed4da5e` | L1–L128 |
+| [`.env.example`](.env.example) | `1e420e33fd2f` | L1–L135 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
-| [`main.py`](main.py) | `6a59207cda6d` | L1–L86 |
+| [`main.py`](main.py) | `292a78ed22d4` | L1–L102 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `45d615e29b82` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

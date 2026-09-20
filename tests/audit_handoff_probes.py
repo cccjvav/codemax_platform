@@ -5,6 +5,9 @@ python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s
 Use disposable databases only: fixtures recreate tables.
 All external requests use local replacements.
 After fixing a finding, replace its reproduction with a protective test in the normal suite.
+
+Retired probes (fixed; the protective regression now lives in the default suite):
+- F-01 body consumed/echoed before field rejection -> tests/test_request_body_budget.py (A-01).
 """
 
 import asyncio
@@ -20,23 +23,6 @@ from app.tools.llm import LLMClient
 from tests.conftest import TestSession
 from tests.test_download import auth_headers
 from tests.test_wechat_pay import _ENV
-
-
-@pytest.mark.asyncio
-async def test_body_is_consumed_and_reflected_before_field_rejection(client):
-    class Body(httpx.AsyncByteStream):
-        read = 0
-
-        async def __aiter__(self):
-            for chunk in [b'{"text":"', *[b"x" * 65536 for _ in range(32)], b'"}']:
-                self.read += len(chunk)
-                yield chunk
-
-    body = Body()
-    response = await client.post("/tools/mermaid", content=body, headers={"Content-Type": "application/json"})
-    assert response.status_code == 422 and body.read > 2 * 1024 * 1024
-    assert len(response.content) > 2 * 1024 * 1024
-    print(f"BODY status={response.status_code} consumed={body.read} response={len(response.content)}")
 
 
 @pytest.mark.asyncio
