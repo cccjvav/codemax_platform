@@ -2969,7 +2969,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "832b6b1133cfeccfc7788ca22a2814a4decc14dc478c530fce00da1d2dd396fc",
+      "sha256": "b9c90d3fa5cbff80cd9754dc5b43af80fb297e773c78e5b2b35d1752901ea169",
       "method": "manual",
       "blocks": [
         {
@@ -3020,7 +3020,7 @@
         {
           "end": 308,
           "title": "_doc_for",
-          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；后续DOC_GROUPS人工登记Windows/Conda入口、业务手册、当前交接审计和有独有证据的历史阶段，不自动收录任意Markdown。本轮删除四份失效文档注册并加入2026-09-19报告，必须有真实tracked文件且双向清单/链接通过。此常量只生成离线文档导航，不触发worker、不注册业务HTTP路由，也不公开runtime账单；唯一当前工作队列仍是ROADMAP。"
+          "explanation": "按路径映射源码说明书，根未知文件回退ROOT_FILES；后续DOC_GROUPS人工登记Windows/Conda入口、业务手册、当前交接审计和有独有证据的历史阶段，不自动收录任意Markdown。本轮删除四份失效文档注册并加入2026-09-19报告，2026-09-20 再登记接手独立复核报告；必须有真实tracked文件且双向清单/链接通过。此常量只生成离线文档导航，不触发worker、不注册业务HTTP路由，也不公开runtime账单；唯一当前工作队列仍是ROADMAP。"
         },
         {
           "end": 338,

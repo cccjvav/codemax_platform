@@ -1,6 +1,6 @@
 # 当前工作队列与阶段目标
 
-更新：2026-09-19。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)。
+更新：2026-09-20。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)与[接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)。
 
 ## 优先级与范围
 
@@ -14,7 +14,7 @@
 | ID | 状态/目标 | 完成标准 | 环境/依赖 |
 | --- | --- | --- | --- |
 | H-01 | 已取得并初评：《支付架构提示词-纯净版.txt》（19f236e） | 原文/摘要完整性已核对；逐项适配、五个问题与官方准入资料见审计第9节 | 不认证外项目源码；H-02独立复核与L-00实际准入仍待办 |
-| H-02 | 待接手人复核：审计结论 | 重跑六个有界诊断并检查资金调用链；给出独立同意/反驳证据 | 本机可丢弃 DB、MockTransport，无真实商户 |
+| H-02 | 已完成（2026-09-20）：接手人独立复核 | 六项诊断在 SQLite 全部复现并同意评级，调用链复核与新增 F-09 见[复核报告](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)第 3–4 节；修复按 G1 分批 | 本机可丢弃 DB、MockTransport；真实 PG 全量由 CI job 覆盖 |
 | H-03 | 每次交付核实：发布 | 本地 HEAD=远端分支=全部六项 CI 的 headSha；不使用 dry-run/历史绿色 | 固定分支仓库访问；最终交付消息关联 |
 
 ## G1：公开接口资源与边界（建议下一实现批次）
@@ -27,6 +27,9 @@
 | A-04 / P2 | 登录来源策略；F-04 | 先做 HTTPS 浏览器双来源 PoC；决定 Origin/Fetch-Metadata/CSRF 组合，拒绝恶意跨站表单而保留合法第一方及约定 API 客户端 | 真实浏览器；ASGI 200 只能证明服务端接受 |
 | A-05 / P3 | 严格 embedding index；F-05 | `type(index) is int` 或等价严格校验；拒绝 bool/float、重复/缺失/越界，正常向量无退化 | 本地合成；不猜供应商模型能力 |
 | A-06 / P2（扩展收银台前） | 网页支付展示/轮询；审计9.4 | 保留无重叠/终态停止/换账号隔离；测后台暂停、退避/抖动、等待上限与恢复；新增HTTPS收银台前建立按渠道URL白名单，回跳不直接授予权益 | 当前Native扫码，不伪装H5/JSAPI已接入；SSE/WebSocket先有SLO依据 |
+| A-07 / P2 | 限流器满桶拒绝所有新客户端；复核报告 F-09 | 满桶且存在已过期键时新键必须放行（摊销 O(1)，不全表扫描）；活跃键仍不被驱逐；IPv6 按 /64 归并为限流身份；满桶记 warning；保留 `NoScan` 与"全活跃仍拒绝"反例 | 合成时钟单元测试 + ASGI；单进程语义不变（TD-141）；不引入 Redis |
+| A-08 / P2 | 下载出口 `GET /shop/dl` 无限流；审计 F-06 前半 | 加与 `POST /shop/download` 相同的 `download` scope 限流；合法重领与 Range/重复请求行为不变；全量哈希优化另按 O-01 测量后做 | SQLite 回归；不缓存权益判断 |
+| A-09 / P3 | UI 对比度与浮层可访问性；复核报告第 1 节第 4 点 | 链接/按钮/CTA/提示色达到 WCAG AA 4.5:1；登录浮层 `role="dialog"`、Esc 关闭、焦点归还；`:disabled`/`:focus-visible` 可见；`support.css` 不依赖 `:has()`；重建并提交 bundle | 静态检查 + 现有 Node VM 前端测试；真实浏览器视觉签收仍归 L-04 |
 
 退出条件：保护性回归进入默认套件，诊断旧行为断言被替换/注明已失效；模块 README、精读、配置/部署指南同步；精确 SHA 全 CI。可以拆小批次，不能为保持诊断绿色保留缺陷。
 
@@ -71,3 +74,4 @@
 - **O-06 / P2**：Drawio 脏稿提示/恢复及 XML 子集/删除恢复前置条件先做协议设计和浏览器验收，保证账号切换隔离与 origin/source/epoch 相关性不退化。
 - **O-07 / P3**：爬虫每跳 robots 政策、host 礼貌状态淘汰和资源预算专项复核；保持 SSRF 固定 DNS/地址检查与动态 Chromium 停用，不在未复现前宣称绕过。
 - **O-08 / P3**：按风险评估 action/image digest、依赖 hash lock、类型检查、缓存/压缩、索引/连接池等；先有基准与兼容方案，不能盲加 immutable、换依赖或格式化全库。
+- **O-09 / P3（文字与清理，随任一批次顺带）**：TD-214 补记 RAG 指纹已改为全文内容 sha256、TD-217 注明 `AUTH_CODE_EXPIRE_MINUTES` 是 `oauth.py` 常量；`shop.py::_payload` 死参数 `pay_mode`、`crawler.py:165` 裸 `assert`、15 处无效 `# noqa` 清理。不改行为、不重排历史 TD。

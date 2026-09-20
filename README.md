@@ -2,7 +2,7 @@
 
 > 第一次在 Windows 操作？请从 [Windows 新手逐步验收](Windows新手逐步验收.md) 开始：VS Code 集成 CMD＋Conda＋系统 Node，顺序命令、预期结果与失败恢复在一篇中完成。
 
-> 当前交接：[2026-09-19 全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) · [恢复与发布状态](HANDOVER.md) · [唯一工作队列](ROADMAP.md)。阶段十七日账已实现，不等于真实收款/部署签收；历史批次见 [review 索引](review/README.md)。
+> 当前交接：[2026-09-20 接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md) · [2026-09-19 全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) · [恢复与发布状态](HANDOVER.md) · [唯一工作队列](ROADMAP.md)。阶段十七日账已实现，不等于真实收款/部署签收；历史批次见 [review 索引](review/README.md)。
 
 学习与服务平台：免费工具、统一登录、自有站点 SSO、订单与管理员收款工作台、本地文件下载、AI 解析和站内客服。当前没有云存储适配器，已实现冻结商品权益与显式验签查单，已有默认关闭的显式渠道关单/退款申请和只读日账差异CLI；仍没有完整会计结算对账、部分退款处理及定制服务生命周期。
 
@@ -164,7 +164,7 @@ start docs\site\index.html
 | 了解**实现取舍与上线阻塞项**（历史取舍与现行边界） | [TECH_DECISIONS.md](./TECH_DECISIONS.md) |
 | 看**开发路线图**与子项进度 | [ROADMAP.md](./ROADMAP.md) |
 | **接手这个项目**（沙箱恢复配方、真库起法、已踩过的坑） | [HANDOVER.md](./HANDOVER.md) |
-| 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [文档政策](docs/DOCUMENTATION_POLICY.md) / [全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) |
+| 看**文档质量审查报告**（覆盖率 / 链接 / 格式） | [文档政策](docs/DOCUMENTATION_POLICY.md) / [全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) / [接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md) |
 | 看**根目录那几个文件**（`main.py` 等）的说明 | [docs/ROOT_FILES.md](./docs/ROOT_FILES.md) |
 
 ### 📂 模块说明书（逐文件、带行号）
