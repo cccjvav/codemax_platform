@@ -39,8 +39,9 @@ ROBOTS_TTL = 3600.0
 DEFAULT_MIN_INTERVAL = 2.0
 # 全局同时在飞的请求数上限。防的是「一百个域名各抓一篇」时把本机带宽打满
 MAX_CONCURRENCY = 4
-# robots.txt 本身很小，给个短超时和小体积上限，别被一个巨大的 robots.txt 拖住
-ROBOTS_TIMEOUT = 10.0
+# robots.txt 本身很小，给个小体积上限，别被一个巨大的 robots.txt 拖住。
+# 超时不在这里单独定义：robots.txt 由调用方注入的 fetch_text 抓取
+# （crawler/browser 各自的 _request 及其 TIMEOUT），这里只管体积上限。
 ROBOTS_MAX_BYTES = 512_000
 
 

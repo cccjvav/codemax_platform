@@ -315,7 +315,11 @@ def test_authed_get_routes_are_read_only():
 
 
 def test_download_is_post_not_get():
-    """一次性下载会错误消耗已购权益（paid→downloaded），有副作用的接口不能是 GET。"""
+    """领取下载链接会写状态（paid→downloaded）并记录发放，有副作用的接口不能是 GET（TD-177）。
+
+    现行 paid/downloaded 均可重领，所以副作用不是「消耗权益」，而是状态与发放记录的写入；
+    GET 会被预取/爬虫/链接预览误触发，这一点不因可重领而改变。
+    """
     from fastapi.routing import APIRoute
 
     route = next(

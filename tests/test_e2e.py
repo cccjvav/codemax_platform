@@ -225,9 +225,11 @@ async def test_payment_then_late_duplicate_keeps_downloaded_state(client, mock_m
 
 @pytest.mark.asyncio
 async def test_concurrent_reissue_preserves_paid_entitlement(client, mock_mode, product_zip):
-    """并发抢下载：同一单同时来 4 个请求，**恰好一个**拿到链接。
+    """并发重领：同一单同时来 4 个请求，**4 个都拿到链接**，订单进入 downloaded。
 
-    这是「一次性下载」在真并发下的有效性 —— 串行测过不代表并发也守得住。
+    现行规则是 paid/downloaded 均可重领短链（见 shop.download_url 的文档字符串与 README API 表），
+    旧的「恰好一个拿到」一次性语义已撤销。这里钉住的是并发下权益不会被误消耗：
+    不能出现有人 200、有人 409/404 的竞态结果。
     """
     h = await signup(client)
     order_no = await place_order(client, h)
@@ -259,9 +261,11 @@ async def test_downloaded_archive_really_contains_multiple_files(client, mock_mo
 
 
 @pytest.mark.asyncio
-async def test_presigned_url_cannot_be_reused_after_order_consumed(client, mock_mode, product_zip):
-    """防盗链有效性：链接被转发出去后，在过期时间内仍然能下 —— 这是**已知取舍**，
-    所以第一重（数据库一次性）才是主力。这里钉住的是：转发者拿不到**第二个**链接。
+async def test_other_user_cannot_claim_link_but_forwarded_url_still_works(client, mock_mode, product_zip):
+    """防盗链的边界：链接被转发出去后，在过期时间内仍然能下 —— 这是**已知取舍**（短有效期止损）。
+
+    这里钉住的是两件事：① 非订单所有者对该单一律 404（不暴露订单是否存在），领不到新链接；
+    ② 已签发的链接在有效期内对任何持有者都有效。不要把它读成「链接一次性」——现行没有这条规则。
     """
     h = await signup(client)
     order_no = await place_order(client, h)

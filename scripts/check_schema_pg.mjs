@@ -1,8 +1,10 @@
 /**
  * 用 WASM 版真 PostgreSQL（PGlite）执行 database init/full_init.sql 的体检脚本。
  *
- * 为什么需要它：CI / 沙箱里常常没有 PostgreSQL，建表脚本的语法、外键、索引、
- * DROP 顺序就永远没被真库执行过。这个脚本补上这一段，且不引入 Python 依赖。
+ * 为什么需要它：本地沙箱里常常没有 PostgreSQL，建表脚本的语法、外键、索引就没被
+ * 真库执行过。CI 现已有 PostgreSQL 16 服务容器的测试 job（ci.yml test-postgres），
+ * 本脚本保留为**离线、不依赖 Python/Docker** 的补充体检，不再是唯一的真库校验途径。
+ * full_init.sql 当前不含 DROP 语句；重跑两遍用于验证 IF NOT EXISTS 幂等。
  *
  * 用法（一次性装依赖，约 26MB）：
  *     cd /tmp && npm install @electric-sql/pglite

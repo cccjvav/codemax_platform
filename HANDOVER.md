@@ -1,8 +1,14 @@
 # 项目交接：先核实状态，再继续实现
 
-本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
+本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) 与其后的[独立全面检查报告（针对 `ea11619`）](review/01a08bf5-全面检查报告_2026-09-19.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
 
-## 本次交接范围
+## 当前会话（2026-09-19 起，第十八批）
+
+- 工作分支：`arena/01a0ba44-codemax-platform`，自 `arena/01a08bf5-codemax-platform` 的 `ea11619` 分出；本会话只提交/推送到它。`arena/01a08bf5-codemax-platform` 保持为集成分支，合回它或 `main` 只能经 PR 并取得用户明确授权。
+- 已确认首发类型为**演示 / 免费工具**（TD-259）：mock 支付、资金类开关全关；L-00/L-02 延后到决定收费前。
+- 第十八批顺序：零风险文本修正（本批）→ G1 A-01 → A-05 → A-02 → A-03 → A-04；每批仍按下方证据层次交付。
+
+## 上一轮交接范围（2026-09-19 全仓审计，基线 `7f2e125`）
 
 - 审计业务代码基线：`7f2e125dd6dc42fb7b31d8c295f176c8e3cb2f50`，包括第十七批日账只读下载/差异报告。完整迁移仍为 **0017**。
 - 本轮不增加支付功能、依赖或 schema，不操作真实商户/业务数据库。新增六项**诊断探针**、全仓审计、优先队列和文档清理；探针通过表示复现待修行为，**不是安全验收通过**。
@@ -23,23 +29,24 @@
 ```bash
 git branch --show-current
 git rev-parse HEAD
-git ls-remote origin refs/heads/arena/01a08bf5-codemax-platform
-gh run list --workflow ci.yml --branch arena/01a08bf5-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
+# 沙箱默认 refspec 只跟踪 main：核对远端 tip 要用 ls-remote 或显式 fetch，不能只看本地 origin/* 引用
+git ls-remote origin refs/heads/arena/01a0ba44-codemax-platform refs/heads/arena/01a08bf5-codemax-platform
+gh run list --workflow ci.yml --branch arena/01a0ba44-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
 gh run view <匹配HEAD的run-id> --json headSha,status,conclusion,jobs,url
 ```
 
-本会话固定 `arena/01a08bf5-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
+本会话固定 `arena/01a0ba44-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
 
 ## 已核实的上轮发布
 
-`2a601344f9a65a4f445871343e464e2cc82625e5` 已推送且含阶段十七；[CI 35469332541](https://github.com/cccjvav/codemax_platform/actions/runs/35469332541) 现已逐job确认六项 success。此前401/PG状态未知的阻断已解除，不再要求重复重连。本次从同分支快进取得用户上传提交 `19f236e`，不继承旧提交绿色；后续增补按自己的最终SHA复验。
+`ea11619bc5c11ce82aef82bcfe5e2411303a30b4`（`arena/01a08bf5-codemax-platform` 远端 tip，含阶段十七与 `19f236e` 上传的支付架构评估）：[CI 35471274891](https://github.com/cccjvav/codemax_platform/actions/runs/35471274891) 已于 2026-09-19 逐 job 复核六项 success（H-03）。独立全面检查报告 v3 针对同一 SHA 完成全量 pytest（1687 passed / 7 skipped）、ruff、审计、文档门禁与站点构建复核（H-02）。此前 `2a60134` / CI 35469332541 的记录成为历史；后续增补按自己的最终 SHA 复验，不继承旧提交绿色。
 
 ## 接手顺序
 
 1. 读 AGENTS、manager/SKILL 和审计报告；核实实际 HEAD、远端和全部 CI。
 2. 独立执行报告中的六项有界合成探针，检查调用链，不把测试数量当安全证明；按报告第9节对照已收到的付款/许可方案，独立复核“已实现/需纠正/可选扩展/待审批”，不把外项目声明当作源码证据。
 3. 按 ROADMAP 的 G1 处理公开接口资源上限、LLM 协议边界、预支付并发/限流及登录来源；先评审方案，再增加保护性回归。不要保持“复现漏洞即通过”的诊断断言来冒充修复测试。
-4. 确认首发类型：演示、免费工具、固定文件收费、定制开发服务的门槛不同；不得自动把部分退款、云存储、多实例或全自动会计系统变成首发必须功能。
+4. 首发类型**已确认**（2026-09-19，TD-259）：演示 / 免费工具。固定文件收费、定制开发服务的门槛不同，转向收费前先回到 L-00/L-02；不得自动把部分退款、云存储、多实例或全自动会计系统变成首发必须功能。
 5. 分批实施并更新对应模块说明/精读/技术决策；每批选择性提交、真实推送并核对精确 SHA 六项 CI。
 
 ## 现有能力与不可越过的边界

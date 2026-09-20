@@ -64,7 +64,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `5bd0fc5338bd` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
-| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `9da604358174` | L1–L329 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `9becafe1b6fb` | L1–L333 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
@@ -74,11 +74,11 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `2fedc26f3d76` | L1–L469 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `3a0ca0fdf1f6` | L1–L477 |
 | [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
-| [`tests/test_e2e.py`](test_e2e.py) | `2cc3fa166b77` | L1–L532 |
+| [`tests/test_e2e.py`](test_e2e.py) | `ab60fc78893a` | L1–L536 |
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |

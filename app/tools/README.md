@@ -90,7 +90,7 @@
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `cefd84c87b86` | L1–L162 |
-| [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
+| [`app/tools/politeness.py`](politeness.py) | `4b94dd8abb6e` | L1–L184 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |

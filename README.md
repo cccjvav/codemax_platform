@@ -65,7 +65,9 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 ./.venv/bin/python -m pytest -q
 ```
 
-## 主要 API（完整路径与权限见路由说明及生成索引）
+## 常用 API 摘录（非完整清单）
+
+下表只摘录常用入口并解释取舍；**完整路由、方法、鉴权与限流标记**以 `python scripts/build_docs_site.py` 生成的文档站「路由地图」（`docs/site/routes.html`）和非生产环境的 `/docs` 为准，路由总数由 `tests/test_docs_site.py` 门禁核对，本表不再手工维护数量。
 
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
@@ -92,7 +94,12 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | PUT | `/diagrams/{diagram_id}` | 保存（**乐观锁**：`If-Match` 缺失 428 / 不匹配 412，见 TD-65） |
 | DELETE | `/diagrams/{diagram_id}` | 软删除（进回收站，不物理删） |
 | POST | `/diagrams/{diagram_id}/restore` | 从回收站恢复（会重新检查配额） |
+| DELETE | `/diagrams/{diagram_id}/purge` | 从回收站**彻底删除**（不可恢复；只限本人回收站内、且 `If-Match` 匹配当前版本） |
 | POST | `/shop/orders` | 建订单 → 微信 NATIVE 下单 → 返回 `code_url`（未配齐微信支付则 503） |
+| GET | `/shop/orders` `/shop/orders/{order_no}` | 我的订单列表（50 条键集分页，含 `refunded` 标记）/ 单笔状态轮询（只读、禁止缓存；不是本人的与不存在的一律 404） |
+| POST | `/shop/orders/{order_no}/confirm` `/shop/orders/{order_no}/legacy-binding` | 管理员人工确认收款（**仅 `SHOP_PAY_MODE=manual`**，TD-205）/ 历史已付单一次性绑定交付文件（人工复核，不伪造收入凭证）；均要求管理员 + 浏览器来源校验 `require_finance_origin` |
+| GET | `/admin/payments` `/shop/admin/orders` `/shop/admin/orders/{order_no}/ledger` | 支付管理台页面壳（数据接口各自独立鉴权）/ 管理员订单清单（50 条键集分页）/ 单笔证据日账（只读、有界） |
+| POST | `/shop/admin/orders/{order_no}/{reconcile,review,close-channel}` 与 `/shop/admin/orders/{order_no}/refunds/*` | 管理员财务写操作：单笔对账、复核记录、显式开关下的 Native 关单；退款查询/人工登记/请求准备/授权/再授权/显式发送/停止/核验监督控制。全部要求管理员 + `require_finance_origin`，限流键各自独立；边界与验收见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md) |
 | POST | `/shop/refunds/notify` | 微信退款通知：验签/解密、匹配原付款、持久留存线索后204；不直接撤权 |
 | POST | `/shop/pay/notify` | 微信支付回调：验签 → AES-GCM 解密 → 校验金额 → 幂等迁移状态 |
 | POST | `/shop/download/{order_no}` | 换取限时下载链接（POST 记录链接发放；paid/downloaded 均可重领） |
@@ -100,6 +107,9 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | GET | `/shop/mock-pay` | 模拟收银台页面（仅 `SHOP_PAY_MODE=mock`，**开着等于免费发货**，见 TD-124） |
 | POST | `/shop/mock-pay/confirm` | 模拟支付确认（复用与真实回调**完全相同**的状态机与幂等逻辑） |
 | POST | `/support/ask` | 智能客服总入口：FAQ 秒回 / 闲聊 LLM / 专业问题 RAG，兜底转人工 |
+| GET/POST | `/support/messages` | 站内人工客服（客户侧）：读自己的留言历史（`after`/`before` 游标二选一）/ 写留言（限流键 `support-message`） |
+| GET | `/support/center` `/support/conversations` `/support/conversations/{customer_id}/messages` | 客服页面（SSR）/ 管理员收件箱（按客户聚合最近一条，50 条键集分页）/ 某客户的完整会话；后两者仅管理员 |
+| POST | `/support/conversations/{customer_id}/messages` | 管理员回复（同一限流键；客户不存在 404） |
 | GET | `/health` | **只是 `/healthz` 的别名**，同样**不查库**（TD-164 保留它是因为既有文档与测试都在用） |
 | GET | `/healthz` | 存活探针（**刻意不查库**，否则库一抖会被编排器全量重启，见 TD-167） |
 | GET | `/readyz` | 就绪探针 |
@@ -224,10 +234,10 @@ start docs\site\index.html
 | [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
 | [`main.py`](main.py) | `6a59207cda6d` | L1–L86 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
-| [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
+| [`package.json`](package.json) | `45d615e29b82` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
 | [`requirements.txt`](requirements.txt) | `d4c24e34109d` | L1–L65 |
-| [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
+| [`ruff.toml`](ruff.toml) | `13acc179425a` | L1–L53 |
 | [`vite.config.mjs`](vite.config.mjs) | `b822ef8586a3` | L1–L57 |
 | [`支付架构提示词-纯净版.txt`](%E6%94%AF%E4%BB%98%E6%9E%B6%E6%9E%84%E6%8F%90%E7%A4%BA%E8%AF%8D-%E7%BA%AF%E5%87%80%E7%89%88.txt) | `d990ce0e2c40` | L1–L99 |
 

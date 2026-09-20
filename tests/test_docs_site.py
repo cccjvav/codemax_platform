@@ -31,6 +31,9 @@ import build_docs_site as bds  # noqa: E402
 
 mistune = pytest.importorskip("mistune", reason="文档站渲染需要 mistune")  # noqa: F841
 
+# 业务路由总数（提取结果与运行时都必须等于它）。只在这里维护数字，来源说明见 test_route_count_matches_runtime_app。
+EXPECTED_ROUTE_COUNT = 63
+
 
 # ---------------------------------------------------------------- 路由口径
 def test_route_count_matches_runtime_app(client):  # noqa: ARG001
@@ -63,7 +66,12 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
     # 36 → 38：S2-02-2 加了 GET /shop（落地页）与 GET /shop/orders/{order_no}（状态轮询）
     # 38 → 39：S5-04 加了 POST /shop/orders/{order_no}/confirm（人工确认收款，TD-205）
     # 第六批加退款核验，第七批加独立平台验签通知；第八批再加有管理员鉴权/限流的本地准备POST。
-    assert len(extracted) == 63, f"业务路由应为 62 条，实际 {len(extracted)}"
+    # 第十六批 close-channel 之后为 63（当时断言消息仍写 62，第十八批改为引用常量，避免再次漂移）。
+    # 新增/删除路由时同步改模块顶部的 EXPECTED_ROUTE_COUNT，并在上面补一行来源说明。
+    assert len(extracted) == EXPECTED_ROUTE_COUNT, (
+        f"业务路由应为 {EXPECTED_ROUTE_COUNT} 条，实际 {len(extracted)}；"
+        "新增/删除路由请同步更新 EXPECTED_ROUTE_COUNT 与上方来源注释"
+    )
 
 
 def test_page_routes_are_extracted(client):  # noqa: ARG001

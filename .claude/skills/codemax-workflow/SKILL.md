@@ -1,12 +1,12 @@
 ---
 name: codemax-workflow
 description: 本仓库实施、验收与阶段收尾；出现已解决 P1 或阶段关闭时执行元复盘。
-version: 2.5
+version: 2.6
 ---
 
 # CodeMax 工作流与元复盘
 
-编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.5，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
+编辑源是 `.claude/skills/codemax-workflow/SKILL.md`；`manager/SKILL.md` 是逐字同步的只读分发副本。只修改源后同步，不分别维护两套规则。此处是本仓库 v2.6，不自称上游 v13 或已安装到不可访问的全局 Skill 目录。
 
 ## 优先级与唯一事实源
 
@@ -17,7 +17,7 @@ version: 2.5
 
 ## 实施与证据循环
 
-- 开始先核对分支、HEAD、工作树和阶段下一步；中断后续做，不重跑历史临时修复器，不强制清理用户文件。
+- 开始先核对分支、HEAD、工作树和阶段下一步，并用 `git ls-remote`（或显式 `git fetch origin <分支>`）核对远端固定分支 tip：沙箱 refspec 可能只跟踪 main，本地 `origin/*` 不代表远端；远端已前移就先 ff-only 同步再审阅或修改，审阅报告须写明针对的精确 SHA。工作区恢复后若 HEAD 回退到分叉点而文件保留为未提交改动，先 fetch 原 tip、核对工作树一致后只重置索引，不把上游已发布内容重新提交成自己的改动。中断后续做，不重跑历史临时修复器，不强制清理用户文件。
 - 阅读源码、调用方、测试与目录 README，选最小修复，给异常路径补测试；新增依赖/schema/业务范围/生产操作依 AGENTS 确认。
 - 自动测试只用无真实 key 的干净环境及专用可丢弃库；当前init拒绝非空库且无种子，历史full_init曾含DROP；绝不将业务库传给测试fixture，已有库只走核准基线/校验和迁移。
 - 给 Windows 新手使用根目录 `Windows新手逐步验收.md`：VS Code CMD、Conda Python、系统 Node；不要复制 Linux venv/shell 命令冒充本机配方。
