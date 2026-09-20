@@ -21,11 +21,11 @@
 
 | ID / 优先级 | 工作与依据 | 验收标准 | 环境/约束 |
 | --- | --- | --- | --- |
-| A-01 / P1 | 解析前请求体预算；报告 F-01 | Content-Length 和无长度分块均有硬上限/时间预算；超限 413，不回显大输入；保留支付回调原始字节验签 | ASGI 合成 + 实际代理；代理 cap 不能替代直连策略 |
-| A-02 / P1（启用 LLM 时） | LLM 下载/内容/总时限/并发预算；F-02 | stream 后累计字节限制，压缩/分块/大无关字段/异常 JSON/深嵌套/取消均受控；统一脱敏错误；明确总 deadline 和排队/额度策略 | MockTransport 验结构，慢读须真实本地 HTTP 服务；不向实际提供方压测 |
+| A-01 / P1 | 已完成（2026-09-20，TD-260）：`RequestBodyBudgetMiddleware` 默认 1 MiB、`/diagrams` 2 MiB、回调路径自管 64 KiB；422 不回显 `input` | Content-Length/分块/谎报长度均 413 且停读；回归 `tests/test_request_body_budget.py`；支付回调原始字节验签不变 | 应用层预算，不替代代理 `client_max_body_size`（DEPLOY 已注明）；实际代理层限额仍归部署签收 |
+| A-02 / P1（启用 LLM 时） | 字节/深嵌套/总时限部分已完成（2026-09-20，TD-260）：`client.stream` + 1 MiB `RESPONSE_LIMIT`、非 200 不读正文、RecursionError→LLMError、`asyncio.timeout` 总时限；**并发/排队/额度策略未做** | 回归 `tests/test_llm_response_bounds.py`；剩余：每进程 LLM 在途并发上限与排队/额度策略，需用户确认取值 | MockTransport + 合成滴流；真实慢读与供应商行为未实测，不向实际提供方压测 |
 | A-03 / P2 | 同单预支付并发与配额；F-03 | 用户/订单合理限流，跨会话同单单飞或持久租约/退避；未知结果可按原号恢复，不持数据库锁等待网络 | SQLite + 非超级用户 PG 并发；不是重复扣款修复声明 |
 | A-04 / P2 | 登录来源策略；F-04 | 先做 HTTPS 浏览器双来源 PoC；决定 Origin/Fetch-Metadata/CSRF 组合，拒绝恶意跨站表单而保留合法第一方及约定 API 客户端 | 真实浏览器；ASGI 200 只能证明服务端接受 |
-| A-05 / P3 | 严格 embedding index；F-05 | `type(index) is int` 或等价严格校验；拒绝 bool/float、重复/缺失/越界，正常向量无退化 | 本地合成；不猜供应商模型能力 |
+| A-05 / P3 | 已完成（2026-09-20，TD-260）：`type(index) is int` | 拒绝 bool/float/字符串 index，重复/缺失/越界原有校验保留；`tests/test_llm_response_bounds.py` 含正常向量排序不退化 | 本地合成；不猜供应商模型能力 |
 | A-06 / P2（扩展收银台前） | 网页支付展示/轮询；审计9.4 | 保留无重叠/终态停止/换账号隔离；测后台暂停、退避/抖动、等待上限与恢复；新增HTTPS收银台前建立按渠道URL白名单，回跳不直接授予权益 | 当前Native扫码，不伪装H5/JSAPI已接入；SSE/WebSocket先有SLO依据 |
 | A-07 / P2 | 限流器满桶拒绝所有新客户端；复核报告 F-09 | 满桶且存在已过期键时新键必须放行（摊销 O(1)，不全表扫描）；活跃键仍不被驱逐；IPv6 按 /64 归并为限流身份；满桶记 warning；保留 `NoScan` 与"全活跃仍拒绝"反例 | 合成时钟单元测试 + ASGI；单进程语义不变（TD-141）；不引入 Redis |
 | A-08 / P2 | 下载出口 `GET /shop/dl` 无限流；审计 F-06 前半 | 加与 `POST /shop/download` 相同的 `download` scope 限流；合法重领与 Range/重复请求行为不变；全量哈希优化另按 O-01 测量后做 | SQLite 回归；不缓存权益判断 |

@@ -11,7 +11,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ### 交接诊断，不是安全验收
 
-`audit_handoff_probes.py` 保留基线 7f2e125 的六项有界合成复现：分块请求读完/422回显、LLM大无关字段、深嵌套JSON异常、bool/float向量索引、同单双预支付、跨站来源表单登录。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
+`audit_handoff_probes.py` 原保留基线 7f2e125 的六项有界合成复现；2026-09-20（TD-260）修复后，分块请求读完/422回显、LLM大无关字段、深嵌套JSON异常、bool/float向量索引四项已删除并替换为默认套件里的保护性回归 `test_request_body_budget.py`（Content-Length/分块/谎报长度 413、`/diagrams` 2 MiB 放行、回调路径自管 64 KiB、422 不回显 input）和 `test_llm_response_bounds.py`（1 MiB 响应预算、非 200 不读正文、深嵌套/畸形 JSON 归 LLMError、index `type is int`、总时限）。文件里只剩同单双预支付、跨站来源表单登录两项待修诊断。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
 
 显式执行 `python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s`。文件不命名为 test_*.py，因此默认套件不收集：**PASS代表观察到待修行为，不表示安全通过**。修复某项后应替换成默认套件里的保护性回归，不能为维持诊断绿色保留旧行为。来源、评级与环境局限见[全仓交接报告](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)。
 
@@ -42,6 +42,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 抓取与模型 | test_crawler、test_extract、test_admin_ingest、test_mermaid 等现有模块 | MockTransport 和假模型控制外部返回；真实解析器/事务仍执行；不访问第三方目标来复现问题 |
 | FAQ 与 RAG | test_faq、test_faq_semantic、test_intent_cascade、test_support | 排序、阈值算法、回退与资料检索；真实 embedding 阈值标定需要单独密钥与语料 |
 | 运维边界 | test_ops、test_config_validation、test_review_regressions | CSP、配置、任务池、错误与缓存头；不是生产负载压测或网络隔离验收 |
+| 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；进程内 ASGI/MockTransport，不替代代理限额或真实供应商实测 |
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
 | 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
 
@@ -58,7 +59,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `691f12dfc1d4` | L1–L127 |
+| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `a010b33e3263` | L1–L69 |
 | [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
@@ -85,6 +86,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `6fbd35d188c3` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
+| [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `96bc978f5dc2` | L1–L157 |
@@ -112,6 +114,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_refund_verification.py`](test_refund_verification.py) | `ed4ad7569a51` | L1–L306 |
 | [`tests/test_refunds.py`](test_refunds.py) | `8c0b61cd7acd` | L1–L446 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
+| [`tests/test_request_body_budget.py`](test_request_body_budget.py) | `67b2d198009d` | L1–L171 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |

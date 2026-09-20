@@ -5,81 +5,23 @@ python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s
 Use disposable databases only: fixtures recreate tables.
 All external requests use local replacements.
 After fixing a finding, replace its reproduction with a protective test in the normal suite.
+
+2026-09-20 (TD-260): the four probes for request-body consumption/echo, LLM padding, deep JSON and
+bool/float embedding indices were fixed and moved to tests/test_request_body_budget.py and
+tests/test_llm_response_bounds.py. Only the two open items remain here.
 """
 
 import asyncio
 
-import httpx
 import pytest
 from sqlalchemy import select
 
 from app.config import settings
 from app.models import Order, PaymentReceipt
 from app.routers import shop
-from app.tools.llm import LLMClient
 from tests.conftest import TestSession
 from tests.test_download import auth_headers
 from tests.test_wechat_pay import _ENV
-
-
-@pytest.mark.asyncio
-async def test_body_is_consumed_and_reflected_before_field_rejection(client):
-    class Body(httpx.AsyncByteStream):
-        read = 0
-
-        async def __aiter__(self):
-            for chunk in [b'{"text":"', *[b"x" * 65536 for _ in range(32)], b'"}']:
-                self.read += len(chunk)
-                yield chunk
-
-    body = Body()
-    response = await client.post("/tools/mermaid", content=body, headers={"Content-Type": "application/json"})
-    assert response.status_code == 422 and body.read > 2 * 1024 * 1024
-    assert len(response.content) > 2 * 1024 * 1024
-    print(f"BODY status={response.status_code} consumed={body.read} response={len(response.content)}")
-
-
-@pytest.mark.asyncio
-async def test_llm_reads_ignored_large_padding():
-    class Upstream(httpx.AsyncByteStream):
-        read = 0
-
-        async def __aiter__(self):
-            for chunk in [
-                b'{"choices":[{"message":{"content":"ok"}}],"padding":"',
-                *[b"x" * 65536 for _ in range(32)],
-                b'"}',
-            ]:
-                self.read += len(chunk)
-                yield chunk
-
-    body = Upstream()
-    client = LLMClient(api_key="synthetic", transport=httpx.MockTransport(lambda r: httpx.Response(200, stream=body)))
-    assert await client.chat("probe", "probe") == "ok"
-    print(f"LLM accepted ignored bytes={body.read}")
-
-
-@pytest.mark.asyncio
-async def test_deep_json_is_not_normalized():
-    body = b"[" * 1200 + b"0" + b"]" * 1200
-    client = LLMClient(api_key="synthetic", transport=httpx.MockTransport(lambda r: httpx.Response(200, content=body)))
-    with pytest.raises(RecursionError):
-        await client.chat("probe", "probe")
-    print("LLM nesting=1200 escapes as RecursionError rather than LLMError")
-
-
-@pytest.mark.asyncio
-async def test_non_integer_embedding_indices_are_accepted():
-    for index in [False, 0.0]:
-        client = LLMClient(
-            api_key="synthetic",
-            embed_model="synthetic",
-            transport=httpx.MockTransport(
-                lambda r, index=index: httpx.Response(200, json={"data": [{"index": index, "embedding": [0.1, 0.2]}]})
-            ),
-        )
-        assert await client.embeddings(["probe"]) == [[0.1, 0.2]]
-        print(f"EMBED accepted index type={type(index).__name__}")
 
 
 @pytest.mark.asyncio

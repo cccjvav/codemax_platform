@@ -23,12 +23,12 @@
 
 ### LLM 协议
 
-默认 Agnes 2.5 Flash，Chat Completions 显式 stream=false；LLMError 初始化保留 category/status_code，网络错误不伪造 HTTP 状态，HTTP 失败不打印服务端正文，Mermaid 错误不回显生成内容。embeddings 非空输入须显式配置向量模型。
+默认 Agnes 2.5 Flash，Chat Completions 显式 stream=false；LLMError 初始化保留 category/status_code，网络错误不伪造 HTTP 状态，HTTP 失败不打印服务端正文，Mermaid 错误不回显生成内容。embeddings 非空输入须显式配置向量模型。 `_call`/`_json_within_budget`（TD-260）：整次调用套 `asyncio.timeout(self.timeout)` 总时限，超时归 network；用 `client.stream` 读取，Content-Length 或累计解压字节超过 `RESPONSE_LIMIT`（1 MiB）立即停读并归 oversize；非 200 只取状态码不读正文；`json.loads` 的 RecursionError/编码/语法错误统一归 response 类 LLMError，调用方 `except LLMError` 才接得住。
 
 | 入口 | 契约 | 失败与注意事项 |
 | --- | --- | --- |
-| `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、网络/HTTP 异常、响应结构错误抛 LLMError；不证明模型内容事实正确 |
-| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查条数、index 完整唯一、维度一致、非空及有限数值；不允许错位向量进入检索 |
+| `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、网络/HTTP 异常、响应超过 1 MiB、总时限超时、响应结构/JSON 错误都抛 LLMError（category：configuration/network/http/oversize/response）；不证明模型内容事实正确 |
+| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查 data 是对象数组、条数、index `type is int`（拒绝 bool/float/字符串）且完整唯一、维度一致、非空及有限数值；同样受 1 MiB/总时限约束；不允许错位向量进入检索 |
 | `get_llm()` | 返回默认客户端，供 FastAPI 注入 | 默认客户端在导入时从 settings 构造；运行中改 settings 不会自动重建它；测试用 dependency_overrides |
 | `generate_mermaid` / `_strip_fence` | 用户描述 → 去围栏的 Mermaid 文本 | 首关键字检查不是完整 Mermaid 解析；实际渲染仍可能报语法错。前端 strict 模式也不能替代后端响应结构校验 |
 
@@ -89,7 +89,7 @@
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
-| [`app/tools/llm.py`](llm.py) | `cefd84c87b86` | L1–L162 |
+| [`app/tools/llm.py`](llm.py) | `e4866cba4808` | L1–L198 |
 | [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |

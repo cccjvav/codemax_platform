@@ -4,6 +4,8 @@
 结构校验不证明模型输出事实正确；Mermaid 前缀检查也不是完整语法解析。"""
 from __future__ import annotations
 
+import asyncio
+import json
 import math
 import re
 from dataclasses import dataclass, field
@@ -11,6 +13,10 @@ from dataclasses import dataclass, field
 import httpx
 
 from ..config import settings
+
+# 上游响应体上限（解压后字节）。正常聊天回答几 KiB、12 条 FAQ 向量几十 KiB；1 MiB 之外只可能是
+# 无关填充或异常上游，读到这里就停并归类 oversize，不再把整段响应缓冲进内存（TD-260）。
+RESPONSE_LIMIT = 1 * 1024 * 1024
 
 # Mermaid 认可的图类型首关键字（LLM 有时会给 erDiagram 而非 classDiagram，都放行）
 _DIAGRAM_TYPES = (
@@ -55,30 +61,44 @@ class LLMClient:
     timeout: float = 60.0
     transport: httpx.AsyncBaseTransport | None = field(default=None, repr=False)  # 测试注入 MockTransport
 
+    async def _call(self, path: str, payload: dict, what: str):
+        """一次 POST → 有界读取 → JSON。整次调用（连接、等待、读取）受 `timeout` 总时限约束。
+
+        `timeout` 同时作为 httpx 的分项超时和 `asyncio.timeout` 的总时限：分项超时管不住
+        "每块都赶在读超时之内慢慢滴字节" 的上游，总时限管得住。非 200 只取状态码，不读正文。
+        """
+        url = f"{self.base_url.rstrip('/')}{path}"
+        headers = {"Authorization": f"Bearer {self.api_key}"}
+        try:
+            async with asyncio.timeout(self.timeout):
+                async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
+                    async with client.stream("POST", url, headers=headers, json=payload) as resp:
+                        if resp.status_code != 200:
+                            raise LLMError(f"{what}返回 {resp.status_code}", category="http", status_code=resp.status_code)
+                        return await _json_within_budget(resp, what)
+        except httpx.HTTPError as exc:
+            raise LLMError(f"调用{what}失败（{type(exc).__name__}）", category="network") from exc
+        except TimeoutError as exc:
+            raise LLMError(f"调用{what}超过 {self.timeout} 秒总时限", category="network") from exc
+
     async def chat(self, system: str, user: str) -> str:
         if not self.api_key:
             raise LLMError("未配置 LLM_API_KEY，无法调用大模型", category="configuration")
-        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            try:
-                resp = await client.post(
-                    f"{self.base_url.rstrip('/')}/chat/completions",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={
-                        "model": self.model,
-                        "temperature": 0.2,
-                        "stream": False,
-                        "messages": [
-                            {"role": "system", "content": system},
-                            {"role": "user", "content": user},
-                        ],
-                    },
-                )
-            except httpx.HTTPError as exc:
-                raise LLMError(f"调用大模型失败（{type(exc).__name__}）", category="network") from exc
-        if resp.status_code != 200:
-            raise LLMError(f"大模型返回 {resp.status_code}", category="http", status_code=resp.status_code)
+        data = await self._call(
+            "/chat/completions",
+            {
+                "model": self.model,
+                "temperature": 0.2,
+                "stream": False,
+                "messages": [
+                    {"role": "system", "content": system},
+                    {"role": "user", "content": user},
+                ],
+            },
+            "大模型",
+        )
         try:
-            content = resp.json()["choices"][0]["message"]["content"]
+            content = data["choices"][0]["message"]["content"]
             if not isinstance(content, str) or not content.strip() or len(content) > 100000:
                 raise ValueError("content 必须是有界非空字符串")
             return content
@@ -100,21 +120,16 @@ class LLMClient:
             raise LLMError("未配置 LLM_API_KEY，无法调用向量化接口", category="configuration")
         if not self.embed_model.strip():
             raise LLMError("未配置 LLM_EMBED_MODEL，不能调用向量化接口", category="configuration")
-        async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
-            try:
-                resp = await client.post(
-                    f"{self.base_url.rstrip('/')}/embeddings",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json={"model": self.embed_model, "input": texts},
-                )
-            except httpx.HTTPError as exc:
-                raise LLMError(f"调用向量化接口失败（{type(exc).__name__}）", category="network") from exc
-        if resp.status_code != 200:
-            raise LLMError(f"向量化接口返回 {resp.status_code}", category="http", status_code=resp.status_code)
+        data = await self._call("/embeddings", {"model": self.embed_model, "input": texts}, "向量化接口")
         try:
-            rows = resp.json()["data"]
+            rows = data["data"]
+            if not isinstance(rows, list) or not all(isinstance(r, dict) for r in rows):
+                raise ValueError("data 必须是对象数组")
             if len(rows) != len(texts):
                 raise ValueError(f"向量化接口返回 {len(rows)} 条，输入是 {len(texts)} 条")
+            # `type is int`：bool 是 int 的子类、0.0 == 0，等值比较会把 False/0.0 当成合法 index
+            if any(type(r.get("index")) is not int for r in rows):
+                raise ValueError("embedding index 必须是整数")
             ordered = sorted(rows, key=lambda r: r["index"])
             if [r["index"] for r in ordered] != list(range(len(texts))):
                 raise ValueError("embedding index 必须完整且唯一")
@@ -132,6 +147,27 @@ class LLMClient:
         if not vectors or not vectors[0]:
             raise LLMError("向量化接口返回了空向量")
         return vectors
+
+
+async def _json_within_budget(resp: httpx.Response, what: str):
+    """把已打开的流式响应读进内存并解析 JSON；超过 RESPONSE_LIMIT 立即停读。
+
+    计数的是 httpx 解压后的字节，所以压缩炸弹也算解压体积。`json.loads` 对上千层嵌套
+    抛 RecursionError（C 层递归保护，不会真的溢出栈），这里连同编码/语法错误一并归为
+    LLMError，调用方的 `except LLMError` 才接得住。
+    """
+    declared = resp.headers.get("content-length", "").strip()
+    if declared.isdigit() and int(declared) > RESPONSE_LIMIT:
+        raise LLMError(f"{what}响应超过 {RESPONSE_LIMIT} 字节上限", category="oversize")
+    raw = bytearray()
+    async for chunk in resp.aiter_bytes():
+        if len(raw) + len(chunk) > RESPONSE_LIMIT:
+            raise LLMError(f"{what}响应超过 {RESPONSE_LIMIT} 字节上限", category="oversize")
+        raw.extend(chunk)
+    try:
+        return json.loads(bytes(raw))
+    except (ValueError, RecursionError) as exc:  # JSONDecodeError/UnicodeDecodeError 都是 ValueError
+        raise LLMError(f"{what}返回体不是可解析的 JSON（{type(exc).__name__}）") from exc
 
 
 default_llm = LLMClient(

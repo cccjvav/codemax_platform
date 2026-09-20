@@ -73,6 +73,7 @@ server {
     ssl_certificate     /etc/letsencrypt/live/codemax.top/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/codemax.top/privkey.pem;
 
+    client_max_body_size 2m;   # 应用自身也有预算（默认 1 MiB、/diagrams 2 MiB、回调 64 KiB，TD-260），代理这层是第一道
     location / {
         proxy_pass http://127.0.0.1:8000;
         proxy_set_header Host              $host;
@@ -89,6 +90,7 @@ server {
   http 上不发，否则还在用 http 的环境会被浏览器锁死一年；不信任代理头时也不发，
   否则伪造一个头就能触发。
 - 限流按真实客户端 IP 计（而不是全部算成代理 IP）。
+- 请求体超过应用预算时返回 413 并带 `connection: close`，代理会断开这条上游连接；这是预期行为，不是故障。应用预算只管应用读到的字节，代理仍应保留自己的 `client_max_body_size`。
 
 微信支付回调地址 `WX_NOTIFY_URL` 必须是公网可达的 **https**。
 

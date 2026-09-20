@@ -91,6 +91,8 @@ pending → closed → paid
 | `Limiter.allow` / `prune` / `reset` | 滑动窗口返回 (是否允许, Retry-After秒数)；请求最多维护32键，默认16384桶上限，满时拒绝新键；prune为显式全扫描维护，reset清理全部状态 |
 | `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；依赖按 scope + IP 限流，超额 429。内存状态不跨进程共享 |
 | `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；生产链接固定为已校验 SITE_BASE_URL，开发链接可按可信头派生。应用端口仍须阻止绕过代理访问 |
+| `body_limit_for` / `RequestBodyBudgetMiddleware` | 路径 → 请求体上限：默认 1 MiB，`/diagrams` 2 MiB，`/shop/pay/notify` 与 `/shop/refunds/notify` 返回 None 由路由自己的 64 KiB 流式预算负责（TD-260）。Content-Length 超限不读一字节即 413 + `connection: close`；分块/谎报长度按实际字节计，越界抛 `BodyTooLarge`（HTTPException 子类，FastAPI 读体时原样上抛成 413 而不是 400）。只限制应用读到的字节，不替代代理 `client_max_body_size`，不限制响应大小 |
+| `validation_error_without_input` | 注册为 `RequestValidationError` 处理器：422 只保留 type/loc/msg/ctx，去掉 `input`/`url`，不再把几十万字符的出错字段原样回显；前端只读 `msg` |
 | `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
 | `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；ID 只接受安全128字符格式，路径转义限长、不含查询；这不是独立防篡改审计存储 |
 | `check_production_settings` / `check_production_warnings` | 分别返回阻断问题／告警列表；配置检查不进行实际商户、文件或模型连通性验收 |
@@ -116,7 +118,7 @@ pending → closed → paid
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
-| [`app/middleware.py`](middleware.py) | `c18fb3475e6d` | L1–L180 |
+| [`app/middleware.py`](middleware.py) | `6d7bde9df09f` | L1–L299 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |

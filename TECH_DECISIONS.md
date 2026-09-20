@@ -548,3 +548,11 @@ PG运行35396917535由20分钟上限取消，SQLite用19分48秒；本地真PG�
 2026-09-20。接手人对基线 ea11619 重跑六项有界诊断（SQLite 全部复现）并逐文件通读应用/脚本/前端/模板/文档后，只新增一份 `review/FULL_REPOSITORY_REVIEW_2026-09-20.md` 作证据，不在报告里维护状态；新发现 F-09（`Limiter` 满桶后拒绝所有新键、`prune()` 无调用方，合成时钟下约 820 地址 × 20 scope、≈5 请求/秒即可长期封锁新客户端）直接登记为 ROADMAP A-07，下载出口限流为 A-08，UI 对比度/浮层可访问性为 A-09，文字与死代码清理为 O-09。放弃了"在报告里同时修几处小问题"：文档提交与运行逻辑改动分开，才能让每个修复批次有自己的保护性回归和精确 SHA 的 CI 证据。
 
 代价：本次提交只改文档/注册/精读指纹，六项诊断与 F-09 仍是待修行为；UI 结论只来自静态阅读和 WCAG 亮度计算，真实浏览器/读屏仍归 L-04。回看条件：任一 A-01～A-09 完成后把对应诊断替换为默认套件保护性断言并在 ROADMAP 勾销，不再追加新的"全局当前状态"文档。
+
+## TD-260：解析前请求体预算与 LLM 响应预算都是"读到就停"，不做可配置项
+
+2026-09-20。修复 F-01/F-02/F-05（ROADMAP A-01/A-02/A-05）。请求体：新增纯 ASGI `RequestBodyBudgetMiddleware`，紧贴路由注册（外层仍是安全头和日志）；`body_limit_for` 按路径给上限——默认 1 MiB，`/diagrams` 2 MiB（`DiagramIn` 允许 50 万字符，中文 UTF-8 可到 ~1.5 MB，1 MiB 会让合法保存失败），`/shop/pay/notify`、`/shop/refunds/notify` 返回 None 由路由已有的 64 KiB 流式读取和渠道规定的 FAIL 报文负责，不改签名原文处理。Content-Length 超限不读一字节即 413 + `connection: close`；分块或谎报长度包装 `receive` 按实际字节计，越界抛 `BodyTooLarge`——它继承 HTTPException，因为 FastAPI 读体时会把其他异常统一包成 400 "error parsing the body"，只有 HTTPException 原样上抛才能得到 413。同时注册 `RequestValidationError` 处理器去掉 `input`/`url`：422 不再把出错字段原值整个回显，前端只读 `msg`。数值由用户确认，写成常量不做 Settings：改小会破坏 drawio 保存，改大没有业务输入需要。
+
+LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget` 按 Content-Length 或累计解压字节在 `RESPONSE_LIMIT`（1 MiB）处停读并归 `oversize`；非 200 只取状态码不读正文；整次调用套 `asyncio.timeout(self.timeout)`，超时归 `network`；`json.loads` 的 RecursionError（C 层递归保护，非真实栈溢出）与编码/语法错误统一归 `response` 类 LLMError，`tools.py`/`support.py`/`faq.py` 只捕获 LLMError 的调用链才接得住。embedding index 改为 `type is int`，拒绝 bool/float/字符串。四项诊断从 `tests/audit_handoff_probes.py` 删除，改为默认套件 `tests/test_request_body_budget.py`、`tests/test_llm_response_bounds.py` 的保护性回归；探针文件只剩同单双预支付与跨站登录两项。
+
+代价：应用层预算不替代反向代理 `client_max_body_size`，也不限制响应大小或并发请求数（LLM 并发/额度策略仍待 A-02 后半）；`connection: close` 让超限连接不复用，属有意为之；慢读总时限只用 MockTransport + 合成滴流验证，真实网络表现仍待实测。回看条件：出现需要 >2 MiB 的合法上传（如文件导入）、多进程部署需要共享额度或 LLM 供应商引入流式协议时再重新设计，不靠放宽常量应付。

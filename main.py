@@ -3,12 +3,18 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI
+from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 
 from app import cpu_pool
 from app.config import settings
 from app.database import engine
-from app.middleware import RequestLoggingMiddleware, SecurityHeadersMiddleware
+from app.middleware import (
+    RequestBodyBudgetMiddleware,
+    RequestLoggingMiddleware,
+    SecurityHeadersMiddleware,
+    validation_error_without_input,
+)
 from app.routers import (
     admin,
     auth,
@@ -61,8 +67,12 @@ app = FastAPI(
 
 # 中间件是**后加先执行**（洋葱模型），所以日志放最后加，让它包在最外层，
 # 这样连安全头中间件自己的耗时也算进去，且异常也能被记录到。
+# 请求体预算最先加 = 最靠近路由：它发出的 413 同样经过安全头与日志两层。
+app.add_middleware(RequestBodyBudgetMiddleware)
 app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE)
 app.add_middleware(RequestLoggingMiddleware)
+# 422 只回 type/loc/msg/ctx，不把出错字段的原值（可能几十万字符）整个回显（TD-260）。
+app.add_exception_handler(RequestValidationError, validation_error_without_input)
 
 app.include_router(health.router)  # S5-03-3：存活/就绪探针
 app.include_router(auth.router)
