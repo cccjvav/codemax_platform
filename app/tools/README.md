@@ -85,7 +85,7 @@
 | --- | --- | --- |
 | [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
-| [`app/tools/crawler.py`](crawler.py) | `d90c8f402324` | L1–L285 |
+| [`app/tools/crawler.py`](crawler.py) | `1fef9c45dc89` | L1–L286 |
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |

@@ -15,7 +15,8 @@
       * { box-sizing: border-box; }
       body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b;
              display: flex; flex-direction: column; min-height: 100vh; }
-      a { color: #3b82f6; text-decoration: none; }
+      /* 颜色对比度按 WCAG AA（4.5:1）取值，见 TD-263：蓝 #2563eb 5.17:1、绿 #15803d 5.02:1、灰 #64748b 4.76:1 */
+      a { color: #2563eb; text-decoration: none; }
       header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
       header h1 { margin: 0; font-size: 18px; }
       nav { display: flex; gap: 14px; flex-wrap: wrap; }
@@ -27,12 +28,18 @@
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
       .split { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
       textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
-      button { padding: 6px 14px; border: 1px solid #3b82f6; border-radius: 6px; background: #3b82f6; color: #fff; cursor: pointer; }
-      button.ghost { background: #fff; color: #3b82f6; }
-      button.cta { background: #16a34a; border-color: #16a34a; font-weight: 600; }
+      button { padding: 6px 14px; border: 1px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
+      button.ghost { background: #fff; color: #2563eb; }
+      button.cta { background: #15803d; border-color: #15803d; font-weight: 600; }
+      /* 禁用态必须看得出来：提交中的按钮被脚本 disabled，之前与可点状态完全一样 */
+      button:disabled { background: #cbd5e1; border-color: #cbd5e1; color: #334155; cursor: not-allowed; }
+      button.ghost:disabled { background: #f1f5f9; }
+      /* 键盘焦点环：只在键盘导航时显示（:focus-visible），鼠标点击不出现 */
+      a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible
+        { outline: 2px solid #1d4ed8; outline-offset: 2px; }
       .error { color: #b91c1c; white-space: pre-wrap; }
       .card { display: block; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 8px; color: inherit; }
-      .card:hover { border-color: #3b82f6; }
+      .card:hover { border-color: #2563eb; }
       .card h2 { margin: 0 0 6px; font-size: 16px; }
       .card p { margin: 0; color: #64748b; }
       pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; overflow: auto; }
@@ -52,7 +59,7 @@
       .modal label { display: block; margin-bottom: 10px; color: #475569; font-size: 13px; }
       .modal input { width: 100%; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
                      font: inherit; margin-top: 3px; }
-      .modal .hint { color: #94a3b8; font-size: 12px; margin: -6px 0 10px; }
+      .modal .hint { color: #64748b; font-size: 12px; margin: -6px 0 10px; }
       .modal .row { display: flex; gap: 8px; align-items: center; }
       @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
     </style>
@@ -83,7 +90,7 @@
     <!-- 登录/注册浮层：全站共用，任何页面都能用 CodeMaxAuth.open() 唤起 -->
     {% if auth_ui %}
     <div class="modal-mask" id="auth-mask">
-      <div class="modal">
+      <div class="modal" role="dialog" aria-modal="true" aria-labelledby="auth-title">
         <div class="tabs">
           <button type="button" class="ghost" id="tab-login">登录</button>
           <button type="button" class="ghost" id="tab-register">注册</button>

@@ -29,7 +29,7 @@
 | A-06 / P2（扩展收银台前） | 网页支付展示/轮询；审计9.4 | 保留无重叠/终态停止/换账号隔离；测后台暂停、退避/抖动、等待上限与恢复；新增HTTPS收银台前建立按渠道URL白名单，回跳不直接授予权益 | 当前Native扫码，不伪装H5/JSAPI已接入；SSE/WebSocket先有SLO依据 |
 | A-07 / P2 | 已完成（2026-09-20，TD-261）：`Limiter.admit` 从按到期排序的队头回收过期桶（每次 ≤ 32，摊销 O(1)）；满且全活跃仍拒绝且 `reason=capacity`、Retry-After 指向最早到期桶、warning 每分钟一条；`_identity` 把 IPv6 归并到 /64 | 回归 `tests/test_ratelimit.py`（容量/回收/告警/IPv6 单元 + ASGI 全链路），`NoScan` 与"全活跃仍拒绝"反例保留 | 单进程语义不变（TD-141）；未引入 Redis；维持攻击门槛经复测订正为 ≈ 300 请求/秒（见 TD-261） |
 | A-08 / P2 | 已完成（2026-09-20，TD-261）：`GET /shop/dl` 挂 `download` scope（`RATE_LIMIT_TOOLS`），与 `POST /shop/download` 共用桶 | 回归 `tests/test_download.py::test_download_exit_shares_the_download_rate_limit`：领取 + 两次出口 200、第三次 429、状态不变、窗口后同链接可用；全量哈希优化仍按 O-01 测量后做 | SQLite 回归；权益判断未缓存 |
-| A-09 / P3 | UI 对比度与浮层可访问性；复核报告第 1 节第 4 点 | 链接/按钮/CTA/提示色达到 WCAG AA 4.5:1；登录浮层 `role="dialog"`、Esc 关闭、焦点归还；`:disabled`/`:focus-visible` 可见；`support.css` 不依赖 `:has()`；重建并提交 bundle | 静态检查 + 现有 Node VM 前端测试；真实浏览器视觉签收仍归 L-04 |
+| A-09 / P3 | 已完成（2026-09-20，TD-263）：`#3b82f6→#2563eb`、`#16a34a→#15803d`、`#94a3b8→#64748b`；浮层 `role="dialog" aria-modal aria-labelledby`、Esc 关闭、焦点归还；`button:disabled` 灰化 + `not-allowed`、`:focus-visible` 轮廓；`support.css` 改 `.with-inbox` class；bundle 已重建提交 | 回归 `tests/test_ui_accessibility.py`（对比度公式对照值、六处颜色 ≥ 4.5:1、旧色不再出现、ARIA 属性、源码与产物 Node 真跑 Esc/焦点）| 静态 + Node VM；真实浏览器视觉/读屏签收仍归 L-04 |
 
 退出条件：保护性回归进入默认套件，诊断旧行为断言被替换/注明已失效；模块 README、精读、配置/部署指南同步；精确 SHA 全 CI。可以拆小批次，不能为保持诊断绿色保留缺陷。
 
@@ -74,4 +74,4 @@
 - **O-06 / P2**：Drawio 脏稿提示/恢复及 XML 子集/删除恢复前置条件先做协议设计和浏览器验收，保证账号切换隔离与 origin/source/epoch 相关性不退化。
 - **O-07 / P3**：爬虫每跳 robots 政策、host 礼貌状态淘汰和资源预算专项复核；保持 SSRF 固定 DNS/地址检查与动态 Chromium 停用，不在未复现前宣称绕过。
 - **O-08 / P3**：按风险评估 action/image digest、依赖 hash lock、类型检查、缓存/压缩、索引/连接池等；先有基准与兼容方案，不能盲加 immutable、换依赖或格式化全库。
-- **O-09 / P3（文字与清理，随任一批次顺带）**：TD-214 补记 RAG 指纹已改为全文内容 sha256、TD-217 注明 `AUTH_CODE_EXPIRE_MINUTES` 是 `oauth.py` 常量；`shop.py::_payload` 死参数 `pay_mode`、`crawler.py:165` 裸 `assert`、15 处无效 `# noqa` 清理。不改行为、不重排历史 TD。
+- **O-09 / P3** 已完成（2026-09-20，随 TD-262 批次后的清理提交）：TD-214 行内订正（指纹已是全文 sha256）、TD-217 注明常量；`_payload` 去掉从未读取的 `pay_mode` 形参、`crawler.py` 裸 `assert` 改为显式 `CrawlError`、`ruff --extend-select RUF100` 报告的 7 处无效 `# noqa` 删除（复核报告写的 15 处包含用 `--select RUF100` 单独运行时的 8 条误报，那样运行会丢掉 `ruff.toml` 的规则集）。无行为变化，历史 TD 顺序不动。

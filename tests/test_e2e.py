@@ -471,7 +471,7 @@ async def test_late_payment_is_idempotent(client, mock_mode):
 
 
 @pytest.mark.asyncio
-async def test_only_one_pending_order_per_user_at_db_level(client):  # noqa: ARG001 —— 只为建表
+async def test_only_one_pending_order_per_user_at_db_level(client):
     """数据库层兜底：同一用户不允许有第二张 pending 单（TD-199）。
 
     这条是**确定性**的，SQLite 与真 PostgreSQL 上都跑 —— 它验的是那个部分唯一索引

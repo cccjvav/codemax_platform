@@ -29,11 +29,11 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 import build_docs_site as bds  # noqa: E402
 
-mistune = pytest.importorskip("mistune", reason="文档站渲染需要 mistune")  # noqa: F841
+mistune = pytest.importorskip("mistune", reason="文档站渲染需要 mistune")
 
 
 # ---------------------------------------------------------------- 路由口径
-def test_route_count_matches_runtime_app(client):  # noqa: ARG001
+def test_route_count_matches_runtime_app(client):
     """文档站提取的路由数必须等于运行时真实注册数。
 
     **这就是能抓住「32 vs 36」那次漂移的测试。** 之前 `build_routes()` 只扫
@@ -66,7 +66,7 @@ def test_route_count_matches_runtime_app(client):  # noqa: ARG001
     assert len(extracted) == 63, f"业务路由应为 62 条，实际 {len(extracted)}"
 
 
-def test_page_routes_are_extracted(client):  # noqa: ARG001
+def test_page_routes_are_extracted(client):
     """`GET /`、3 个 `/tools/*` 与 `/shop` 页面路由必须在提取结果里（回归）。
 
     这些路由是 `router.add_api_route(_tool.path, ...)` 循环 PAGES 注册的，
@@ -85,7 +85,7 @@ def test_page_routes_are_extracted(client):  # noqa: ARG001
         assert expected in paths, f"{expected} 未被提取 —— build_routes() 漏了 app/site.py 的 Tool 清单"
 
 
-def test_auth_and_ratelimit_counts(client):  # noqa: ARG001
+def test_auth_and_ratelimit_counts(client):
     """鉴权/限流计数（docs/site/README.md 把它当断言写进了文档，必须对得上）。"""
     routes = bds.build_routes()
     # 第十四批重新授权入口增加一处管理员鉴权及财务限流。

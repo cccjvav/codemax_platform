@@ -54,18 +54,31 @@ window.CodeMaxAuth = (function () {
     err.textContent = "";
   }
 
+  // 浮层可访问性（TD-263）：打开时记住触发元素，关闭后把焦点还回去；Esc 关闭。
+  // 浮层的 role="dialog" / aria-modal / aria-labelledby 写在 base.html 上。
+  let opener = null;
   function open(m) {
     setMode(m || "login");
+    opener = document.activeElement || null;
     mask.classList.add("open");
     document.getElementById("auth-user").focus();
   }
-  function close() { mask.classList.remove("open"); }
+  function close() {
+    mask.classList.remove("open");
+    // 只在焦点还留在浮层里时归还：用户已经点到别处就不要抢回来
+    const active = document.activeElement;
+    if (opener && typeof opener.focus === "function" && (!active || active === document.body || mask.contains?.(active))) {
+      opener.focus();
+    }
+    opener = null;
+  }
 
   document.getElementById("tab-login").onclick = () => setMode("login");
   document.getElementById("tab-register").onclick = () => setMode("register");
   btnAuth.onclick = () => open("login");
   document.getElementById("auth-cancel").onclick = close;
   mask.onclick = (e) => { if (e.target === mask) close(); };
+  mask.onkeydown = (e) => { if (e.key === "Escape") { e.stopPropagation(); close(); } };
 
   btnLogout.onclick = async () => {
     const stamp = ++authSeq;

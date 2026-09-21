@@ -119,7 +119,11 @@
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;
-    el("inbox-panel").hidden = user?.role !== 1; el("title").textContent = "我的留言";
+    const isAdmin = user?.role === 1;
+    el("inbox-panel").hidden = !isAdmin; el("title").textContent = "我的留言";
+    // 两栏布局用 class 切换而不是 CSS :has()：旧内核不支持 :has()，管理员会只看到单栏叠放（TD-263）。
+    const layout = el("workspace").classList;
+    if (isAdmin) layout.add("with-inbox"); else layout.remove("with-inbox");
     if (user) { poll(); inbox(); }
   }
   auth.onChange(onUser); onUser(auth.user);

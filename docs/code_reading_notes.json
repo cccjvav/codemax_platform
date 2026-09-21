@@ -255,7 +255,7 @@
     },
     {
       "path": "app/cpu_pool.py",
-      "sha256": "9b56d12ebe6e7e184d5d001cf4eb4878ab83ed21a798acd150fb06109d268f83",
+      "sha256": "1ca01edaa9c5180b938115be47ef83005fdc6dff8fba8270aa790453dc63a3f1",
       "method": "guided",
       "blocks": [
         {
@@ -369,7 +369,7 @@
     },
     {
       "path": "app/frontend/auth.js",
-      "sha256": "056b278cd0ad2e7edd60bd7cc90a13592e1d1f33c110177a46997efc81f3f82b",
+      "sha256": "acaec13050849f1b3673a47688dd82e63db92b7677972eb76284f091ac0f0f3e",
       "blocks": [
         {
           "end": 27,
@@ -387,32 +387,32 @@
           "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。"
         },
         {
-          "end": 69,
+          "end": 82,
           "title": "登录浮层与事件绑定",
-          "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。"
+          "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。 TD-263：open 记住 document.activeElement 为 opener；close 只在焦点仍在浮层内（或落回 body）时把焦点还给 opener，用户已点到别处就不抢；mask.onkeydown 捕获 Escape 关闭并 stopPropagation。ARIA 属性在 base.html。"
         },
         {
-          "end": 79,
+          "end": 92,
           "title": "退出为什么先等服务器",
           "explanation": "POST /auth/logout 成功后才清 user 并通知；seq 过期则丢弃响应。网络失败不能假装退出完成，显示错误让用户重试。credentials=same-origin 允许带同源 Cookie，但 JS 不读取 Cookie 内容。"
         },
         {
-          "end": 102,
+          "end": 115,
           "title": "表单提交的注册阶段",
           "explanation": "preventDefault 阻止浏览器整页表单导航；disabled 挡住重复点击，finally 会恢复按钮。注册用 application/json 和 JSON.stringify；失败兼容非 JSON 响应。成功注册只创建用户，所以接下来还要走登录，不是已经有会话。"
         },
         {
-          "end": 119,
+          "end": 132,
           "title": "登录阶段与异常恢复",
           "explanation": "登录用 application/x-www-form-urlencoded 和 URLSearchParams，与注册格式不同。成功后 refresh 查 /auth/me，再关浮层；不把返回 token 存 localStorage。网络错误显示提示，finally 恢复提交按钮。此处不是所有 await 都有独立的操作序号检查，不能泛称彻底消除了所有前端竞态。"
         },
         {
-          "end": 133,
+          "end": 146,
           "title": "refresh 的序号防旧结果覆盖",
           "explanation": "每次调用增加 authSeq；非成功响应当未登录，成功 JSON 至少要有对象和 username。若更晚的认证动作已开始，则不写回旧 user。异常时只有当前序号可清本地状态，并重新抛给调用方处理。"
         },
         {
-          "end": 156,
+          "end": 169,
           "title": "启动检查、订阅与 getter",
           "explanation": "初次 refresh 的 rejection 有兜底提示。onChange 返回退订函数，调用方不必保留回调引用；getter 每次读取当前闭包里的 user。它返回可用状态接口，不是把页面永远绑定到第一次加载时的旧对象。"
         }
@@ -634,7 +634,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "dc4dd314906451c938d6dd1a372958355c8e2c73ad043d28f87bfc1bb6b4a01e",
+      "sha256": "acf491fde0ee1423af65ca1611ae420730b8df53f1267e4b44de3eedb7afbd8f",
       "blocks": [
         {
           "end": 19,
@@ -672,9 +672,9 @@
           "explanation": "未登录唤起登录；sending阻止重叠，管理员target为空时明确拒绝并提示。正文非空后在try内创建/复用pending.body与client_nonce，网络不确认时保留同nonce重试，防重复写入。成功不跳读游标到POST id，避免漏管理员回复；epoch变更丢弃旧回包，finally只恢复本上下文按钮。"
         },
         {
-          "end": 127,
+          "end": 131,
           "title": "onUser 与离开页面",
-          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。"
+          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。"
         }
       ]
     },
@@ -1273,7 +1273,7 @@
     },
     {
       "path": "app/routers/shop.py",
-      "sha256": "497c325f44e93297ccbd8b44f5912ed3d6f5f70cf3e39917fcf68984bf3a7a65",
+      "sha256": "e4a48ff24b123733777dc38344a6c1646dd9982dce1f0015553b0a0b63ef7ecc",
       "method": "manual",
       "blocks": [
         {
@@ -1367,37 +1367,37 @@
           "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL384 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 539,
+          "end": 541,
           "title": "_payload",
-          "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。"
+          "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。 O-09 删除了从未被读取的 pay_mode 形参（六处调用同步更新），签名只剩 order 与 reused；渠道只来自订单冻结值。"
         },
         {
-          "end": 642,
+          "end": 644,
           "title": "pay_notify",
           "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。"
         },
         {
-          "end": 649,
+          "end": 651,
           "title": "_snapshot",
           "explanation": "使用请求安全基址构建本地存储并卸载snapshot_product到线程；StorageError转503，不先收款，不把文件复制堵在事件循环。"
         },
         {
-          "end": 655,
+          "end": 657,
           "title": "_check_order_channel",
           "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。"
         },
         {
-          "end": 661,
+          "end": 663,
           "title": "LegacyBindingIn",
           "explanation": "继承必须有内容的依据；只允许manual/wechat/mock，以及有界无控制字符原文件key。它是管理员声明待核实旧合同，不是面向用户任选文件的入口。"
         },
         {
-          "end": 693,
+          "end": 695,
           "title": "bind_legacy_order",
           "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。"
         },
         {
-          "end": 738,
+          "end": 740,
           "title": "payment_ledger",
           "explanation": "管理员只读原合同、收款/成功退款/通知与过程历史；另request_for取本地准备、检查prior_refund_activity计算页面入口提示，request_view给准备或匹配/另号成功。准备/通知/凭证不受before事件分页影响，不调用外网或写任务。入口可用性不是授权，POST会在用户/订单锁下重查。 第九批还独立读取完整授权/最近尝试和发送开关；GET不发网络、不证明可发送，POST重新检查。 ledger增加jobs_view独立最近50任务/截断标记和核验开关；不暴露token，不受事件before影响，不查询外网。默认SUCCESS观察仍待人工；另有系统登记授权。 第十三批新增refund_auto_record_enabled、refund.recorded_by及verification_event_id；只是本Web配置和持久归属投影，不启动查询、不证明worker在线/配置一致。 新增channel_close只读投影（当前门禁/query/最近尝试），独立于事件before分页，不触发close/query，原付款与退款视图不变。"
         }
@@ -1664,22 +1664,22 @@
     },
     {
       "path": "app/static/support.css",
-      "sha256": "15df7d6e48e3336059631c515c0c44ad179d80acc0ac698b2f6de1f51162de97",
+      "sha256": "503d4bad1277521641290379af426028286bdabc45b7254d1ba5575acaa78439",
       "blocks": [
         {
-          "end": 4,
+          "end": 5,
           "title": "布局与 hidden 的优先级",
-          "explanation": "父容器限宽居中；默认单列网格。:has 发现可见 aside 才增加管理员侧栏列，minmax(0,1fr) 允许正文收缩；[hidden] 显式 display:none，避免其他 display 规则把未登录区域显示出来。CSS 控制布局，不授予权限。"
-        },
-        {
-          "end": 9,
-          "title": "列表可读性",
-          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。"
+          "explanation": "父容器限宽居中；默认单列网格。:has 发现可见 aside 才增加管理员侧栏列，minmax(0,1fr) 允许正文收缩；[hidden] 显式 display:none，避免其他 display 规则把未登录区域显示出来。CSS 控制布局，不授予权限。 两栏改由 .with-inbox class 触发（support-page.js 按管理员角色切换），不再用 :has()——旧内核不支持时管理员只剩单栏（TD-263）。"
         },
         {
           "end": 10,
+          "title": "列表可读性",
+          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。"
+        },
+        {
+          "end": 11,
           "title": "窄屏覆盖",
-          "explanation": "700px 以下把含侧栏的双列布局改回一列。媒体规则在基础规则后且匹配同类选择器，才能正确覆盖；仅静态检查 CSS 不能代替实际小屏/缩放验收。"
+          "explanation": "700px 以下把含侧栏的双列布局改回一列。媒体规则在基础规则后且匹配同类选择器，才能正确覆盖；仅静态检查 CSS 不能代替实际小屏/缩放验收。 窄屏覆盖同样针对 .with-inbox。"
         }
       ]
     },
@@ -1727,7 +1727,7 @@
     },
     {
       "path": "app/templates/base.html",
-      "sha256": "d6b4935d2d6891b9c5cf2fcff191ede7a44fe4da9223ac2a599e0b9231373fd9",
+      "sha256": "31c5cbd7b3c9c1cf4fdddc51537ae1f99ec6c3eeae13d02156a1f4c6638a0f73",
       "method": "manual",
       "blocks": [
         {
@@ -1736,27 +1736,27 @@
           "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。"
         },
         {
-          "end": 41,
+          "end": 48,
           "title": "全站 CSS：盒模型、导航和工具布局",
-          "explanation": "border-box、body纵向flex与main flex:1撑满视口；actions margin-left:auto 靠右，split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。"
+          "explanation": "border-box、body纵向flex与main flex:1撑满视口；actions margin-left:auto 靠右，split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。"
         },
         {
-          "end": 59,
+          "end": 66,
           "title": "登录浮层样式和窄屏",
-          "explanation": "fixed/inset 覆盖屏幕，默认 display:none，open类改flex；modal 限宽，输入沿用字体，900以下 split 一列。样式不会主动开浮层，auth.js 管类名和提交。"
+          "explanation": "fixed/inset 覆盖屏幕，默认 display:none，open类改flex；modal 限宽，输入沿用字体，900以下 split 一列。样式不会主动开浮层，auth.js 管类名和提交。 提示灰由 #94a3b8（2.56:1）改为 #64748b（4.76:1）。"
         },
         {
-          "end": 76,
+          "end": 83,
           "title": "导航与可选身份控件",
           "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。"
         },
         {
-          "end": 110,
+          "end": 117,
           "title": "登录表单必须先于页面脚本",
-          "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。"
+          "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。 浮层容器带 role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\"（TD-263）；Esc 与焦点归还在 auth.js。"
         },
         {
-          "end": 124,
+          "end": 131,
           "title": "模板插槽与页脚",
           "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。"
         }
@@ -1866,13 +1866,13 @@
     },
     {
       "path": "app/templates/shop.html",
-      "sha256": "03d88eb2ba78dacffd17eefa00f4bdc83af31fff403acc1c84df7bdc83acf0f2",
+      "sha256": "ca33ad28aa9164f449523a5542b74e16762762e48bf3515763b0a42b611fc1e6",
       "method": "manual",
       "blocks": [
         {
           "end": 23,
           "title": "商品页样式",
-          "explanation": "价格与 CTA 强调购买，cols 双栏700以下一栏，qr svg 强制220px避免segno模块尺寸太小；warn/error 分别表达业务警告和操作失败。样式不决定币种金额校验。"
+          "explanation": "价格与 CTA 强调购买，cols 双栏700以下一栏，qr svg 强制220px避免segno模块尺寸太小；warn/error 分别表达业务警告和操作失败。样式不决定币种金额校验。 价格绿改为 #15803d（5.02:1，TD-263）。"
         },
         {
           "end": 54,
@@ -1983,7 +1983,7 @@
     },
     {
       "path": "app/tools/crawler.py",
-      "sha256": "d90c8f402324b9d3dd9613733874e0654dfcf494eca79b5c70240bc6a9a54717",
+      "sha256": "1fef9c45dc8981e345039bfc7b944a2d9dca2f0ea4b6073844c02030324ca7bf",
       "method": "guided",
       "blocks": [
         {
@@ -2022,24 +2022,24 @@
           "explanation": "功能契约：重新取已检公网地址，将实际连接 host 固定到 IP，同时保留 Host 头与 SNI 主机名以维持 HTTPS 虚拟主机校验。\n\n输入签名：self, request: httpx.Request；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL116 计算右侧并赋给 `addresses`：await 调用 assert_public_url(str(request.url))；等待期间可让出事件循环，恢复后才执行下一句。\nL117 计算右侧并赋给 `pinned`：调用 httpx.Request(request.method, request.url.copy_with(host=addresses[0]), headers=request.headers, stream=request.stream, extensions={**request.extensions, 'sni_hostname': request.url.host})。\nL122 结束当前函数，返回 await 调用 super().handle_async_request(pinned)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 202,
+          "end": 203,
           "title": "_request",
-          "explanation": "功能契约：不自动跟随跳转，每跳校验目标；流式读取并计解压后的总 bytes，过大拒绝。finally 关闭响应，移除已失效的压缩/长度头后重建响应，避免二次解压。\n\n输入签名：url: str, *, transport: httpx.BaseTransport | None, max_bytes: int；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL143 await 调用 assert_public_url(url)；等待期间可让出事件循环，恢复后才执行下一句。\nL144 进入 httpx.AsyncClient(transport=transport if transport is not None else PublicTransport(), trust_env=False, timeout=TIMEOUT, follow_redirects=False, headers={'User-Agent': USER_AGENT}) as client 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL151 计算右侧并赋给 `current`：url。\nL152 计算右侧并赋给 `r`：None。\nL153 逐项遍历 `range(MAX_REDIRECTS)`，绑定 `_`；循环体按缩进执行，break可提前结束。\nL155 计算右侧并赋给 `r`：await 调用 client.send(client.build_request('GET', current), stream=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL156 计算右侧并赋给 `location`：r.headers.get('location') if r.status_code in _REDIRECT_CODES else None。\nL157 判断 `location is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL158 break 提前退出最近一层循环，不退出整个调用栈。\nL159 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL160 计算右侧并赋给 `current`：调用 str(r.url.join(location))。\nL161 await 调用 assert_public_url(current)；等待期间可让出事件循环，恢复后才执行下一句。\nL163 抛出 CrawlError(f'重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL165 核对 `r is not None`：此条件为假即测试失败；不是生产输入校验。\nL168 计算右侧并赋给 `declared`：调用 r.headers.get('content-length')。\nL169 判断 `declared is not None and declared.isdigit() and (int(declared) > max_bytes)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL170 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL171 抛出 CrawlError(f'页面过大：Content-Length 声明 {declared} 字节，超过上限 {max_bytes}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL178 计算右侧并赋给 `chunks`：[]。\nL179 计算右侧并赋给 `total`：0。\nL180 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL181 逐项遍历 `r.aiter_bytes()`，绑定 `chunk`；异步迭代每轮可能等待。\nL182 累积修改 `total`：执行 `total += len(chunk)`，新值供下一轮/后续分支使用。\nL183 判断 `total > max_bytes`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL184 抛出 CrawlError(f'页面过大：已收 {total} 字节仍未结束，超过上限 {max_bytes}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL185 调用 chunks.append(chunk)。\nL187 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL195 计算右侧并赋给 `headers`：调用 r.headers.copy()。\nL196 逐项遍历 `('content-encoding', 'content-length', 'transfer-encoding')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL197 调用 headers.pop(name, None)。\nL198 结束当前函数，返回 调用 httpx.Response(r.status_code, headers=headers, content=b''.join(chunks), request=r.request)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：不自动跟随跳转，每跳校验目标；流式读取并计解压后的总 bytes，过大拒绝。finally 关闭响应，移除已失效的压缩/长度头后重建响应，避免二次解压。\n\n输入签名：url: str, *, transport: httpx.BaseTransport | None, max_bytes: int；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL143 await 调用 assert_public_url(url)；等待期间可让出事件循环，恢复后才执行下一句。\nL144 进入 httpx.AsyncClient(transport=transport if transport is not None else PublicTransport(), trust_env=False, timeout=TIMEOUT, follow_redirects=False, headers={'User-Agent': USER_AGENT}) as client 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL151 计算右侧并赋给 `current`：url。\nL152 计算右侧并赋给 `r`：None。\nL153 逐项遍历 `range(MAX_REDIRECTS)`，绑定 `_`；循环体按缩进执行，break可提前结束。\nL155 计算右侧并赋给 `r`：await 调用 client.send(client.build_request('GET', current), stream=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL156 计算右侧并赋给 `location`：r.headers.get('location') if r.status_code in _REDIRECT_CODES else None。\nL157 判断 `location is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL158 break 提前退出最近一层循环，不退出整个调用栈。\nL159 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL160 计算右侧并赋给 `current`：调用 str(r.url.join(location))。\nL161 await 调用 assert_public_url(current)；等待期间可让出事件循环，恢复后才执行下一句。\nL163 抛出 CrawlError(f'重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL165 判断 `r is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL166 抛出 CrawlError('抓取未得到任何响应')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL169 计算右侧并赋给 `declared`：调用 r.headers.get('content-length')。\nL170 判断 `declared is not None and declared.isdigit() and (int(declared) > max_bytes)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL171 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL172 抛出 CrawlError(f'页面过大：Content-Length 声明 {declared} 字节，超过上限 {max_bytes}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL179 计算右侧并赋给 `chunks`：[]。\nL180 计算右侧并赋给 `total`：0。\nL181 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL182 逐项遍历 `r.aiter_bytes()`，绑定 `chunk`；异步迭代每轮可能等待。\nL183 累积修改 `total`：执行 `total += len(chunk)`，新值供下一轮/后续分支使用。\nL184 判断 `total > max_bytes`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL185 抛出 CrawlError(f'页面过大：已收 {total} 字节仍未结束，超过上限 {max_bytes}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL186 调用 chunks.append(chunk)。\nL188 await 调用 r.aclose()；等待期间可让出事件循环，恢复后才执行下一句。\nL196 计算右侧并赋给 `headers`：调用 r.headers.copy()。\nL197 逐项遍历 `('content-encoding', 'content-length', 'transfer-encoding')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL198 调用 headers.pop(name, None)。\nL199 结束当前函数，返回 调用 httpx.Response(r.status_code, headers=headers, content=b''.join(chunks), request=r.request)；不会自动commit未提交事务。\n\n原 `assert r is not None` 已改为显式 CrawlError（O-09）：不依赖 -O 下会被剥掉的 assert 做控制流。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 212,
+          "end": 213,
           "title": "fetch",
           "explanation": "功能契约：先检查 robots，再进入全局信号量并按域节流，最后要求 HTTP200 返回 Page；没有执行网页 JavaScript。\n\n输入签名：url: str, *, transport: httpx.BaseTransport | None=None, max_bytes: int=MAX_BYTES；异步调用需await才推进。 返回类型标注：Page。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 228,
+          "end": 229,
           "title": "fetch.fetch_text",
-          "explanation": "功能契约：给 politeness 注入读取 robots 的受控回调，使用 robots 专用体积上限。\n\n输入签名：robots_url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL214 计算右侧并赋给 `r`：await 调用 _request(robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES)；等待期间可让出事件循环，恢复后才执行下一句。\nL217 结束当前函数，返回 (r.status_code, r.text)；不会自动commit未提交事务。\nL219 await 调用 politeness.check_allowed(url, USER_AGENT, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL220 计算右侧并赋给 `state`：调用 politeness.state_for(url)。\nL221 进入 politeness._get_semaphore() 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL222 await 调用 politeness.throttle(url, state)；等待期间可让出事件循环，恢复后才执行下一句。\nL223 计算右侧并赋给 `r`：await 调用 _request(url, transport=transport, max_bytes=max_bytes)；等待期间可让出事件循环，恢复后才执行下一句。\nL224 判断 `r.status_code != 200`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL225 抛出 CrawlError(f'抓取失败：HTTP {r.status_code} {url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL226 结束当前函数，返回 调用 Page(url=str(r.url), status=r.status_code, html=r.text)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：给 politeness 注入读取 robots 的受控回调，使用 robots 专用体积上限。\n\n输入签名：robots_url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL215 计算右侧并赋给 `r`：await 调用 _request(robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES)；等待期间可让出事件循环，恢复后才执行下一句。\nL218 结束当前函数，返回 (r.status_code, r.text)；不会自动commit未提交事务。\nL220 await 调用 politeness.check_allowed(url, USER_AGENT, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL221 计算右侧并赋给 `state`：调用 politeness.state_for(url)。\nL222 进入 politeness._get_semaphore() 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL223 await 调用 politeness.throttle(url, state)；等待期间可让出事件循环，恢复后才执行下一句。\nL224 计算右侧并赋给 `r`：await 调用 _request(url, transport=transport, max_bytes=max_bytes)；等待期间可让出事件循环，恢复后才执行下一句。\nL225 判断 `r.status_code != 200`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL226 抛出 CrawlError(f'抓取失败：HTTP {r.status_code} {url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL227 结束当前函数，返回 调用 Page(url=str(r.url), status=r.status_code, html=r.text)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 285,
+          "end": 286,
           "title": "to_skeleton",
-          "explanation": "功能契约：删脚本/导航等噪声，以显式栈遍历可见结构；限制深度、节点数、选择器长度和总字符，不递归炸栈。提炼骨架不保证模型选择器一定匹配。\n\n输入签名：html: str, *, max_nodes: int=MAX_NODES, max_text: int=MAX_TEXT；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL251 计算右侧并赋给 `soup`：调用 BeautifulSoup(html, 'html.parser')。\nL252 逐项遍历 `soup.find_all(DROP_TAGS)`，绑定 `tag`；循环体按缩进执行，break可提前结束。\nL253 调用 tag.decompose()。\nL255 计算右侧并赋给 `lines`：[]。\nL256 计算右侧并赋给 `size`：0。\nL257 计算右侧并赋给 `stack`：[(iter((soup.body or soup).children), 0)]。\nL258 只要 `stack and len(lines) < min(max_nodes, 1000)` 为真就重复该体，注意体内推进索引/退出条件。\nL259 计算右侧并赋给 `(children, depth)`：stack[-1]。\nL260 计算右侧并赋给 `child`：调用 next(children, None)。\nL261 判断 `child is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL262 调用 stack.pop()。\nL263 continue 跳过本轮剩余语句，进入下一轮。\nL264 判断 `isinstance(child, Comment)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL265 continue 跳过本轮剩余语句，进入下一轮。\nL266 判断 `isinstance(child, NavigableString)`，为真进入当前缩进分支，为假进入else/elif。\nL267 计算右侧并赋给 `text`：调用 ' '.join(str(child).split())。\nL268 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL269 continue 跳过本轮剩余语句，进入下一轮。\nL270 计算右侧并赋给 `line`：'  ' * depth + f'\"{text[:min(max_text, 200)]}\"'。\nL272 计算右侧并赋给 `ident`：child.name[:64]。\nL273 判断 `child.get('id') and len(child['id']) <= 80`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL274 累积修改 `ident`：执行 `ident += f\"#{child['id']}\"`，新值供下一轮/后续分支使用。\nL275 计算右侧并赋给 `classes`：[c for c in child.get('class', []) if len(c) <= 80][:3]。\nL276 判断 `classes`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL277 累积修改 `ident`：执行 `ident += '.' + '.'.join(classes)`，新值供下一轮/后续分支使用。\nL278 计算右侧并赋给 `line`：'  ' * depth + ident。\nL279 判断 `depth < 32`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL280 调用 stack.append((iter(child.children), depth + 1))。\nL281 判断 `size + len(line) + 1 > 32000`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL282 break 提前退出最近一层循环，不退出整个调用栈。\nL283 累积修改 `size`：执行 `size += len(line) + 1`，新值供下一轮/后续分支使用。\nL284 调用 lines.append(line)。\nL285 结束当前函数，返回 调用 '\\n'.join(lines)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：删脚本/导航等噪声，以显式栈遍历可见结构；限制深度、节点数、选择器长度和总字符，不递归炸栈。提炼骨架不保证模型选择器一定匹配。\n\n输入签名：html: str, *, max_nodes: int=MAX_NODES, max_text: int=MAX_TEXT；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL252 计算右侧并赋给 `soup`：调用 BeautifulSoup(html, 'html.parser')。\nL253 逐项遍历 `soup.find_all(DROP_TAGS)`，绑定 `tag`；循环体按缩进执行，break可提前结束。\nL254 调用 tag.decompose()。\nL256 计算右侧并赋给 `lines`：[]。\nL257 计算右侧并赋给 `size`：0。\nL258 计算右侧并赋给 `stack`：[(iter((soup.body or soup).children), 0)]。\nL259 只要 `stack and len(lines) < min(max_nodes, 1000)` 为真就重复该体，注意体内推进索引/退出条件。\nL260 计算右侧并赋给 `(children, depth)`：stack[-1]。\nL261 计算右侧并赋给 `child`：调用 next(children, None)。\nL262 判断 `child is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL263 调用 stack.pop()。\nL264 continue 跳过本轮剩余语句，进入下一轮。\nL265 判断 `isinstance(child, Comment)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 continue 跳过本轮剩余语句，进入下一轮。\nL267 判断 `isinstance(child, NavigableString)`，为真进入当前缩进分支，为假进入else/elif。\nL268 计算右侧并赋给 `text`：调用 ' '.join(str(child).split())。\nL269 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL270 continue 跳过本轮剩余语句，进入下一轮。\nL271 计算右侧并赋给 `line`：'  ' * depth + f'\"{text[:min(max_text, 200)]}\"'。\nL273 计算右侧并赋给 `ident`：child.name[:64]。\nL274 判断 `child.get('id') and len(child['id']) <= 80`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL275 累积修改 `ident`：执行 `ident += f\"#{child['id']}\"`，新值供下一轮/后续分支使用。\nL276 计算右侧并赋给 `classes`：[c for c in child.get('class', []) if len(c) <= 80][:3]。\nL277 判断 `classes`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL278 累积修改 `ident`：执行 `ident += '.' + '.'.join(classes)`，新值供下一轮/后续分支使用。\nL279 计算右侧并赋给 `line`：'  ' * depth + ident。\nL280 判断 `depth < 32`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL281 调用 stack.append((iter(child.children), depth + 1))。\nL282 判断 `size + len(line) + 1 > 32000`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL283 break 提前退出最近一层循环，不退出整个调用栈。\nL284 累积修改 `size`：执行 `size += len(line) + 1`，新值供下一轮/后续分支使用。\nL285 调用 lines.append(line)。\nL286 结束当前函数，返回 调用 '\\n'.join(lines)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -4577,7 +4577,7 @@
     },
     {
       "path": "tests/test_docs_site.py",
-      "sha256": "c1797bfc3fc90c71b8cbf73ecc46fd9ab797f2e0b2a1f0952344a8fa6039d566",
+      "sha256": "61fa2874c7ae618a37998aed3595fdaaf50f422cdee8ec1e2b2394fd25714ab0",
       "method": "guided",
       "blocks": [
         {
@@ -5055,7 +5055,7 @@
     },
     {
       "path": "tests/test_e2e.py",
-      "sha256": "2cc3fa166b77631464f4f15fc521d31c5aac48eacd48c4ba5cffeefecd66744d",
+      "sha256": "3bd79049adf003c9f67725ef8d3e5c10e542e01e9642e0694cc4dd4368b051e1",
       "method": "guided",
       "blocks": [
         {
@@ -7608,7 +7608,7 @@
     },
     {
       "path": "tests/test_shop_polling.py",
-      "sha256": "76a98525c2db90bbc7ebfc99ac6e14922a625f4cd508e2fbdbaf2950637f2b21",
+      "sha256": "a8bf9e4527d0df60b83cbcf628b2e818a4dbc96d23d1f146b10627819c9adff6",
       "method": "guided",
       "blocks": [
         {
@@ -8191,6 +8191,68 @@
           "end": 237,
           "title": "test_token_without_subject_is_rejected",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL231 导入 from jose import jwt；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL233 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL234 导入 from app.security import decode_token；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL236 计算右侧并赋给 `token`：调用 jwt.encode({'exp': 9999999999}, settings.SECRET_KEY, algorithm=settings.ALGORITHM)。\nL237 核对 `decode_token(token) is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_ui_accessibility.py",
+      "sha256": "e458663347476fb00f8b5af6fee4b5a627af57f0b86a80cbed900ca477c46e20",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 22,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：TD-263 / A-09 的默认套件回归。三类检查：WCAG 相对亮度公式先对照 21:1 与复核报告的 3.68:1 自校验，再钉 base.html/shop.html 六处文字色 ≥ 4.5:1 且三种旧低对比色不再出现；button:disabled、:focus-visible、浮层 role/aria-modal/aria-labelledby 的静态检查；support.css 不含 :has()。_HARNESS 是带 activeElement 的最小 DOM 桩，Node 分别 require 源码与产物 auth.js。全部静态或 Node 执行，不是真实浏览器渲染或读屏实测；对比度只按白底计算。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL10 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL18 计算右侧并赋给 `BASE`：ROOT / 'app' / 'templates' / 'base.html'。\nL19 计算右侧并赋给 `SHOP`：ROOT / 'app' / 'templates' / 'shop.html'。\nL20 计算右侧并赋给 `SUPPORT_CSS`：ROOT / 'app' / 'static' / 'support.css'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 25,
+          "title": "_luminance",
+          "explanation": "测试辅助：按 WCAG 2.x 定义把 #rrggbb 转成相对亮度（sRGB 线性化后 0.2126/0.7152/0.0722 加权）。\n\n输入签名：hex_color: str；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL24 计算右侧并赋给 `(r, g, b)`：(int(hex_color[i:i + 2], 16) / 255 for i in (1, 3, 5))。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 31,
+          "title": "_luminance.channel",
+          "explanation": "测试辅助：单通道 sRGB → 线性值，阈值 0.03928 分段。\n\n输入签名：c: float；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL27 结束当前函数，返回 c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4；不会自动commit未提交事务。\nL29 结束当前函数，返回 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 36,
+          "title": "contrast",
+          "explanation": "测试辅助：两色相对亮度之比 (L1+0.05)/(L2+0.05)，默认背景白色。\n\n输入签名：fg: str, bg: str='#ffffff'；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL33 计算右侧并赋给 `(hi, lo)`：调用 sorted((_luminance(fg), _luminance(bg)), reverse=True)。\nL34 结束当前函数，返回 (hi + 0.05) / (lo + 0.05)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 43,
+          "title": "test_contrast_formula_matches_reference_values",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 公式自校验：黑对白 21.0、旧蓝 #3b82f6 3.68、新蓝 #2563eb 5.17（与 WebAIM 对照器一致），公式写错时先在这里失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL39 核对 `round(contrast('#000000'), 2) == 21.0`：此条件为假即测试失败；不是生产输入校验。\nL40 核对 `round(contrast('#3b82f6'), 2) == 3.68`：此条件为假即测试失败；不是生产输入校验。\nL41 核对 `round(contrast('#2563eb'), 2) == 5.17`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 58,
+          "title": "test_text_colors_meet_wcag_aa",
+          "explanation": "本用例的准备条件：selector, color, file。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 参数化六条选择器：正则取出该规则块，颜色值必须是预期的新色，且对白底 ≥ 4.5:1。\n\n登记/装饰：pytest.mark.parametrize(('selector', 'color', 'file'), [('a', '#2563eb', BASE), ('button', '#2563eb', BASE), ('button.ghost', '#2563eb', BASE), ('button.cta', '#15803d', BASE), ('.modal .hint', '#64748b', BASE), ('.price', '#15803d', SHOP)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：selector, color, file；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL53 计算右侧并赋给 `css`：调用 file.read_text(encoding='utf-8')。\nL54 计算右侧并赋给 `rule`：调用 re.search(re.escape(selector) + '\\\\s*\\\\{[^}]*\\\\}', css)。\nL55 核对 `rule and color in rule.group(0)`：此条件为假即测试失败；不是生产输入校验。\nL56 核对 `contrast(color) >= 4.5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 67,
+          "title": "test_old_low_contrast_colors_are_gone_from_templates_and_css",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 全部模板与 support.css 不得再含 #3b82f6/#16a34a/#94a3b8（大小写不敏感）；D3 描边等 JS 里的图形色不在本检查范围。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL61 计算右侧并赋给 `offenders`：[]。\nL62 逐项遍历 `[*sorted((ROOT / 'app' / 'templates').glob('*.html')), SUPPORT_CSS]`，绑定 `f`；循环体按缩进执行，break可提前结束。\nL63 逐项遍历 `re.finditer('#(?:3b82f6|16a34a|94a3b8)\\\\b', f.read_text(encoding='utf-8'), flags=re.I)`，绑定 `m`；循环体按缩进执行，break可提前结束。\nL64 调用 offenders.append(f'{f.name}:{m.group(0)}')。\nL65 核对 `offenders == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 74,
+          "title": "test_disabled_and_focus_visible_states_are_styled",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 button:disabled 规则含 background 与 cursor: not-allowed；button:focus-visible 有 2px outline。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL69 计算右侧并赋给 `css`：调用 BASE.read_text(encoding='utf-8')。\nL70 计算右侧并赋给 `disabled`：调用 re.search('button:disabled\\\\s*\\\\{([^}]*)\\\\}', css)。\nL71 核对 `disabled and 'cursor: not-allowed' in disabled.group(1) and ('background' in disabled.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL72 核对 `re.search('button:focus-visible[^{]*\\\\{[^}]*outline:\\\\s*2px', css)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 83,
+          "title": "test_login_dialog_has_aria_semantics",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 浮层容器属性含 role=\"dialog\"、aria-modal=\"true\"、aria-labelledby=\"auth-title\"，且页面存在 id=\"auth-title\"。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL76 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL77 计算右侧并赋给 `modal`：调用 re.search('<div class=\"modal\"([^>]*)>', html)。\nL78 核对 `modal`：此条件为假即测试失败；不是生产输入校验。\nL79 计算右侧并赋给 `attrs`：调用 modal.group(1)。\nL80 核对 `'role=\"dialog\"' in attrs and 'aria-modal=\"true\"' in attrs and ('aria-labelledby=\"auth-title\"' in attrs)`：此条件为假即测试失败；不是生产输入校验。\nL81 核对 `'id=\"auth-title\"' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 143,
+          "title": "test_support_layout_does_not_depend_on_css_has",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/\\*.*?\\*/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 去掉 CSS 注释后 support.css 不含 :has(，存在 .support-layout.with-inbox；support-page.js 同时有 add/remove(\"with-inbox\")。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL85 计算右侧并赋给 `css`：调用 re.sub('/\\\\*.*?\\\\*/', '', SUPPORT_CSS.read_text(encoding='utf-8'), flags=re.S)。\nL86 核对 `':has(' not in css`：此条件为假即测试失败；不是生产输入校验。\nL87 核对 `'.support-layout.with-inbox' in css`：此条件为假即测试失败；不是生产输入校验。\nL88 计算右侧并赋给 `js`：调用 (ROOT / 'app' / 'frontend' / 'support-page.js').read_text(encoding='utf-8')。\nL89 核对 `'add(\"with-inbox\")' in js and 'remove(\"with-inbox\")' in js`：此条件为假即测试失败；不是生产输入校验。\nL94 把测试JavaScript多行字面量存入 `_HARNESS`（2049字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 159,
+          "title": "test_login_dialog_closes_on_escape_and_returns_focus",
+          "explanation": "本用例的准备条件：tmp_path, path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 对源码与产物两份 auth.js：打开后焦点进入输入框、非 Esc 不关、Esc 关闭并把焦点还给触发按钮、焦点已离开浮层时关闭不抢焦点。旧 auth.js 没有 onkeydown，本用例在修复前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码'); pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL148 计算右侧并赋给 `harness`：tmp_path / 'harness.cjs'。\nL149 调用 harness.write_text(_HARNESS, encoding='utf-8')。\nL150 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL151 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL152 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL154 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL155 核对 `result['openedWithFocusInside']`：此条件为假即测试失败；不是生产输入校验。\nL156 核对 `result['otherKeyIgnored']`：此条件为假即测试失败；不是生产输入校验。\nL157 核对 `result['closedByEsc']`：此条件为假即测试失败；不是生产输入校验。\nL158 核对 `result['focusReturned']`：此条件为假即测试失败；不是生产输入校验。\nL159 核对 `result['focusLeftAlone']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

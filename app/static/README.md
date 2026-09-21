@@ -1,6 +1,6 @@
 # 静态资源与前端产物
 
-`support.css` 是站内客服布局样式；支付码图片是公开素材，不是到账凭证。人工支付必须由管理员实际核验到账。
+`support.css` 是站内客服布局样式：两栏由 `support-page.js` 按管理员角色切 `.with-inbox` class，不再依赖 `:has()`（旧内核不支持，TD-263）；支付码图片是公开素材，不是到账凭证。人工支付必须由管理员实际核验到账。
 
 `js/` 全部由 Vite 生成，包括页面入口和 Mermaid/D3 共用分块。不得只提交入口文件而遗漏其相对导入的分块；CI 用干净构建核对漂移。
 修改 `app/frontend/` 后运行 `npm run build`，再检查源码及相关产物。生产后端不需要 Node。
@@ -24,7 +24,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/architecture-7GRP2DOG.js`](js/architecture-7GRP2DOG.js) | `509d093d6593` | 生成物，见模块构建说明 |
 | [`app/static/js/architectureDiagram-5GKGNRK7.js`](js/architectureDiagram-5GKGNRK7.js) | `198519b0d7f0` | 生成物，见模块构建说明 |
 | [`app/static/js/array.js`](js/array.js) | `63126646dbf6` | 生成物，见模块构建说明 |
-| [`app/static/js/auth.js`](js/auth.js) | `f0046a8742fb` | 生成物，见模块构建说明 |
+| [`app/static/js/auth.js`](js/auth.js) | `21efea08bd3b` | 生成物，见模块构建说明 |
 | [`app/static/js/blockDiagram-I7D4REHJ.js`](js/blockDiagram-I7D4REHJ.js) | `cd411aa15cda` | 生成物，见模块构建说明 |
 | [`app/static/js/c4Diagram-7LVT6UL2.js`](js/c4Diagram-7LVT6UL2.js) | `1ff47f09c4ed` | 生成物，见模块构建说明 |
 | [`app/static/js/channel.js`](js/channel.js) | `46376a0454cf` | 生成物，见模块构建说明 |
@@ -108,7 +108,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `150172a4838f` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `28780fcb0898` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `0b7e352156f4` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `c415c8fc7f1f` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `72102464c180` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `c2ceefb41216` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `b74e03e6b933` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `32c8e2e90cc3` | 生成物，见模块构建说明 |
@@ -119,7 +119,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `c8f3a7cb403f` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `48d7bbc18667` | 生成物，见模块构建说明 |
 | [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
-| [`app/static/support.css`](support.css) | `15df7d6e48e3` | L1–L10 |
+| [`app/static/support.css`](support.css) | `503d4bad1277` | L1–L11 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

@@ -162,7 +162,8 @@ async def _request(
         else:
             raise CrawlError(f"重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）")
 
-        assert r is not None
+        if r is None:  # MAX_REDIRECTS 为正时循环至少执行一次；不用 assert，-O 下也要成立
+            raise CrawlError("抓取未得到任何响应")
 
         # 服务器自己就声明了超限时，一个字节都不必下。
         declared = r.headers.get("content-length")

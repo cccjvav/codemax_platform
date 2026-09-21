@@ -43,6 +43,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；进程内 ASGI/MockTransport，不替代代理限额或真实供应商实测 |
 | 限流身份与容量 | test_ratelimit、test_download（出口限流）、test_audit_20260915（NoScan） | 合成时钟：满桶先回收过期桶、满且全活跃仍拒绝（reason=capacity、告警限频）、IPv6 /64 归并、`GET /shop/dl` 与领取共用 `download` 桶；单进程语义，不是多副本共享配额或压测 |
 | 下单并发与登录来源 | test_checkout_concurrency、test_auth_cookie（登录来源组） | 事件屏障验证同用户预支付单飞（提供方一次、等待者复用/重试、取消不泄漏）、`order` 桶限流；六种跨站标记的表单登录 403 无 Cookie、同源/无头仍 200；进程内 ASGI，不是多实例互斥或真实浏览器 |
+| UI 对比度与可访问性 | test_ui_accessibility | WCAG 相对亮度公式先对照参考值，再钉六处文字色 ≥ 4.5:1、旧色不再出现、`:disabled`/`:focus-visible`、浮层 ARIA；Node 真跑源码与产物验证 Esc 关闭与焦点归还；`support.css` 不含 `:has()`。静态 + Node VM，不是浏览器渲染或读屏 |
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
 | 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
 
@@ -75,11 +76,11 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `c1797bfc3fc9` | L1–L471 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `61fa2874c7ae` | L1–L471 |
 | [`tests/test_download.py`](test_download.py) | `9f2f5a3dbfca` | L1–L293 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
-| [`tests/test_e2e.py`](test_e2e.py) | `2cc3fa166b77` | L1–L532 |
+| [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
@@ -120,7 +121,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `41a0a9a1815e` | L1–L455 |
-| [`tests/test_shop_polling.py`](test_shop_polling.py) | `76a98525c2db` | L1–L179 |
+| [`tests/test_shop_polling.py`](test_shop_polling.py) | `a8bf9e4527d0` | L1–L179 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `d22443181e2b` | L1–L254 |
 | [`tests/test_support.py`](test_support.py) | `9cd0e6ef02c4` | L1–L240 |
@@ -128,6 +129,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `e45866334747` | L1–L159 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -167,6 +169,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-20 UI 可访问性回归（TD-263）
+
+`test_ui_accessibility.py`：对比度公式以 21:1 与复核报告的 3.68:1 自校验后，参数化检查 base.html/shop.html 六处规则的颜色值并算比值；全部模板与 `support.css` 不得再出现三种旧低对比色；`button:disabled` 与 `:focus-visible` 规则存在；浮层容器 ARIA 三属性与标题 id 对应；`_HARNESS` 用带 activeElement 的最小 DOM 桩分别 `require` 源码 `app/frontend/auth.js` 和产物 `app/static/js/auth.js`，验证打开后焦点进入输入框、非 Esc 键不关、Esc 关闭并把焦点还给触发按钮、焦点已离开浮层时关闭不抢焦点。旧 `auth.js` 没有 `onkeydown`，该用例在修复前失败。
 
 ## 2026-09-20 下单单飞与登录来源回归（TD-262）
 

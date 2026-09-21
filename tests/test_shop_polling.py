@@ -21,7 +21,7 @@ from pathlib import Path
 import pytest
 
 from tests.conftest import TestSession
-from tests.test_download import auth_headers, make_order  # noqa: E402
+from tests.test_download import auth_headers, make_order
 
 # ---------------------------------------------------------------- 前端：过期停表
 #

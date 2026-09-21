@@ -114,7 +114,7 @@ pending → closed → paid
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/bill_reconcile.py`](bill_reconcile.py) | `9750db145474` | L1–L287 |
 | [`app/config.py`](config.py) | `7a5d9215b962` | L1–L143 |
-| [`app/cpu_pool.py`](cpu_pool.py) | `9b56d12ebe6e` | L1–L103 |
+| [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |

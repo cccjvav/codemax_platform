@@ -42,7 +42,7 @@ def _get_executor() -> ProcessPoolExecutor | None:
             # max_workers=1：导出是低频操作且已限流，一个 worker 足够；
             # 多开只是多占内存，并不会更快（GIL 换成多进程后瓶颈变成 CPU 核数）。
             _executor = ProcessPoolExecutor(max_workers=1)
-        except Exception as e:  # noqa: BLE001 - 兜底路径必须吞掉所有创建期异常
+        except Exception as e:  # 兜底路径必须吞掉所有创建期异常
             logger.warning("进程池不可用，退化到线程池：%s", e)
             _broken = True
             return None

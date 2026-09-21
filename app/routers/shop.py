@@ -169,7 +169,7 @@ async def create_order(
     if pending is not None:
         _check_order_channel(pending, mode, cfg)
     if pending is not None and (pending.code_url or mode == "manual"):
-        return _payload(pending, reused=True, pay_mode=mode)
+        return _payload(pending, reused=True)
 
     order = pending
     if order is None:
@@ -209,7 +209,7 @@ async def create_order(
                 raise HTTPException(409, "下单冲突，请重试") from None
             _check_order_channel(order, mode, cfg)
             if order.code_url or mode == "manual":
-                return _payload(order, reused=True, pay_mode=mode)
+                return _payload(order, reused=True)
 
     if mode == "manual":
         # 刻意**不写** code_url：收款码是 settings.SHOP_MANUAL_QR 那张静态图，
@@ -233,7 +233,7 @@ async def create_order(
             if order is None or order.status != PENDING:
                 raise HTTPException(409, "订单状态已变化，请刷新后重试")
             if order.code_url:
-                return _payload(order, reused=True, pay_mode=mode)
+                return _payload(order, reused=True)
             # A flush is not durable. Persist the attempt before crossing the external payment boundary.
             attempt_id = uuid.uuid4().hex
             db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
@@ -253,7 +253,7 @@ async def create_order(
             await db.commit()
     await db.commit()
     await db.refresh(order)  # A callback may have changed status while prepay was in flight.
-    return _payload(order, reused=False, pay_mode=mode)
+    return _payload(order, reused=False)
 
 
 @router.get("/orders/{order_no}")
@@ -267,7 +267,7 @@ async def order_status(
     order = await db.scalar(select(Order).where(Order.order_no == order_no))
     if order is None or order.user_id != user.id:
         raise HTTPException(404, "订单不存在")
-    payload = _payload(order, reused=False, pay_mode=settings.SHOP_PAY_MODE)
+    payload = _payload(order, reused=False)
     payload["refunded"] = await refund_for(db, order.id) is not None
     payload["expired"] = is_expired(order, settings.ORDER_EXPIRE_MINUTES)
     return JSONResponse(payload, headers={"Cache-Control": "no-store"})
@@ -411,7 +411,7 @@ async def order_history(before: int | None = Query(None, gt=0), user: User = Dep
         stmt = stmt.where(Order.id < before)
     rows = list((await db.scalars(stmt.order_by(Order.id.desc()).limit(50))).all())
     refunded = set((await db.scalars(select(RefundReceipt.order_id).where(RefundReceipt.order_id.in_([r.id for r in rows])))).all())
-    return {"orders": [{**_payload(r, reused=True, pay_mode=settings.SHOP_PAY_MODE), "refunded": r.id in refunded} for r in rows],
+    return {"orders": [{**_payload(r, reused=True), "refunded": r.id in refunded} for r in rows],
             "next_cursor": rows[-1].id if len(rows) == 50 else None}
 
 
@@ -516,10 +516,12 @@ def _fail(status: int, message: str) -> JSONResponse:
     return JSONResponse({"code": "FAIL", "message": message}, status_code=status)
 
 
-def _payload(order: Order, *, reused: bool, pay_mode: str) -> dict:
+def _payload(order: Order, *, reused: bool) -> dict:
     # 只有微信 Native 支付的 `weixin://` 串需要画二维码。
     # mock 模式（TD-124）的 code_url 是本站的 http 链接，前端直接给个按钮点开就行，
     # 画成二维码反而多一步扫码 —— 所以这里按前缀区分，不给 http 链接生成码。
+    # 渠道只看订单自己冻结的 payment_mode（NULL 显示 legacy），不看当前 SHOP_PAY_MODE：
+    # 历史单不能随配置切换而变成另一种渠道。原先的 pay_mode 形参正因此从未被读取，已删（O-09）。
     pay_mode = order.payment_mode or 'legacy'
     needs_qr = bool(order.code_url) and not order.code_url.startswith(("http://", "https://"))
     return {

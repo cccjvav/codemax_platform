@@ -2,7 +2,7 @@
 
 Jinja 只负责 HTML 外壳、表单、语义结构与站点上下文；真实交互在 `app/frontend/`，不再把旧内联脚本行号当作实现位置。
 
-- `base.html`：导航、登录/注册浮层。经典 `auth.js` 在页面交互脚本之前执行；OAuth 同意页关闭这套登录控件。
+- `base.html`：导航、登录/注册浮层。经典 `auth.js` 在页面交互脚本之前执行；OAuth 同意页关闭这套登录控件。全站配色按 WCAG AA 取值（蓝 `#2563eb` 5.17:1、绿 `#15803d` 5.02:1、灰 `#64748b` 4.76:1，TD-263），`button:disabled` 灰化、`:focus-visible` 焦点环；浮层容器带 `role="dialog" aria-modal aria-labelledby="auth-title"`，Esc 关闭与焦点归还由 `auth.js` 实现。回归 `tests/test_ui_accessibility.py`；真实浏览器/读屏实测仍归 L-04。
 - `er.html` / `mermaid.html`：工具表单和结果容器；本地构建的 ES module 包含第三方依赖。
 - `drawio.html`：第三方编辑器、云端文件与回收站管理、本地导入/下载。保存前通过 export 协议请求新 XML。
 - `shop.html`：固定数字商品、支付状态、历史订单和链接重领。定制需求引导至站内客服，不混作数字商品下单。
@@ -25,7 +25,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `d6b4935d2d68` | L1–L124 |
+| [`app/templates/base.html`](base.html) | `31c5cbd7b3c9` | L1–L131 |
 | [`app/templates/drawio.html`](drawio.html) | `485d6c82ffba` | L1–L44 |
 | [`app/templates/er.html`](er.html) | `8a0d4678bbeb` | L1–L25 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
@@ -33,7 +33,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mock_pay.html`](mock_pay.html) | `4f5516de45ef` | L1–L22 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `fb1bd213c1a8` | L1–L137 |
-| [`app/templates/shop.html`](shop.html) | `03d88eb2ba78` | L1–L107 |
+| [`app/templates/shop.html`](shop.html) | `ca33ad28aa91` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
