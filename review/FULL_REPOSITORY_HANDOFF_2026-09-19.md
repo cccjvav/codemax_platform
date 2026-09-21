@@ -51,7 +51,7 @@
 
 ## 3. 已复现的问题与建议
 
-复现入口：[tests/audit_handoff_probes.py](../tests/audit_handoff_probes.py)。仅显式执行，默认 pytest 不收集；**6 passed 表示复现了以下行为，绝不是修复完成**。使用有限的约 2 MiB 合成流，不耗尽资源；无真实外部请求。HTTPX 日志即使显示配置的提供方 URL，MockTransport 仍是在本机返回合成字节。
+复现入口：`tests/audit_handoff_probes.py`（历史文件，2026-09-20 六项全部修复后已删除，对应回归见 [tests/README.md](../tests/README.md)「交接诊断已全部转成默认套件回归」）。当时仅显式执行，默认 pytest 不收集；**6 passed 表示复现了以下行为，绝不是修复完成**。使用有限的约 2 MiB 合成流，不耗尽资源；无真实外部请求。HTTPX 日志即使显示配置的提供方 URL，MockTransport 仍是在本机返回合成字节。
 
 ### F-01 / P1：字段长度校验晚于请求体读取，422 回显大输入
 
