@@ -6,7 +6,7 @@ from ..deps import get_current_user
 from ..models import User
 from ..ratelimit import rate_limit
 from ..schemas import ErDiagramIn, MermaidIn
-from ..tools.llm import LLMClient, LLMError, generate_mermaid, get_llm
+from ..tools.llm import BUSY_RETRY_AFTER, LLMClient, LLMError, generate_mermaid, get_llm
 from ..tools.sql_ddl import parse_ddl
 from ..tools.word import FILENAME, MIME_DOCX, build_data_dictionary
 
@@ -45,6 +45,9 @@ async def mermaid(data: MermaidIn, llm: LLMClient = Depends(get_llm)) -> dict:
     try:
         diagram = await generate_mermaid(data.text, llm=llm)
     except LLMError as exc:
+        if exc.category == "busy":
+            # 本站并发闸门拒绝，不是上游故障：503 + Retry-After，前端据此自动重试（TD-264）
+            raise HTTPException(503, str(exc), headers={"Retry-After": str(BUSY_RETRY_AFTER)}) from exc
         raise HTTPException(502, str(exc)) from exc
     return {"mermaid": diagram}
 

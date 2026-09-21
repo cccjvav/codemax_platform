@@ -40,7 +40,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 抓取与模型 | test_crawler、test_extract、test_admin_ingest、test_mermaid 等现有模块 | MockTransport 和假模型控制外部返回；真实解析器/事务仍执行；不访问第三方目标来复现问题 |
 | FAQ 与 RAG | test_faq、test_faq_semantic、test_intent_cascade、test_support | 排序、阈值算法、回退与资料检索；真实 embedding 阈值标定需要单独密钥与语料 |
 | 运维边界 | test_ops、test_config_validation、test_review_regressions | CSP、配置、任务池、错误与缓存头；不是生产负载压测或网络隔离验收 |
-| 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；进程内 ASGI/MockTransport，不替代代理限额或真实供应商实测 |
+| 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds、test_llm_concurrency | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；LLM 并发闸门 4 个在途、第 5 个不发往提供方、失败路径归还槽位、503/502 映射、转人工、前端重试一次；进程内 ASGI/MockTransport/事件屏障，不替代代理限额或真实供应商实测 |
 | 限流身份与容量 | test_ratelimit、test_download（出口限流）、test_audit_20260915（NoScan） | 合成时钟：满桶先回收过期桶、满且全活跃仍拒绝（reason=capacity、告警限频）、IPv6 /64 归并、`GET /shop/dl` 与领取共用 `download` 桶；单进程语义，不是多副本共享配额或压测 |
 | 下单并发与登录来源 | test_checkout_concurrency、test_auth_cookie（登录来源组） | 事件屏障验证同用户预支付单飞（提供方一次、等待者复用/重试、取消不泄漏）、`order` 桶限流；六种跨站标记的表单登录 403 无 Cookie、同源/无头仍 200；进程内 ASGI，不是多实例互斥或真实浏览器 |
 | UI 对比度与可访问性 | test_ui_accessibility | WCAG 相对亮度公式先对照参考值，再钉六处文字色 ≥ 4.5:1、旧色不再出现、`:disabled`/`:focus-visible`、浮层 ARIA；Node 真跑源码与产物验证 Esc 关闭与焦点归还；`support.css` 不含 `:has()`。静态 + Node VM，不是浏览器渲染或读屏 |
@@ -87,6 +87,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `6fbd35d188c3` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
+| [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `f23e2e40e0d4` | L1–L248 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
@@ -169,6 +170,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-20 LLM 并发闸门回归（TD-264）
+
+`test_llm_concurrency.py`：autouse fixture 给每条用例换一把新 `InFlightGate`；`Barrier` 上游替身让前 4 个请求停在事件前，第 5 个 `chat` 抛 busy 且 MockTransport 只收到 4 个请求，释放后槽位归零、新请求照常；HTTP 500、连接错误、超大响应、超时四种失败都归还槽位且不计入 rejected；embeddings 与 chat 共用闸门；`/tools/mermaid` 满时 503 + `Retry-After: 5`、上游故障仍 502 无 Retry-After；`answer()` 在闸门满时转人工且原因含「繁忙」；Node 桩执行源码 `mermaid-page.js`（把 `import mermaid` 换成桩）验证 503 重试一次、等待取自 Retry-After（不可解析退回 5 秒）、第二次仍 503 停止并显示服务端文案、502 不重试；产物只做文本核对（Mermaid 全量分块在 Node 里不可执行）。
 
 ## 2026-09-20 UI 可访问性回归（TD-263）
 

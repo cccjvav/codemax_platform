@@ -81,7 +81,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/katex.js`](js/katex.js) | `57d7eb6dbbc3` | 生成物，见模块构建说明 |
 | [`app/static/js/line.js`](js/line.js) | `655f21b5e91d` | 生成物，见模块构建说明 |
 | [`app/static/js/linear.js`](js/linear.js) | `e397ec34a46d` | 生成物，见模块构建说明 |
-| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `5bcacc2989ca` | 生成物，见模块构建说明 |
+| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `226f95cfe75f` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid-parser.core.js`](js/mermaid-parser.core.js) | `9520a3f6428b` | 生成物，见模块构建说明 |
 | [`app/static/js/mindmap-definition-YA3MSWOX.js`](js/mindmap-definition-YA3MSWOX.js) | `681c78495038` | 生成物，见模块构建说明 |
 | [`app/static/js/mock-pay-page.js`](js/mock-pay-page.js) | `f8cfae180477` | 生成物，见模块构建说明 |

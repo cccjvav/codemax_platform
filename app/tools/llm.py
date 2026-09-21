@@ -43,12 +43,51 @@ _FENCE = re.compile(r"```(?:mermaid|md)?[ \t]*\n(.*?)(?:```|\Z)", re.DOTALL | re
 
 
 class LLMError(RuntimeError):
-    """安全的错误摘要与分类；不把提供方正文/凭证写进日志或 HTTP 错误。"""
+    """安全的错误摘要与分类；不把提供方正文/凭证写进日志或 HTTP 错误。
+
+    category：configuration / network / http / oversize / response / busy。
+    busy 表示本进程在途调用已达 `MAX_IN_FLIGHT`，请求根本没有发往提供方（TD-264）。
+    """
 
     def __init__(self, message: str, *, category: str = "response", status_code: int | None = None):
         super().__init__(message)
         self.category = category
         self.status_code = status_code
+
+
+# TD-264：每进程同时最多这么多次 LLM 请求在途（chat 与 embeddings 共用，所有调用方共用）。
+# 超出**立即拒绝**而不是排队：排队会让第 N 个用户干等几十秒，还要替他挂着连接；
+# 单客户端的节奏已由 RATE_LIMIT_LLM 限制，这里封顶的是全站对同一个 key 的并发烧钱速度。
+MAX_IN_FLIGHT = 4
+BUSY_RETRY_AFTER = 5  # 秒；503 的 Retry-After 建议值，也是前端自动重试的间隔
+
+
+class InFlightGate:
+    """无等待的并发闸门：`acquire()` 满则抛 LLMError(busy)，不排队；`release()` 归还。
+
+    进程内状态，多实例各算各的（与限流 TD-141 同一前提）。用普通计数而不是
+    asyncio.Semaphore：Semaphore 的语义是等待，这里要的恰恰是不等待。
+    """
+
+    def __init__(self, limit: int = MAX_IN_FLIGHT):
+        self.limit = limit
+        self.in_flight = 0
+        self.rejected = 0  # 累计被拒次数，供测试/诊断读取；不是计费数据
+
+    def acquire(self, what: str) -> None:
+        if self.in_flight >= self.limit:
+            self.rejected += 1
+            raise LLMError(
+                f"{what}繁忙：本站同时处理的模型请求已达 {self.limit} 个，请 {BUSY_RETRY_AFTER} 秒后再试",
+                category="busy",
+            )
+        self.in_flight += 1
+
+    def release(self) -> None:
+        self.in_flight -= 1
+
+
+gate = InFlightGate()
 
 
 @dataclass
@@ -69,6 +108,7 @@ class LLMClient:
         """
         url = f"{self.base_url.rstrip('/')}{path}"
         headers = {"Authorization": f"Bearer {self.api_key}"}
+        gate.acquire(what)  # 满则立即 LLMError(busy)，不发请求、不排队（TD-264）
         try:
             async with asyncio.timeout(self.timeout):
                 async with httpx.AsyncClient(timeout=self.timeout, transport=self.transport) as client:
@@ -80,6 +120,8 @@ class LLMClient:
             raise LLMError(f"调用{what}失败（{type(exc).__name__}）", category="network") from exc
         except TimeoutError as exc:
             raise LLMError(f"调用{what}超过 {self.timeout} 秒总时限", category="network") from exc
+        finally:
+            gate.release()
 
     async def chat(self, system: str, user: str) -> str:
         if not self.api_key:

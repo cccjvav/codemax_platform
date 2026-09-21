@@ -7,7 +7,7 @@
 | `auth.js` | `/auth/me` 与登录/退出表单；维护共享用户快照、顺序号与可退订监听器；初始网络错误有兜底，失败退出不假装成功。浮层打开时记住触发元素、Esc 关闭、关闭后焦点只在仍留在浮层内时归还（TD-263） |
 | `er-layout.js` | 图数据到布局，纯函数；Node 测试无需安装 d3 |
 | `er-page.js` | DDL 表单、D3 图与 Word 文件；第三方代码来自本地构建 |
-| `mermaid-page.js` | 自然语言表单到 Mermaid 展示；strict 模式，不允许模型放宽为 loose |
+| `mermaid-page.js` | 自然语言表单到 Mermaid 展示；strict 模式，不允许模型放宽为 loose；503（模型并发闸门满）按 `Retry-After`（1–30 秒，默认 5）自动重试一次，再次繁忙原样显示服务端文案，502 等上游错误不重试 |
 | `drawio-page.js` | 检查消息 origin/source，以关联的 export 请求读取实时 XML；文档或账号切换替换 iframe 上下文、拒绝旧响应；串行保存并保留 ETag 冲突 |
 | `shop-page.js` | 主动下单、无重叠状态轮询、历史订单、短时链接重领；取消/账号切换清理状态，不自动再次下单 |
 | `support-page.js` | 客户自己的消息或管理员选中的会话；分页、轮询、UUID 重试去重、账号/会话 epoch、纯文本渲染；按角色切 `.with-inbox` 两栏 class 替代 CSS `:has()` |
@@ -50,7 +50,7 @@
 | [`app/frontend/drawio-page.js`](drawio-page.js) | `439de924e889` | L1–L180 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
 | [`app/frontend/er-page.js`](er-page.js) | `8d3fcd84b285` | L1–L164 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `55a8c861255e` | L1–L57 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `47b77692a487` | L1–L76 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `b66b6ae8c75b` | L1–L328 |

@@ -32,18 +32,37 @@ function fail(msg) {
   error.textContent = msg;
 }
 
+// 503 = 本站模型并发闸门已满（TD-264），带 Retry-After；不是上游故障，等几秒再试通常就能成功。
+// 只自动重试一次：第二次仍繁忙就把服务端文案原样给用户，不无限打转。
+const MAX_BUSY_RETRIES = 1;
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+async function requestDiagram(text) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch("/tools/mermaid", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text }),
+    });
+    const data = await res.json().catch(() => null);
+    if (res.status === 503 && attempt < MAX_BUSY_RETRIES) {
+      const wait = Math.min(Math.max(Number(res.headers.get("Retry-After")) || 5, 1), 30);
+      fail(`服务繁忙，${wait} 秒后自动重试…`);
+      await sleep(wait * 1000);
+      continue;
+    }
+    return { res, data };
+  }
+}
+
 form.onsubmit = async (ev) => {
   ev.preventDefault();
   error.hidden = true;
   submit.disabled = true;
   try {
-    const res = await fetch("/tools/mermaid", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text: input.value }),
-    });
-    const data = await res.json();
+    const { res, data } = await requestDiagram(input.value);
     if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
+    error.hidden = true;
     source.hidden = false;
     source.textContent = data.mermaid;
     preview.removeAttribute("data-processed");

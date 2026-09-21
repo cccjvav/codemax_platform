@@ -21,7 +21,7 @@ from ..schemas import ArticleIngestIn
 from ..tools.browser import BrowserUnavailable, render
 from ..tools.crawler import CrawlError
 from ..tools.extract import ExtractError, parse_article, parse_page, save_article
-from ..tools.llm import LLMError, get_llm
+from ..tools.llm import BUSY_RETRY_AFTER, LLMError, get_llm
 from ..tools.politeness import RobotsDisallowed
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -65,6 +65,9 @@ async def ingest_article(
         raise HTTPException(status.HTTP_400_BAD_REQUEST, f"抓取失败：{e}") from e
     except ExtractError as e:
         if isinstance(e.__cause__, LLMError):
+            if e.__cause__.category == "busy":
+                raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(e.__cause__),
+                                    headers={"Retry-After": str(BUSY_RETRY_AFTER)}) from e
             raise HTTPException(
                 status.HTTP_502_BAD_GATEWAY, f"大模型调用失败：{e.__cause__}"
             ) from e

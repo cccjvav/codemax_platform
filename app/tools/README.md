@@ -27,8 +27,9 @@
 
 | 入口 | 契约 | 失败与注意事项 |
 | --- | --- | --- |
-| `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、网络/HTTP 异常、响应超过 1 MiB、总时限超时、响应结构/JSON 错误都抛 LLMError（category：configuration/network/http/oversize/response）；不证明模型内容事实正确 |
-| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查 data 是对象数组、条数、index `type is int`（拒绝 bool/float/字符串）且完整唯一、维度一致、非空及有限数值；同样受 1 MiB/总时限约束；不允许错位向量进入检索 |
+| `InFlightGate` / `gate` | `acquire(what)` 满则立即抛 LLMError(busy)，不排队；`release()` 归还 | 每进程 `MAX_IN_FLIGHT=4`（TD-264，用户确认），chat 与 embeddings、所有调用方共用；`rejected` 只是诊断计数。进程内状态，多实例各算各的 |
+| `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、闸门满、网络/HTTP 异常、响应超过 1 MiB、总时限超时、响应结构/JSON 错误都抛 LLMError（category：configuration/busy/network/http/oversize/response）；busy 时请求未发往提供方；不证明模型内容事实正确 |
+| `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查 data 是对象数组、条数、index `type is int`（拒绝 bool/float/字符串）且完整唯一、维度一致、非空及有限数值；同样受闸门/1 MiB/总时限约束；不允许错位向量进入检索 |
 | `get_llm()` | 返回默认客户端，供 FastAPI 注入 | 默认客户端在导入时从 settings 构造；运行中改 settings 不会自动重建它；测试用 dependency_overrides |
 | `generate_mermaid` / `_strip_fence` | 用户描述 → 去围栏的 Mermaid 文本 | 首关键字检查不是完整 Mermaid 解析；实际渲染仍可能报语法错。前端 strict 模式也不能替代后端响应结构校验 |
 
@@ -89,7 +90,7 @@
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
-| [`app/tools/llm.py`](llm.py) | `e4866cba4808` | L1–L198 |
+| [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
 | [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |

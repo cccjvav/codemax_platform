@@ -83,8 +83,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | 入口 | 实际契约 |
 | --- | --- |
 | `tools.er_diagram` / `word_export` | 公开但限流；DDL 无表 400；Word 超规模 413、CPU 忙/超时 503 + Retry-After。parse 在线程池，DOCX 在有界进程池/故障回退路径 |
-| `tools.mermaid` / `ping` | Mermaid 公开且 LLM 档限流，模型错误 502；ping 需登录，不是全部 `/tools/*` 都公开 |
-| `admin.ingest_article` | 仅管理员并限流；静态抓取/模型提取/原子入库；CrawlError/robots/网络失败 400，ExtractError 422，模型原因 502，浏览器停用 503 |
+| `tools.mermaid` / `ping` | Mermaid 公开且 LLM 档限流，模型错误 502；本进程模型并发闸门满（LLMError busy，TD-264）→ 503 + `Retry-After: 5`，请求未发往提供方；ping 需登录，不是全部 `/tools/*` 都公开 |
+| `admin.ingest_article` | 仅管理员并限流；静态抓取/模型提取/原子入库；CrawlError/robots/网络失败 400，ExtractError 422，模型原因 502（闸门满则 503 + Retry-After），浏览器停用 503 |
 | `support.ask` | 公开 `/support/ask`，限流；返回答案、来源、置信度、引用和人工页面 URL；异常回退通常是业务回答而非 HTTP 502，不代表派单成功 |
 | `site._page_view` / `_base` / `sitemap` / `robots` | 根据站点清单注册 SSR、构造规范地址与搜索引擎入口；HTML 外壳不承载私人数据；robots 不是访问控制 |
 | `healthz` | `/healthz` 与 `/health`：不访问数据库，只报告应用可响应 |
@@ -95,7 +95,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/routers/admin.py`](admin.py) | `34c9d1f92085` | L1–L83 |
+| [`app/routers/admin.py`](admin.py) | `d8cb7e968e0b` | L1–L86 |
 | [`app/routers/auth.py`](auth.py) | `aad302b94e08` | L1–L135 |
 | [`app/routers/diagrams.py`](diagrams.py) | `1bd6d4225cb1` | L1–L234 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
@@ -107,7 +107,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/shop.py`](shop.py) | `e4a48ff24b12` | L1–L740 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
-| [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |
+| [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
