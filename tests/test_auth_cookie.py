@@ -188,6 +188,51 @@ async def test_garbage_cookie_is_401(client):
     assert (await client.get("/auth/me")).status_code == 401
 
 
+# ---------------------------------------------------------------- 登录来源（TD-262 / 复核 F-04）
+
+
+@pytest.mark.parametrize("headers", [
+    {"Origin": "https://untrusted.invalid", "Sec-Fetch-Site": "cross-site"},
+    {"Origin": "https://untrusted.invalid"},
+    {"Sec-Fetch-Site": "cross-site"},
+    {"Sec-Fetch-Site": "same-site"},
+    {"Origin": "null"},
+    {"Origin": "http://test/path"},
+])
+async def test_foreign_origin_form_login_is_refused_without_a_cookie(client, headers):
+    """替换 audit_handoff_probes 的「跨站来源表单登录」诊断：浏览器标记为跨站的表单提交 403，不下发 cookie。
+
+    登录 CSRF 的危害是把受害者登进攻击者账号，再借 Lax Cookie 观察其后续操作；
+    Lax 挡不住它，因为攻击者提交时**不需要**受害者的 cookie。
+    """
+    await client.post("/auth/register", json=_FORM)
+    r = await client.post("/auth/login", data=_FORM, headers=headers)
+    assert r.status_code == 403, f"{headers} 应被拒绝，实际 {r.status_code}"
+    assert "set-cookie" not in r.headers, "拒绝时绝不能下发登录 cookie"
+    assert "登录" in r.json()["detail"] and "本站" in r.json()["detail"]
+    assert "access_token" not in r.text
+
+
+async def test_same_origin_and_headerless_login_still_work(client):
+    """本站页面（同源 Origin + Sec-Fetch-Site）与不带来源头的 API 客户端 / Swagger 行为不变。"""
+    await client.post("/auth/register", json=_FORM)
+    browser = await client.post("/auth/login", data=_FORM, headers={"Origin": "http://test", "Sec-Fetch-Site": "same-origin"})
+    assert browser.status_code == 200 and _attrs(browser)[0].startswith(f"{AUTH_COOKIE}=")
+    port_normalised = await client.post("/auth/login", data=_FORM, headers={"Origin": "http://test:80"})
+    assert port_normalised.status_code == 200, "默认端口写不写都是同一个 origin"
+    headless = await client.post("/auth/login", data=_FORM)
+    assert headless.status_code == 200 and headless.json()["access_token"]
+
+
+async def test_login_origin_check_does_not_shadow_credential_errors(client):
+    """来源检查只看请求头：本站发起的错密码仍是 401，跨站的正确密码也是 403（先于凭据校验）。"""
+    await client.post("/auth/register", json=_FORM)
+    wrong = await client.post("/auth/login", data={**_FORM, "password": "nope-nope"}, headers={"Sec-Fetch-Site": "same-origin"})
+    assert wrong.status_code == 401
+    cross = await client.post("/auth/login", data=_FORM, headers={"Sec-Fetch-Site": "cross-site"})
+    assert cross.status_code == 403
+
+
 # ---------------------------------------------------------------- 退出
 
 

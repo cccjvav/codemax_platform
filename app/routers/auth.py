@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..config import settings
 from ..database import get_db, lock_user
-from ..deps import get_current_user
+from ..deps import get_current_user, require_login_origin
 from ..models import User
 from ..ratelimit import rate_limit
 from ..schemas import PasswordChangeIn, RegisterIn, TokenOut, UserOut
@@ -56,7 +56,7 @@ async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/login", response_model=TokenOut,
-             dependencies=[Depends(rate_limit("login", "RATE_LIMIT_AUTH"))])
+             dependencies=[Depends(rate_limit("login", "RATE_LIMIT_AUTH")), Depends(require_login_origin)])
 async def login(
     response: Response, form: OAuth2PasswordRequestForm = Depends(), db: AsyncSession = Depends(get_db)
 ):
@@ -64,6 +64,7 @@ async def login(
 
     同时给两种客户端用：浏览器吃 Set-Cookie（HttpOnly，脚本读不到），
     API 客户端 / Swagger 吃响应体里的 access_token 走 Bearer 头。
+    浏览器跨站表单提交被 `require_login_origin` 以 403 拒绝（TD-262），限流先于来源检查计数。
     """
     # Invalid database text must never reach asyncpg. Keep the normal unknown-user response.
     user = None

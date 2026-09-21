@@ -9,11 +9,9 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ## 文件与入口
 
-### 交接诊断，不是安全验收
+### 交接诊断已全部转成默认套件回归
 
-`audit_handoff_probes.py` 原保留基线 7f2e125 的六项有界合成复现；2026-09-20（TD-260）修复后，分块请求读完/422回显、LLM大无关字段、深嵌套JSON异常、bool/float向量索引四项已删除并替换为默认套件里的保护性回归 `test_request_body_budget.py`（Content-Length/分块/谎报长度 413、`/diagrams` 2 MiB 放行、回调路径自管 64 KiB、422 不回显 input）和 `test_llm_response_bounds.py`（1 MiB 响应预算、非 200 不读正文、深嵌套/畸形 JSON 归 LLMError、index `type is int`、总时限）。文件里只剩同单双预支付、跨站来源表单登录两项待修诊断。只用虚构内容/MockTransport/临时商品，禁止真实渠道；数据库必须可丢弃，fixture会重建表。
-
-显式执行 `python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s`。文件不命名为 test_*.py，因此默认套件不收集：**PASS代表观察到待修行为，不表示安全通过**。修复某项后应替换成默认套件里的保护性回归，不能为维持诊断绿色保留旧行为。来源、评级与环境局限见[全仓交接报告](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)。
+`audit_handoff_probes.py` 曾保留基线 7f2e125 的六项有界合成复现（仅显式执行，PASS 代表观察到待修行为）。2026-09-20 三个修复批次后六项全部关闭，文件已删除：分块请求读完/422回显 → `test_request_body_budget.py`；LLM 大无关字段/深嵌套 JSON/bool-float 向量索引 → `test_llm_response_bounds.py`（以上 TD-260）；同单双预支付 → `test_checkout_concurrency.py`（同用户预支付单飞 + `POST /shop/orders` 独立限流桶）；跨站来源表单登录 → `test_auth_cookie.py` 的登录来源一组（以上 TD-262）。历史来源、评级与环境局限见[全仓交接报告](../review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)与[接手复核](../review/FULL_REPOSITORY_REVIEW_2026-09-20.md)；报告里的复现命令指向的文件已不存在，是历史记录而非现行入口。新的回归和其他用例一样只用虚构内容/替身/临时商品，数据库必须可丢弃。
 
 
 `test_agnes_integration.py` 验证 Agnes 默认值/模板一致、实际 LLMClient 非流式协议、HTTP分类与正文脱敏、关闭向量时零请求且不使用缓存、无密钥连通性模式以及 GitHub 真实请求只能手动启用。全部是离线断言，不伪装账号实测。语义测试的隔离 fixture 显式打开增强，真实标定的收集开关仍取实际配置，不因测试 fixture 自动解锁网络。
@@ -44,6 +42,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 运维边界 | test_ops、test_config_validation、test_review_regressions | CSP、配置、任务池、错误与缓存头；不是生产负载压测或网络隔离验收 |
 | 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；进程内 ASGI/MockTransport，不替代代理限额或真实供应商实测 |
 | 限流身份与容量 | test_ratelimit、test_download（出口限流）、test_audit_20260915（NoScan） | 合成时钟：满桶先回收过期桶、满且全活跃仍拒绝（reason=capacity、告警限频）、IPv6 /64 归并、`GET /shop/dl` 与领取共用 `download` 桶；单进程语义，不是多副本共享配额或压测 |
+| 下单并发与登录来源 | test_checkout_concurrency、test_auth_cookie（登录来源组） | 事件屏障验证同用户预支付单飞（提供方一次、等待者复用/重试、取消不泄漏）、`order` 桶限流；六种跨站标记的表单登录 403 无 Cookie、同源/无头仍 200；进程内 ASGI，不是多实例互斥或真实浏览器 |
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
 | 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
 
@@ -60,14 +59,14 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/audit_handoff_probes.py`](audit_handoff_probes.py) | `a010b33e3263` | L1–L69 |
 | [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `7c1928a5f7ec` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
-| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `9da604358174` | L1–L329 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `dfdda98099dc` | L1–L374 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
+| [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f7fb58420a6c` | L1–L164 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
@@ -76,7 +75,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `c7575befc580` | L1–L470 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `c1797bfc3fc9` | L1–L471 |
 | [`tests/test_download.py`](test_download.py) | `9f2f5a3dbfca` | L1–L293 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -168,6 +167,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-20 下单单飞与登录来源回归（TD-262）
+
+`test_checkout_concurrency.py`：`BlockingProvider` 让第一次 `native_prepay` 停在事件屏障上，第二个并发请求必须在 `_prepay_flight` 上等待而不是发第二次预支付；放行后两者同单号同 code_url（reused False/True）、提供方一次、事件只有 started/ready、锁表回收为空。另测第一次结果未知（502）时等待者用同一单号重试并成功（事件 started/unknown/started/ready）、等待者被取消不泄漏引用计数、不同用户互不阻塞、`RATE_LIMIT_AUTH=3` 时第四次下单 429 且库里只有一张单。`test_auth_cookie.py` 新增：cross-site/same-site、外站/null/带路径 Origin 六种表单登录一律 403 且无 Set-Cookie；同源 Origin（含默认端口写法）与无来源头请求仍 200；来源检查先于凭据校验、不吞 401。修复前这些用例在旧代码上全部失败（已实测），不是同义反复。
 
 ## 2026-09-20 限流容量回归（TD-261）
 

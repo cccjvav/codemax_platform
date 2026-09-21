@@ -1,3 +1,4 @@
+import asyncio
 import io
 import json
 import logging
@@ -57,6 +58,38 @@ router = APIRouter(prefix="/shop", tags=["商业平台"])
 
 MOCK_PAY_PATH = "/shop/mock-pay"  # 模拟收银台（TD-124），仅 SHOP_PAY_MODE=mock 时存在
 
+# TD-262：同一用户的预支付调用在本进程内单飞。数据库唯一索引保证只有一张 pending 单，但保证不了
+# 两个并发请求不会各自拿着同一张单去调一次微信（复核 F-03）。锁只包住「重读订单 → 跨网络预支付 →
+# 提交 code_url」这一段，且在数据库事务提交之后才进入，不持数据库锁跨网络；多实例各自单飞（TD-141）。
+# 锁对象按 user_id 惰性创建并计数引用，最后一个使用者离开时删除，不随用户数无限增长。
+_PREPAY_LOCKS: dict[int, list] = {}  # user_id -> [asyncio.Lock, 引用计数]
+
+
+class _prepay_flight:
+    """`async with _prepay_flight(user_id):` —— 同一用户的预支付段互斥；等待被取消也不泄漏计数。"""
+
+    def __init__(self, user_id: int):
+        self.user_id = user_id
+        self.entry: list | None = None
+
+    def _leave(self) -> None:
+        self.entry[1] -= 1
+        if self.entry[1] == 0 and _PREPAY_LOCKS.get(self.user_id) is self.entry:
+            del _PREPAY_LOCKS[self.user_id]
+
+    async def __aenter__(self):
+        self.entry = _PREPAY_LOCKS.setdefault(self.user_id, [asyncio.Lock(), 0])
+        self.entry[1] += 1
+        try:
+            await self.entry[0].acquire()
+        except BaseException:
+            self._leave()  # cancelled while waiting: never hold a slot without a holder
+            raise
+
+    async def __aexit__(self, *exc):
+        self.entry[0].release()
+        self._leave()
+
 
 def _qr_svg(text: str) -> str:
     """把微信 Native 支付返回的 `code_url` 画成**内联 SVG** 二维码。
@@ -87,7 +120,7 @@ async def ping(_: User = Depends(get_current_user)):
     return {"platform": "shop", "message": "pong"}
 
 
-@router.post("/orders")
+@router.post("/orders", dependencies=[Depends(rate_limit("order", "RATE_LIMIT_AUTH"))])
 async def create_order(
     request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
 ):
@@ -96,6 +129,8 @@ async def create_order(
     已有未支付订单时复用同一单（S3-01-1-4），避免连点几下刷出一堆待支付单。
     微信预支付前先 commit 本地订单；提交失败不调用提供方，失败重试复用持久订单号。
     尝试开始/结果另存事件；未知结果不是失败，自动查单对账仍是发布阻断项。
+    同一用户的预支付在本进程内单飞（TD-262）：并发的第二个请求等第一个结束后复用其 code_url，
+    不再对同一单号发第二次预支付；入口按客户端限流（`order` 桶，`RATE_LIMIT_AUTH`）。
 
     `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
     """
@@ -188,22 +223,34 @@ async def create_order(
         base = public_base_url(request)
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
     else:
-        # A flush is not durable. Persist before crossing the external payment boundary.
-        attempt_id = uuid.uuid4().hex
-        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
+        # The order row is durable before any provider call; commit also releases lock_user so the
+        # wait below never holds a database lock across the network.
         await db.commit()
-        try:
-            order.code_url = await native_prepay(
-                cfg,
-                out_trade_no=order.order_no,
-                description=order.product_name,
-                total=order.amount,
-            )
-        except WeChatPayError as e:
-            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_unknown'))
-            await db.commit()  # unknown means reconcile; never assert that no money moved
-            raise HTTPException(502, str(e)) from e
-        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_ready'))
+        order_id, user_id = order.id, user.id
+        async with _prepay_flight(user_id):
+            # Another request of this user may have finished prepay while we waited: reuse its result.
+            order = await db.scalar(select(Order).where(Order.id == order_id).execution_options(populate_existing=True))
+            if order is None or order.status != PENDING:
+                raise HTTPException(409, "订单状态已变化，请刷新后重试")
+            if order.code_url:
+                return _payload(order, reused=True, pay_mode=mode)
+            # A flush is not durable. Persist the attempt before crossing the external payment boundary.
+            attempt_id = uuid.uuid4().hex
+            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
+            await db.commit()
+            try:
+                order.code_url = await native_prepay(
+                    cfg,
+                    out_trade_no=order.order_no,
+                    description=order.product_name,
+                    total=order.amount,
+                )
+            except WeChatPayError as e:
+                db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_unknown'))
+                await db.commit()  # unknown means reconcile; never assert that no money moved
+                raise HTTPException(502, str(e)) from e
+            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_ready'))
+            await db.commit()
     await db.commit()
     await db.refresh(order)  # A callback may have changed status while prepay was in flight.
     return _payload(order, reused=False, pay_mode=mode)

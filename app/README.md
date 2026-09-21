@@ -46,6 +46,7 @@ Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_EN
 | `decode_token` | JWT 字符串 → TokenClaims 或 None | 验签、过期和声明类型检查；缺少合法 ver 的旧 JWT 被拒绝。这里不查用户是否存在/被禁用/被撤销 |
 | `get_current_user` | 请求和会话 → 当前数据库 User | Bearer 优先于 Cookie；校验数据库状态、版本和改密时间；失败 401；角色不从 JWT 里取 |
 | `require_admin` | 已验证 User → 同一 User | role 不为 1 返回 403；降权下一次查库即生效，不靠隐藏接口路径 |
+| `check_browser_origin` / `require_finance_origin` / `require_login_origin` | 请求头 → None 或 403 | 共用判定（TD-262）：`Sec-Fetch-Site` 非 same-origin 即拒；有 `Origin` 时必须单值且与 `public_base_url` 的 scheme/host/端口一致；无来源头的非浏览器客户端放行。财务版保留 Bearer 豁免（十一种管理员财务写），登录版无豁免、挂在 `POST /auth/login`。不是同步令牌型 CSRF，不读 Cookie，不查库 |
 
 HttpOnly 降低脚本直接读取令牌的风险，但不阻止注入脚本借当前会话发请求，不能把它写成“防住所有 XSS”。退出浏览器只清本端 Cookie，不撤销已复制的 Bearer；改密才递增凭据版本。
 
@@ -117,7 +118,7 @@ pending → closed → paid
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
-| [`app/deps.py`](deps.py) | `28ba9deac195` | L1–L88 |
+| [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
 | [`app/middleware.py`](middleware.py) | `6d7bde9df09f` | L1–L299 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |

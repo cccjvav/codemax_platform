@@ -12,7 +12,7 @@
 | 函数 / 接口 | 请求与响应 | 权限、副作用与错误 |
 | --- | --- | --- |
 | `register` POST `/auth/register` | JSON RegisterIn → 用户公开信息 | 用户名重复 400；字段错误 422；异步哈希后写库，捕获并发唯一冲突；不能自行指定管理员角色 |
-| `login` POST `/auth/login` | 表单 username/password → token；设置 HttpOnly Cookie | 凭据失败 401，已禁用账号 403；不存在用户也走假哈希校验；响应 token 给非浏览器客户端使用，浏览器不另存 localStorage |
+| `login` POST `/auth/login` | 表单 username/password → token；设置 HttpOnly Cookie | `login` 限流后过 `require_login_origin`（TD-262）：浏览器跨站 Fetch Metadata/外站 Origin 的表单提交 403 且无 Cookie，无来源头的 API 客户端不变；凭据失败 401，已禁用账号 403；不存在用户也走假哈希校验；响应 token 给非浏览器客户端使用，浏览器不另存 localStorage |
 | `change_password` POST `/auth/password` | old_password/new_password → 新 token 与 Cookie | 需登录；用户写锁下重新核验旧密码、更新哈希与时间、递增凭据版本、提交；旧 JWT/授权码失效 |
 | `logout` POST `/auth/logout` | 清除本浏览器 Cookie | 不建立服务器端单 token 黑名单；不能宣称注销了所有设备 |
 | `me` GET `/auth/me` | 当前公开 UserOut | 401 表示会话无效；前端权限显示以此为依据，但授权仍由后端决定 |
@@ -49,7 +49,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 
 | 函数 / 接口 | 请求与返回 | 状态与权限 |
 | --- | --- | --- |
-| `create_order` POST `/shop/orders` | 登录用户下单 → 订单与支付展示数据 | 复用有效 pending；过期关闭后重建；部分唯一索引挡并发重复；wechat 配置缺失 503、下单失败 502且保留pending；建单时保存配置金额，预支付先commit再使用订单快照 |
+| `create_order` POST `/shop/orders` | 登录用户下单 → 订单与支付展示数据 | `order` 桶限流（`RATE_LIMIT_AUTH`，TD-262）；复用有效 pending；过期关闭后重建；部分唯一索引挡并发重复；wechat 配置缺失 503、下单失败 502且保留pending；建单时保存配置金额，预支付先commit再进入按 user_id 的进程内单飞 `_prepay_flight`——等待者复用已写入的 code_url（reused=true）或在未知结果后沿用同一单号重试，锁内订单已非 pending 则 409；不持数据库锁跨网络，多实例各自单飞 |
 | `order_status` GET `/shop/orders/{order_no}` | 自己的订单当前状态、expired | 只读 no-store；不会自动关单、领取链接或发起新订单 |
 | `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目 |
 | `download_url` POST `/shop/download/{order_no}` | 自己的已付订单 → 短时 download_url | paid/downloaded 均可领取；先查对象并生成 URL，再记录发放；pending/closed 403。不是“只能领一次” |
@@ -57,6 +57,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；匹配mchid/appid、CNY/NATIVE、资源类型及固定平台serial/公钥ID；已有唯一凭证但非完整会计账本；原子确认，重复通知幂等 |
 | `mock_pay_page` / `mock_pay_confirm` | 模拟收银台／自己的订单确认 | 仅 mock 模式，其他模式 404；真实 production 配置拒绝开启 mock |
 | `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅manual且订单渠道匹配；须提供reference、实际整数分amount和evidence。原子记录收款凭证及首次确认人，日志仅补充；不是银行自动核账 |
+| `_prepay_flight` | user_id → 异步上下文管理器 | 同用户预支付段互斥；引用计数在最后一个使用者离开时删除字典项，等待被取消也归还计数；进程内状态，不是跨实例锁 |
 | `_payload` / `_qr_svg` / `_storage` / `_ok` / `_fail` | 展示字段、服务端二维码、存储错误映射、微信响应封装 | 不把扫码/二维码加载当付款凭证；用户侧和平台回调的响应格式不同 |
 | `ping` | 登录态共享冒烟 | 只证明该受保护端点能响应，不验收支付能力 |
 
@@ -95,7 +96,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/routers/admin.py`](admin.py) | `34c9d1f92085` | L1–L83 |
-| [`app/routers/auth.py`](auth.py) | `8ff33a812506` | L1–L134 |
+| [`app/routers/auth.py`](auth.py) | `aad302b94e08` | L1–L135 |
 | [`app/routers/diagrams.py`](diagrams.py) | `1bd6d4225cb1` | L1–L234 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
@@ -103,7 +104,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `ab6c1ca54073` | L1–L691 |
+| [`app/routers/shop.py`](shop.py) | `497c325f44e9` | L1–L738 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |

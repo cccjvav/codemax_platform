@@ -28,7 +28,7 @@
 
 ## 3. 上轮六项诊断的独立复现（H-02）
 
-复现命令：`.venv/bin/python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s -p no:cacheprovider`。全部 PASS 表示**复现了待修行为**，不是修复完成。
+复现命令：`.venv/bin/python -m pytest -c pytest.ini tests/audit_handoff_probes.py -q -s -p no:cacheprovider`。全部 PASS 表示**复现了待修行为**，不是修复完成。（历史记录：该文件在 TD-260/TD-262 两批修复后已删除，六项诊断全部换成默认套件回归，见 tests/README.md「交接诊断已全部转成默认套件回归」。）
 
 | 编号 | 本轮观测（2026-09-20，SQLite） | 判定 | 调用链复核补充 |
 | --- | --- | --- | --- |
