@@ -53,7 +53,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | `order_status` GET `/shop/orders/{order_no}` | 自己的订单当前状态、expired | 只读 no-store；不会自动关单、领取链接或发起新订单 |
 | `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目 |
 | `download_url` POST `/shop/download/{order_no}` | 自己的已付订单 → 短时 download_url | paid/downloaded 均可领取；先查对象并生成 URL，再记录发放；pending/closed 403。不是“只能领一次” |
-| `serve_download` GET `/shop/dl` | key、expires、signature → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
+| `serve_download` GET `/shop/dl` | key、expires、signature、order_no → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；与 `POST /shop/download` 共用 `download` 限流桶（`RATE_LIMIT_TOOLS`，TD-261），超额 429 先于签名/数据库检查；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
 | `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；匹配mchid/appid、CNY/NATIVE、资源类型及固定平台serial/公钥ID；已有唯一凭证但非完整会计账本；原子确认，重复通知幂等 |
 | `mock_pay_page` / `mock_pay_confirm` | 模拟收银台／自己的订单确认 | 仅 mock 模式，其他模式 404；真实 production 配置拒绝开启 mock |
 | `confirm_paid_manually` POST `/shop/orders/{order_no}/confirm` | 管理员已核实的订单 → 已支付 | 仅manual且订单渠道匹配；须提供reference、实际整数分amount和evidence。原子记录收款凭证及首次确认人，日志仅补充；不是银行自动核账 |
@@ -103,7 +103,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `24ee71fc3545` | L1–L691 |
+| [`app/routers/shop.py`](shop.py) | `ab6c1ca54073` | L1–L691 |
 | [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `193a7a663b00` | L1–L77 |

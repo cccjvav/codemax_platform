@@ -37,12 +37,12 @@ def test_limiter_admission_never_scans_all_keys_or_evicts_active_bucket():
         assert lim.allow(str(i), limit=1, window=60)[0]
     assert not lim.allow('overflow', limit=1, window=60)[0]
     assert not lim.allow('0', limit=1, window=60)[0]
-    assert len(lim._hits) == len(lim._keys) == len(lim._expires) == 2000
+    assert len(lim._hits) == len(lim._expires) == 2000 and set(lim._hits) == set(lim._expires)
     now[0] += 61
     assert lim.allow('overflow', limit=1, window=60)[0]
     assert len(lim._hits) <= 2000
     lim.reset()
-    assert not lim._hits and not lim._keys and not lim._expires
+    assert not lim._hits and not lim._expires
 
 
 def test_limiter_expiration_uses_each_buckets_window():

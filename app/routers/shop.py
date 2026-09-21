@@ -406,7 +406,7 @@ async def download_url(
             "expires_in": settings.DOWNLOAD_URL_TTL, "status": order.status}
 
 
-@router.get("/dl", include_in_schema=False)
+@router.get("/dl", include_in_schema=False, dependencies=[Depends(rate_limit("download", "RATE_LIMIT_TOOLS"))])
 async def serve_download(request: Request, key: str, expires: int, signature: str,
                          order_no: str | None = Query(None, max_length=32, pattern=r'^[A-Za-z0-9_-]+$'),
                          db: AsyncSession = Depends(get_db)):

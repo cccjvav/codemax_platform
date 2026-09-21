@@ -43,6 +43,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | FAQ 与 RAG | test_faq、test_faq_semantic、test_intent_cascade、test_support | 排序、阈值算法、回退与资料检索；真实 embedding 阈值标定需要单独密钥与语料 |
 | 运维边界 | test_ops、test_config_validation、test_review_regressions | CSP、配置、任务池、错误与缓存头；不是生产负载压测或网络隔离验收 |
 | 输入/上游资源边界 | test_request_body_budget、test_llm_response_bounds | 请求体预算（1 MiB / `/diagrams` 2 MiB / 回调自管）与 LLM 响应 1 MiB、深嵌套、index 类型、总时限；进程内 ASGI/MockTransport，不替代代理限额或真实供应商实测 |
+| 限流身份与容量 | test_ratelimit、test_download（出口限流）、test_audit_20260915（NoScan） | 合成时钟：满桶先回收过期桶、满且全活跃仍拒绝（reason=capacity、告警限频）、IPv6 /64 归并、`GET /shop/dl` 与领取共用 `download` 桶；单进程语义，不是多副本共享配额或压测 |
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
 | 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
 
@@ -63,7 +64,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f51ea27a435f` | L1–L176 |
-| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `5bd0fc5338bd` | L1–L300 |
+| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `7c1928a5f7ec` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `9da604358174` | L1–L329 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
@@ -75,8 +76,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `2fedc26f3d76` | L1–L469 |
-| [`tests/test_download.py`](test_download.py) | `14c5f509db26` | L1–L263 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `c7575befc580` | L1–L470 |
+| [`tests/test_download.py`](test_download.py) | `9f2f5a3dbfca` | L1–L293 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `2cc3fa166b77` | L1–L532 |
@@ -104,7 +105,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
-| [`tests/test_ratelimit.py`](test_ratelimit.py) | `7103160ca474` | L1–L152 |
+| [`tests/test_ratelimit.py`](test_ratelimit.py) | `81b0cfb3ea5a` | L1–L279 |
 | [`tests/test_refund_health.py`](test_refund_health.py) | `67132d41ebe0` | L1–L407 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `a1894e966c2d` | L1–L302 |
@@ -167,6 +168,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-20 限流容量回归（TD-261）
+
+`test_ratelimit.py` 新增键容量与身份一组：容量 4/3/200/2 的小限流器验证满桶但有过期桶时新键放行且活跃桶原样保留、满且全活跃时 `admit` 返回 reason=capacity 与指向最早到期桶的 Retry-After、单次调用只回收有限批量但多次后全部释放、满桶 warning 每分钟一条、reset 清空全部容器；`_key_for` 用最小 ASGI scope 直接调用 `client_key` 验证 IPv6 /64 归并、IPv4 映射还原与不可解析对端占固定键，另用 `ASGITransport(client=...)` 走全链路证明同一 /64 内换地址共用配额。`test_audit_20260915.py` 的 NoScan 反例保留，断言改为命中/到期两个容器同长同键集。`test_download.py` 新增出口限流用例：领取 + 两次出口 200、第三次 429，订单状态不变，reset 后同一链接照常可用。全部合成时钟或进程内 ASGI，不是多进程共享配额或真实压测。
 
 ## 2026-09-15 交叉审查增量
 

@@ -236,6 +236,36 @@ async def test_unknown_backend_fails_loudly(client, product, monkeypatch):
     assert (await client.post(f"/shop/download/{order_no}", headers=h)).status_code == 503
 
 
+async def test_download_exit_shares_the_download_rate_limit(client, product, monkeypatch):
+    """TD-261 / ROADMAP A-08：`GET /shop/dl` 与 `POST /shop/download` 同属 `download` 桶。
+
+    出口每次都要做全量快照哈希（O-01 另测），没有限流就是一条免登录的 CPU 放大入口。
+    同一客户端：领取占 1 次，随后的出口请求共享余额；超额是 429 + Retry-After，而不是 403/404。
+    限流由 conftest 默认关闭，这里显式打开并把配额压到 3。
+    """
+    from app.ratelimit import limiter
+
+    limiter.reset()
+    monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
+    monkeypatch.setattr(settings, "RATE_LIMIT_WINDOW", 60)
+    monkeypatch.setattr(settings, "RATE_LIMIT_TOOLS", 3)
+    try:
+        h = await auth_headers(client)
+        order_no = await make_order("paid", "buyer")
+        url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+        first = await client.get(path_of(url))
+        second = await client.get(path_of(url))
+        third = await client.get(path_of(url))
+        assert (first.status_code, first.content) == (200, PRODUCT_BYTES)
+        assert (second.status_code, second.content) == (200, PRODUCT_BYTES), "有效期内重复请求仍然允许"
+        assert third.status_code == 429 and third.headers["retry-after"].isdigit()
+        assert await status_of(order_no) == "downloaded", "限流不改变已发放的订单状态"
+        limiter.reset()
+        assert (await client.get(path_of(url))).status_code == 200, "窗口过后同一链接照常可用；权益判断没有被缓存"
+    finally:
+        limiter.reset()
+
+
 # ---------------------------------------------------------------- 策略与签名本身
 
 

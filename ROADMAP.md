@@ -27,8 +27,8 @@
 | A-04 / P2 | 登录来源策略；F-04 | 先做 HTTPS 浏览器双来源 PoC；决定 Origin/Fetch-Metadata/CSRF 组合，拒绝恶意跨站表单而保留合法第一方及约定 API 客户端 | 真实浏览器；ASGI 200 只能证明服务端接受 |
 | A-05 / P3 | 已完成（2026-09-20，TD-260）：`type(index) is int` | 拒绝 bool/float/字符串 index，重复/缺失/越界原有校验保留；`tests/test_llm_response_bounds.py` 含正常向量排序不退化 | 本地合成；不猜供应商模型能力 |
 | A-06 / P2（扩展收银台前） | 网页支付展示/轮询；审计9.4 | 保留无重叠/终态停止/换账号隔离；测后台暂停、退避/抖动、等待上限与恢复；新增HTTPS收银台前建立按渠道URL白名单，回跳不直接授予权益 | 当前Native扫码，不伪装H5/JSAPI已接入；SSE/WebSocket先有SLO依据 |
-| A-07 / P2 | 限流器满桶拒绝所有新客户端；复核报告 F-09 | 满桶且存在已过期键时新键必须放行（摊销 O(1)，不全表扫描）；活跃键仍不被驱逐；IPv6 按 /64 归并为限流身份；满桶记 warning；保留 `NoScan` 与"全活跃仍拒绝"反例 | 合成时钟单元测试 + ASGI；单进程语义不变（TD-141）；不引入 Redis |
-| A-08 / P2 | 下载出口 `GET /shop/dl` 无限流；审计 F-06 前半 | 加与 `POST /shop/download` 相同的 `download` scope 限流；合法重领与 Range/重复请求行为不变；全量哈希优化另按 O-01 测量后做 | SQLite 回归；不缓存权益判断 |
+| A-07 / P2 | 已完成（2026-09-20，TD-261）：`Limiter.admit` 从按到期排序的队头回收过期桶（每次 ≤ 32，摊销 O(1)）；满且全活跃仍拒绝且 `reason=capacity`、Retry-After 指向最早到期桶、warning 每分钟一条；`_identity` 把 IPv6 归并到 /64 | 回归 `tests/test_ratelimit.py`（容量/回收/告警/IPv6 单元 + ASGI 全链路），`NoScan` 与"全活跃仍拒绝"反例保留 | 单进程语义不变（TD-141）；未引入 Redis；维持攻击门槛经复测订正为 ≈ 300 请求/秒（见 TD-261） |
+| A-08 / P2 | 已完成（2026-09-20，TD-261）：`GET /shop/dl` 挂 `download` scope（`RATE_LIMIT_TOOLS`），与 `POST /shop/download` 共用桶 | 回归 `tests/test_download.py::test_download_exit_shares_the_download_rate_limit`：领取 + 两次出口 200、第三次 429、状态不变、窗口后同链接可用；全量哈希优化仍按 O-01 测量后做 | SQLite 回归；权益判断未缓存 |
 | A-09 / P3 | UI 对比度与浮层可访问性；复核报告第 1 节第 4 点 | 链接/按钮/CTA/提示色达到 WCAG AA 4.5:1；登录浮层 `role="dialog"`、Esc 关闭、焦点归还；`:disabled`/`:focus-visible` 可见；`support.css` 不依赖 `:has()`；重建并提交 bundle | 静态检查 + 现有 Node VM 前端测试；真实浏览器视觉签收仍归 L-04 |
 
 退出条件：保护性回归进入默认套件，诊断旧行为断言被替换/注明已失效；模块 README、精读、配置/部署指南同步；精确 SHA 全 CI。可以拆小批次，不能为保持诊断绿色保留缺陷。
