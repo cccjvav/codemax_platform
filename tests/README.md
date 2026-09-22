@@ -47,7 +47,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 下单并发与登录来源 | test_checkout_concurrency、test_auth_cookie（登录来源组） | 事件屏障验证同用户预支付单飞（提供方一次、等待者复用/重试、取消不泄漏）、`order` 桶限流；六种跨站标记的表单登录 403 无 Cookie、同源/无头仍 200；进程内 ASGI，不是多实例互斥或真实浏览器 |
 | UI 对比度与可访问性 | test_ui_accessibility | WCAG 相对亮度公式先对照参考值，再钉六处文字色 ≥ 4.5:1、旧色不再出现、`:disabled`/`:focus-visible`、浮层 ARIA；Node 真跑源码与产物验证 Esc 关闭与焦点归还；`support.css` 不含 `:has()`。静态 + Node VM，不是浏览器渲染或读屏 |
 | 站内消息和前端 | test_support_messages、test_second_frontend_regressions、test_shop_page | 数据权限/重试，Node VM 执行源码和构建脚本；无真实浏览器布局或 diagrams.net 联网验证 |
-| 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；人工解释仍需源码评审 |
+| 文档与供应链 | test_docs_contract、test_docs_site、test_frontend_supply_chain、test_ci_supply_chain | 覆盖、指纹、锚点、签名展示、渲染转义、依赖边界；工作流 action 钉 SHA、权限只在评论 job 开写、requirements 精确版本、package-lock integrity；人工解释仍需源码评审 |
 
 文档用例另外核对 Windows 指南登记和内嵌 Python 语法，并用 stub 执行 PG 密码编码/退出码、模型标定先加载配置再收集的入口；不连接数据库/模型，不把这些检查声称为 Windows 或 conda 实机运行。
 
@@ -70,6 +70,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `dfdda98099dc` | L1–L374 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
 | [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f7fb58420a6c` | L1–L164 |
+| [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `9c2df1b4d535` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
@@ -174,6 +175,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-22 工作流供应链守卫（TD-267）
+
+`test_ci_supply_chain.py` 只读两份工作流 YAML、requirements.txt 与 package-lock.json：每个第三方 `uses:` 是 40 位 SHA 且带 `# vX.Y.Z` 注释；同一 action 在所有工作流里 SHA 一致；`ci.yml` 顶层只有 `contents: read`，含 `gh pr comment` 的恰好是两个 test job 且只有它们有 `pull-requests: write`；agnes 工作流只读且手动触发；requirements 每行 `==`；lock 每个包有 integrity；CI 用 `npm ci`。不访问网络，不证明上游 SHA 本身可信。
 
 ## 2026-09-22 下载出口校验缓存回归（TD-266）
 

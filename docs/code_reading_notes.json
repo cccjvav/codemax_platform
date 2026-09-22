@@ -91,7 +91,7 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "efbbecbc14c4badc8bfc7168021af0c0d0567b1f9c1df60230e9b54601b767a0",
+      "sha256": "71facbf334c60515d91b97a4f71775c0e38a81223a32dcdc9209db0464d8f0c0",
       "method": "manual",
       "blocks": [
         {
@@ -102,54 +102,54 @@
         {
           "end": 46,
           "title": "无密钥跨环境对照",
-          "explanation": "Ubuntu runner限时五分钟，无提供方key。先用curl保留系统证书校验、不跟重定向且丢弃正文，只取HTTP码和退出码；set+e保存失败证据后原码退出。GITHUB_OUTPUT、notice和always步骤名保留HTTP状态，下载日志受阻仍能读元数据。curl通后checkout同一提交、Python3.11安装相同依赖，再运行项目connectivity，以排除只换curl程序造成的误判。两种方式均不发送Authorization，401只证明HTTP可达，绝不是鉴权通过。"
+          "explanation": "Ubuntu runner限时五分钟，无提供方key。先用curl保留系统证书校验、不跟重定向且丢弃正文，只取HTTP码和退出码；set+e保存失败证据后原码退出。GITHUB_OUTPUT、notice和always步骤名保留HTTP状态，下载日志受阻仍能读元数据。curl通后checkout同一提交、Python3.11安装相同依赖，再运行项目connectivity，以排除只换curl程序造成的误判。两种方式均不发送Authorization，401只证明HTTP可达，绝不是鉴权通过。 checkout/setup-python 已钉与 ci.yml 相同的 commit SHA（TD-267）。"
         },
         {
           "end": 88,
           "title": "仅手动允许的真实请求",
-          "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。 日志下载通道受阻时，run_probe捕获脚本已脱敏的摘要/ID，截断到4000字符并转义百分号与换行，发布notice取证；不捕获原始API响应或密钥。函数返回原退出码，最后仍由聊天/图表检查决定job结果，不能因为notice成功就掩盖探测失败。"
+          "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。 日志下载通道受阻时，run_probe捕获脚本已脱敏的摘要/ID，截断到4000字符并转义百分号与换行，发布notice取证；不捕获原始API响应或密钥。函数返回原退出码，最后仍由聊天/图表检查决定job结果，不能因为notice成功就掩盖探测失败。 checkout/setup-python 已钉与 ci.yml 相同的 commit SHA（TD-267）。"
         }
       ]
     },
     {
       "path": ".github/workflows/ci.yml",
-      "sha256": "f56faf645017842bfaddd31a37f73db9ef8a489ff38a03baf899da0b1aa44de7",
+      "sha256": "c77be8e6909cbc4eb8b465898ef6d5c13a12de1f05e9791ab2fb9e99dfe0aff6",
       "method": "manual",
       "blocks": [
         {
-          "end": 48,
+          "end": 55,
           "title": "触发、权限与并发取消",
-          "explanation": "六个job并行，push所有分支及PR触发；contents读、PR写用于失败评论。concurrency同ref取消旧运行，所以必须核最终提交SHA的run，不拿上次绿灯当本次通过。开头旧网络/版本说明属历史，不推定当前出口一定失败。 四项非全量job限制20分钟，两项全量测试35分钟；后者按实测20分钟超时修订，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "六个job并行，push所有分支及PR触发；contents读、PR写用于失败评论。concurrency同ref取消旧运行，所以必须核最终提交SHA的run，不拿上次绿灯当本次通过。开头旧网络/版本说明属历史，不推定当前出口一定失败。 四项非全量job限制20分钟，两项全量测试35分钟；后者按实测20分钟超时修订，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 TD-267：头注释说明 action 一律钉完整 commit SHA（可变标签会被上游改指向）与 postgres:16 未钉 digest 的原因；顶层 permissions 只剩 contents: read，pull-requests: write 下沉到两个 test job。"
         },
         {
-          "end": 72,
+          "end": 79,
           "title": "lint：只装匹配版本Ruff",
-          "explanation": "checkout后Python3.11+pip缓存，从requirements提取Ruff精确版本再check全库。lint无需应用/PG环境，不会执行pytest函数。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "checkout后Python3.11+pip缓存，从requirements提取Ruff精确版本再check全库。lint无需应用/PG环境，不会执行pytest函数。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 uses 已钉 SHA（注释标版本）；本 job 只有只读令牌。"
         },
         {
-          "end": 119,
+          "end": 126,
           "title": "audit：依赖安全门禁与明确例外",
-          "explanation": "安装pip-audit并--strict审requirements；只豁免已评估的PYSEC-2026-1325。例外不是“ECDSA绝对安全”：该漏洞涉特定签名/密钥操作，本项目JWT仅HS256、微信用cryptography RSA；改算法/用途后重新评估。漏洞库会更新，当前绿不保证未来无公告。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "安装pip-audit并--strict审requirements；只豁免已评估的PYSEC-2026-1325。例外不是“ECDSA绝对安全”：该漏洞涉特定签名/密钥操作，本项目JWT仅HS256、微信用cryptography RSA；改算法/用途后重新评估。漏洞库会更新，当前绿不保证未来无公告。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 uses 已钉 SHA（注释标版本）；本 job 只有只读令牌。"
         },
         {
-          "end": 169,
+          "end": 176,
           "title": "docs：独立环境真构建",
-          "explanation": "仅装Mistune，证明不依赖应用数据库/密钥；pipefail保留生成器退出码，构建内执行README与精读完整门禁及本地链接检查。find包括点开头页面，页数下限只是粗门禁，精确清单由代码测试核对；不等于浏览器视觉验收。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "仅装Mistune，证明不依赖应用数据库/密钥；pipefail保留生成器退出码，构建内执行README与精读完整门禁及本地链接检查。find包括点开头页面，页数下限只是粗门禁，精确清单由代码测试核对；不等于浏览器视觉验收。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 uses 已钉 SHA（注释标版本）；本 job 只有只读令牌。"
         },
         {
-          "end": 210,
+          "end": 217,
           "title": "frontend：npm ci与产物漂移",
-          "explanation": "Node22、npm缓存、npm ci使用lock，重新build后git diff只查app/static/js；差异必须连源码产物一起提交，不能只更新源并交付旧bundle。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "Node22、npm缓存、npm ci使用lock，重新build后git diff只查app/static/js；差异必须连源码产物一起提交，不能只更新源并交付旧bundle。 本批对应job限制20分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 uses 已钉 SHA（注释标版本）；本 job 只有只读令牌。"
         },
         {
-          "end": 255,
+          "end": 266,
           "title": "SQLite：全套测试与失败评论",
-          "explanation": "Python3.11装整清单，pytest通过tee保留日志且pipefail保留失败。PR失败才gh comment尾300行，普通push不发PR评论；评论记录SHA/run链接，不能包含真实密钥。 第十二批按实测将本全量job限制改35分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。"
+          "explanation": "Python3.11装整清单，pytest通过tee保留日志且pipefail保留失败。PR失败才gh comment尾300行，普通push不发PR评论；评论记录SHA/run链接，不能包含真实密钥。 第十二批按实测将本全量job限制改35分钟，checkout不保留Git凭据；frontend实际加入high级npm audit与手写JS语法检查。原六job与失败非零规则保留，不新增真实模型请求。 本 job 单独声明 permissions（contents: read + pull-requests: write）只为失败评论步骤。"
         },
         {
-          "end": 335,
+          "end": 348,
           "title": "PostgreSQL16：独立DDL库和测试库",
-          "explanation": "postgres:16服务提供独立codemax_ddl和codemax_test。前者显式init/status，第二次init必须非零拒绝；不是重建两遍。pytest保持全套并包含自行隔离的非超级用户维护库、并发/回滚/保留数据。set-euo pipefail不让预期拒绝分支掩盖其他失败；无商户或模型真实调用。 第十二批因已观测20分钟超时改35分钟，不改测试范围或失败判定；取消从来不是通过。"
+          "explanation": "postgres:16服务提供独立codemax_ddl和codemax_test。前者显式init/status，第二次init必须非零拒绝；不是重建两遍。pytest保持全套并包含自行隔离的非超级用户维护库、并发/回滚/保留数据。set-euo pipefail不让预期拒绝分支掩盖其他失败；无商户或模型真实调用。 第十二批因已观测20分钟超时改35分钟，不改测试范围或失败判定；取消从来不是通过。 同样按 job 声明 pull-requests: write。"
         }
       ]
     },
@@ -4033,6 +4033,58 @@
           "end": 164,
           "title": "test_checkout_has_its_own_rate_limit_bucket",
           "explanation": "本用例的准备条件：client, product, mock_mode, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 RATE_LIMIT_AUTH=3 时四次下单得到 200,200,200,429 且带 Retry-After；注册/登录占各自桶不占 order 桶；被限流的请求不建单，库里只有一张复用的 pending 单。\n\n输入签名：client, product, mock_mode, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL150 调用 limiter.reset()。\nL151 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL152 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL153 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_AUTH', 3)：仅在本测试替换属性，fixture结束恢复。\nL154 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_TOOLS', 100)：仅在本测试替换属性，fixture结束恢复。\nL155 执行try体；捕获 无。\nL156 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'quota_user')；等待期间可让出事件循环，恢复后才执行下一句。\nL157 计算右侧并赋给 `codes`：[(await client.post('/shop/orders', headers=headers)).status_code for _ in range(4)]。\nL158 核对 `codes == [200, 200, 200, 429]`：此条件为假即测试失败；不是生产输入校验。\nL159 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL160 核对 `r.status_code == 429 and r.headers['retry-after'].isdigit()`：要求限流拒绝；不满足即本用例失败。\nL161 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL162 核对 `len((await db.scalars(select(Order))).all()) == 1`：此条件为假即测试失败；不是生产输入校验。\nL164 调用 limiter.reset()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_ci_supply_chain.py",
+      "sha256": "47e43b1b2ce8803a0c7ad4db951f18eff519cdfd4ea3ea3548b3430c53120f06",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 27,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：TD-267 / O-08 的静态守卫。USES 正则匹配 `uses:` 行及其 `# 版本` 注释；只读两份工作流 YAML、requirements.txt 与 package-lock.json，不访问网络，不证明上游 SHA 本身可信，也不替代 pip-audit 与前端漂移 job。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL15 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 import yaml；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL24 计算右侧并赋给 `WORKFLOWS`：调用 sorted((ROOT / '.github' / 'workflows').glob('*.yml'))。\nL25 计算右侧并赋给 `USES`：调用 re.compile('^\\\\s*-?\\\\s*uses:\\\\s*(\\\\S+)(?:\\\\s+#\\\\s*(\\\\S+))?\\\\s*$', re.M)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 31,
+          "title": "test_workflows_exist",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 前提：两份工作流文件都在，后面的遍历不会空跑。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL29 核对 `{p.name for p in WORKFLOWS} >= {'ci.yml', 'agnes-connectivity.yml'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 46,
+          "title": "test_every_third_party_action_is_pinned_to_a_full_sha_with_version_comment",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 每个非本地 `uses:` 的 @ 后必须是 40 位十六进制 SHA，且带 `# vX.Y(.Z)` 注释；违规逐条列出。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL33 计算右侧并赋给 `offenders`：[]。\nL34 逐项遍历 `WORKFLOWS`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL35 逐项遍历 `USES.finditer(path.read_text(encoding='utf-8'))`，绑定 `match`；循环体按缩进执行，break可提前结束。\nL36 计算右侧并赋给 `(ref, comment)`：(match.group(1), match.group(2))。\nL37 判断 `ref.startswith('./')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL38 continue 跳过本轮剩余语句，进入下一轮。\nL39 计算右侧并赋给 `(owner_repo, _, version)`：调用 ref.partition('@')。\nL40 判断 `not re.fullmatch('[0-9a-f]{40}', version)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL41 调用 offenders.append(f'{path.name}: {ref} 不是 40 位 commit SHA')。\nL42 判断 `not comment or not re.fullmatch('v\\\\d+(\\\\.\\\\d+){1,2}', comment)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL43 调用 offenders.append(f'{path.name}: {ref} 缺少 `# vX.Y.Z` 版本注释')。\nL44 核对 `offenders == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 57,
+          "title": "test_pins_are_the_same_sha_for_the_same_action_across_workflows",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 同一 action 在所有工作流里 SHA 一致，升级漏改一处会出现两个版本并存。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL49 计算右侧并赋给 `seen`（标注 dict[str, set[str]]）：{}。\nL50 逐项遍历 `WORKFLOWS`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL51 逐项遍历 `USES.finditer(path.read_text(encoding='utf-8'))`，绑定 `match`；循环体按缩进执行，break可提前结束。\nL52 计算右侧并赋给 `(owner_repo, _, version)`：调用 match.group(1).partition('@')。\nL53 调用 seen.setdefault(owner_repo, set()).add(version)。\nL54 计算右侧并赋给 `mixed`：{k: v for k, v in seen.items() if len(v) > 1}。\nL55 核对 `mixed == {}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 71,
+          "title": "test_ci_write_permission_is_scoped_to_the_commenting_jobs_only",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 ci.yml 顶层 permissions 恰为 contents: read；含 `gh pr comment` 的 job 恰为 test-sqlite/test-postgres 且只有它们声明 pull-requests: write，其余 job 无写权限。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL59 计算右侧并赋给 `ci`：调用 yaml.safe_load((ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8'))。\nL60 核对 `ci['permissions'] == {'contents': 'read'}`：此条件为假即测试失败；不是生产输入校验。\nL61 计算右侧并赋给 `commenting`：{name for name, job in ci['jobs'].items() if any(('gh pr comment' in (step.get('run') or '') for step in job.get('steps', [])))}。\nL63 核对 `commenting == {'test-sqlite', 'test-postgres'}`：此条件为假即测试失败；不是生产输入校验。\nL64 逐项遍历 `ci['jobs'].items()`，绑定 `(name, job)`；循环体按缩进执行，break可提前结束。\nL65 计算右侧并赋给 `perms`：调用 job.get('permissions')。\nL66 判断 `name in commenting`，为真进入当前缩进分支，为假进入else/elif。\nL67 核对 `perms == {'contents': 'read', 'pull-requests': 'write'}`：此条件为假即测试失败；不是生产输入校验。\nL69 核对 `perms is None or set(perms.values()) <= {'read'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 78,
+          "title": "test_agnes_workflow_stays_read_only_and_manual",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 agnes 工作流只读；触发器含 workflow_dispatch（PyYAML 把裸 `on:` 解析成 True，两种键都兼容）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL73 计算右侧并赋给 `wf`：调用 yaml.safe_load((ROOT / '.github/workflows/agnes-connectivity.yml').read_text(encoding='utf-8'))。\nL74 核对 `wf['permissions'] == {'contents': 'read'}`：此条件为假即测试失败；不是生产输入校验。\nL75 计算右侧并赋给 `triggers`：wf.get('on') or wf.get(True)。\nL76 核对 `'workflow_dispatch' in triggers`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 89,
+          "title": "test_python_requirements_are_exactly_pinned",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 requirements.txt 去掉注释后每行都是 `name[extras]==version` 形式。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL80 计算右侧并赋给 `loose`：[]。\nL81 逐项遍历 `(ROOT / 'requirements.txt').read_text(encoding='utf-8').splitlines()`，绑定 `line`；循环体按缩进执行，break可提前结束。\nL82 计算右侧并赋给 `spec`：调用 line.split('#', 1)[0].strip()。\nL83 判断 `not spec`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL84 continue 跳过本轮剩余语句，进入下一轮。\nL85 判断 `not re.fullmatch('[A-Za-z0-9_.\\\\-]+(\\\\[[A-Za-z0-9_,\\\\-]+\\\\])?==[0-9][A-Za-z0-9.+_\\\\-]*', spec)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL86 调用 loose.append(spec)。\nL87 核对 `loose == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 96,
+          "title": "test_npm_lockfile_has_integrity_for_every_package",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 lockfileVersion ≥ 2，packages 表里每个非根、非 link 条目都有 integrity。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL91 计算右侧并赋给 `lock`：调用 json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))：把外部文本解析为对象，格式错误会抛异常。\nL92 核对 `lock.get('lockfileVersion', 0) >= 2`：此条件为假即测试失败；不是生产输入校验。\nL93 计算右侧并赋给 `missing`：[name for name, meta in lock['packages'].items() if name and (not meta.get('integrity')) and (not meta.get('link'))]。\nL94 核对 `missing == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 99,
+          "title": "test_ci_installs_frontend_with_npm_ci_not_install",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 ci.yml 用 npm ci 且不出现 npm install。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL98 计算右侧并赋给 `ci`：调用 (ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8')。\nL99 核对 `'npm ci' in ci and (not re.search('\\\\bnpm install\\\\b', ci))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

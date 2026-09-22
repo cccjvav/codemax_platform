@@ -13,6 +13,13 @@
 # aa87c52 把 actions 升到 v7（消 Node 20 弃用告警，TD-144）；
 # b47044b 加入 lint job。
 #
+# 供应链（TD-267）：第三方 action 一律钉到**完整 commit SHA**，后面的 `# vX.Y.Z` 注释只是给人看的。
+# 可变标签 `@v7` 会随上游 force-push 移动（tj-actions/changed-files 事件就是标签被改指向恶意提交），
+# SHA 不会。升级流程：改 SHA 与注释同时进行，用 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>`
+# 核对 SHA 与标签一致（tests/test_ci_supply_chain.py 钉住"每个 uses 都是 40 位 SHA 且带版本注释"）。
+# `postgres:16` 服务镜像未钉 digest：沙箱无法访问 Docker Hub 取得可核对的 digest，
+# 钉一个未经核对的值比不钉更差；服务容器只在 CI 内提供一次性数据库，不进生产。
+#
 # 权限：本会话的 GitHub App（arena-ai-coding-agent[bot]）**已于 2026-09-01 获得
 # Workflows 写权限**，现在可以直接改并 push 本文件。此前它被
 # `remote rejected ... without 'workflows' permission` 拒绝过多次，
@@ -28,12 +35,12 @@
 # ============================================================================
 name: CI
 
-# 默认 token 只有 contents:read（日志里的 GITHUB_TOKEN Permissions 可以证实），
-# 发 PR 评论必须显式开 pull-requests:write。写了这个块就**取代**默认权限，
-# 所以 contents:read 要一并写上，否则 checkout 会失败。
+# 默认 token 只有 contents:read（日志里的 GITHUB_TOKEN Permissions 可以证实）。
+# 顶层只保留只读；发 PR 评论所需的 pull-requests:write 只在两个 test job 上按 job 开启
+# （TD-267）——lint/audit/docs/frontend 拿不到写权限，它们运行的第三方工具即使被投毒也发不了评论、改不了 PR。
+# 写了 permissions 块就**取代**默认权限，所以 contents:read 要一并写上，否则 checkout 会失败。
 permissions:
   contents: read
-  pull-requests: write
 
 on:
   push:
@@ -51,11 +58,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -75,11 +82,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -122,11 +129,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -172,11 +179,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
           cache: npm
@@ -211,13 +218,16 @@ jobs:
   test-sqlite:
     name: 测试（SQLite 后端）
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # 仅为失败时的 PR 评论步骤（TD-267）
     timeout-minutes: 35
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
           cache: pip
@@ -256,6 +266,9 @@ jobs:
   test-postgres:
     name: 测试（真 PostgreSQL 16）
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write  # 仅为失败时的 PR 评论步骤（TD-267）
     timeout-minutes: 35
 
     services:
@@ -280,11 +293,11 @@ jobs:
       PGUSER: postgres
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
-      - uses: actions/setup-python@v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.11"
           cache: pip

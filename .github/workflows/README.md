@@ -19,14 +19,14 @@
 | `test-postgres` | PostgreSQL 16 服务、专门初始化检查库、全量测试库 | 独立空库运行init/status，第二次init必须拒绝；另验维护锁、账本回滚与旧数据保留 |
 
 pytest 管道启用 pipefail，避免 tee 成功掩盖测试失败。失败评论是辅助取证；日志不可下载或无 PR 可评论时，仍以实际 job 状态为准。
-contents:read 用于 checkout；pull-requests:write 用于失败评论。权限可用性和网络条件是环境事实，不把过去某次连接成功当成永久保证。
+contents:read 用于 checkout；pull-requests:write **只在两个 test job 上**为失败评论开启，顶层与其余四个 job 只读（TD-267）。第三方 action 一律钉到完整 commit SHA 并带 `# vX.Y.Z` 注释——可变标签会随上游 force-push 移动，SHA 不会；升级时同时改 SHA 与注释，用 `gh api repos/<owner>/<repo>/git/ref/tags/<tag>` 核对（当前 checkout v7.0.1 `3d3c42e5…`、setup-python v7.0.0 `5fda3b95…`、setup-node v7.0.0 `82076278…`）。`postgres:16` 服务镜像未钉 digest：沙箱访问不到 Docker Hub 取得可核对的值，钉一个未核对的 digest 比不钉更差；它只提供一次性测试库。`tests/test_ci_supply_chain.py` 钉住以上规则以及 requirements `==` 精确版本、package-lock 全部 integrity、CI 用 `npm ci`。权限可用性和网络条件是环境事实，不把过去某次连接成功当成永久保证。
 
 <!-- doc-contract:files:start -->
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `efbbecbc14c4` | L1–L88 |
-| [`.github/workflows/ci.yml`](ci.yml) | `f56faf645017` | L1–L335 |
+| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `71facbf334c6` | L1–L88 |
+| [`.github/workflows/ci.yml`](ci.yml) | `c77be8e6909c` | L1–L348 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
