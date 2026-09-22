@@ -604,3 +604,11 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 明确未做及原因：① `postgres:16` 服务镜像未钉 digest——沙箱访问不到 Docker Hub（auth.docker.io / hub.docker.com 连接失败），拿不到可核对的 digest，钉一个未经核对的值比不钉更差，而且该容器只在 CI 内提供一次性测试库；② pip `--require-hashes`——需要为 26 个直接依赖及全部传递依赖生成并维护哈希锁文件，会改变 `pip install -r requirements.txt` 这条部署与 CI 共用的安装流程，属于"先有兼容方案再做"；③ O-08 其余项（类型检查、缓存/压缩、索引/连接池）仍按"先有基准"原则待测量，不盲加。
 
 代价：升级 action 从改一个标签变成改 SHA + 注释两处，且要用 `gh api` 核对；Dependabot/Renovate 若日后启用需配置为按 SHA 更新。回看条件：能可靠取得镜像 digest（例如有出口访问 Docker Hub 的环境）时补钉；引入 pip-tools/uv 一类锁文件工具时一并做哈希锁。
+
+## TD-268：爬虫按跳查 robots、域状态表 LRU 上限、Crawl-delay 上限；SSRF 与 Chromium 停用不动
+
+2026-09-22。ROADMAP O-07。先用 MockTransport + 字面量公网 IP 的合成探针复现，三项成立、两项不成立。成立：① 入口 URL 过了 A 站 robots 后 302 到 B 站，B 站的页面直接抓走，B 的 robots 一次都没读——`check_allowed` 只在 `fetch` 入口执行一次，`_request` 内部逐跳只做 SSRF 校验；② 20000 个不同 origin 的 `check_allowed` 留下 20000 个永久 `_DomainState`（各带一把 `asyncio.Lock` 和解析器），注释里"冷启动只涉及少数几个站"的前提对接受任意 URL 的管理员入库端点不成立；③ robots 写 `Crawl-delay: 3600` 甚至 `1e9` 时 `min_interval_for` 原样返回，`throttle` 就会占着一个全局并发槽（共 4 个）睡那么久。不成立、因此不改：robots 的 512 KB 上限已生效（1.3 MB robots 在 Content-Length 阶段就被拒）；5xx/超时的否定结果缓存整个 `ROBOTS_TTL` 是既有的保守选择（宁可漏抓一小时也不在规则未知时硬闯），保留。
+
+改法：`_request` 增加可选 `on_hop(url)` 回调，在每一跳 SSRF 校验之后、发请求之前调用；`fetch` 传入 `robots_for_hop` 对目标做 `check_allowed`——换域看该域 robots，同域也核对目标路径；robots 自身的抓取不传 `on_hop`，所以不会"为了判断能不能抓 robots 而去查 robots"。`_states` 改为 `OrderedDict`，命中即 `move_to_end`，上限 `MAX_DOMAIN_STATES=512`，满了从队头淘汰第一个**未持锁**的项，全部持锁则宁可暂时超上限也不删正在使用的状态（等锁的协程醒来后写孤儿对象等于丢规则）。`MAX_CRAWL_DELAY=60`：解析到的 Crawl-delay 超过它就把该域标为不抓，`check_allowed` 的文案点名要求值与上限；恰等于上限仍接受。放弃了"把超长 Crawl-delay 截断到 60 秒再抓"——那是无视站方明确要求，比不抓更不礼貌。
+
+代价：重定向目标域的 robots 会多一次请求（有缓存，同域一小时一次）；状态表满时每次新域名要线性扫队头找未持锁项，512 的量级可忽略；Crawl-delay 在 60 秒以上的站永远抓不到，需要时提高常量而不是绕过；SSRF 固定 DNS/地址逐跳校验与动态 Chromium 停用（TD-131 系）未改动也未重新验收。回看条件：入库改为批量/自动任务（状态表与并发数需重新定）、或出现合法的高 Crawl-delay 目标站。

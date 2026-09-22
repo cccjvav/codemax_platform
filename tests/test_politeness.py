@@ -282,3 +282,136 @@ def test_min_interval_prefers_crawl_delay():
     assert politeness.min_interval_for(politeness._DomainState(crawl_delay=0.0)) == (
         politeness.DEFAULT_MIN_INTERVAL
     )
+
+
+# ============================================================ 资源边界（TD-268 / O-07）
+
+
+@pytest.mark.asyncio
+async def test_excessive_crawl_delay_refuses_instead_of_sleeping_on_a_slot():
+    """robots 写 Crawl-delay 3600：不抓（RobotsDisallowed 且文案点名上限），而不是占着并发槽睡一小时。
+
+    复现依据：改前 `min_interval_for` 原样返回 3600 甚至 1e9，`throttle` 就会 `asyncio.sleep` 那么久。
+    """
+    t, seen = transport(200, f"User-agent: *\nDisallow:\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY) + 1}\n")
+    started = time.monotonic()
+    with pytest.raises(RobotsDisallowed, match="Crawl-delay"):
+        await fetch(f"{BASE}/blog/a", transport=t)
+    assert time.monotonic() - started < 1.0, "必须立即拒绝，不能真的等"
+    assert not any("/blog/a" in u for u in seen), "被拒的 URL 不该被请求"
+    # 恰好等于上限的仍然接受（边界含等号）
+    politeness.reset_cache()
+    t2, _ = transport(200, f"User-agent: *\nDisallow:\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY)}\n")
+    await politeness.check_allowed(f"{BASE}/blog/b", USER_AGENT, _text_via(t2))
+    assert politeness.state_for(f"{BASE}/blog/b").crawl_delay == politeness.MAX_CRAWL_DELAY
+
+
+def _text_via(t: httpx.MockTransport):
+    async def fetch_text(url: str) -> tuple[int, str]:
+        async with httpx.AsyncClient(transport=t) as client:
+            r = await client.get(url)
+            return r.status_code, r.text
+    return fetch_text
+
+
+@pytest.mark.asyncio
+async def test_domain_state_table_is_bounded_and_evicts_least_recently_used(monkeypatch):
+    """入库端点接受任意 URL：状态表必须有上限，满了淘汰最久未用的项，最近用过的保留。
+
+    复现依据：改前 20000 个不同 origin 就是 20000 个永久条目（各带一把 Lock 与解析器）。
+    """
+    monkeypatch.setattr(politeness, "MAX_DOMAIN_STATES", 3)
+
+    async def no_robots(url: str) -> tuple[int, str]:
+        return 404, ""
+
+    for host in ("a", "b", "c"):
+        await politeness.check_allowed(f"http://{host}.example/", USER_AGENT, no_robots)
+    await politeness.check_allowed("http://a.example/again", USER_AGENT, no_robots)  # a 变成最近使用
+    await politeness.check_allowed("http://d.example/", USER_AGENT, no_robots)  # 满了：淘汰最久未用的 b
+    assert [o[1] for o in politeness._states] == ["c.example", "a.example", "d.example"]
+    assert len(politeness._states) == 3
+
+
+@pytest.mark.asyncio
+async def test_eviction_skips_states_whose_lock_is_held(monkeypatch):
+    """正在拉 robots / 正在排队的域持有锁，不能被淘汰——否则等锁的协程醒来后写的是一个孤儿对象。"""
+    monkeypatch.setattr(politeness, "MAX_DOMAIN_STATES", 2)
+    busy = politeness.state_for("http://busy.example/")
+    politeness.state_for("http://idle.example/")
+    await busy.lock.acquire()
+    try:
+        politeness.state_for("http://new.example/")
+        assert ("http", "busy.example") in politeness._states, "持锁的项不能被淘汰"
+        assert ("http", "idle.example") not in politeness._states
+    finally:
+        busy.lock.release()
+    # 全部在忙时宁可暂时超上限
+    monkeypatch.setattr(politeness, "MAX_DOMAIN_STATES", 1)
+    politeness.reset_cache()
+    s1 = politeness.state_for("http://one.example/")
+    await s1.lock.acquire()
+    try:
+        politeness.state_for("http://two.example/")
+        assert len(politeness._states) == 2
+    finally:
+        s1.lock.release()
+
+
+@pytest.mark.asyncio
+async def test_redirect_target_domain_robots_is_consulted():
+    """A 站允许、302 到 B 站：B 站的 robots 同样算数，B 禁止就不抓，且 B 的页面从未被请求。
+
+    复现依据：改前只在入口 URL 检查 robots，重定向后的 B 页面直接抓走（B 的 robots 一次都没读）。
+    """
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            body = "User-agent: *\nDisallow: /\n" if request.url.host == OTHER_IP else "User-agent: *\nAllow: /\n"
+            return httpx.Response(200, text=body)
+        if request.url.host == FAKE_IP:
+            return httpx.Response(302, headers={"location": f"{OTHER}/secret"})
+        return httpx.Response(200, text="OTHER-CONTENT")
+
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/jump", transport=httpx.MockTransport(handle))
+    assert f"{OTHER}/robots.txt" in seen, "重定向目标域的 robots 必须被读取"
+    assert f"{OTHER}/secret" not in seen, "B 站禁止时不得请求 B 的页面"
+
+
+@pytest.mark.asyncio
+async def test_same_domain_redirect_still_obeys_path_rules():
+    """同域重定向到被 Disallow 的路径也要拦：入口路径允许不等于目标路径允许。"""
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nDisallow: /private\n")
+        if request.url.path == "/public":
+            return httpx.Response(302, headers={"location": f"{BASE}/private/x"})
+        return httpx.Response(200, text="PRIVATE")
+
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/public", transport=httpx.MockTransport(handle))
+    assert f"{BASE}/private/x" not in seen
+
+
+@pytest.mark.asyncio
+async def test_robots_fetch_never_passes_on_hop_so_it_cannot_recurse():
+    """robots.txt 自己 302 到别处时不会再为那一跳查 robots（否则无限递归），但 SSRF 校验仍逐跳做。"""
+    seen: list[str] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        seen.append(str(request.url))
+        if request.url.path == "/robots.txt" and request.url.host == FAKE_IP:
+            return httpx.Response(302, headers={"location": f"{OTHER}/robots.txt"})
+        if request.url.path == "/robots.txt":
+            return httpx.Response(200, text="User-agent: *\nAllow: /\n")
+        return httpx.Response(200, text=PAGE)
+
+    page = await fetch(f"{BASE}/blog/a", transport=httpx.MockTransport(handle))
+    assert page.url == f"{BASE}/blog/a"
+    assert seen.count(f"{OTHER}/robots.txt") == 1, "robots 的重定向只跟一次，不再递归查 robots"

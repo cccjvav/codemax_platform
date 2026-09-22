@@ -123,12 +123,16 @@ class PublicTransport(httpx.AsyncHTTPTransport):
 
 
 async def _request(
-    url: str, *, transport: httpx.BaseTransport | None, max_bytes: int
+    url: str, *, transport: httpx.BaseTransport | None, max_bytes: int, on_hop=None
 ) -> httpx.Response:
-    """只做 SSRF 校验 + 发请求，**不做礼貌性检查**。
+    """只做 SSRF 校验 + 发请求，**不做礼貌性检查**（`on_hop` 除外，见下）。
 
     这一层的存在理由就是给 robots.txt 的抓取用：robots 请求自己也要防 SSRF，
     但绝不能再触发一次 `check_allowed`。
+
+    `on_hop(url)`：每次即将跟随一个重定向目标时调用（在 SSRF 校验之后、发请求之前）。
+    `fetch()` 用它对**每一跳的目标域**做 robots 检查（TD-268）：A 站允许、302 到 B 站，
+    B 站的规则同样算数；robots 自己的抓取不传 `on_hop`，所以不会递归。
 
     ## 为什么自己跟重定向，而不用 `follow_redirects=True`
 
@@ -159,6 +163,8 @@ async def _request(
             await r.aclose()  # 重定向的响应体不要
             current = str(r.url.join(location))  # 相对 Location 要按当前 URL 解析
             await assert_public_url(current)
+            if on_hop is not None:
+                await on_hop(current)
         else:
             raise CrawlError(f"重定向次数超过上限 {MAX_REDIRECTS}（可能存在重定向环）")
 
@@ -218,10 +224,15 @@ async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_b
         return r.status_code, r.text
 
     await politeness.check_allowed(url, USER_AGENT, fetch_text)
+
+    async def robots_for_hop(target: str) -> None:
+        # 重定向目标换了域就要看那个域的 robots；同域也要按其规则核对具体路径（TD-268）
+        await politeness.check_allowed(target, USER_AGENT, fetch_text)
+
     state = politeness.state_for(url)
     async with politeness._get_semaphore():  # 全局并发闸
         await politeness.throttle(url, state)
-        r = await _request(url, transport=transport, max_bytes=max_bytes)
+        r = await _request(url, transport=transport, max_bytes=max_bytes, on_hop=robots_for_hop)
     if r.status_code != 200:
         raise CrawlError(f"抓取失败：HTTP {r.status_code} {url}")
     return Page(url=str(r.url), status=r.status_code, html=r.text)

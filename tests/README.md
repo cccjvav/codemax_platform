@@ -107,7 +107,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
 | [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `161b0f76e53b` | L1–L569 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
-| [`tests/test_politeness.py`](test_politeness.py) | `a50a1f27f425` | L1–L284 |
+| [`tests/test_politeness.py`](test_politeness.py) | `0f7c2d0cf8ae` | L1–L417 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `9d96eee2f113` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `81b0cfb3ea5a` | L1–L279 |
@@ -175,6 +175,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-22 爬虫资源边界回归（TD-268）
+
+`test_politeness.py` 新增：Crawl-delay 超上限（61 秒）立即 RobotsDisallowed 且页面未请求、恰等于上限（60 秒）仍接受；状态表上限 3 时 LRU 淘汰顺序 c/a/d；持锁项不淘汰、全部持锁时允许暂时超上限；A 允许→302→B 全禁时读到 B 的 robots 且 B 页面未请求；同域重定向到 Disallow 路径被拦；robots 自身 302 只跟一次不递归。MockTransport + 字面量公网 IP，SSRF 校验真跑；不访问外网。
 
 ## 2026-09-22 工作流供应链守卫（TD-267）
 

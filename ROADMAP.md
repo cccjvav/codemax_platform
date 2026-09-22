@@ -72,6 +72,6 @@
 - **P-04 / 按需**：若开放不受信第三方 OAuth，再设计 scope/audience、PKCE、同意事务和撤销/会话治理；当前保持受信第一方，不把可选第三方协议强塞进首发。
 - **O-05 / P3**：SQL 工具需清晰限定/拒绝不支持的 ALTER 外键、隐式父键、标识符折叠与方言类型；有正反语料才扩展，不能称完整 MySQL/PostgreSQL parser。
 - **O-06 / P2**：Drawio 脏稿提示/恢复及 XML 子集/删除恢复前置条件先做协议设计和浏览器验收，保证账号切换隔离与 origin/source/epoch 相关性不退化。
-- **O-07 / P3**：爬虫每跳 robots 政策、host 礼貌状态淘汰和资源预算专项复核；保持 SSRF 固定 DNS/地址检查与动态 Chromium 停用，不在未复现前宣称绕过。
+- **O-07 / P3** 已完成（2026-09-22，TD-268）：合成探针复现三项——A 站允许、302 到 B 站时 B 的 robots 一次都没读就抓走页面；20000 个不同 origin 得到 20000 个永久状态项；`Crawl-delay: 3600`/`1e9` 被原样当作间隔（一次抓取占一个并发槽睡那么久）。修复：`_request` 的 `on_hop` 让 `fetch` 对每一跳目标做 robots 检查（robots 自身抓取不传，不递归）；状态表改 OrderedDict LRU、上限 512、持锁项不淘汰；`Crawl-delay` > 60 秒的站按不欢迎处理立即拒绝。SSRF 逐跳校验与动态 Chromium 停用未动。回归 `tests/test_politeness.py` 新增 6 项（5 项在旧代码上失败）。未复现、因此未改：robots 512 KB 上限已生效（1.3 MB robots 被 413 类拒绝）；5xx/超时的否定结果缓存整个 TTL 是既有的保守选择，保留。
 - **O-08 / P3** 部分完成（2026-09-22，TD-267）：两份工作流的 16 处 `uses:` 全部钉到 commit SHA（经 `gh api` 与标签核对）并带版本注释；`pull-requests: write` 从顶层收到两个 test job；`tests/test_ci_supply_chain.py` 守住 SHA 钉住、同 action 同 SHA、权限范围、requirements 精确版本、package-lock integrity、`npm ci`。**未做**：`postgres:16` 镜像 digest（沙箱取不到可核对值）、pip `--require-hashes`（需要为 26 个直接依赖及其全部传递依赖生成哈希锁文件，改变安装流程，先有兼容方案再做）、类型检查/缓存/索引等其余项仍按"先有基准"原则待测量。
 - **O-09 / P3** 已完成（2026-09-20，随 TD-262 批次后的清理提交）：TD-214 行内订正（指纹已是全文 sha256）、TD-217 注明常量；`_payload` 去掉从未读取的 `pay_mode` 形参、`crawler.py` 裸 `assert` 改为显式 `CrawlError`、`ruff --extend-select RUF100` 报告的 7 处无效 `# noqa` 删除（复核报告写的 15 处包含用 `--select RUF100` 单独运行时的 8 条误报，那样运行会丢掉 `ruff.toml` 的规则集）。无行为变化，历史 TD 顺序不动。

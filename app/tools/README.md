@@ -44,8 +44,8 @@
 | `_request` | URL、transport、字节上限 → HTTPX Response | 手动逐跳验证重定向、按解压后字节限量；重建响应时移除已消费的压缩/长度头，避免二次解码 |
 | `fetch` | URL → Page（最终 URL、HTML 等） | robots → 域节流/进程内并发闸 → 请求；非成功页与不支持的内容拒绝；不执行 JavaScript |
 | `to_skeleton` | HTML → 有界文本 DOM 骨架 | 迭代遍历；默认最多 1000 节点、深度 32、输出 32,000 字符，并限制单段文本/属性；给模型结构提示，不等于已提取正文 |
-| `check_allowed` / `_load_robots` | URL、UA、注入抓取函数 → 判定或 RobotsDisallowed | 404/410 视为没有 robots 限制；401/403、暂时不可知等保守拒绝。复用同一受约束请求路径读取 robots |
-| `state_for` / `min_interval_for` / `throttle` | 域状态 → 最小间隔或等待 | 状态按 scheme/netloc 分组；锁内更新上次请求时间；优先站方有效 Crawl-delay，否则默认间隔 |
+| `check_allowed` / `_load_robots` | URL、UA、注入抓取函数 → 判定或 RobotsDisallowed | 404/410 视为没有 robots 限制；401/403、暂时不可知等保守拒绝；`Crawl-delay` 超过 `MAX_CRAWL_DELAY`（60 秒）的站也拒绝而不是占并发槽久等（TD-268）。复用同一受约束请求路径读取 robots；`fetch` 对重定向每一跳的目标域再调用一次 |
+| `state_for` / `min_interval_for` / `throttle` | 域状态 → 最小间隔或等待 | 状态按 scheme/netloc 分组，表上限 `MAX_DOMAIN_STATES`（512）满了淘汰最久未用且未持锁的项（TD-268）；锁内更新上次请求时间；优先站方有效 Crawl-delay，否则默认间隔 |
 | `_get_semaphore` / `reset_cache` | 进程内并发闸／清理测试状态 | 不是跨服务全局限速；域缓存无硬性 LRU 容量上限，不应描述成无限规模抓取系统 |
 
 **动态浏览器当前停用。** `browser_available()` 只检查可否 import Playwright，不代表功能可用；`render()` 保留预检查和返回 Page 的接口，但生产 `_goto()` 会抛 BrowserUnavailable。安装浏览器不能解除这一限制。`_abort_non_public` 是保留的防御 helper，不能据此宣称浏览器已有网络隔离。恢复前需要专门的隔离出口设计与真实浏览器验证。
@@ -86,12 +86,12 @@
 | --- | --- | --- |
 | [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
-| [`app/tools/crawler.py`](crawler.py) | `1fef9c45dc89` | L1–L286 |
+| [`app/tools/crawler.py`](crawler.py) | `1c6b985765f1` | L1–L297 |
 | [`app/tools/extract.py`](extract.py) | `bf983e6a4cb0` | L1–L173 |
 | [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
-| [`app/tools/politeness.py`](politeness.py) | `253d12854aa5` | L1–L183 |
+| [`app/tools/politeness.py`](politeness.py) | `b4f1695a2f9a` | L1–L227 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
