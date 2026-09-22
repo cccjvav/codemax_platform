@@ -11,7 +11,7 @@
 
 | 函数 | 输入 → 输出 | 算法与边界 |
 | --- | --- | --- |
-| `parse_ddl(sql)` | 建表 SQL → `{tables, edges}` | 不执行 SQL；常见 MySQL/PostgreSQL 子集，不是完整语法验证器；没有可识别表时返回空图，由 HTTP 层报 400 |
+| `parse_ddl(sql)` | 建表 SQL → `{tables, edges}` | 不执行 SQL；常见 MySQL/PostgreSQL 子集，不是完整语法验证器；没有可识别表时返回空图，由 HTTP 层报 400。TD-269 起：`ALTER TABLE [ONLY] t ADD [CONSTRAINT x] FOREIGN KEY … REFERENCES …` 计入边；`REFERENCES parent` 不写列按父表单列主键补全（复合/未定义留空 `to_column`，边保留）；不带引号的表名引用按小写折叠匹配、带引号精确匹配（与 PostgreSQL 一致，不替用户"修正"会被数据库拒绝的写法）；类型串只留名字/长度/精度/数组/WITH TIME ZONE，UNSIGNED/CHARACTER SET/GENERATED 等修饰不进类型 |
 | `_scan` / `_strip_comments` / `_in_string_positions` | 原始 SQL → 词法状态、去注释文本或字符串位置 | 区分引号、转义与注释；先屏蔽字面量再判断约束，不能把 DEFAULT 字符串中的 PRIMARY KEY 当约束 |
 | `_iter_tables` / `_read_balanced` / `_split_top_level` | SQL 或表体 → 表块或顶层字段片段 | 按括号层级与引号分割，不按所有逗号直接 split；类型参数和字符串内逗号必须保留 |
 | `_parse_table` / `_parse_column` / `_parse_constraint` | 字段片段 → 列、主键标记、外键边 | 同时处理列内与表级约束；复合外键展开为字段配对边，不是完整关系约束模型 |
@@ -92,7 +92,7 @@
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
 | [`app/tools/politeness.py`](politeness.py) | `b4f1695a2f9a` | L1–L227 |
-| [`app/tools/sql_ddl.py`](sql_ddl.py) | `627feb0b2dec` | L1–L365 |
+| [`app/tools/sql_ddl.py`](sql_ddl.py) | `edcabf52bc1a` | L1–L432 |
 | [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
 

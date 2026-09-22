@@ -231,6 +231,112 @@ def test_string_with_comma_paren_and_semicolon():
     assert [c["name"] for c in graph["tables"][0]["columns"]] == ["a", "b"]
 
 
+# ---------------------------------------------------------------- 方言边界（TD-269 / O-05）
+
+
+def edges(graph):
+    return sorted((e["from_table"], e["from_column"], e["to_table"], e["to_column"]) for e in graph["edges"])
+
+
+def test_alter_table_add_foreign_key_is_an_edge():
+    """pg_dump / mysqldump 都把外键放在 CREATE 之后的 ALTER 里；改前这类 DDL 一条边都出不来。"""
+    graph = parse_ddl("""
+        CREATE TABLE users (id INT PRIMARY KEY);
+        CREATE TABLE orders (id INT PRIMARY KEY, user_id INT, buyer INT);
+        ALTER TABLE orders ADD CONSTRAINT fk_o_u FOREIGN KEY (user_id) REFERENCES users(id);
+        ALTER TABLE ONLY orders ADD FOREIGN KEY (buyer) REFERENCES public.users (id) ON DELETE CASCADE;
+    """)
+    assert edges(graph) == [("orders", "buyer", "users", "id"), ("orders", "user_id", "users", "id")]
+
+
+def test_alter_for_unknown_table_or_inside_string_is_ignored():
+    graph = parse_ddl("""
+        CREATE TABLE t (id INT PRIMARY KEY, note TEXT DEFAULT 'ALTER TABLE t ADD FOREIGN KEY (id) REFERENCES x(id)');
+        ALTER TABLE elsewhere ADD FOREIGN KEY (a) REFERENCES t(id);
+    """)
+    assert graph["edges"] == []
+
+
+def test_implicit_parent_key_uses_single_column_primary_key():
+    """`REFERENCES parent` 不写列 = 父表主键（SQL 标准）；列级与表级两种写法都要认。"""
+    graph = parse_ddl("""
+        CREATE TABLE users (id INT PRIMARY KEY, name TEXT);
+        CREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES users, buyer INT,
+                             FOREIGN KEY (buyer) REFERENCES users);
+    """)
+    assert edges(graph) == [("orders", "buyer", "users", "id"), ("orders", "user_id", "users", "id")]
+
+
+def test_implicit_parent_key_accepts_trailing_clauses_but_not_garbage():
+    """省略列表的 REFERENCES 后面可以跟 ON/MATCH/DEFERRABLE/NOT NULL 等子句；但 `REFERENCES t-1(id)` 这种
+    残缺写法（test_perf 里故意生成的首表）不能被截成 `REFERENCES t`——那是凭空多出一条边。"""
+    graph = parse_ddl("""
+        CREATE TABLE u (id INT PRIMARY KEY);
+        CREATE TABLE t (id INT PRIMARY KEY, a INT REFERENCES u ON DELETE CASCADE, b INT REFERENCES u NOT NULL,
+                        c INT REFERENCES u(id) DEFERRABLE INITIALLY DEFERRED, d INT, FOREIGN KEY (d) REFERENCES u MATCH FULL);
+        ALTER TABLE t ADD FOREIGN KEY (a) REFERENCES u ON DELETE SET NULL;
+        CREATE TABLE broken (id INT PRIMARY KEY, prev_id INT, FOREIGN KEY (prev_id) REFERENCES t-1(id), q INT REFERENCES t-1(id));
+    """)
+    assert edges(graph) == [("t", "a", "u", "id"), ("t", "a", "u", "id"), ("t", "b", "u", "id"),
+                            ("t", "c", "u", "id"), ("t", "d", "u", "id")]
+
+
+def test_implicit_parent_key_stays_blank_when_ambiguous():
+    """父表是复合主键或不在 DDL 内：不猜列名，to_column 留空，边仍保留供前端按表连线。"""
+    graph = parse_ddl("""
+        CREATE TABLE pair (a INT, b INT, PRIMARY KEY (a, b));
+        CREATE TABLE child (x INT REFERENCES pair, y INT REFERENCES outside);
+    """)
+    assert edges(graph) == [("child", "x", "pair", ""), ("child", "y", "outside", "")]
+
+
+def test_unquoted_table_references_fold_case_but_quoted_ones_are_exact():
+    """SQL 标准折叠（PostgreSQL 的做法）：不带引号的标识符折叠成小写再比较，带引号的按原样。
+
+    改前只做逐字比较：`REFERENCES USERS(id)` 对不上 `CREATE TABLE Users`，前端当悬空外键丢掉。
+    作图不替用户"修正"数据库会拒绝的写法：`"Mixed"` 定义、`mixed` 引用在 PG 里是表不存在，这里保持悬空。
+    """
+    graph = parse_ddl("""
+        CREATE TABLE Users (ID INT PRIMARY KEY);
+        CREATE TABLE orders (id INT PRIMARY KEY, user_id INT REFERENCES USERS(id), owner INT REFERENCES "users"(id),
+                             other INT REFERENCES "Users"(id));
+        CREATE TABLE "Mixed" (id INT PRIMARY KEY);
+        CREATE TABLE ref (m INT REFERENCES "Mixed"(id), n INT REFERENCES mixed(id), o INT REFERENCES "mixed"(id));
+    """)
+    by_col = {(e["from_table"], e["from_column"]): e["to_table"] for e in graph["edges"]}
+    assert by_col[("orders", "user_id")] == "Users", "USERS 与 Users 都折叠成 users"
+    assert by_col[("orders", "owner")] == "Users", '"users" 精确等于定义折叠后的 users'
+    # 定义 `Users` 不带引号 → 有效名 users；引用 `"Users"` 带引号 → 有效名 Users。两者不同，PG 会报表不存在。
+    # 但解析器**先做逐字精确匹配**（写法与定义完全一致），所以这条仍连到 Users：保留的是原有行为，不是折叠规则。
+    assert by_col[("orders", "other")] == "Users"
+    assert by_col[("ref", "m")] == "Mixed"
+    assert by_col[("ref", "n")] == "mixed", "不带引号的 mixed 折叠后与 Mixed 不同：悬空，与 PG 一致"
+    assert by_col[("ref", "o")] == "mixed", '带引号的 "mixed" 与 "Mixed" 不同：悬空'
+
+
+def test_dialect_type_modifiers_are_kept_or_dropped_predictably():
+    """类型只保留名字/长度/精度/数组/WITH TIME ZONE；UNSIGNED、CHARACTER SET、GENERATED、SRID 等修饰不进类型串。"""
+    graph = parse_ddl("""
+        CREATE TABLE t (
+          a INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+          b ENUM('x','y') DEFAULT 'x',
+          d DOUBLE PRECISION,
+          e CHARACTER VARYING(20),
+          f TIMESTAMP WITH TIME ZONE,
+          g NUMERIC(10, 2) UNSIGNED ZEROFILL,
+          h INT[],
+          i BIGINT GENERATED ALWAYS AS IDENTITY,
+          j VARCHAR(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_bin,
+          l JSONB DEFAULT '{}'::jsonb
+        );
+    """)
+    types = {c["name"]: c["type"] for c in graph["tables"][0]["columns"]}
+    assert types == {"a": "INT", "b": "ENUM('X','Y')", "d": "DOUBLE PRECISION", "e": "CHARACTER VARYING(20)",
+                     "f": "TIMESTAMP WITH TIME ZONE", "g": "NUMERIC(10,2)", "h": "INT[]", "i": "BIGINT",
+                     "j": "VARCHAR(10)", "l": "JSONB"}
+    assert col(graph["tables"][0], "a")["primary_key"] and not col(graph["tables"][0], "a")["nullable"]
+
+
 async def test_endpoint_returns_graph(client):
     r = await client.post("/tools/er-diagram", json={"ddl": PG_DDL})
     assert r.status_code == 200

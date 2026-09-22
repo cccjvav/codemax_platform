@@ -70,7 +70,7 @@
 ### 保留的专项余项（不因清理旧队列而丢失）
 
 - **P-04 / 按需**：若开放不受信第三方 OAuth，再设计 scope/audience、PKCE、同意事务和撤销/会话治理；当前保持受信第一方，不把可选第三方协议强塞进首发。
-- **O-05 / P3**：SQL 工具需清晰限定/拒绝不支持的 ALTER 外键、隐式父键、标识符折叠与方言类型；有正反语料才扩展，不能称完整 MySQL/PostgreSQL parser。
+- **O-05 / P3** 已完成（2026-09-22，TD-269）：四组正反语料先探针后实现——`ALTER TABLE … ADD FOREIGN KEY`（pg_dump/mysqldump 写法）改前零边，现计入；`REFERENCES parent` 不写列按父表单列主键补全，复合主键/父表不在 DDL 内留空列名；不带引号的表名引用按小写折叠、带引号精确（与 PG 一致，`"Mixed"` 定义、`mixed` 引用仍悬空）；方言类型修饰（UNSIGNED、CHARACTER SET、GENERATED、SRID）不进类型串——这一项复核后为既有行为，只补钉住用例。回归 `tests/test_sql_ddl.py` +5（4 项在旧解析器上失败）；模块 docstring 与 README 限制清单同步。仍不是完整 parser：表级 MySQL COMMENT、CHECK 内容、分区/继承不解析。
 - **O-06 / P2**：Drawio 脏稿提示/恢复及 XML 子集/删除恢复前置条件先做协议设计和浏览器验收，保证账号切换隔离与 origin/source/epoch 相关性不退化。
 - **O-07 / P3** 已完成（2026-09-22，TD-268）：合成探针复现三项——A 站允许、302 到 B 站时 B 的 robots 一次都没读就抓走页面；20000 个不同 origin 得到 20000 个永久状态项；`Crawl-delay: 3600`/`1e9` 被原样当作间隔（一次抓取占一个并发槽睡那么久）。修复：`_request` 的 `on_hop` 让 `fetch` 对每一跳目标做 robots 检查（robots 自身抓取不传，不递归）；状态表改 OrderedDict LRU、上限 512、持锁项不淘汰；`Crawl-delay` > 60 秒的站按不欢迎处理立即拒绝。SSRF 逐跳校验与动态 Chromium 停用未动。回归 `tests/test_politeness.py` 新增 6 项（5 项在旧代码上失败）。未复现、因此未改：robots 512 KB 上限已生效（1.3 MB robots 被 413 类拒绝）；5xx/超时的否定结果缓存整个 TTL 是既有的保守选择，保留。
 - **O-08 / P3** 部分完成（2026-09-22，TD-267）：两份工作流的 16 处 `uses:` 全部钉到 commit SHA（经 `gh api` 与标签核对）并带版本注释；`pull-requests: write` 从顶层收到两个 test job；`tests/test_ci_supply_chain.py` 守住 SHA 钉住、同 action 同 SHA、权限范围、requirements 精确版本、package-lock integrity、`npm ci`。**未做**：`postgres:16` 镜像 digest（沙箱取不到可核对值）、pip `--require-hashes`（需要为 26 个直接依赖及其全部传递依赖生成哈希锁文件，改变安装流程，先有兼容方案再做）、类型检查/缓存/索引等其余项仍按"先有基准"原则待测量。

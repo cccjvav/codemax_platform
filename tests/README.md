@@ -129,7 +129,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_shop_page.py`](test_shop_page.py) | `41a0a9a1815e` | L1–L455 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `a8bf9e4527d0` | L1–L179 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
-| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `d22443181e2b` | L1–L254 |
+| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
 | [`tests/test_support.py`](test_support.py) | `9cd0e6ef02c4` | L1–L240 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `de7599c20fee` | L1–L113 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
@@ -175,6 +175,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-22 DDL 解析方言边界回归（TD-269）
+
+`test_sql_ddl.py` 新增：`ALTER TABLE [ONLY] … ADD [CONSTRAINT] FOREIGN KEY` 两种写法各出一条边、ALTER 未知表或字符串里的 ALTER 忽略；列级与表级 `REFERENCES parent` 不写列都补成父表主键，复合主键/父表缺失时 to_column 留空且边保留；`USERS`/`"users"` 引用折叠到 `Users`，`mixed`/`"mixed"` 引用 `"Mixed"` 保持悬空（与 PG 一致），带引号且逐字一致的仍精确命中；十种方言类型修饰的输出类型串逐项钉住。修复前 4 项失败。
 
 ## 2026-09-22 爬虫资源边界回归（TD-268）
 

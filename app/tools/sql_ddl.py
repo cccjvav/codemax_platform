@@ -19,9 +19,12 @@
 语法子集，不是 MySQL/PostgreSQL 的完整解析器：
     - 支持常见 CREATE（含临时/UNLOGGED）、列/表内外键、PG COMMENT ON。
     - 保留常见多词/数组/限定类型及括号 DEFAULT；识别 dollar string 与嵌套注释。
-    - ALTER 外键、隐式引用主键、大小写折叠、表级 MySQL COMMENT 等仍有限制。
-    - 未闭合字符串/注释延续到结尾；部分合法 DDL 仍可能遗漏结构，输出需人工复核。
-不能再把这些限制概括为“只影响显示，不影响结构”；完整方言解析属于后续工作。
+    - TD-269 起：`ALTER TABLE [ONLY] t ADD [CONSTRAINT x] FOREIGN KEY (...) REFERENCES p (...)` 计入外键
+      （pg_dump / mysqldump 都这么写）；`REFERENCES parent` 不写列时按父表主键补全（单列主键；复合主键或
+      父表不在 DDL 内则留空列名）；不带引号的表名引用按大小写不敏感匹配（SQL 标准折叠），带引号的精确匹配。
+    - 表级 MySQL COMMENT、CHECK/EXCLUDE 内容、分区/继承等仍不解析；未闭合字符串/注释延续到结尾。
+    - 部分合法 DDL 仍可能遗漏结构，输出需人工复核。
+不能再把这些限制概括为"只影响显示，不影响结构"；完整方言解析属于后续工作。
 """
 from __future__ import annotations
 
@@ -33,10 +36,18 @@ _IDENT = rf"{_IDENT_PART}(?:\s*\.\s*{_IDENT_PART})*"
 
 _DOLLAR_QUOTE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
 _CREATE_TABLE = re.compile(r"CREATE\s+(?:(?:TEMP|TEMPORARY|UNLOGGED)\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", re.IGNORECASE)
+# ALTER TABLE [ONLY] [IF EXISTS] t ADD [CONSTRAINT name] FOREIGN KEY (cols) REFERENCES p [(cols)]（TD-269）
+_ALTER_FK = re.compile(
+    rf"ALTER\s+TABLE\s+(?:ONLY\s+)?(?:IF\s+EXISTS\s+)?({_IDENT})\s+ADD\s+(?:CONSTRAINT\s+{_IDENT}\s+)?"
+    rf"FOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+({_IDENT})\s*(?:\(([^)]*)\)|(?=\s*;|\s*$|\s+(?:ON|MATCH|DEFERRABLE|NOT|INITIALLY)\b))",
+    re.IGNORECASE,
+)
 _TYPE = re.compile(rf"^({_IDENT}(?:\s+(?:PRECISION|VARYING))?(?:\s*\([^)]*\))?(?:\s+(?:WITH|WITHOUT)\s+TIME\s+ZONE)?(?:\s*\[\s*\])*)", re.IGNORECASE)
 # 单引号字面量：允许 MySQL 反斜杠转义（\' \\）与 SQL 标准的 '' 双写
 _QUOTED = r"'(?:\\.|''|[^'\\])*'"
 _CONSTRAINT_HEADS = {"PRIMARY", "FOREIGN", "UNIQUE", "KEY", "INDEX", "CONSTRAINT", "CHECK", "EXCLUDE"}
+# `REFERENCES parent` 省略列表时，后面只能是子句结束或这些关键字；其他残留（如 `t-1(id)` 里的 `-1`）不算合法引用
+_AFTER_REFERENCES = r"(?=\s*$|\s*[,)]|\s+(?:ON|MATCH|DEFERRABLE|NOT|INITIALLY|CONSTRAINT|DEFAULT|NULL|CHECK|UNIQUE|PRIMARY|COMMENT|COLLATE|GENERATED|ENABLE|DISABLE|USING)\b)"
 _ESCAPED = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "0": "\0", "Z": "\x1a"}
 
 
@@ -54,6 +65,7 @@ def parse_ddl(sql: str) -> dict:
         if labels.count(label) > 1:
             mapping[parts] = ".".join('"' + part.replace('"', '""') + '"' if '.' in part else part for part in parts)
     origins = {}
+    quoted = {tuple(_identifier_parts(raw)): _quoted_parts(raw) for raw, _ in definitions}
     for raw_name, body in definitions:
         full = tuple(_identifier_parts(raw_name))
         name = mapping[full]
@@ -61,12 +73,76 @@ def parse_ddl(sql: str) -> dict:
         table, table_edges = _parse_table(name, body)
         tables.append(table)
         edges.extend(table_edges)
+    in_string = _in_string_positions(sql)
+    for m in _ALTER_FK.finditer(sql):
+        if m.start() in in_string:
+            continue
+        owner = _resolve(tuple(_identifier_parts(m.group(1))), _quoted_parts(m.group(1)), mapping, quoted, ())
+        if owner is None:
+            continue  # ALTER 的表不在这份 DDL 里：无处挂边
+        _fk_edges(owner, m.group(2), m.group(3), m.group(4), edges)
+    pk_by_table = {t["name"]: [c["name"] for c in t["columns"] if c["primary_key"]] for t in tables}
     for edge in edges:
         target = edge["to_table"]
-        local = (*origins[edge["from_table"]], *target) if len(target) == 1 else target
-        edge["to_table"] = mapping.get(local, mapping.get(target, ".".join(target)))
+        resolved = _resolve(target, edge.pop("to_quoted", (False,) * len(target)), mapping, quoted, origins[edge["from_table"]])
+        edge["to_table"] = resolved if resolved is not None else ".".join(target)
+        if edge["to_column"] == "":
+            # `REFERENCES parent` 不写列 = 父表主键（SQL 标准）；只有单列主键才能无歧义补全（TD-269）
+            pk = pk_by_table.get(edge["to_table"], [])
+            edge["to_column"] = pk[0] if len(pk) == 1 else ""
     _apply_comments(sql, tables, mapping)
     return {"tables": tables, "edges": edges}
+
+
+def _quoted_parts(name: str) -> tuple[bool, ...]:
+    """每一段标识符是否带引号：带引号的按原样精确匹配，不带的按大小写不敏感折叠（TD-269）。"""
+    return tuple(m.group()[0] in "\"`" for m in re.finditer(_IDENT_PART, name))
+
+
+def _effective(parts: tuple[str, ...], quoted: tuple[bool, ...]) -> tuple[str, ...]:
+    """标识符的有效名：带引号的按原样，不带引号的折叠成小写（SQL 标准折叠，PostgreSQL 的做法）。"""
+    return tuple(p if q else p.lower() for p, q in zip(parts, quoted, strict=True))
+
+
+def _resolve(target: tuple[str, ...], target_quoted: tuple[bool, ...], mapping: dict, quoted: dict, origin: tuple | list) -> str | None:
+    """把 REFERENCES 里写的表名对到 DDL 里实际定义的表。
+
+    先按写法精确匹配（含补 schema 前缀、去 schema 前缀两种候选），再按有效名匹配：
+    `Users` 定义 / `USERS` 引用 → 都折叠成 users，匹配；`"Mixed"` 定义 / `mixed` 引用 → Mixed ≠ mixed，
+    不匹配（PostgreSQL 也会报表不存在，作图不替用户"修正"）。
+    """
+    if len(target_quoted) != len(target):
+        target_quoted = (False,) * len(target)
+    candidates: list[tuple[tuple[str, ...], tuple[bool, ...]]] = [(target, target_quoted)]
+    if len(target) == 1 and origin:
+        candidates.insert(0, ((*origin, *target), (False,) * len(origin) + target_quoted))
+    if len(target) > 1:
+        candidates.append((target[-1:], target_quoted[-1:]))  # `public.users` 引用未带 schema 定义的 `users`
+    for cand, _ in candidates:
+        if cand in mapping:
+            return mapping[cand]
+    for cand, cand_quoted in candidates:
+        wanted = _effective(cand, cand_quoted)
+        for full, label in mapping.items():
+            if len(full) == len(cand) and _effective(full, quoted.get(full, (False,) * len(full))) == wanted:
+                return label
+    return None
+
+
+def _fk_edges(table: str, sources_text: str, target_name: str, targets_text: str | None, edges: list[dict]) -> None:
+    to_table = tuple(_identifier_parts(target_name))
+    to_quoted = _quoted_parts(target_name)
+    sources = [c.strip() for c in _split_top_level(sources_text) if c.strip()]
+    targets = [c.strip() for c in _split_top_level(targets_text) if c.strip()] if targets_text else [""] * len(sources)
+    # strict=False：用户 DDL 写错列数时按短的一边配对，尽力出图而不是抛错
+    for src, dst in zip(sources, targets, strict=False):
+        edges.append({
+            "from_table": table,
+            "from_column": _unquote(src),
+            "to_table": to_table,
+            "to_quoted": to_quoted,
+            "to_column": _unquote(dst) if dst else "",
+        })
 
 
 def _scan(s: str):
@@ -255,14 +331,15 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
         "comment": _unquote(comment_m.group(1)) if comment_m else None,
     }
 
-    fk = outside(rf"\bREFERENCES\s+({_IDENT})\s*\(\s*({_IDENT})\s*\)")
+    fk = outside(rf"\bREFERENCES\s+({_IDENT})\s*(?:\(\s*({_IDENT})\s*\)|{_AFTER_REFERENCES})")
     edge = None
     if fk:
         edge = {
             "from_table": table,
             "from_column": name,
             "to_table": tuple(_identifier_parts(fk.group(1))),
-            "to_column": _unquote(fk.group(2)),
+            "to_quoted": _quoted_parts(fk.group(1)),
+            "to_column": _unquote(fk.group(2)) if fk.group(2) else "",  # 空 = 父表主键，parse_ddl 补全
         }
     return col, edge
 
@@ -273,21 +350,11 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
         pk_cols.extend(_paren_list(re.search(r"\(([^)]*)\)", part)))
         return
     fk = re.search(
-        rf"\bFOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+({_IDENT})\s*\(([^)]*)\)", part, re.IGNORECASE
+        rf"\bFOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+({_IDENT})\s*(?:\(([^)]*)\)|{_AFTER_REFERENCES})", part, re.IGNORECASE
     )
     if not fk:
         return
-    to_table = tuple(_identifier_parts(fk.group(2)))
-    sources = [c.strip() for c in _split_top_level(fk.group(1)) if c.strip()]
-    targets = [c.strip() for c in _split_top_level(fk.group(3)) if c.strip()]
-    # strict=False：用户 DDL 写错列数时按短的一边配对，尽力出图而不是抛错
-    for src, dst in zip(sources, targets, strict=False):
-        edges.append({
-            "from_table": table,
-            "from_column": _unquote(src),
-            "to_table": to_table,
-            "to_column": _unquote(dst),
-        })
+    _fk_edges(table, fk.group(1), fk.group(2), fk.group(3), edges)
 
 
 def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None) -> None:

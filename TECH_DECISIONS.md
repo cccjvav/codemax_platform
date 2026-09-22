@@ -612,3 +612,11 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 改法：`_request` 增加可选 `on_hop(url)` 回调，在每一跳 SSRF 校验之后、发请求之前调用；`fetch` 传入 `robots_for_hop` 对目标做 `check_allowed`——换域看该域 robots，同域也核对目标路径；robots 自身的抓取不传 `on_hop`，所以不会"为了判断能不能抓 robots 而去查 robots"。`_states` 改为 `OrderedDict`，命中即 `move_to_end`，上限 `MAX_DOMAIN_STATES=512`，满了从队头淘汰第一个**未持锁**的项，全部持锁则宁可暂时超上限也不删正在使用的状态（等锁的协程醒来后写孤儿对象等于丢规则）。`MAX_CRAWL_DELAY=60`：解析到的 Crawl-delay 超过它就把该域标为不抓，`check_allowed` 的文案点名要求值与上限；恰等于上限仍接受。放弃了"把超长 Crawl-delay 截断到 60 秒再抓"——那是无视站方明确要求，比不抓更不礼貌。
 
 代价：重定向目标域的 robots 会多一次请求（有缓存，同域一小时一次）；状态表满时每次新域名要线性扫队头找未持锁项，512 的量级可忽略；Crawl-delay 在 60 秒以上的站永远抓不到，需要时提高常量而不是绕过；SSRF 固定 DNS/地址逐跳校验与动态 Chromium 停用（TD-131 系）未改动也未重新验收。回看条件：入库改为批量/自动任务（状态表与并发数需重新定）、或出现合法的高 Crawl-delay 目标站。
+
+## TD-269：DDL 解析补 ALTER 外键、隐式父键与标识符折叠；类型修饰维持"不进类型串"，不做完整 parser
+
+2026-09-22。ROADMAP O-05。先用四组语料探针：① pg_dump / mysqldump 风格 `ALTER TABLE orders ADD CONSTRAINT … FOREIGN KEY (user_id) REFERENCES users(id)`——改前一条边都没有，用户把导出文件贴进来看到的是没有连线的一堆表；② `user_id INT REFERENCES users`（SQL 标准允许省略列，意为父表主键）——改前整条 REFERENCES 不匹配，边丢失；③ `CREATE TABLE Users` / `REFERENCES USERS(id)`——改前逐字比较对不上，前端当悬空外键跳过；④ `INT UNSIGNED`、`CHARACTER SET`、`GENERATED ALWAYS AS IDENTITY`、`GEOMETRY SRID 4326`——复核后类型串已经稳定地只保留名字/长度/精度/数组/WITH TIME ZONE，是既有行为，只补钉住用例。
+
+改法：新增 `_ALTER_FK` 正则在 `parse_ddl` 末尾扫描（跳过字符串内、跳过本份 DDL 未定义的表），列级/表级 `FOREIGN KEY` 与 ALTER 共用 `_fk_edges`；`REFERENCES` 的列表改为可选——但只在子句结束或合法后续关键字（ON/MATCH/DEFERRABLE/NOT/…）前才成立，否则 `REFERENCES t-1(id)` 会被截成对幻影表 `t` 的边（第一版就是这样，全量套件里 `test_perf` 的"边数 = 表数 − 1"抓住了它，已补钉住用例）；空列名在所有表解析完后按父表主键补全，只有单列主键才补，复合主键或父表缺失就留空（边仍保留，前端按表连线）；`_resolve` 先做逐字精确匹配（含补/去 schema 前缀两种候选），再按"有效名"匹配——不带引号的段折叠成小写、带引号的按原样，这正是 PostgreSQL 的规则，所以 `"Mixed"` 定义、`mixed` 引用仍然悬空：作图不替用户"修正"数据库会拒绝的写法。放弃了"引入第三方 SQL 解析库"（AGENTS 的依赖门槛，且 ER 图只需结构不需完整语法树）与"MySQL 风格的表名大小写按文件系统决定"（不可知，取标准行为）。
+
+代价：仍不是完整 MySQL/PostgreSQL parser——表级 MySQL `COMMENT=`、CHECK 内容、分区/继承、`ALTER … DROP/RENAME` 不解析；隐式父键在复合主键时留空列名而不是报错；MySQL 在大小写敏感文件系统上的表名区分大小写，本解析器按标准折叠，两者不一致时以数据库实际行为为准。回看条件：出现新的正反语料（用户贴入的真实导出文件）时按同样方式"先探针、再扩展、补钉住用例"。
