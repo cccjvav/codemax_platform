@@ -10,12 +10,9 @@ import re
 from pathlib import Path
 
 import psycopg2
-from sqlalchemy.dialects import postgresql
 from sqlalchemy.engine import make_url
-from sqlalchemy.schema import CreateTable
 
 from .config import settings
-from .models import SchemaMigration
 from .schemas import RegisterIn
 from .security import hash_password
 
@@ -83,6 +80,22 @@ LEGACY_0008_COLUMNS = {'sys_user': ['id',
 
 class MaintenanceError(RuntimeError):
     """Refuse ambiguous, stale or unsafe maintenance without exposing a connection URI."""
+
+
+_LEDGER_DDL = re.compile(r'CREATE TABLE schema_migration \((?:[^()]|\([^()]*\))*\);', re.S)
+
+
+def ledger_ddl() -> str:
+    """The `schema_migration` CREATE TABLE taken verbatim from full_init.sql.
+
+    Legacy adoption used to compile the table from the ORM model, which spelt the default
+    `now()` while full_init.sql says `CURRENT_TIMESTAMP`; harmless, but it made the two
+    catalogs differ. Reading the statement from the same file keeps them byte-equivalent.
+    """
+    match = _LEDGER_DDL.search((SQL_ROOT / 'full_init.sql').read_text(encoding='utf-8'))
+    if match is None:
+        raise MaintenanceError('full_init.sql no longer defines schema_migration')
+    return match.group(0)
 
 
 def migration_manifest(root: Path = SQL_ROOT) -> dict[str, tuple[Path, str]]:
@@ -164,7 +177,7 @@ def adopt_legacy(conn) -> None:
         indexes = {row[0] for row in cur.fetchall()}
         if not {'uq_sys_order_user_pending', 'uq_support_sender_nonce'} <= indexes:
             raise MaintenanceError('Legacy key constraints are missing')
-        cur.execute(str(CreateTable(SchemaMigration.__table__).compile(dialect=postgresql.dialect())))
+        cur.execute(ledger_ddl())  # same statement as full_init.sql, so adopted and fresh catalogs agree (TD-265)
         _record(cur, manifest, list(manifest)[:8])
         _migrate(cur, manifest)
 

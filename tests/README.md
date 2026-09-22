@@ -36,6 +36,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 身份与 OAuth | test_auth_cookie、test_oauth、test_token_revocation | Cookie/Bearer、用户状态、改密撤销、授权码与回调；不等于完整第三方身份平台联调 |
 | 订单与下载 | test_e2e、test_download、test_order_state、test_manual_pay | 金额、状态、所有权、重复支付、流式下载、人工模式；mock 付款不证明真实到账 |
 | 并发与迁移 | test_diagram_concurrency、test_second_review_regressions | 真实 PostgreSQL 的并发配额、文章 upsert、消息去重和旧结构升级；SQLite 对应 skip 要解释 |
+| 结构等价 | test_schema_sync（文本级表/列）、test_schema_equivalence（PG 目录级） | 一次性 pgserver 上 fresh-init / 0008 接入 / 重放 0002–0008 三条路径的列、约束、索引、触发器、函数、序列逐项相等；比较器自检；0001 幂等；不证明生产库状态或数据迁移正确性 |
 | 算法与文本 | test_sql_ddl、test_word_export、test_er_page | SQL/Word 纯函数和 Node 布局；不等于支持完整 SQL 方言或 Word 所有版本 |
 | 抓取与模型 | test_crawler、test_extract、test_admin_ingest、test_mermaid 等现有模块 | MockTransport 和假模型控制外部返回；真实解析器/事务仍执行；不访问第三方目标来复现问题 |
 | FAQ 与 RAG | test_faq、test_faq_semantic、test_intent_cascade、test_support | 排序、阈值算法、回退与资料检索；真实 embedding 阈值标定需要单独密钥与语料 |
@@ -118,6 +119,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `08d7e8d212ac` | L1–L194 |
 | [`tests/test_request_body_budget.py`](test_request_body_budget.py) | `67b2d198009d` | L1–L171 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
+| [`tests/test_schema_equivalence.py`](test_schema_equivalence.py) | `763478f8979b` | L1–L219 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `50aebe4f17dd` | L1–L341 |
@@ -170,6 +172,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-20 数据库结构等价回归（TD-265）
+
+`test_schema_equivalence.py` 复用 `test_db_admin.isolated_pg`（module 级一次性 pgserver + 非超级用户）建三个库：`initialize` 直建；`initialize` 后 `legacy_0008` 拆回 0008 形状再 `adopt_legacy`；再用 `_STRIP_TO_PRE_0002` 逆序剥掉 0002–0008 的结构、以 autocommit 原样执行七份历史 SQL（0007/0008 自带 BEGIN/COMMIT）后 `adopt_legacy`。`catalog()` 只读系统目录，`differences()` 递归点名每一处不同；前提用例先确认快照真的含 ≥16 表、≥8 函数、≥13 触发器、≥10 CHECK 与部分索引，避免空对空。首轮即发现 `sys_user.role` 缺 NOT NULL 与账本表默认值拼法两处漂移，修在源头后三路径零差异；另验 0001 在现行库上为空操作、`ledger_ddl()` 与 full_init 逐字相同。修复前该文件 6 项中 4 项失败。
 
 ## 2026-09-20 LLM 并发闸门回归（TD-264）
 

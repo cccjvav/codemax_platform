@@ -584,3 +584,9 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 为什么是 4 且不排队：站点单实例、LLM 是引流功能而非收费核心，4 个并发覆盖"几秒内四人同时点"的正常峰值；排队会让第 5 个人在页面上干等几十秒才知道结果，服务器还要替他挂着连接，直接告知稍后再试并由前端重试体验更顺。为什么不做站内日额度：默认无 key 时 LLM 本就关闭，付费封顶由供应商控制台的消费上限/告警负责，站内再做一层是重复且更不可靠（进程重启即归零）。
 
 代价：进程内状态，多实例各有各的 4（与 TD-141 同一前提）；闸门只限在途数不限速率，每次调用越慢闸门越容易满——供应商大面积变慢时 mermaid 会频繁 503，这是有意为之的保护而不是故障；`MAX_IN_FLIGHT` 是常量不是配置项，改数字需要改代码并跑 `tests/test_llm_concurrency.py`。回看条件：多实例部署（需要共享计数或按实例分摊）、LLM 成为付费核心功能需要排队与优先级、或供应商提供流式协议时重新设计。
+
+## TD-265：三条建库路径在真实 PostgreSQL 目录上逐项等价，漂移修在源头而不是加例外
+
+2026-09-20。ROADMAP O-03（上轮审计 F-08）。原 `tests/test_schema_sync.py` 用项目自己的 DDL 解析器读 full_init.sql 文本，只比表名/列名和时区类型，`database init/README.md` 也明写"不是完整 catalog 等价证明"。新增 `tests/test_schema_equivalence.py`：在 `test_db_admin` 的一次性 pgserver 上建三个库——full_init 直建、fresh 拆回 0008 形状后 `adopt_legacy` 走 0009–0017、再拆回 0002 之前形状把 0002–0008 历史 SQL 原样执行后 adopt——读 information_schema/pg_catalog 得到列（类型、udt、可空、默认、长度、精度、identity）、约束（`pg_get_constraintdef`）、索引、触发器、函数（`pg_get_functiondef`）、序列、表清单，递归比较，任何差异逐条点名。第一次运行就抓到两处：`sys_user.role` 在 full_init 里是 `SMALLINT DEFAULT 0`，而 migrate_0005 加的是 `NOT NULL DEFAULT 0`，新库比老库宽松；`adopt_legacy` 用 SQLAlchemy 从 ORM 编译 `schema_migration` 建表，默认值拼成 `now()` 而 full_init 是 `CURRENT_TIMESTAMP`，语义相同但目录不同。两处都修在源头：full_init 补 NOT NULL（应用从不写 NULL role，0005 之后的老库本来就是 NOT NULL，不改数据）；`adopt_legacy` 改用 `ledger_ddl()` 从 full_init.sql 正则取出同一条语句执行，去掉对 ORM 模型与 PG 方言编译的依赖。放弃了"把差异写进允许清单"：例外清单只会越积越多，等价测试就失去意义。
+
+代价：0001（裸 TIMESTAMP → TIMESTAMPTZ）无法完整重放——它的前置形状在现行文件里已不存在，重建等于自己再写一份旧 DDL 去验证自己，只验它在现行库上是空操作（幂等分支）；快照只看 public schema，不比权限/所有者/表空间/注释；等价证明的是仓库内三条路径互相一致，不是任何一台生产库的实际状态，也不是数据迁移正确性（那由 test_db_admin/test_payment_ledger 的保留数据用例负责）；测试依赖 pgserver，无 PG 二进制的环境按既有约定 skip。回看条件：新增迁移时这组用例会自动覆盖（adopt 路径总是走到最新版本）；若将来引入不可从现行文件重建前置形状的迁移，需要像 0001 一样单独说明验证边界，而不是删掉比较项。

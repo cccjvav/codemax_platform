@@ -26,7 +26,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | --- | --- |
 | `db_init.py main` | 解析显式命令/确认库名后才连接；无参数退出2并显示帮助；可理解的维护拒绝消息不含凭据，驱动/验证错误脱敏并退出1，最终关闭连接 |
 | `init` / `full_init.sql` | public 中有任何用户表、视图或序列则拒绝；不含 DROP 或身份 INSERT。建表和当前基线账本在同一事务提交。直接执行 SQL 不会生成完整账本，正常入口只能用 CLI |
-| `adopt-legacy-0008` | 操作者确认已完成0008结构；检查表列与关键索引、拒绝覆盖已有账本；登记0001–0008历史基线，再在同一事务执行0009及后续迁移。它不是完整DDL等价或所有旧版本自动升级器 |
+| `adopt-legacy-0008` | 操作者确认已完成0008结构；检查表列与关键索引、拒绝覆盖已有账本；用 full_init.sql 里同一条语句建账本表（`ledger_ddl`，TD-265），登记0001–0008历史基线，再在同一事务执行0009及后续迁移。它不是所有旧版本自动升级器；接入后的目录与新库等价由 `tests/test_schema_equivalence.py` 钉住 |
 | `migrate` | 仅执行账本中缺失的0009及后续迁移；拒绝校验和变化、版本缺口、未知更高版本或旧事务包装脚本；DDL/DML和账本一起提交/回滚 |
 | `status` | 只读核对校验和并列待执行版本；不自动初始化/迁移。返回none表示账本当前，不证明外部商户或备份已验收 |
 | `seed-demo` / `seed_demo.sql` | 仅development下显式调用且用户/客户端表都空时允许。包含公开演示身份，禁止公网使用；生产检查会拒绝启用的演示凭据。不会覆盖已有账号 |
@@ -58,7 +58,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
-| [`database init/full_init.sql`](full_init.sql) | `7b0e3b00e027` | L1–L478 |
+| [`database init/full_init.sql`](full_init.sql) | `4b2f710dd75c` | L1–L478 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |
 | [`database init/migrate_0003_diagram_deleted_at.sql`](migrate_0003_diagram_deleted_at.sql) | `cba56902df3e` | L1–L61 |
@@ -89,7 +89,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 
 ## 变更与验证
 
-模型、新库SQL与增量迁移同步。`tests/test_db_admin.py` 自建一次性PG并使用非超级用户，覆盖拒绝覆盖、并发、事务锁、升级保留数据、失败回滚、校验和及管理员bootstrap；不连接传入的业务DSN。`tests/test_schema_sync.py` 仍只做部分结构对照，不是完整catalog等价证明。当前证据及剩余阻断见 [第二批交付](../review/RELEASE_BLOCKERS_PHASE2.md)。
+模型、新库SQL与增量迁移同步。`tests/test_db_admin.py` 自建一次性PG并使用非超级用户，覆盖拒绝覆盖、并发、事务锁、升级保留数据、失败回滚、校验和及管理员bootstrap；不连接传入的业务DSN。`tests/test_schema_sync.py` 只做 SQL 文本级的表/列对照；`tests/test_schema_equivalence.py`（TD-265）在一次性 PG 上比较三条建库路径的系统目录——full_init 直建、0008 旧库经 adopt-legacy 到 0017、从 0002 之前形状原样重放 0002–0008 历史 SQL 再 adopt——列类型/可空/默认/长度/identity、约束定义、索引定义、触发器与函数定义、序列、表清单逐项相等，另验 0001 在现行库上是空操作。它证明的是当前仓库内三条路径的结构一致，不是生产库实际状态或数据迁移正确性。当前证据及剩余阻断见 [第二批交付](../review/RELEASE_BLOCKERS_PHASE2.md)。
 
 ## 0010：资金与交付合同升级
 

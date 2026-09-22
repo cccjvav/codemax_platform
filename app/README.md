@@ -116,7 +116,7 @@ pending → closed → paid
 | [`app/config.py`](config.py) | `7a5d9215b962` | L1–L143 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `8cdf1857a244` | L1–L288 |
+| [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
 | [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
 | [`app/middleware.py`](middleware.py) | `6d7bde9df09f` | L1–L299 |
@@ -161,7 +161,7 @@ HTTP 输入先由 schema 校验，再进入身份依赖与业务处理。状态�
 
 ## 离线数据库维护
 
-`db_admin`不是Web路由，所有写入由显式CLI触发：`migration_manifest/verify_ledger`检查连续版本及文件摘要；`connect_target`复用配置并核对确认库名；`maintenance_lock`设固定search_path和超时、持事务级PG锁；`initialize`只接受空库；`adopt_legacy`检查已声明的0008结构后登记并执行新迁移；`_record/_migrate/migrate`让SQL和账本原子提交；`status`只读；`seed_demo`开发显式且不覆盖；`bootstrap_admin`只创建首个启用管理员，不提权既有账号。连接由调用者关闭，错误不携带DSN。详见[数据库指南](../database%20init/README.md)，它不是完整DDL等价或生产角色授权工具。
+`db_admin`不是Web路由，所有写入由显式CLI触发：`migration_manifest/verify_ledger`检查连续版本及文件摘要；`connect_target`复用配置并核对确认库名；`maintenance_lock`设固定search_path和超时、持事务级PG锁；`initialize`只接受空库；`adopt_legacy`检查已声明的0008结构后用 `ledger_ddl`（full_init.sql 原句）建账本、登记并执行新迁移；`_record/_migrate/migrate`让SQL和账本原子提交；`status`只读；`seed_demo`开发显式且不覆盖；`bootstrap_admin`只创建首个启用管理员，不提权既有账号。连接由调用者关闭，错误不携带DSN。详见[数据库指南](../database%20init/README.md)；三条建库路径的目录等价由 `tests/test_schema_equivalence.py` 钉住（TD-265），工具本身仍不是生产角色授权工具。
 
 ## 第三批：收款证据与固定文件权益
 

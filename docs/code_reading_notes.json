@@ -7346,6 +7346,68 @@
       ]
     },
     {
+      "path": "tests/test_schema_equivalence.py",
+      "sha256": "763478f8979bd72ac3fc72a61282cff83d2b39eab2bc3018dccea04a725c1bb1",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 53,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：TD-265 / O-03 的 PG 目录级结构等价回归。复用 test_db_admin 的一次性 pgserver 与非超级用户，建 fresh / adopted / replayed 三个库并比较系统目录；_STRIP_TO_PRE_0002 逆序剥掉 0002–0008 的结构，_HISTORICAL_CHAIN 是原样重放的七份历史 SQL。不解析 SQL 文本，不比权限/所有者/非 public schema，不证明生产库状态或数据迁移正确性。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL16 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import uuid；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 import psycopg2；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 from sqlalchemy.engine import make_url；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from app import db_admin；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 导入 from tests.test_db_admin import isolated_pg as isolated_pg；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 导入 from tests.test_db_admin import legacy_0008；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL29 计算右侧并赋给 `SQL_ROOT`：Path(__file__).resolve().parents[1] / 'database init'。\nL32 计算右侧并赋给 `_STRIP_TO_PRE_0002`：['ALTER TABLE sys_user DROP COLUMN credential_version', 'ALTER TABLE oauth_code DROP COLUMN credential_version', 'DROP TABLE support_message', 'DROP INDEX uq_sys_order_user_pending', 'ALTER TABLE sys_user DROP COLUMN role', 'ALTER TABLE sys_diagram DROP COLUMN version', 'DROP INDEX idx_sys_diagram_user', 'ALTER TABLE sys_diagram DROP COLUMN deleted_at', 'ALTER TABLE sys_user DROP COLUMN password_changed_at']。\nL43 计算右侧并赋给 `_HISTORICAL_CHAIN`：['migrate_0002_password_changed_at.sql', 'migrate_0003_diagram_deleted_at.sql', 'migrate_0004_diagram_version.sql', 'migrate_0005_user_role.sql', 'migrate_0006_order_single_pending.sql', 'migrate_0007_support_messages.sql', 'migrate_0008_credential_revision.sql']。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 99,
+          "title": "catalog",
+          "explanation": "测试辅助：读取 information_schema.columns、pg_constraint（pg_get_constraintdef）、pg_indexes、pg_trigger（非内部，pg_get_triggerdef）、pg_proc（pg_get_functiondef）、pg_sequences 与表清单，组成可比较的嵌套字典。\n\n输入签名：conn；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `out`（标注 dict）：{}。\nL57 进入 conn, conn.cursor() as cur 的上下文；退出时执行资源/锁/异常管理。\nL58 调用 cur.execute(\"SELECT table_name, column_name, data_type, udt_name, is_nullable, column_default,\\n                      character_maximum_length, numeric_precision, numeric_scale, datetime_precision,\\n                      is_identity, identity_generation\\n               FROM information_schema.columns WHERE table_schema='public' ORDER BY 1, 2\")。\nL64 计算右侧并赋给 `cols`（标注 dict）：{}。\nL65 逐项遍历 `cur.fetchall()`，绑定 `row`；循环体按缩进执行，break可提前结束。\nL66 计算右侧并赋给 `cols.setdefault(row[0], {})[row[1]]`：调用 tuple(row[2:])。\nL67 计算右侧并赋给 `out['columns']`：cols。\nL68 调用 cur.execute(\"SELECT conrelid::regclass::text, conname, contype, pg_get_constraintdef(oid)\\n               FROM pg_constraint WHERE connamespace = 'public'::regnamespace ORDER BY 1, 2\")。\nL72 计算右侧并赋给 `cons`（标注 dict）：{}。\nL73 逐项遍历 `cur.fetchall()`，绑定 `(table, name, kind, definition)`；循环体按缩进执行，break可提前结束。\nL74 计算右侧并赋给 `cons.setdefault(table, {})[name]`：(kind, definition)。\nL75 计算右侧并赋给 `out['constraints']`：cons。\nL76 调用 cur.execute(\"SELECT tablename, indexname, indexdef FROM pg_indexes WHERE schemaname='public' ORDER BY 1, 2\")。\nL77 计算右侧并赋给 `idx`（标注 dict）：{}。\nL78 逐项遍历 `cur.fetchall()`，绑定 `(table, name, definition)`；循环体按缩进执行，break可提前结束。\nL79 计算右侧并赋给 `idx.setdefault(table, {})[name]`：definition。\nL80 计算右侧并赋给 `out['indexes']`：idx。\nL81 调用 cur.execute(\"SELECT tgrelid::regclass::text, tgname, pg_get_triggerdef(oid) FROM pg_trigger\\n               WHERE NOT tgisinternal\\n                 AND tgrelid IN (SELECT oid FROM pg_class WHERE relnamespace = 'public'::regnamespace)\\n               ORDER BY 1, 2\")。\nL87 计算右侧并赋给 `trg`（标注 dict）：{}。\nL88 逐项遍历 `cur.fetchall()`，绑定 `(table, name, definition)`；循环体按缩进执行，break可提前结束。\nL89 计算右侧并赋给 `trg.setdefault(table, {})[name]`：definition。\nL90 计算右侧并赋给 `out['triggers']`：trg。\nL91 调用 cur.execute(\"SELECT proname, pg_get_functiondef(oid) FROM pg_proc WHERE pronamespace = 'public'::regnamespace ORDER BY 1\")。\nL92 计算右侧并赋给 `out['functions']`：调用 dict(cur.fetchall())。\nL93 调用 cur.execute(\"SELECT sequencename, data_type, start_value, increment_by FROM pg_sequences WHERE schemaname='public' ORDER BY 1\")。\nL94 计算右侧并赋给 `out['sequences']`：{row[0]: tuple(row[1:]) for row in cur.fetchall()}。\nL95 调用 cur.execute(\"SELECT table_name, table_type FROM information_schema.tables WHERE table_schema='public' ORDER BY 1\")。\nL96 计算右侧并赋给 `out['tables']`：调用 dict(cur.fetchall())。\nL97 结束当前函数，返回 out；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 114,
+          "title": "differences",
+          "explanation": "测试辅助：递归比较两份快照，缺失键分别记 only in A/B，叶子值不同记路径与两边取值；返回空列表才算等价，用例断言直接看列表，失败信息就是差异清单。\n\n输入签名：a: dict, b: dict, path: str=''；定义函数不等于此处立刻执行函数体。 返回类型标注：list[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL102 判断 `isinstance(a, dict) and isinstance(b, dict)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL103 计算右侧并赋给 `found`（标注 list[str]）：[]。\nL104 逐项遍历 `sorted(set(a) | set(b))`，绑定 `key`；循环体按缩进执行，break可提前结束。\nL105 判断 `key not in a`，为真进入当前缩进分支，为假进入else/elif。\nL106 调用 found.append(f'only in B: {path}/{key} = {str(b[key])[:160]}')。\nL107 判断 `key not in b`，为真进入当前缩进分支，为假进入else/elif。\nL108 调用 found.append(f'only in A: {path}/{key} = {str(a[key])[:160]}')。\nL110 调用 found.extend(differences(a[key], b[key], f'{path}/{key}'))。\nL111 结束当前函数，返回 found；不会自动commit未提交事务。\nL112 结束当前函数，返回 [] if a == b else [f'{path}: A={str(a)[:160]} | B={str(b)[:160]}']；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 118,
+          "title": "snapshots",
+          "explanation": "测试辅助：module 级 fixture。三条路径各建一个一次性库：initialize 直建；initialize→legacy_0008→adopt_legacy；再剥到 0002 之前形状、autocommit 下原样执行 0002–0008 后 adopt_legacy。全部取快照后统一关闭连接并 DROP DATABASE。\n\n登记/装饰：pytest.fixture(scope='module')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：isolated_pg；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 159,
+          "title": "snapshots.new_connection",
+          "explanation": "测试辅助：建随机名一次性库并以 maintenance_test 身份连接，返回库名与 psycopg2 连接。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL120 计算右侧并赋给 `name`：'eq_' + uuid.uuid4().hex。\nL121 调用 isolated_pg.psql(f'CREATE DATABASE {name} OWNER maintenance_test')。\nL122 计算右侧并赋给 `uri`：调用 make_url(isolated_pg.get_uri()).set(username='maintenance_test', database=name).render_as_string(hide_password=False)。\nL123 结束当前函数，返回 (name, psycopg2.connect(uri))；不会自动commit未提交事务。\nL125 计算右侧并赋给 `made`（标注 list[tuple[str, object]]）：[]。\nL126 计算右侧并赋给 `result`（标注 dict[str, dict]）：{}。\nL127 执行try体；捕获 无。\nL128 计算右侧并赋给 `(name, conn)`：调用 new_connection()。\nL129 调用 made.append((name, conn))。\nL130 调用 db_admin.initialize(conn)。\nL131 计算右侧并赋给 `result['fresh']`：调用 catalog(conn)。\nL133 计算右侧并赋给 `(name, conn)`：调用 new_connection()。\nL134 调用 made.append((name, conn))。\nL135 调用 db_admin.initialize(conn)。\nL136 调用 legacy_0008(conn)。\nL137 调用 db_admin.adopt_legacy(conn)。\nL138 计算右侧并赋给 `result['adopted']`：调用 catalog(conn)。\nL140 计算右侧并赋给 `(name, conn)`：调用 new_connection()。\nL141 调用 made.append((name, conn))。\nL142 调用 db_admin.initialize(conn)。\nL143 调用 legacy_0008(conn)。\nL144 计算右侧并赋给 `conn.autocommit`：True。\nL145 进入 conn.cursor() as cur 的上下文；退出时执行资源/锁/异常管理。\nL146 逐项遍历 `_STRIP_TO_PRE_0002`，绑定 `statement`；循环体按缩进执行，break可提前结束。\nL147 调用 cur.execute(statement)。\nL148 逐项遍历 `_HISTORICAL_CHAIN`，绑定 `filename`；循环体按缩进执行，break可提前结束。\nL149 调用 cur.execute((SQL_ROOT / filename).read_text(encoding='utf-8'))。\nL150 计算右侧并赋给 `conn.autocommit`：False。\nL151 调用 db_admin.adopt_legacy(conn)。\nL152 计算右侧并赋给 `result['replayed']`：调用 catalog(conn)。\nL153 yield 交出 result；生成器下次恢复才继续后续清理。\nL155 逐项遍历 `made`，绑定 `(name, conn)`；循环体按缩进执行，break可提前结束。\nL156 调用 conn.close()。\nL157 调用 isolated_pg.psql(f'DROP DATABASE {name}')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 170,
+          "title": "test_snapshot_covers_every_contract_kind",
+          "explanation": "本用例的准备条件：snapshots。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 前提校验：fresh 快照含 ≥16 表、≥8 函数、≥13 触发器、≥10 个 CHECK、sys_order 的部分唯一索引带 WHERE status=pending，且 sys_user.role 为 NOT NULL；否则后面的\"零差异\"可能是空对空。\n\n输入签名：snapshots；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL162 计算右侧并赋给 `fresh`：snapshots['fresh']。\nL163 核对 `len(fresh['tables']) >= 16`：此条件为假即测试失败；不是生产输入校验。\nL164 核对 `len(fresh['functions']) >= 8 and sum((len(v) for v in fresh['triggers'].values())) >= 13`：此条件为假即测试失败；不是生产输入校验。\nL165 计算右侧并赋给 `checks`：[d for t in fresh['constraints'].values() for kind, d in t.values() if kind == 'c']。\nL166 核对 `len(checks) >= 10`：此条件为假即测试失败；不是生产输入校验。\nL167 核对 `\"WHERE ((status)::text = 'pending'::text)\" in fresh['indexes']['sys_order']['uq_sys_order_user_pending']`：此条件为假即测试失败；不是生产输入校验。\nL168 核对 `fresh['columns']['sys_user']['role'][2] == 'NO'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 175,
+          "title": "test_legacy_adoption_reaches_the_fresh_catalog",
+          "explanation": "本用例的准备条件：snapshots。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 0008 旧库经 adopt-legacy-0008 + 0009–0017 后与 full_init 直建库的目录零差异。修复前差在 schema_migration.applied_at 的默认值拼法。\n\n输入签名：snapshots；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL173 核对 `differences(snapshots['fresh'], snapshots['adopted']) == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 180,
+          "title": "test_replaying_historical_migrations_reaches_the_fresh_catalog",
+          "explanation": "本用例的准备条件：snapshots。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 从 0002 之前形状原样执行 0002–0008 历史 SQL 再 adopt，与 fresh 零差异。修复前差在 sys_user.role 的可空性。\n\n输入签名：snapshots；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL178 核对 `differences(snapshots['fresh'], snapshots['replayed']) == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 191,
+          "title": "test_differences_reports_every_kind_of_drift",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/columns/t/c:。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 比较器自检：默认值变化、多出的列、缺失的索引都要被点名，自身与自身比较为空。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL183 计算右侧并赋给 `a`：{'columns': {'t': {'c': ('integer', 'int4', 'NO', '0')}}, 'indexes': {'t': {'i': 'CREATE INDEX i ON t (c)'}}}。\nL184 计算右侧并赋给 `b`：{'columns': {'t': {'c': ('integer', 'int4', 'NO', '1'), 'extra': ('text',)}}, 'indexes': {'t': {}}}。\nL185 计算右侧并赋给 `report`：调用 differences(a, b)。\nL186 核对 `any(('/columns/t/c:' in line for line in report))`：此条件为假即测试失败；不是生产输入校验。\nL187 核对 `any(('only in B: /columns/t/extra' in line for line in report))`：此条件为假即测试失败；不是生产输入校验。\nL188 核对 `any(('only in A: /indexes/t/i' in line for line in report))`：此条件为假即测试失败；不是生产输入校验。\nL189 核对 `differences(a, a) == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 203,
+          "title": "test_ledger_ddl_is_the_full_init_statement",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 ledger_ddl() 返回的语句逐字包含在 full_init.sql 中，以 CREATE TABLE schema_migration ( 开头且含 DEFAULT CURRENT_TIMESTAMP。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL194 计算右侧并赋给 `statement`：调用 db_admin.ledger_ddl()。\nL195 核对 `statement in (SQL_ROOT / 'full_init.sql').read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL196 核对 `'DEFAULT CURRENT_TIMESTAMP' in statement and statement.startswith('CREATE TABLE schema_migration (')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 219,
+          "title": "test_migration_0001_is_idempotent_on_current_schema",
+          "explanation": "本用例的准备条件：isolated_pg。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 0001 的前置裸 TIMESTAMP 形状无法从现行文件重建，只验其幂等分支：在 initialize 后的库上原样执行 0001，目录快照前后零差异。\n\n输入签名：isolated_pg；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL205 计算右侧并赋给 `name`：'eq_' + uuid.uuid4().hex。\nL206 调用 isolated_pg.psql(f'CREATE DATABASE {name} OWNER maintenance_test')。\nL207 计算右侧并赋给 `uri`：调用 make_url(isolated_pg.get_uri()).set(username='maintenance_test', database=name).render_as_string(hide_password=False)。\nL208 计算右侧并赋给 `conn`：调用 psycopg2.connect(uri)。\nL209 执行try体；捕获 无。\nL210 调用 db_admin.initialize(conn)。\nL211 计算右侧并赋给 `before`：调用 catalog(conn)。\nL212 计算右侧并赋给 `conn.autocommit`：True。\nL213 进入 conn.cursor() as cur 的上下文；退出时执行资源/锁/异常管理。\nL214 调用 cur.execute((SQL_ROOT / 'migrate_0001_timestamptz.sql').read_text(encoding='utf-8'))。\nL215 计算右侧并赋给 `conn.autocommit`：False。\nL216 核对 `differences(before, catalog(conn)) == []`：此条件为假即测试失败；不是生产输入校验。\nL218 调用 conn.close()。\nL219 调用 isolated_pg.psql(f'DROP DATABASE {name}')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
       "path": "tests/test_schema_sync.py",
       "sha256": "70e23dab4d56722d26f0ebd1b2d6b11daf828d509643c1ed234f01c258d98b55",
       "method": "guided",
@@ -8912,13 +8974,13 @@
     },
     {
       "path": "app/db_admin.py",
-      "sha256": "8cdf1857a244467392380ce0713bf98b274b33c7ff77a75098254bc13cf855be",
+      "sha256": "87ace23d0b0cc1041559f1f1482e39327d1d1b137f6a431cb2772fd1cc110e56",
       "method": "manual",
       "blocks": [
         {
-          "end": 83,
+          "end": 80,
           "title": "模块装配与边界",
-          "explanation": "离线维护复用固定根Settings；保留0008旧列集合而非当前Base表定义，manifest最低需要0010。所有业务DB动作须显式确认，只在维护事务运行可信SQL。"
+          "explanation": "离线维护复用固定根Settings；保留0008旧列集合而非当前Base表定义，manifest最低需要0010。所有业务DB动作须显式确认，只在维护事务运行可信SQL。 TD-265 去掉了对 SchemaMigration 模型与 SQLAlchemy PG 方言编译的依赖：账本建表改从 full_init.sql 取原句。"
         },
         {
           "end": 87,
@@ -8927,66 +8989,71 @@
         },
         {
           "end": 100,
+          "title": "ledger_ddl",
+          "explanation": "用正则从 full_init.sql 取出 `CREATE TABLE schema_migration (...)` 原句供 adopt_legacy 执行（TD-265）。此前由 ORM 编译，默认值拼成 now() 而 full_init 是 CURRENT_TIMESTAMP，语义相同但目录不同；同源后接入库与新库逐字一致。找不到该语句时抛 MaintenanceError，不退回 ORM 编译。"
+        },
+        {
+          "end": 113,
           "title": "migration_manifest",
           "explanation": "按四位版本及SQL字节SHA生成连续清单，最低17；缺0017包不能启动当前生产应用/worker。既有0001–0016校验和不改，账本与DDL由维护器同事务处理。"
         },
         {
-          "end": 111,
+          "end": 124,
           "title": "verify_ledger",
           "explanation": "将读取的版本与当前manifest前缀对照，至少具备0008基线；任何缺口、未知未来版本或摘要漂移报MaintenanceError。complete用于启动/bootstrap要求全部应用，普通status允许列待办。DB主键保证行不重复。"
         },
         {
-          "end": 125,
+          "end": 138,
           "title": "connect_target",
           "explanation": "Settings的SQLAlchemy URL须PostgreSQL且目标名等于显式确认，再转psycopg2参数连接（10秒连接限时）并核对实际dbname；不匹配关闭连接后拒绝。不打印凭据、不建库；驱动查询参数兼容性仍须部署核对。"
         },
         {
-          "end": 133,
+          "end": 146,
           "title": "maintenance_lock",
           "explanation": "同一cursor设置事务局部public search_path、10秒lock_timeout和120秒statement_timeout，获取固定PG advisory_xact_lock；不同进程连接也互斥，事务完成/回滚释放。不把普通Python锁当数据库互斥。"
         },
         {
-          "end": 139,
+          "end": 152,
           "title": "_record",
           "explanation": "迭代要登记的version，以参数化INSERT写对应已计算checksum；不自行提交，由外层和DDL/DML一起决定成败。"
         },
         {
-          "end": 148,
+          "end": 161,
           "title": "initialize",
           "explanation": "读取manifest，在conn事务/cursor上下文内持维护锁，执行无DROP且拒绝非空public的full_init，再登记当前基线；任一步异常整体回滚，不创建账号或数据库。"
         },
         {
-          "end": 171,
+          "end": 184,
           "title": "adopt_legacy",
-          "explanation": "操作者明确声明0008，无账本才检查固定LEGACY_0008_COLUMNS和关键索引。不能跟着最新ORM新增表列，否则旧库无法接入。建立基线与运行0009及后续同事务；仍不是完整DDL属性等价检查。"
+          "explanation": "操作者明确声明0008，无账本才检查固定LEGACY_0008_COLUMNS和关键索引。不能跟着最新ORM新增表列，否则旧库无法接入。建立基线与运行0009及后续同事务；仍不是完整DDL属性等价检查。 账本表现在用 ledger_ddl() 建（TD-265）。"
         },
         {
-          "end": 184,
+          "end": 197,
           "title": "_migrate",
           "explanation": "校验已有账本，按缺失版本顺序执行SQL并记录hash；0001–0008禁止重放，has_transaction_control拒绝顶层包装而允许函数体BEGIN。DDL/DML/触发器和账本属于外层事务。"
         },
         {
-          "end": 191,
+          "end": 204,
           "title": "migrate",
           "explanation": "公共升级入口：事务中持锁，委托_migrate并随上下文提交/回滚；不自动接入无账本旧库。调用者仍关闭连接。"
         },
         {
-          "end": 201,
+          "end": 214,
           "title": "status",
           "explanation": "只读public账本与本地manifest，校验后返回待执行版本列表；不持写锁、不执行迁移、不自动修错。此结果不是商户或全部schema就绪证明。"
         },
         {
-          "end": 213,
+          "end": 226,
           "title": "seed_demo",
           "explanation": "先拒绝非development，再事务持锁、验证当前账本，设置LOCAL显式opt-in并执行seed_demo；SQL还要求身份表为空，不能覆盖真实用户或客户端。"
         },
         {
-          "end": 233,
+          "end": 246,
           "title": "bootstrap_admin",
           "explanation": "RegisterIn校验新用户名/口令，再要求至少12字符，bcrypt哈希在离线CLI同步计算。事务持锁且账本完整，拒绝已有启用管理员或用户名冲突；参数化INSERT明确role/status/version，不自动提权、不重设已有身份。"
         },
         {
-          "end": 288,
+          "end": 301,
           "title": "has_transaction_control",
           "explanation": "逐字符屏蔽PG单/双引号、E转义字面量、dollar函数体、行注释及嵌套块注释；未闭合直接维护错误。只在剩余顶层分号语句起点拒绝BEGIN/END/COMMIT/ROLLBACK/ABORT/SAVEPOINT/RELEASE/START或PREPARE TRANSACTION。同一行COMMIT也拒绝；不是允许执行任意不可信SQL的沙箱。"
         }
@@ -9210,7 +9277,7 @@
     },
     {
       "path": "database init/full_init.sql",
-      "sha256": "7b0e3b00e027ee07f0c96e6be755a9c6a2847613ad792cf890f616fe1bc99ccf",
+      "sha256": "4b2f710dd75c3247a5c74fc6ab2844e24ed053a11e006768f6d4c30979991b1a",
       "method": "manual",
       "blocks": [
         {
@@ -9221,7 +9288,7 @@
         {
           "end": 33,
           "title": "sys_user",
-          "explanation": "用户PK/唯一用户名与密码哈希、展示字段、状态/角色、非空凭据版本和时区时间；不创建默认admin。SQL某些状态/时间列仍保留旧nullable默认定义，后端权限还须每请求查库。"
+          "explanation": "用户PK/唯一用户名与密码哈希、展示字段、状态/角色、非空凭据版本和时区时间；不创建默认admin。SQL某些状态/时间列仍保留旧nullable默认定义，后端权限还须每请求查库。 role 补 NOT NULL（TD-265）：migrate_0005 加列时就是 NOT NULL DEFAULT 0，新库此前比老库宽松，目录等价测试抓到后修在源头。"
         },
         {
           "end": 61,
