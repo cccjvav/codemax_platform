@@ -101,10 +101,54 @@ def snapshot_product(storage: LocalStorage, key: str) -> Snapshot:
             _COPY_SLOTS.release()
 
 
+# TD-266：已完整哈希过且此后 inode 元数据未变的快照，不再对每次下载重新读整个文件。
+# 键 = (key, digest)；值 = 上次全量校验通过时、哈希开始前取的 (st_dev, st_ino, st_size, st_mtime_ns, st_ctime_ns)。
+# ctime 由内核在任何写入/元数据变更时更新，用户态改不回去（utime 只能改 mtime/atime），
+# 所以字节被换过、或被换成另一个 inode，下次都会重新哈希。两条边界：
+# ① 时间戳有粒度（本沙箱 ext4 实测 4 ms，某些文件系统 1–2 s）：同一刻度内的两次写入 ctime 相同，
+#    所以 ctime 距现在不足 _VERIFIED_GRACE_NS 的校验结果**不缓存**，下次仍全量哈希；
+# ② Windows 的 st_ctime 是创建时间，改写不更新，不能当变更凭据 → 非 POSIX 不启用缓存。
+# 进程内状态，重启即空；只缓存"文件与记录一致"这一件事，不缓存任何权益/退款判断。
+_VERIFIED: dict[tuple[str, str], tuple[int, int, int, int, int]] = {}
+_VERIFIED_LOCK = threading.Lock()
+_VERIFIED_LIMIT = 256  # 键数上限（一个商品一个键），满了清空重来而不是无界增长
+_VERIFIED_GRACE_NS = 3_000_000_000
+_VERIFY_CACHE_ENABLED = os.name == 'posix'
+
+
+def _now_ns() -> int:
+    return time.time_ns()
+
+
+def _inode_state(path: Path) -> tuple[int, int, int, int, int]:
+    st = path.stat()
+    return (st.st_dev, st.st_ino, st.st_size, st.st_mtime_ns, st.st_ctime_ns)
+
+
 def verify_snapshot(storage: LocalStorage, key: str, digest: str, size: int) -> bool:
-    """Check both content identity and bytes before issuing a link; no current-product fallback."""
+    """Check content identity and bytes; no current-product fallback.
+
+    First check (and any check after the file's inode state changed) streams the whole file
+    through sha256. Later checks of an unchanged, settled inode only stat() it. Revocation and
+    order checks are the caller's job and run on every request regardless of this cache.
+    """
     try:
-        return (key.startswith(f'.snapshots/{digest}/')
-                and file_digest(storage.local_path(key)) == (digest, size))
+        if not key.startswith(f'.snapshots/{digest}/'):
+            return False
+        path = storage.local_path(key)
+        now = _now_ns()  # 取在 stat 之前：之后的任何改写都落在比记录值更晚的刻度上
+        state = _inode_state(path)
+        if _VERIFY_CACHE_ENABLED and state[2] == size:
+            with _VERIFIED_LOCK:
+                if _VERIFIED.get((key, digest)) == state:
+                    return True
+        if file_digest(path) != (digest, size):
+            return False
+        if _VERIFY_CACHE_ENABLED and now - state[4] >= _VERIFIED_GRACE_NS:
+            with _VERIFIED_LOCK:
+                if len(_VERIFIED) >= _VERIFIED_LIMIT:
+                    _VERIFIED.clear()
+                _VERIFIED[(key, digest)] = state
+        return True
     except (OSError, ValueError, StorageError):
         return False

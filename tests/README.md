@@ -36,6 +36,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 身份与 OAuth | test_auth_cookie、test_oauth、test_token_revocation | Cookie/Bearer、用户状态、改密撤销、授权码与回调；不等于完整第三方身份平台联调 |
 | 订单与下载 | test_e2e、test_download、test_order_state、test_manual_pay | 金额、状态、所有权、重复支付、流式下载、人工模式；mock 付款不证明真实到账 |
 | 并发与迁移 | test_diagram_concurrency、test_second_review_regressions | 真实 PostgreSQL 的并发配额、文章 upsert、消息去重和旧结构升级；SQLite 对应 skip 要解释 |
+| 交付校验缓存 | test_delivery_verify_cache、test_download（出口用例） | 首次全量哈希后同一 inode 只 stat；篡改/回拨 mtime/换 inode/宽限期内都重哈希；出口重复+Range 只哈希一次而退款后仍 403；进程内、POSIX 限定 |
 | 结构等价 | test_schema_sync（文本级表/列）、test_schema_equivalence（PG 目录级） | 一次性 pgserver 上 fresh-init / 0008 接入 / 重放 0002–0008 三条路径的列、约束、索引、触发器、函数、序列逐项相等；比较器自检；0001 幂等；不证明生产库状态或数据迁移正确性 |
 | 算法与文本 | test_sql_ddl、test_word_export、test_er_page | SQL/Word 纯函数和 Node 布局；不等于支持完整 SQL 方言或 Word 所有版本 |
 | 抓取与模型 | test_crawler、test_extract、test_admin_ingest、test_mermaid 等现有模块 | MockTransport 和假模型控制外部返回；真实解析器/事务仍执行；不访问第三方目标来复现问题 |
@@ -73,12 +74,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
 | [`tests/test_db_admin.py`](test_db_admin.py) | `7b2130d732b6` | L1–L241 |
+| [`tests/test_delivery_verify_cache.py`](test_delivery_verify_cache.py) | `3c19b727ec19` | L1–L187 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `a6d61f682988` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `61fa2874c7ae` | L1–L471 |
-| [`tests/test_download.py`](test_download.py) | `9f2f5a3dbfca` | L1–L293 |
+| [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
@@ -172,6 +174,10 @@ coverage report
 ```
 
 只有执行并读取新报告才能报告当前覆盖率；历史 96% 不自动继承。CI 使用独立数据库服务；结果必须绑定提交 SHA，不能拿上一提交绿灯验收新内容。
+
+## 2026-09-22 下载出口校验缓存回归（TD-266）
+
+`test_delivery_verify_cache.py`：autouse fixture 清缓存、强制启用、把 `_now_ns` 拨到宽限期之后；`hashing_calls` 监听 `file_digest` 调用；`tamper` 改写文件并等待 ctime 落到新的时间戳刻度（本机 ext4 粒度 4 ms）。覆盖：首次哈希后只 stat、错摘要/错大小/非快照 key 不缓存、同大小改写与 mtime 回拨都重哈希并判失败、同字节换 inode 重哈希一次后继续缓存、上限满清空、缺文件不缓存、宽限期内每次都哈希、平台开关关闭时每次哈希、`file_digest` 本身无状态。`test_download.py` 新增出口用例：领取一次哈希，随后 200/206/206/200 四次请求不再读文件；直接写入付款+全额退款凭证后缓存命中的请求仍 403 且未重哈希。修复前该用例 `AttributeError`。
 
 ## 2026-09-20 数据库结构等价回归（TD-265）
 

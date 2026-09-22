@@ -117,7 +117,7 @@ pending → closed → paid
 | [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
-| [`app/delivery.py`](delivery.py) | `8af0a7803df2` | L1–L110 |
+| [`app/delivery.py`](delivery.py) | `0ba21151ff54` | L1–L154 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
 | [`app/middleware.py`](middleware.py) | `6d7bde9df09f` | L1–L299 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
@@ -167,7 +167,7 @@ HTTP 输入先由 schema 校验，再进入身份依赖与业务处理。状态�
 
 `payment_ledger.py`把“钱属于哪张单”与paid状态一起提交：lock_order用无副作用UPDATE持写锁并刷新，settle校验渠道/商户/金额并写一条PaymentReceipt，精确重复不再写收款凭证，但可提交本次核查事件；唯一冲突或提交失败全部回滚。不是外部查单/退款，也不是日志代替数据库。
 
-`delivery.py`的Snapshot保存key/hash/size；snapshot_product在两个复制槽位、512MiB/30秒约束下分块复制、校验源变化、无覆盖发布，调用方卸载线程。file_digest分块校验，verify_snapshot绑定内容寻址key和实际字节。POSIX同步发布目录，Windows实际硬链接/恢复未验收。LocalStorage.put不能覆盖快照；主机管理员仍是可信边界。
+`delivery.py`的Snapshot保存key/hash/size；snapshot_product在两个复制槽位、512MiB/30秒约束下分块复制、校验源变化、无覆盖发布，调用方卸载线程。file_digest分块校验，verify_snapshot绑定内容寻址key和实际字节；TD-266 起同一 inode 状态（dev/ino/size/mtime_ns/ctime_ns）只在首次全量哈希，此后 stat 命中即通过，ctime 距今不足 3 秒的结果不缓存（时间戳粒度），非 POSIX 不启用；只缓存"文件与记录一致"，退款/订单/签名仍由调用方每次实时判断。POSIX同步发布目录，Windows实际硬链接/恢复未验收。LocalStorage.put不能覆盖快照；主机管理员仍是可信边界。
 
 Order冻结支付/交付合同；PaymentReceipt记录来源流水、金额、提供方支付时间/本地收到时间与人工依据，PaymentEvent记录尝试或历史绑定。0010和full_init安装PG不可覆盖合同/只追加证据触发器；ORM create_all不安装这些触发器，不能拿普通ORM测试当SQL触发器证据。完整范围、历史绑定和未结项见[第三批](../review/RELEASE_BLOCKERS_PHASE3.md)。
 

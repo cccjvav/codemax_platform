@@ -60,7 +60,7 @@
 
 | ID / 优先级 | 依据 | 目标与防倒退条件 |
 | --- | --- | --- |
-| O-01 / P2 | F-06 每次下载重新读取/哈希快照，无该 GET 限流 | 用合成固定文件测量 CPU/磁盘/线程占用与重复/Range 行为；优化仍保证每次最新退款撤权/有效期/字节完整性，不缓存权益 |
+| O-01 / P2 | 已完成（2026-09-22，TD-266）：测得 sha256 ≈ 900 MiB/s、512 MiB 每次下载 0.53 s CPU、30 次 Range 请求对 256 MiB 商品 8 s 线程池 CPU；`verify_snapshot` 改为首次全量哈希、此后同一 inode 状态（dev/ino/size/mtime_ns/ctime_ns）只 stat，ctime 距今不足 3 s 不缓存（时间戳粒度），非 POSIX 不启用；Range/重复/HEAD 由 FileResponse 原生支持（206/416/multipart 已实测） | 回归 `tests/test_delivery_verify_cache.py`（首哈希后只 stat、篡改/回拨 mtime/换 inode 重哈希、宽限期、上限、平台开关）与 `tests/test_download.py` 出口用例（重复+Range 只哈希一次、退款后缓存命中仍 403）| 每次请求仍实时查退款/订单/签名，不缓存权益；进程内状态；Windows 每次全量哈希不变 |
 | O-02 / P3 | F-07 RAG 全文章加载和序列化、进程级限流/礼貌状态 | 先界定数据量/并发/SLO，再评估索引、增量缓存、队列与状态淘汰；不得仅为“优化”新增服务 |
 | O-03 / P2 | 已完成（2026-09-20，TD-265）：一次性 PG 上比较 fresh-init / 0008 接入到 0017 / 重放 0002–0008 历史 SQL 三条路径的系统目录（列类型/可空/默认/长度/identity、约束、索引、触发器、函数、序列、表），发现并修正两处漂移：`sys_user.role` 新库缺 NOT NULL（0005 有）、接入路径的 `schema_migration` 由 ORM 编译致默认值拼法不同 | 回归 `tests/test_schema_equivalence.py`（三路径零差异、比较器自检、0001 幂等、账本 DDL 同源）；原 `test_schema_sync` 文本对照保留 | pgserver 一次性库（CI 的 SQLite job 因装了 requirements 也会跑）；不证明生产库状态或数据迁移正确性；0001 的前置裸 TIMESTAMP 形状无法从现行文件重建，只验其幂等分支 |
 | O-04 / P3 | 生产镜像安装全部锁定依赖、历史资金模块复杂 | 先测镜像/攻击面及职责耦合，再设计 runtime/dev 分离或模块重构；保留完整维护 SQL/校验和与所有资金反例，不为拆分破坏恢复链 |

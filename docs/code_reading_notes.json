@@ -4323,6 +4323,98 @@
       ]
     },
     {
+      "path": "tests/test_delivery_verify_cache.py",
+      "sha256": "3c19b727ec19763f93ff4686b05b4e32a2d33975f42928dd50eccee6c2c881af",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 24,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：TD-266 / O-01 的单元回归。测量数字（900 MiB/s、512 MiB 0.53 s、30 次 Range 8 s → 0.27 s）只写在 docstring 里作背景，断言的是语义：首次与 inode 状态变化后全量哈希、未变只 stat、篡改/回拨 mtime/换 inode 必重哈希、宽限期内不缓存、非 POSIX 关闭。直接调用 app.delivery，不经过 HTTP；出口层的权益不缓存由 test_download 证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL12 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import os；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 import time；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app import delivery；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from app.delivery import _inode_state, file_digest, snapshot_product, verify_snapshot；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from app.storage import LocalStorage；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 35,
+          "title": "clean_cache",
+          "explanation": "测试辅助：autouse fixture。清空 _VERIFIED、强制 _VERIFY_CACHE_ENABLED=True（Windows 默认关闭）、把 _now_ns 拨到宽限期之后（否则刚建的快照什么都不会缓存），结束再清空。\n\n登记/装饰：pytest.fixture(autouse=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL29 调用 delivery._VERIFIED.clear()。\nL30 调用 monkeypatch.setattr(delivery, '_VERIFY_CACHE_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL31 调用 monkeypatch.setattr(delivery, '_now_ns', lambda: time.time_ns() + delivery._VERIFIED_GRACE_NS + 1000000000)：仅在本测试替换属性，fixture结束恢复。\nL32 yield 交出 None；生成器下次恢复才继续后续清理。\nL33 调用 delivery._VERIFIED.clear()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 43,
+          "title": "snapshot",
+          "explanation": "测试辅助：临时目录 LocalStorage，写 64 KiB 随机内容 + TAIL 的商品并 snapshot_product，返回 (storage, Snapshot, 快照路径)。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL38 计算右侧并赋给 `storage`：调用 LocalStorage(str(tmp_path), 'http://test', 'secret')。\nL39 调用 (tmp_path / 'product.zip').write_bytes(os.urandom(64 * 1024) + b'TAIL')。\nL40 计算右侧并赋给 `snap`：调用 snapshot_product(storage, 'product.zip')。\nL41 结束当前函数，返回 (storage, snap, storage.local_path(snap.key))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 59,
+          "title": "tamper",
+          "explanation": "测试辅助：改写文件并循环等待 ctime 落到新的时间戳刻度（最多 5 秒）；生产里能进缓存的状态至少 3 秒旧，测试用假时钟绕过了宽限期，所以要显式跨刻度，否则测的是被宽限期排除的\"同刻度改写\"。\n\n输入签名：path: Path, data: bytes；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL50 计算右侧并赋给 `before`：path.stat().st_ctime_ns。\nL51 计算右侧并赋给 `deadline`：time.monotonic() + 5。\nL52 只要 `True` 为真就重复该体，注意体内推进索引/退出条件。\nL53 调用 path.write_bytes(data)。\nL54 判断 `path.stat().st_ctime_ns != before`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL55 结束当前函数，返回 None；不会自动commit未提交事务。\nL56 核对 `time.monotonic() < deadline`：此条件为假即测试失败；不是生产输入校验。\nL57 调用 time.sleep(0.005)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 63,
+          "title": "hashing_calls",
+          "explanation": "测试辅助：把 delivery.file_digest 换成记录路径后再调用原函数的替身，返回调用列表。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 返回类型标注：list[Path]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL61 计算右侧并赋给 `calls`（标注 list[Path]）：[]。\nL62 计算右侧并赋给 `real`：delivery.file_digest。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 71,
+          "title": "hashing_calls.spy",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL65 调用 calls.append(path)。\nL66 结束当前函数，返回 调用 real(path)；不会自动commit未提交事务。\nL68 调用 monkeypatch.setattr(delivery, 'file_digest', spy)：仅在本测试替换属性，fixture结束恢复。\nL69 结束当前函数，返回 calls；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 81,
+          "title": "test_first_check_hashes_then_unchanged_inode_only_stats",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 三次校验只第一次调用 file_digest；缓存里记录的正是当前 _inode_state。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL73 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL74 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL75 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL76 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL77 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL78 核对 `calls == [path]`：此条件为假即测试失败；不是生产输入校验。\nL79 核对 `delivery._VERIFIED[snap.key, snap.digest] == _inode_state(path)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 91,
+          "title": "test_wrong_digest_or_size_or_key_never_passes_and_is_not_cached",
+          "explanation": "本用例的准备条件：snapshot。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 错 size、错摘要（key 前缀不符）、非快照 key 都 False 且缓存为空；通过后带错 size 再查仍 False——命中前先核 size。\n\n输入签名：snapshot；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 计算右侧并赋给 `(storage, snap, _)`：snapshot。\nL84 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size + 1) is False`：此条件为假即测试失败；不是生产输入校验。\nL85 核对 `verify_snapshot(storage, snap.key, '0' * 64, snap.size) is False`：此条件为假即测试失败；不是生产输入校验。\nL86 核对 `verify_snapshot(storage, 'product.zip', snap.digest, snap.size) is False`：此条件为假即测试失败；不是生产输入校验。\nL87 核对 `delivery._VERIFIED == {}`：此条件为假即测试失败；不是生产输入校验。\nL88 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL89 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size + 1) is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 101,
+          "title": "test_overwritten_bytes_are_rehashed_and_rejected",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 通过后用 tamper 写入同大小不同内容，校验重新调用 file_digest 并返回 False。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL93 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL94 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL95 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL96 调用 tamper(path, b'x' * snap.size)。\nL97 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is False`：此条件为假即测试失败；不是生产输入校验。\nL98 核对 `calls == [path]`：此条件为假即测试失败；不是生产输入校验。\nL99 核对 `(snap.key, snap.digest) not in delivery._VERIFIED or delivery._VERIFIED[snap.key, snap.digest] != _inode_state(path)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 114,
+          "title": "test_mtime_rollback_cannot_hide_tampering",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 通过后改写并用 os.utime 把 mtime 回拨到原值（前提断言确认回拨成功），ctime 仍变，校验重哈希并 False。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL104 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL105 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL106 计算右侧并赋给 `before`：调用 path.stat()。\nL107 调用 tamper(path, b'y' * snap.size)。\nL108 调用 os.utime(path, ns=(before.st_atime_ns, before.st_mtime_ns))。\nL109 核对 `path.stat().st_mtime_ns == before.st_mtime_ns`：此条件为假即测试失败；不是生产输入校验。\nL110 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL111 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is False`：此条件为假即测试失败；不是生产输入校验。\nL112 核对 `calls == [path]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 134,
+          "title": "test_replaced_file_with_same_bytes_is_rehashed_once_then_cached",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 通过后删掉再写入相同字节（跨时间戳刻度，inode 可能复用），第一次重哈希通过、第二次命中缓存，file_digest 只调用一次。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL117 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL118 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL119 计算右侧并赋给 `content`：调用 path.read_bytes()。\nL120 计算右侧并赋给 `before`：path.stat().st_ctime_ns。\nL121 计算右侧并赋给 `deadline`：time.monotonic() + 5。\nL122 只要 `True` 为真就重复该体，注意体内推进索引/退出条件。\nL123 调用 path.unlink()。\nL124 调用 path.write_bytes(content)。\nL125 判断 `path.stat().st_ctime_ns != before`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL126 break 提前退出最近一层循环，不退出整个调用栈。\nL127 核对 `time.monotonic() < deadline`：此条件为假即测试失败；不是生产输入校验。\nL128 调用 time.sleep(0.005)。\nL129 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL130 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL131 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL132 核对 `calls == [path]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 143,
+          "title": "test_cache_is_bounded",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 上限改为 2 并预填两键后，一次通过的校验触发整体清空，只剩本次键。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL136 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL137 调用 monkeypatch.setattr(delivery, '_VERIFIED_LIMIT', 2)：仅在本测试替换属性，fixture结束恢复。\nL138 计算右侧并赋给 `delivery._VERIFIED['a', '1']`：(0, 0, 0, 0, 0)。\nL139 计算右侧并赋给 `delivery._VERIFIED['b', '2']`：(0, 0, 0, 0, 0)。\nL140 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL141 核对 `set(delivery._VERIFIED) == {(snap.key, snap.digest)}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 150,
+          "title": "test_missing_file_is_false_and_never_cached",
+          "explanation": "本用例的准备条件：snapshot。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 文件删除后 False 且缓存为空。\n\n输入签名：snapshot；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL145 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL146 调用 path.unlink()。\nL147 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is False`：此条件为假即测试失败；不是生产输入校验。\nL148 核对 `delivery._VERIFIED == {}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 157,
+          "title": "test_file_digest_itself_is_unchanged",
+          "explanation": "本用例的准备条件：snapshot。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 file_digest 仍是无状态流式哈希，连续两次结果相同。\n\n输入签名：snapshot；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL153 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL154 核对 `file_digest(path) == (snap.digest, snap.size)`：此条件为假即测试失败；不是生产输入校验。\nL155 核对 `file_digest(path) == (snap.digest, snap.size)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 173,
+          "title": "test_recent_writes_are_not_cached_until_the_timestamp_grace_passes",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 真实时钟下快照刚写完：两次校验都读文件且缓存为空；把时钟拨过 3 秒后第一次哈希、第二次命中。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL161 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL162 调用 monkeypatch.setattr(delivery, '_now_ns', time.time_ns)：仅在本测试替换属性，fixture结束恢复。\nL163 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL164 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL165 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL166 核对 `calls == [path, path]`：此条件为假即测试失败；不是生产输入校验。\nL167 核对 `delivery._VERIFIED == {}`：此条件为假即测试失败；不是生产输入校验。\nL168 调用 monkeypatch.setattr(delivery, '_now_ns', lambda: time.time_ns() + delivery._VERIFIED_GRACE_NS)：仅在本测试替换属性，fixture结束恢复。\nL169 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL170 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL171 核对 `len(calls) == 3`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 184,
+          "title": "test_cache_is_disabled_where_ctime_is_not_a_change_signal",
+          "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 开关关闭时每次都 file_digest，缓存为空，结果仍正确。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL176 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL177 调用 monkeypatch.setattr(delivery, '_VERIFY_CACHE_ENABLED', False)：仅在本测试替换属性，fixture结束恢复。\nL178 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL179 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL180 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL181 核对 `calls == [path, path] and delivery._VERIFIED == {}`：此条件为假即测试失败；不是生产输入校验。\nL182 核对 `delivery._VERIFY_CACHE_ENABLED is False or os.name != 'posix'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 187,
+          "title": "test_default_switch_follows_the_platform",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 钉住宽限期 3 秒与上限 256 两个常量。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL186 核对 `delivery._VERIFIED_GRACE_NS == 3000000000`：此条件为假即测试失败；不是生产输入校验。\nL187 核对 `delivery._VERIFIED_LIMIT == 256`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
       "path": "tests/test_diagram_concurrency.py",
       "sha256": "2a44f9d2a7ea99040c2e778de4bc6a56d30244798fa589865921166021f62e39",
       "method": "guided",
@@ -4764,7 +4856,7 @@
     },
     {
       "path": "tests/test_download.py",
-      "sha256": "9f2f5a3dbfca2474d2609f06ac08cfd6ba31d3df39de4705ddc48d371ca63ded",
+      "sha256": "cc47c2756885bf823c869ab28f1f3d098ac1d2f2ca4ef0d89627ac71d70222c3",
       "method": "manual",
       "blocks": [
         {
@@ -4863,17 +4955,17 @@
           "explanation": "本用例的准备条件：client, product, monkeypatch。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL213 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'oss')：仅在本测试替换属性，fixture结束恢复。\nL214 进入 pytest.raises(StorageError) as e（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL215 调用 build_storage('http://test')。\nL216 核对 `'TD-128' in str(e.value)`：此条件为假即测试失败；不是生产输入校验。\nL218 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL219 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL220 核对 `(await client.post(f'/shop/download/{order_no}', headers=h)).status_code == 503`：要求服务暂不可用而非假成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 271,
+          "end": 324,
           "title": "test_download_exit_shares_the_download_rate_limit",
           "explanation": "本用例的准备条件：client, product, monkeypatch。涉及接口：/shop/download/{order_no}、GET /shop/dl（经path_of拆出的预签名链接）。显式打开限流并把RATE_LIMIT_TOOLS压到3、窗口60秒，先limiter.reset()。领取链接占download桶1次，随后两次出口GET都是200且字节等于PRODUCT_BYTES，第三次429并带数字Retry-After；订单状态仍为downloaded。再reset模拟窗口过后，同一链接再次200，证明权益判断没有被缓存。finally再次reset避免污染其他用例。只证明出口与领取共用同一桶（TD-261/A-08），不测量全量哈希成本（O-01）。"
         },
         {
-          "end": 281,
+          "end": 334,
           "title": "test_verify_download_rules",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL227 计算右侧并赋给 `(secret, key)`：('s3cr3t', 'a/b.zip')。\nL228 计算右侧并赋给 `ok`：int(time.time()) + 60。\nL229 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok)) is True`：此条件为假即测试失败；不是生产输入校验。\nL230 核对 `verify_download(secret, key, int(time.time()) - 1, sign_download(secret, key, int(time.time()) - 1)) is False`：此条件为假即测试失败；不是生产输入校验。\nL231 核对 `verify_download(secret, key, ok, sign_download('other', key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL232 核对 `verify_download(secret, 'other.zip', ok, sign_download(secret, key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL233 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok).upper()) is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 293,
+          "end": 346,
           "title": "test_strategy_switch_by_config",
           "explanation": "本用例的准备条件：monkeypatch, tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch, tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL238 调用 monkeypatch.setattr(settings, 'STORAGE_LOCAL_ROOT', str(tmp_path))：仅在本测试替换属性，fixture结束恢复。\nL239 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'local')：仅在本测试替换属性，fixture结束恢复。\nL240 计算右侧并赋给 `local`：调用 build_storage('http://test/')。\nL241 核对 `local.backend == 'local'`：此条件为假即测试失败；不是生产输入校验。\nL242 核对 `local.presigned_url('k.zip', expires_in=60).startswith('http://test/shop/dl?')`：此条件为假即测试失败；不是生产输入校验。\nL244 逐项遍历 `('oss', 'cos', '')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL245 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', name)：仅在本测试替换属性，fixture结束恢复。\nL246 进入 pytest.raises(StorageError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL247 调用 build_storage('http://test')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
@@ -9473,7 +9565,7 @@
     },
     {
       "path": "app/delivery.py",
-      "sha256": "8af0a7803df297557ee31bd1057582bd1638901f17e0d1175d3b9a674747370f",
+      "sha256": "0ba21151ff545773877eba7517ed6f31287eed93ad36819dcd737b4e40ea00dd",
       "method": "manual",
       "blocks": [
         {
@@ -9497,9 +9589,24 @@
           "explanation": "非阻塞获取两槽线程信号量；源必须为正常文件且大小合格。根目录穿越保护后在.snapshots写临时文件，边复制边哈希并检查量/时间；比较复制前后源大小/mtime拒绝并发变更。按hash/文件名无覆盖硬链接发布，已存在则验字节一致，POSIX同步目录。错误脱敏StorageError；finally删除临时文件并保证释放槽。失败订单可能留合法未引用对象，不能自动删快照。调用者必须卸载线程，主机文件管理员仍可信。"
         },
         {
-          "end": 110,
+          "end": 121,
+          "title": "校验缓存的状态与两条边界（TD-266）",
+          "explanation": "_VERIFIED 以 (key, digest) 为键，值是上次全量校验通过时、哈希开始前取的 (st_dev, st_ino, st_size, st_mtime_ns, st_ctime_ns)；_VERIFIED_LOCK 保护线程池并发；_VERIFIED_LIMIT=256 满了整体清空。_VERIFIED_GRACE_NS=3 秒：时间戳有粒度（本机 ext4 4 ms，有的文件系统 1–2 s），ctime 距今不足此值的结果不缓存；_VERIFY_CACHE_ENABLED 仅 POSIX（Windows 的 st_ctime 是创建时间）。只缓存\"文件与记录一致\"，不缓存任何权益/退款判断。"
+        },
+        {
+          "end": 125,
+          "title": "_now_ns",
+          "explanation": "包一层 time.time_ns 便于测试拨钟；生产用墙钟，因为要与文件 ctime（也是墙钟）比较。"
+        },
+        {
+          "end": 131,
+          "title": "_inode_state",
+          "explanation": "一次 stat 取出五元组；任何字段变化都视为文件可能被改，回退到全量哈希。"
+        },
+        {
+          "end": 154,
           "title": "verify_snapshot",
-          "explanation": "同时要求key含指定digest和流式计算的(hash,size)完全匹配；存储/路径/完整性问题False，调用方拒绝发链接或交付而非回退到当前商品。"
+          "explanation": "同时要求key含指定digest和流式计算的(hash,size)完全匹配；存储/路径/完整性问题False，调用方拒绝发链接或交付而非回退到当前商品。 TD-266：先核 key 前缀，取 now 再 stat（保证之后的改写落在更晚的刻度），size 相符且五元组与记录相同则直接通过；否则 file_digest 全量哈希，失败返回 False 且不记录；通过且 ctime 已过宽限期才写入缓存。OSError/ValueError/StorageError 一律 False。"
         }
       ]
     },

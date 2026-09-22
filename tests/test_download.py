@@ -266,6 +266,59 @@ async def test_download_exit_shares_the_download_rate_limit(client, product, mon
         limiter.reset()
 
 
+async def test_repeated_and_range_downloads_hash_once_but_recheck_revocation_every_time(client, product, monkeypatch):
+    """TD-266 / ROADMAP O-01：出口对同一未变快照只做一次全量哈希，之后只 stat；权益判断不缓存。
+
+    测量：sha256 约 900 MiB/s，512 MiB 商品每次下载 0.53 s CPU；一分钟 30 次 Range 请求对 256 MiB
+    商品要烧 8 s 线程池 CPU。改后重复/Range/HEAD 请求不再重读文件，但退款撤权每次都重新查库。
+    """
+    import time as _time
+    from datetime import datetime, timezone
+
+    from app import delivery
+    from app.models import PaymentReceipt, RefundReceipt
+
+    PRODUCT_NAME = settings.STORAGE_PRODUCT_KEY.rsplit("/", 1)[-1]
+    delivery._VERIFIED.clear()
+    monkeypatch.setattr(delivery, "_VERIFY_CACHE_ENABLED", True)
+    monkeypatch.setattr(delivery, "_now_ns", lambda: _time.time_ns() + delivery._VERIFIED_GRACE_NS + 10**9)
+    hashed: list[str] = []
+    real = delivery.file_digest
+    monkeypatch.setattr(delivery, "file_digest", lambda path: (hashed.append(path.name), real(path))[1])
+    try:
+        h = await auth_headers(client)
+        order_no = await make_order("paid", "buyer")
+        url = (await client.post(f"/shop/download/{order_no}", headers=h)).json()["download_url"]
+        assert hashed == [PRODUCT_NAME], "领取链接时做一次完整校验"
+        full = await client.get(path_of(url))
+        head = await client.get(path_of(url), headers={"Range": "bytes=0-3"})
+        tail = await client.get(path_of(url), headers={"Range": "bytes=4-"})
+        again = await client.get(path_of(url))
+        assert full.status_code == 200 and full.content == PRODUCT_BYTES
+        assert head.status_code == 206 and head.content == PRODUCT_BYTES[:4]
+        assert tail.status_code == 206 and tail.content == PRODUCT_BYTES[4:]
+        assert again.status_code == 200 and again.content == PRODUCT_BYTES
+        assert hashed == [PRODUCT_NAME], f"同一 inode 状态的重复/Range 请求不得再读整个文件，实际 {hashed}"
+
+        # 权益仍每次实时判断：直接写入一张全额退款凭证（SQLite 无触发器，不走管理员流程），缓存命中的路径照样 403
+        async with TestSession() as s:
+            order = (await s.execute(select(Order).where(Order.order_no == order_no))).scalar_one()
+            s.add(PaymentReceipt(order_id=order.id, source="manual", transaction_id="manual-test-pay",
+                                 amount=order.amount, currency="CNY", actor_id=order.user_id, actor_name="buyer",
+                                 evidence="test payment evidence", paid_at=datetime.now(timezone.utc)))
+            await s.flush()
+            receipt = (await s.execute(select(PaymentReceipt).where(PaymentReceipt.order_id == order.id))).scalar_one()
+            s.add(RefundReceipt(order_id=order.id, payment_receipt_id=receipt.id, source="manual", merchant_id="m",
+                                refund_id="manual-test-refund", out_refund_no="OUT-1", amount=order.amount, currency="CNY",
+                                actor_id=order.user_id, actor_name="buyer", evidence="test refund evidence",
+                                completed_at=datetime.now(timezone.utc)))
+            await s.commit()
+        assert (await client.get(path_of(url))).status_code == 403, "退款后即使哈希被跳过也必须拒绝"
+        assert hashed == [PRODUCT_NAME], "拒绝发生在权益检查，不靠重新哈希"
+    finally:
+        delivery._VERIFIED.clear()
+
+
 # ---------------------------------------------------------------- 策略与签名本身
 
 
