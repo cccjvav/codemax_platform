@@ -14,8 +14,10 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 
 import pytest
@@ -101,7 +103,9 @@ def _run_expiry_scenario(scenario: str) -> dict:
     assert shop_js.strip(), "下单页脚本是空的 —— 很可能读错了文件"
     script = "\n;\n".join([auth, shop_js])
 
-    harness = Path("/tmp/_shop_expiry_harness.js")
+    # tempfile 而不是写死 /tmp：Windows 没有 /tmp（验收指南第 14 步在 Windows 上跑全量 pytest），
+    # 并发跑时也不会互相踩（TD-270）。
+    harness = Path(tempfile.gettempdir()) / f"_shop_expiry_harness_{os.getpid()}.js"
     harness.write_text(_EXPIRY_HARNESS + "\n;\n" + script + "\n" + scenario, encoding="utf-8")
     proc = subprocess.run(["node", str(harness)], capture_output=True, text=True, timeout=60)
     assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"

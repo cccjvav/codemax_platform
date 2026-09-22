@@ -365,8 +365,8 @@ def test_workbench_browser_logic(folder, scenario):
 
 
 def test_hidden_css_and_no_html_interpolation():
-    template = (ROOT / 'app/templates/payments-admin.html').read_text()
-    script = (ROOT / 'app/frontend/payments-admin.js').read_text()
+    template = (ROOT / 'app/templates/payments-admin.html').read_text(encoding='utf-8')
+    script = (ROOT / 'app/frontend/payments-admin.js').read_text(encoding='utf-8')
     assert '.finance [hidden] { display:none !important; }' in template
     assert 'innerHTML' not in script and 'localStorage' not in script
 
@@ -374,7 +374,7 @@ def test_hidden_css_and_no_html_interpolation():
 @pytest.mark.skipif(shutil.which('node') is None, reason='HTML pattern v-flag check requires system Node')
 def test_html_patterns_use_browser_unicode_sets():
     """Modern HTML pattern uses v, not a plain JS/Python regex; literal slash/hyphen need escapes."""
-    patterns = re.findall(r'pattern="([^"]+)"', (ROOT / 'app/templates/payments-admin.html').read_text())
+    patterns = re.findall(r'pattern="([^"]+)"', (ROOT / 'app/templates/payments-admin.html').read_text(encoding='utf-8'))
     assert len(patterns) == 2
     script = "const p=JSON.parse(process.argv[1]).map(x=>new RegExp('^(?:'+x+')$','v'));" \
              "console.log(JSON.stringify([p[0].test('ORDER_1-A'),p[0].test('../x')," \

@@ -25,7 +25,11 @@
   async function request(url, options = {}) {
     const res = await fetch(url, { credentials: "same-origin", signal: controller.signal, ...options });
     const data = await res.json().catch(() => null);
-    if (!res.ok) throw new Error(errorText(data, res.status));
+    if (!res.ok) {
+      // 会话到期：由共享模块清用户、弹浮层；onUser(null) 会随之 reset 本页并停止轮询
+      if (auth.sessionExpired?.(res.status)) throw new Error("登录已过期，请重新登录");
+      throw new Error(errorText(data, res.status));
+    }
     return data;
   }
   function endpoint() {

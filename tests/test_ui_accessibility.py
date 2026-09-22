@@ -65,6 +65,15 @@ def test_old_low_contrast_colors_are_gone_from_templates_and_css():
     assert offenders == [], offenders
 
 
+def test_er_table_header_text_background_meets_aa():
+    """ER 图表头是白色 14px 文字盖在填充色上：填充必须 ≥ 4.5:1（TD-270 把 #3b82f6 换成 #2563eb）。
+    连线/边框描边是图形而非文字，不在此检查。"""
+    js = (ROOT / "app" / "frontend" / "er-page.js").read_text(encoding="utf-8")
+    header = re.search(r'\.attr\("height", L\.headH\)[\s\S]*?\.attr\("fill", "(#[0-9a-fA-F]{6})"\)', js)
+    assert header, "找不到表头矩形的 fill"
+    assert contrast("#ffffff", header.group(1)) >= 4.5, f"表头 {header.group(1)} 对白字仅 {contrast('#ffffff', header.group(1)):.2f}:1"
+
+
 def test_disabled_and_focus_visible_states_are_styled():
     css = BASE.read_text(encoding="utf-8")
     disabled = re.search(r"button:disabled\s*\{([^}]*)\}", css)
@@ -157,3 +166,56 @@ def test_login_dialog_closes_on_escape_and_returns_focus(tmp_path, path):
     assert result["closedByEsc"], "Esc 必须关闭浮层"
     assert result["focusReturned"], f"关闭后焦点应回到打开它的按钮：{result['log']}"
     assert result["focusLeftAlone"], "焦点已离开浮层时关闭不得抢焦点"
+
+
+# ---------------------------------------------------------------- 会话到期（TD-270）：401 → 清用户、弹浮层、说明原因
+
+_EXPIRY_HARNESS = r"""
+const [authPath, supportPath] = [process.argv[2], process.argv[3]];
+const els = {}; const fetches = []; let meStatus = 200;
+const mkEl = (id) => { const classes = new Set(); return { id, value: "", textContent: "", hidden: false, disabled: false, classes,
+  classList: { add(c) { classes.add(c); }, remove(c) { classes.delete(c); }, contains(c) { return classes.has(c); } },
+  focus() {}, contains() { return false; }, append() {}, appendChild() {}, prepend() {}, replaceChildren() {}, addEventListener() {}, click() {} }; };
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t), body: mkEl("body"), activeElement: null,
+  addEventListener() {} };
+global.window = global; global.addEventListener = () => {}; global.setTimeout = (fn) => 1; global.clearTimeout = () => {};
+global.AbortController = class { constructor() { this.signal = {}; } abort() {} };
+global.fetch = async (url, opts = {}) => {
+  fetches.push(url);
+  if (url === "/auth/me") return { ok: meStatus === 200, status: meStatus, json: async () => ({ username: "alice", role: 0 }) };
+  return { ok: false, status: 401, json: async () => ({ detail: "未登录" }) };  // session expired for every data call
+};
+require(authPath);
+(async () => {
+  await new Promise((r) => setImmediate(r));
+  const auth = global.CodeMaxAuth;
+  const before = { user: auth.user && auth.user.username, btnAuthHidden: els["btn-auth"].hidden, whoHidden: els["auth-who"].hidden };
+  require(supportPath);           // page boots with a logged-in user, then its first poll gets 401
+  await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
+  const after = { user: auth.user, btnAuthHidden: els["btn-auth"].hidden, whoHidden: els["auth-who"].hidden,
+                  modalOpen: els["auth-mask"].classes.has("open"), err: els["auth-error"].textContent,
+                  workspaceHidden: els["support-workspace"].hidden, loginHidden: els["support-login"].hidden };
+  console.log(JSON.stringify({ before, after, fetches }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_expired_session_reopens_login_and_clears_the_user_everywhere(tmp_path):
+    """会话在页面打开期间到期：数据接口回 401 时，共享模块清掉用户快照、顶栏切回「登录 / 注册」、
+    弹出浮层并说明"登录已过期"；订阅页（客服）随之隐藏工作区、显示登录提示。改前顶栏仍显示已登录，
+    页面只报"读取失败"。"""
+    harness = tmp_path / "expiry.cjs"
+    harness.write_text(_EXPIRY_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / "app/frontend/auth.js"), str(ROOT / "app/frontend/support-page.js")],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    result = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result["before"] == {"user": "alice", "btnAuthHidden": True, "whoHidden": False}, result
+    after = result["after"]
+    assert after["user"] is None and after["btnAuthHidden"] is False and after["whoHidden"] is True, after
+    assert after["modalOpen"] is True and "登录已过期" in after["err"], after
+    assert after["workspaceHidden"] is True and after["loginHidden"] is False, after
+    assert "/support/messages" in result["fetches"]

@@ -46,9 +46,14 @@ def main(argv=None) -> int:
     except db_admin.MaintenanceError as error:
         print(f"Maintenance refused: {error}", file=sys.stderr)
         return 1
-    except Exception:
-        # Driver errors can contain connection details. Keep CLI failures nonzero and redacted.
-        print('Maintenance refused/failed. Check target, baseline, ledger and command requirements; no automatic reset.', file=sys.stderr)
+    except Exception as error:
+        # Driver errors can contain connection details. Keep CLI failures nonzero and redacted:
+        # only the exception *class* is shown (TD-270) so "PostgreSQL service not running" (OperationalError)
+        # is distinguishable from a baseline/ledger refusal without ever printing the DSN or message.
+        kind = type(error).__name__
+        hint = ('database connection failed: check that PostgreSQL is running and DB_*/DATABASE_URL match'
+                if kind == 'OperationalError' else 'check target, baseline, ledger and command requirements')
+        print(f'Maintenance refused/failed ({kind}): {hint}; no automatic reset.', file=sys.stderr)
         return 1
     finally:
         if conn is not None:

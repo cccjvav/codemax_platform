@@ -1,5 +1,6 @@
 """Offline maintenance runs against its own disposable PostgreSQL, never a supplied business DSN."""
 import concurrent.futures
+import os
 import subprocess
 import sys
 import uuid
@@ -49,7 +50,7 @@ def legacy_0016(conn):
     rows(conn, "DROP INDEX uq_refund_authorization_root; ALTER TABLE refund_authorization DROP COLUMN supersedes_id; "
                "ALTER TABLE refund_authorization ADD CONSTRAINT refund_authorization_preparation_id_key UNIQUE(preparation_id); "
                "DELETE FROM schema_migration WHERE version::integer=17")
-    source = (Path(__file__).resolve().parents[1] / 'database init/migrate_0013_refund_authorization.sql').read_text()
+    source = (Path(__file__).resolve().parents[1] / 'database init/migrate_0013_refund_authorization.sql').read_text(encoding='utf-8')
     function = source[source.index('CREATE FUNCTION'):source.index('CREATE TRIGGER')]
     rows(conn, function.replace('CREATE FUNCTION', 'CREATE OR REPLACE FUNCTION', 1))
 
@@ -133,7 +134,7 @@ def test_failed_migration_rolls_back_ddl_and_journal(maintenance_db, tmp_path, m
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / f'migrate_{len(original()) + 1:04}_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;')
+    (tmp_path / f'migrate_{len(original()) + 1:04}_failure.sql').write_text('CREATE TABLE should_rollback(id int); SELECT 1/0;', encoding='utf-8')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     with pytest.raises(psycopg2.Error):
         db_admin.migrate(conn)
@@ -167,7 +168,7 @@ def test_seed_requires_explicit_command_empty_identities_and_development(mainten
     conn, _ = maintenance_db
     db_admin.initialize(conn)
     with pytest.raises(psycopg2.Error):
-        rows(conn, (db_admin.SQL_ROOT / 'seed_demo.sql').read_text())
+        rows(conn, (db_admin.SQL_ROOT / 'seed_demo.sql').read_text(encoding='utf-8'))
     monkeypatch.setattr(settings, 'ENV', 'production')
     with pytest.raises(db_admin.MaintenanceError):
         db_admin.seed_demo(conn)
@@ -215,7 +216,7 @@ def test_successful_new_migration_is_not_replayed(maintenance_db, tmp_path, monk
     original = db_admin.migration_manifest
     for path, _ in original().values():
         (tmp_path / path.name).write_bytes(path.read_bytes())
-    (tmp_path / f'migrate_{len(original()) + 1:04}_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);')
+    (tmp_path / f'migrate_{len(original()) + 1:04}_success.sql').write_text('CREATE TABLE once_only(id int); INSERT INTO once_only VALUES (1);', encoding='utf-8')
     monkeypatch.setattr(db_admin, 'migration_manifest', lambda: original(tmp_path))
     db_admin.migrate(conn)
     db_admin.migrate(conn)
@@ -239,3 +240,15 @@ def test_manifest_requires_current_refund_preparation_migration(tmp_path):
             (tmp_path / path.name).write_bytes(path.read_bytes())
     with pytest.raises(db_admin.MaintenanceError):
         db_admin.migration_manifest(tmp_path)
+
+
+def test_cli_connection_failure_names_the_error_class_without_leaking_the_dsn(tmp_path):
+    """PostgreSQL 没启动时（Windows 指南第 7 步最常见的失败）CLI 要指向"连接"而不是"基线/账本"，
+    但仍不打印 DSN、密码或驱动原文（TD-270）。"""
+    script = Path(__file__).resolve().parents[1] / 'database init/db_init.py'
+    env = {**os.environ, 'DATABASE_URL': 'postgresql+asyncpg://user:PRIVATE-PASSWORD@127.0.0.1:1/walkthrough'}
+    result = subprocess.run([sys.executable, str(script), 'status', '--confirm-database', 'walkthrough'],
+                            cwd=tmp_path, capture_output=True, text=True, timeout=30, env=env)
+    assert result.returncode == 1
+    assert 'OperationalError' in result.stderr and 'PostgreSQL is running' in result.stderr
+    assert 'PRIVATE-PASSWORD' not in result.stderr and '127.0.0.1:1' not in result.stderr and 'user:' not in result.stderr

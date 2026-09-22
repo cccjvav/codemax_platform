@@ -9,20 +9,34 @@
 
 const orderNo = document.getElementById("no").textContent.trim();
 const out = document.getElementById("out");
+const pay = document.getElementById("pay");
+const back = document.getElementById("back");
 
-document.getElementById("pay").addEventListener("click", async () => {
+pay.addEventListener("click", async () => {
   // 登录态由 HttpOnly cookie 携带（TD-44），脚本读不到；没登录就让后端回 401，
   // 下面分支负责把话说清楚。
-  const res = await fetch("/shop/mock-pay/confirm", {
-    method: "POST",
-    credentials: "same-origin",
-    headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({order_no: orderNo}),
-  });
-  const data = await res.json();
-  out.textContent = res.status === 200
-    ? `支付成功（模拟）\n状态：${data.status}\n模拟流水号：${data.transaction_id}`
-    : res.status === 401
-      ? "未登录：请先在工具页登录后再来。"
+  pay.disabled = true;
+  try {
+    const res = await fetch("/shop/mock-pay/confirm", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({order_no: orderNo}),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 200) {
+      out.textContent = `支付成功（模拟）\n状态：${data.status}\n模拟流水号：${data.transaction_id}`;
+      // 验收路线（Windows 指南第 12 步）是"点模拟支付成功 → 返回商城查看订单"：
+      // 给出明确的返回入口，不让用户停在一个只有状态文本的页面上（TD-270）。
+      back.hidden = false;
+      return;
+    }
+    pay.disabled = false;
+    out.textContent = res.status === 401
+      ? "未登录：请先点击顶栏「登录 / 注册」登录同一账号，再回到本页确认。"
       : `失败 ${res.status}：${data.detail || JSON.stringify(data)}`;
+  } catch (e) {
+    pay.disabled = false;
+    out.textContent = `网络错误：${e.message}`;
+  }
 });

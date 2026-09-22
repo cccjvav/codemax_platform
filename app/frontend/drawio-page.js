@@ -46,6 +46,7 @@
     if (response.ok && response.status !== 204 && data === null) throw new Error("服务响应格式无效，请稍后重试");
     if (!response.ok) {
       if (response.status === 412) throw new Error("云端已有新版本，本次未覆盖。请重新打开或先下载本地副本");
+      if (CodeMaxAuth.sessionExpired?.(response.status)) throw new Error("登录已过期，请重新登录后再保存");
       throw new Error(CodeMaxAuth.errorText?.(data, response.status) || `请求失败（${response.status}）`);
     }
     return { data, etag: response.headers?.get("ETag") };

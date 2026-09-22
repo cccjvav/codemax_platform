@@ -154,7 +154,7 @@ def test_admin_without_selected_conversation_cannot_send(folder):
 @pytest.mark.skipif(shutil.which('node') is None, reason='Node required to execute actual frontend code')
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
 def test_cancel_invalidates_pending_shop_response(folder):
-    source = (ROOT / folder / 'shop-page.js').read_text()
+    source = (ROOT / folder / 'shop-page.js').read_text(encoding='utf-8')
     scenario = r'''
 (async()=>{
   await click('btn-buy');

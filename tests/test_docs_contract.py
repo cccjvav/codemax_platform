@@ -11,8 +11,8 @@ from scripts import check_docs_contract as gate
 def repo(tmp_path):
     subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
     (tmp_path / 'docs').mkdir()
-    (tmp_path / 'docs/documentation_policy.json').write_text(json.dumps({'generated': []}))
-    (tmp_path / 'docs/README.md').write_text(readme())
+    (tmp_path / 'docs/documentation_policy.json').write_text(json.dumps({'generated': []}), encoding='utf-8')
+    (tmp_path / 'docs/README.md').write_text(readme(), encoding='utf-8')
     gate.check(tmp_path, write=True)
     return tmp_path
 
@@ -28,38 +28,38 @@ def test_repository_passes():
 
 def test_new_untracked_directory_cannot_hide(repo):
     (repo / 'new').mkdir()
-    (repo / 'new/code.py').write_text('x = 1\n')
-    (repo / 'new/future.unlisted-language').write_text('new language source')
+    (repo / 'new/code.py').write_text('x = 1\n', encoding='utf-8')
+    (repo / 'new/future.unlisted-language').write_text('new language source', encoding='utf-8')
     errors = gate.check(repo)[1]
     assert 'missing owner new/README.md' in '\n'.join(errors)
     assert any('future.unlisted-language' in e for e in errors)
 
 
 def test_missing_sections_are_not_autofixed(repo):
-    (repo / 'docs/README.md').write_text(gate.START + gate.END)
+    (repo / 'docs/README.md').write_text(gate.START + gate.END, encoding='utf-8')
     assert len(gate.check(repo, write=True)[1]) == 4
 
 
 def test_same_length_source_change_is_stale(repo):
     path = repo / 'docs/config.json'
-    path.write_text('{"flag": 1}')
+    path.write_text('{"flag": 1}', encoding='utf-8')
     assert gate.check(repo)[1]
     assert not gate.check(repo, write=True)[1]
     assert not gate.check(repo)[1]
-    path.write_text('{"flag": 2}')
+    path.write_text('{"flag": 2}', encoding='utf-8')
     assert gate.check(repo)[1]
 
 
 def test_read_only_mode_does_not_rewrite(repo):
     before = (repo / 'docs/README.md').read_bytes()
-    (repo / 'docs/new.json').write_text('{}')
+    (repo / 'docs/new.json').write_text('{}', encoding='utf-8')
     assert gate.check(repo)[1]
     assert (repo / 'docs/README.md').read_bytes() == before
 
 
 def test_qualified_symbols_and_line_bounds(repo):
     path = repo / 'docs/test.py'
-    path.write_text('class A:\n def run(self):\n  return 1\nclass B:\n def run(self):\n  return 2\n')
+    path.write_text('class A:\n def run(self):\n  return 1\nclass B:\n def run(self):\n  return 2\n', encoding='utf-8')
     result = gate.symbols(path)
     assert [s['name'] for s in result] == ['A', 'A.run', 'B', 'B.run']
     assert all(1 <= s['line'] <= s['end'] <= 6 for s in result)
@@ -74,21 +74,21 @@ def test_duplicate_block_rejected(repo):
 @pytest.mark.parametrize('bad', ['', 'TODO', '待完善', '\ufffd'])
 def test_generated_inventory_does_not_replace_human_explanation(repo, bad):
     text = '\n'.join(f'## {section}\n\n' + (bad + '\n' + gate.START + '\n' + gate.END if section == '文件与入口' else 'Reviewed explanation.') for section in gate.SECTIONS)
-    (repo / 'docs/README.md').write_text(text)
+    (repo / 'docs/README.md').write_text(text, encoding='utf-8')
     assert gate.check(repo, write=True)[1]
 
 
 def test_ci_logs_are_ignored_but_unknown_source_is_still_owned(repo):
     from pathlib import Path
-    (repo / '.gitignore').write_text((Path(gate.ROOT) / '.gitignore').read_text())
-    (repo / 'README.md').write_text(readme())
+    (repo / '.gitignore').write_text((Path(gate.ROOT) / '.gitignore').read_text(encoding='utf-8'))
+    (repo / 'README.md').write_text(readme(), encoding='utf-8')
     for name in ['docs-build.txt', 'pytest-output.txt']:
-        (repo / name).write_text('temporary CI output')
+        (repo / name).write_text('temporary CI output', encoding='utf-8')
     rows, errors = gate.check(repo, write=True)
     assert not errors
     assert not {'docs-build.txt', 'pytest-output.txt'} & {r['path'] for r in rows}
     (repo / 'future').mkdir()
-    (repo / 'future/source.txt').write_text('not an output log')
+    (repo / 'future/source.txt').write_text('not an output log', encoding='utf-8')
     assert any('future/README.md' in e for e in gate.check(repo)[1])
 
 

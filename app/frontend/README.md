@@ -46,16 +46,16 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `acaec1305084` | L1–L169 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `439de924e889` | L1–L180 |
+| [`app/frontend/auth.js`](auth.js) | `4118c97851e4` | L1–L181 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `4cdc971cee07` | L1–L181 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
-| [`app/frontend/er-page.js`](er-page.js) | `8d3fcd84b285` | L1–L164 |
+| [`app/frontend/er-page.js`](er-page.js) | `5fbfafa54c86` | L1–L165 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `47b77692a487` | L1–L76 |
-| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `4a6d81a7fac4` | L1–L28 |
+| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `b66b6ae8c75b` | L1–L328 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `78be39e48f4f` | L1–L236 |
-| [`app/frontend/support-page.js`](support-page.js) | `acf491fde0ee` | L1–L131 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `e9575b6df56e` | L1–L329 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `0678d5552fdd` | L1–L251 |
+| [`app/frontend/support-page.js`](support-page.js) | `b02efc102577` | L1–L135 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

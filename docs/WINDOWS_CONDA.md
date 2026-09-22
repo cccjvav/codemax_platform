@@ -57,16 +57,16 @@ git status --short
 git branch --show-current
 ```
 
-本轮交付在 `arena/01a08bf5-codemax-platform`。确认当前分支是它且可以快进后再拉取：
+本轮交付在 `arena/01a0bf7a-codemax-platform`。确认当前分支是它且可以快进后再拉取：
 
 ```cmd
-git pull --ff-only origin arena/01a08bf5-codemax-platform
+git pull --ff-only origin arena/01a0bf7a-codemax-platform
 ```
 
 若当前不是这个分支，不在有修改的目录强行切换；可以在新目录克隆本轮分支：
 
 ```cmd
-git clone -c core.autocrlf=false --branch arena/01a08bf5-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
+git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
 ```
 
 仓库指纹按实际字节计算，当前 `.gitattributes` 未强制工作树 LF。上面 `clone -c core.autocrlf=false` 只设置新仓库，防止 Windows 自动转 CRLF 造成大量“指纹过期”；编辑器也选 UTF-8 / LF。已有目录发生这个问题时保留修改，在新目录按该命令重克隆并对照，不用强制检出或 `--write` 批量掩盖换行差异。
@@ -198,7 +198,7 @@ psql -h 127.0.0.1 -U postgres -d codemax_restore_check -c "select count(*) from 
 **发布验收建议使用同一 conda 环境、一个没有 .env 的独立干净代码目录**，不复制商品文件和业务数据库。首次创建该目录时：
 
 ```cmd
-git clone -c core.autocrlf=false --branch arena/01a08bf5-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
+git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
 cd /d C:\work\codemax_acceptance
 conda activate codemax
 set PYTHONUTF8=1

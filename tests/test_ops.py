@@ -41,6 +41,60 @@ async def test_security_headers_also_on_error_responses(client):
         assert r.headers["X-Content-Type-Options"] == "nosniff"
 
 
+# ============================================================ 静态资源缓存与压缩（TD-270）
+
+
+@pytest.mark.asyncio
+async def test_static_assets_are_cacheable_and_revalidate_while_pages_stay_no_store(client):
+    """入口文件名固定（auth.js），所以静态只给 1 小时 + must-revalidate；ETag 让重校验只花一次 304。
+    页面/接口保持 no-store：登录态、订单、账本都不能落到共享缓存里。"""
+    asset = await client.get("/static/js/auth.js")
+    assert asset.status_code == 200
+    assert asset.headers["cache-control"] == "public, max-age=3600, must-revalidate"
+    assert asset.headers.get("etag"), "StaticFiles 应带 ETag，否则 must-revalidate 只能整包重下"
+    again = await client.get("/static/js/auth.js", headers={"If-None-Match": asset.headers["etag"]})
+    assert again.status_code == 304 and not again.content
+    for path in ("/", "/shop", "/healthz"):
+        assert (await client.get(path)).headers["cache-control"] == "no-store", path
+
+
+@pytest.mark.asyncio
+async def test_large_responses_are_gzipped_only_when_the_client_accepts_it(client):
+    """本地直连（Windows 指南、无 nginx）时由应用压缩：Mermaid 产物 669 KiB → 约 140 KiB。
+    小响应（< 1 KiB）与不声明 gzip 的客户端不压；压缩后安全头照常。"""
+    import gzip
+
+    path = "/static/js/mermaid-page.js"
+    plain = await client.get(path, headers={"Accept-Encoding": "identity"})
+    assert plain.status_code == 200 and "content-encoding" not in plain.headers
+    req = client.build_request("GET", path, headers={"Accept-Encoding": "gzip"})
+    resp = await client.send(req, stream=True)
+    raw = b"".join([chunk async for chunk in resp.aiter_raw()])
+    await resp.aclose()
+    assert resp.headers.get("content-encoding") == "gzip" and resp.headers.get("vary") == "Accept-Encoding"
+    assert len(raw) < len(plain.content) / 2, f"压缩后 {len(raw)} 字节，未压 {len(plain.content)} 字节"
+    assert gzip.decompress(raw) == plain.content, "解压后必须与未压缩正文逐字节相同"
+    assert resp.headers["x-content-type-options"] == "nosniff" and "content-security-policy" in resp.headers
+    small = await client.get("/healthz", headers={"Accept-Encoding": "gzip"})
+    assert "content-encoding" not in small.headers, "< 1 KiB 的响应不压"
+
+
+@pytest.mark.asyncio
+async def test_delivery_downloads_are_not_recompressed(client, product):
+    """交付物是 application/octet-stream 的 ZIP：再 gzip 一遍只费 CPU、还丢 Content-Length（浏览器没进度条）。
+    完整下载与 Range 都必须原样、带长度。"""
+    from tests.test_download import auth_headers, make_order, path_of
+
+    h = await auth_headers(client)
+    number = await make_order("paid", "buyer")
+    url = path_of((await client.post(f"/shop/download/{number}", headers=h)).json()["download_url"])
+    full = await client.get(url, headers={"Accept-Encoding": "gzip, br"})
+    assert full.status_code == 200 and "content-encoding" not in full.headers
+    assert full.headers["content-length"] == str(len(full.content)) and full.headers["accept-ranges"] == "bytes"
+    part = await client.get(url, headers={"Accept-Encoding": "gzip", "Range": "bytes=0-3"})
+    assert part.status_code == 206 and "content-encoding" not in part.headers and len(part.content) == 4
+
+
 @pytest.mark.asyncio
 async def test_no_hsts_over_plain_http(client):
     """http 上不能下发 HSTS，否则还在用 http 的环境会被浏览器锁死一年。"""

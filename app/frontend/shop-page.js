@@ -99,7 +99,7 @@ async function poll() {
   try {
     const res = await fetch(`/shop/orders/${no}`, { credentials: "same-origin" });
     if (stamp !== buySeq || no !== currentNo) return;
-    if (res.status === 401) { stop(); show("landing"); return; }
+    if (res.status === 401) { stop(); show("landing"); window.CodeMaxAuth?.sessionExpired?.(401); return; }
     if (!res.ok) return;
     const o = await res.json();
     if (stamp !== buySeq || no !== currentNo) return;
@@ -174,6 +174,19 @@ async function doBuy() {
   render(order);
 }
 
+// 从模拟收银台按「返回」或标签页重新可见时，立即查一次状态，而不是等最长 3 秒的下一次轮询：
+// 用户刚在别处付完款回来，页面应当马上从"待支付"切到"支付成功"（TD-270）。
+// 只在有待支付订单在看的时候触发；bfcache 恢复（pageshow.persisted）时定时器可能已被 pagehide 停掉。
+function refreshOnReturn() {
+  if (!currentNo) return;
+  if (!timer) timer = setInterval(poll, 3000);
+  poll();
+}
+window.addEventListener("pageshow", (ev) => { if (ev.persisted) refreshOnReturn(); });
+document.addEventListener?.("visibilitychange", () => {
+  if (document.visibilityState === "visible") refreshOnReturn();
+});
+
 document.getElementById("btn-buy").onclick = buy;
 document.getElementById("btn-rebuy").onclick = buy;
 document.getElementById("btn-cancel").onclick = () => {
@@ -189,6 +202,7 @@ document.getElementById("btn-download").onclick = async () => {
     const res = await fetch(`/shop/download/${no}`, { method: "POST", credentials: "same-origin" });
     const data = await res.json();
     if (stamp !== buySeq || no !== currentNo) return;
+    if (window.CodeMaxAuth?.sessionExpired?.(res.status)) throw new Error("登录已过期，请重新登录后再领取");
     if (!res.ok) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || `下载失败（${res.status}）`);
     if (typeof data?.download_url !== "string" || !/^https?:\/\//.test(data.download_url)) throw new Error("下载响应格式无效");
     window.location.href = data.download_url;
@@ -202,6 +216,7 @@ async function loadHistory(more = false) {
     const res = await fetch("/shop/orders" + (more && historyCursor ? `?before=${historyCursor}` : ""), { credentials: "same-origin" });
     const data = await res.json();
     if (stamp !== buySeq) return;
+    if (window.CodeMaxAuth?.sessionExpired?.(res.status)) throw new Error("登录已过期，请重新登录后查看订单");
     if (!res.ok || !Array.isArray(data?.orders)) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || "请登录后查看订单");
     if (!more) box.innerHTML = "";
     const labels = { pending: "待付款", paid: "可下载", downloaded: "可重新下载", closed: "已关闭" };

@@ -167,9 +167,9 @@ async def test_oauth_nul_code_is_not_a_database_error(client):
 def test_container_context_and_compose_keep_explicit_initialization():
     from pathlib import Path
     root = Path(__file__).resolve().parents[1]
-    ignored = (root / '.dockerignore').read_text().splitlines()
+    ignored = (root / '.dockerignore').read_text(encoding='utf-8').splitlines()
     assert 'database init' not in ignored and 'database init/' not in ignored and '*.sql' not in ignored
-    compose = (root / 'docker-compose.yml').read_text()
+    compose = (root / 'docker-compose.yml').read_text(encoding='utf-8')
     assert '/docker-entrypoint-initdb.d/' not in compose
     assert 'DATABASE_URL: ""' in compose
 

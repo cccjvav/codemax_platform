@@ -32,9 +32,9 @@ def test_atomic_private_status_lock_and_transition_logs(tmp_path, capsys):
         publisher.publish('starting')
         assert health.check(path)[0] == 1
         publisher.publish('running', EMPTY)
-        first = json.loads(path.read_text())
+        first = json.loads(path.read_text(encoding='utf-8'))
         publisher.publish('running', EMPTY)
-        assert json.loads(path.read_text())['sequence'] == first['sequence'] + 1
+        assert json.loads(path.read_text(encoding='utf-8'))['sequence'] == first['sequence'] + 1
         assert health.check(path) == (0, [])
         with pytest.raises(OSError), health.Publisher(path):
             pytest.fail('Second writer acquired the same status path')
@@ -58,8 +58,8 @@ def test_status_fails_closed_on_malformed_or_non_running(tmp_path, change):
     path = tmp_path / 'status.json'
     with health.Publisher(path) as publisher:
         publisher.publish('running', EMPTY)
-    note = json.loads(path.read_text())
-    path.write_text(json.dumps({**note, **change}))
+    note = json.loads(path.read_text(encoding='utf-8'))
+    path.write_text(json.dumps({**note, **change}), encoding='utf-8')
     code, reasons = health.check(path)
     assert code == 1 and reasons and 'secret' not in str(reasons)
 
@@ -76,7 +76,7 @@ def test_stale_future_alarm_and_clear_are_distinct(tmp_path):
     path = tmp_path / 'status.json'
     with health.Publisher(path) as publisher:
         publisher.publish('running', {**EMPTY, 'attention': 1, 'expired': 1, 'retry': 1, 'due': 50, 'oldest_due_seconds': 300})
-        stamp = json.loads(path.read_text())['updated_at']
+        stamp = json.loads(path.read_text(encoding='utf-8'))['updated_at']
         assert health.check(path, now=stamp + 120)[0] == 0
         assert health.check(path, now=stamp + 121) == (1, ['stale_or_clock_skew'])
         assert health.check(path, now=stamp - 6)[0] == 1
@@ -165,7 +165,7 @@ async def test_once_is_not_daemon_health(fake_worker, tmp_path):
     path = tmp_path / 'status.json'
     with health.Publisher(path) as publisher:
         await worker.run(once=True, publisher=publisher)
-    assert json.loads(path.read_text())['state'] == 'completed'
+    assert json.loads(path.read_text(encoding='utf-8'))['state'] == 'completed'
     assert health.check(path)[0] == 1
 
 
@@ -189,8 +189,8 @@ async def test_failed_cycle_cannot_refresh_healthy_status(fake_worker, tmp_path,
         publisher.publish('running', EMPTY)
         with pytest.raises((RuntimeError, worker.MaintenanceError, TimeoutError)):
             await worker.run(publisher=publisher)
-    assert json.loads(path.read_text())['state'] == 'failed'
-    assert health.check(path)[0] == 1 and 'private' not in path.read_text()
+    assert json.loads(path.read_text(encoding='utf-8'))['state'] == 'failed'
+    assert health.check(path)[0] == 1 and 'private' not in path.read_text(encoding='utf-8')
 
 
 async def test_cancel_writes_stopped_and_does_not_invent_completion(fake_worker, tmp_path, monkeypatch):
@@ -206,7 +206,7 @@ async def test_cancel_writes_stopped_and_does_not_invent_completion(fake_worker,
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
-    assert json.loads(path.read_text())['state'] == 'stopped'
+    assert json.loads(path.read_text(encoding='utf-8'))['state'] == 'stopped'
     assert health.check(path)[0] == 1
 
 
@@ -297,7 +297,7 @@ async def test_real_process_exit_and_restart_preserve_lease_and_fence_old_result
     assert (await jobs())[0].state == 'verified'
     async with TestSession() as db:
         assert await db.scalar(select(RefundReceipt.id)) is None  # synthetic observation, no financial settlement
-    assert json.loads(path.read_text())['state'] == 'completed'
+    assert json.loads(path.read_text(encoding='utf-8'))['state'] == 'completed'
 
 
 def test_real_migration_startup_once_disabled_and_db_outage(maintenance_db, tmp_path):
@@ -312,30 +312,30 @@ def test_real_migration_startup_once_disabled_and_db_outage(maintenance_db, tmp_
     command = [sys.executable, '-m', 'app.refund_worker', '--once', '--status-file', str(path)]
     success = subprocess.run(command, capture_output=True, text=True, env=env, timeout=20)
     assert success.returncode == 0, success.stderr
-    assert json.loads(path.read_text())['state'] == 'completed'
+    assert json.loads(path.read_text(encoding='utf-8'))['state'] == 'completed'
     assert health.check(path)[0] == 1
     disabled = subprocess.run(command, capture_output=True, text=True, env={**env, 'WX_REFUND_VERIFY_ENABLED': 'false'}, timeout=20)
-    assert disabled.returncode == 1 and json.loads(path.read_text())['state'] == 'failed'
+    assert disabled.returncode == 1 and json.loads(path.read_text(encoding='utf-8'))['state'] == 'failed'
     outage = subprocess.run(command, capture_output=True, text=True,
         env={**env, 'DATABASE_URL': 'postgresql+asyncpg://synthetic:PRIVATE-PASSWORD@127.0.0.1:1/disposable'}, timeout=20)
-    assert outage.returncode == 1 and json.loads(path.read_text())['state'] == 'failed'
+    assert outage.returncode == 1 and json.loads(path.read_text(encoding='utf-8'))['state'] == 'failed'
     assert 'PRIVATE-PASSWORD' not in outage.stderr + outage.stdout and 'Traceback' not in outage.stderr
     with conn, conn.cursor() as cursor:
         cursor.execute("UPDATE schema_migration SET checksum=repeat('0',64) WHERE version='0017'")
     drift = subprocess.run(command, capture_output=True, text=True, env=env, timeout=20)
-    assert drift.returncode == 1 and json.loads(path.read_text())['state'] == 'failed'
+    assert drift.returncode == 1 and json.loads(path.read_text(encoding='utf-8'))['state'] == 'failed'
 
 
 def test_supervision_template_is_opt_in_and_overrides_web_probe():
     root = Path(__file__).resolve().parents[1]
-    text = (root / 'docker-compose.yml').read_text()
+    text = (root / 'docker-compose.yml').read_text(encoding='utf-8')
     block = text.split('  refund-verifier:\n')[1].split('\nvolumes:')[0]
     assert 'profiles: ["refund-verifier"]' in block and 'restart: "on-failure:5"' in block
     assert 'app.refund_worker' in block and 'app.refund_health' in block and '/healthz' not in block
     assert 'WX_REFUND_AUTO_RECORD_ENABLED: "false"' in block and 'WX_REFUND_SEND_ENABLED: "false"' in block
     assert 'WX_REFUND_VERIFY_ENABLED:' not in block and 'ports:' not in block
     assert '--alerts' not in block  # backlog/manual hold must not cause restart loops
-    assert 'runtime' in (root / '.dockerignore').read_text() and '/runtime/' in (root / '.gitignore').read_text()
+    assert 'runtime' in (root / '.dockerignore').read_text(encoding='utf-8') and '/runtime/' in (root / '.gitignore').read_text(encoding='utf-8')
 
 
 @pytest.mark.parametrize('environment', [
@@ -381,7 +381,7 @@ async def test_real_idle_daemon_freshness_exit_and_lock_recovery(maintenance_db,
             else:
                 pytest.fail('Real daemon never completed first cycle')
         assert health.check(path, include_alerts=True) == (0, [])
-        note = json.loads(path.read_text())
+        note = json.loads(path.read_text(encoding='utf-8'))
         process.send_signal(signal.SIGKILL if hard else signal.SIGTERM)
         await asyncio.wait_for(process.wait(), 10)
         assert process.returncode == (-signal.SIGKILL if hard else 0)
@@ -399,7 +399,7 @@ async def test_real_idle_daemon_freshness_exit_and_lock_recovery(maintenance_db,
     try:
         _, errors = await asyncio.wait_for(recovered.communicate(), 15)
         assert recovered.returncode == 0, errors.decode()
-        assert json.loads(path.read_text())['instance'] != note['instance']
+        assert json.loads(path.read_text(encoding='utf-8'))['instance'] != note['instance']
         assert health.check(path)[0] == 1  # one-shot success must not masquerade as a running service
     finally:
         if recovered.returncode is None:

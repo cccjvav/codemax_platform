@@ -148,7 +148,7 @@ def test_private_root_env_and_process_precedence(tmp_path, monkeypatch):
     for name in ('LLM_API_KEY', 'LLM_BASE_URL', 'LLM_MODEL', 'LLM_EMBED_MODEL'):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setattr(probe, 'ROOT', tmp_path)
-    (tmp_path / '.env').write_text('LLM_API_KEY=test-only-key\nLLM_BASE_URL=https://provider.invalid/v1\nLLM_MODEL=from-file\n')
+    (tmp_path / '.env').write_text('LLM_API_KEY=test-only-key\nLLM_BASE_URL=https://provider.invalid/v1\nLLM_MODEL=from-file\n', encoding='utf-8')
     assert probe.configured_client('chat').model == 'from-file'
     monkeypatch.setenv('LLM_MODEL', 'from-process')
     assert probe.configured_client('chat').model == 'from-process'

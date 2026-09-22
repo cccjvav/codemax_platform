@@ -93,8 +93,8 @@ pending → closed → paid
 | `_identity` / `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；IPv6 归并到 /64、IPv4 映射地址还原为 IPv4，解析不出的对端原样占键。依赖按 scope + 身份限流，capacity 与 quota 用不同 429 文案。内存状态不跨进程共享 |
 | `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；生产链接固定为已校验 SITE_BASE_URL，开发链接可按可信头派生。应用端口仍须阻止绕过代理访问 |
 | `body_limit_for` / `RequestBodyBudgetMiddleware` | 路径 → 请求体上限：默认 1 MiB，`/diagrams` 2 MiB，`/shop/pay/notify` 与 `/shop/refunds/notify` 返回 None 由路由自己的 64 KiB 流式预算负责（TD-260）。Content-Length 超限不读一字节即 413 + `connection: close`；分块/谎报长度按实际字节计，越界抛 `BodyTooLarge`（HTTPException 子类，FastAPI 读体时原样上抛成 413 而不是 400）。只限制应用读到的字节，不替代代理 `client_max_body_size`，不限制响应大小 |
-| `validation_error_without_input` | 注册为 `RequestValidationError` 处理器：422 只保留 type/loc/msg/ctx，去掉 `input`/`url`，不再把几十万字符的出错字段原样回显；前端只读 `msg` |
-| `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
+| `validation_error_without_input` | 注册为 `RequestValidationError` 处理器：422 只保留 type/loc/msg/ctx，去掉 `input`/`url`，不再把几十万字符的出错字段原样回显；前端只读 `msg`；`msg` 按 pydantic 错误类型翻成中文（长度带上下限、缺字段、格式、JSON 无效），validator 抛的中文原样、未知类型保留原文（TD-270） |
+| `SecurityHeadersMiddleware` | 设置 CSP、HSTS、安全响应头和私人响应 no-store；`/static/` 改为 `public, max-age=3600, must-revalidate`（入口名固定，靠 ETag 重校验，TD-270）；生产 API 文档关闭；开发文档和 OAuth 同意页有局部例外 |
 | `RequestLoggingMiddleware` | 记录请求方法、路径、状态、耗时等；ID 只接受安全128字符格式，路径转义限长、不含查询；这不是独立防篡改审计存储 |
 | `check_production_settings` / `check_production_warnings` | 分别返回阻断问题／告警列表；配置检查不进行实际商户、文件或模型连通性验收 |
 | `enforce_database_safety` | production在lifespan中10秒内只读校验迁移账本、已知演示凭据与管理员；失败不接流量、不自动改库 |
@@ -119,7 +119,7 @@ pending → closed → paid
 | [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
 | [`app/delivery.py`](delivery.py) | `0ba21151ff54` | L1–L154 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
-| [`app/middleware.py`](middleware.py) | `6d7bde9df09f` | L1–L299 |
+| [`app/middleware.py`](middleware.py) | `3dd5cca800bc` | L1–L361 |
 | [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |

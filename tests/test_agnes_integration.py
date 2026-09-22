@@ -155,9 +155,9 @@ def test_live_workflow_requires_manual_opt_in_and_scopes_secret():
     from pathlib import Path
 
     import yaml
-    config = yaml.load(Path('.github/workflows/agnes-connectivity.yml').read_text(), Loader=yaml.BaseLoader)
+    config = yaml.load(Path('.github/workflows/agnes-connectivity.yml').read_text(encoding='utf-8'), Loader=yaml.BaseLoader)
     assert config['on']['push']['paths'] == ['.github/workflows/agnes-connectivity.yml']
-    assert config['on']['push']['branches'] == ['arena/01a08bf5-codemax-platform']
+    assert config['on']['push']['branches'] == ['arena/01a0bf7a-codemax-platform']  # 本会话分支（TD-270）
     assert 'pull_request' not in config['on']
     live = config['jobs']['live-chat']
     assert live['if'] == "(github.event_name == 'workflow_dispatch' && inputs.live_chat) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agnes-live-test]'))"

@@ -25,7 +25,7 @@ contents:read 用于 checkout；pull-requests:write **只在两个 test job 上*
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `71facbf334c6` | L1–L88 |
+| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `1748aa2d130c` | L1–L88 |
 | [`.github/workflows/ci.yml`](ci.yml) | `c77be8e6909c` | L1–L348 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

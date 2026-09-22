@@ -2,7 +2,7 @@
 
 本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) 与 [2026-09-20 接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
 
-**2026-09-20 接手状态**：基线 `ea11619`（远端 tip，六项 CI success）；六项诊断独立复现并同意评级，H-02 关闭；新增 F-09（限流器满桶拒绝所有新客户端）列为 ROADMAP A-07；复核报告提交 `48247ce`（六项 CI success）只写文档。第一修复批次（TD-260）已落地：请求体预算中间件（1 MiB / `/diagrams` 2 MiB / 回调自管 64 KiB）、422 去 `input` 回显、LLM 响应 1 MiB 预算 + 深嵌套归 LLMError + 总时限 + index `type is int`；A-01、A-05 完成，A-02 只剩并发/额度策略；四项诊断已换成默认套件回归，探针文件只剩 A-03/A-04 两项。第二修复批次（TD-261）已落地：限流器满桶从到期队头回收过期桶、满且全活跃仍拒绝并区分 capacity/quota（文案 + 每分钟一条 warning）、IPv6 /64 归并、`GET /shop/dl` 挂 `download` 桶；A-07、A-08 完成，F-09 维持门槛订正为 ≈ 300 请求/秒。第三修复批次（TD-262）已落地：同用户预支付进程内单飞 + `POST /shop/orders` `order` 桶（`RATE_LIMIT_AUTH`，用户确认取值）、`require_login_origin` 表单登录来源检查；A-03、A-04 完成，`tests/audit_handoff_probes.py` 六项诊断全部换成默认套件回归后已删除。第四批（O-09 清理 + TD-263 UI）已落地：TD-214/TD-217 文字订正、`_payload` 死参数、`crawler.py` 裸 assert、7 处无效 noqa；WCAG AA 配色、浮层 dialog 语义/Esc/焦点归还、`:disabled`/`:focus-visible`、`support.css` 去 `:has()`，bundle 重建。第五批（TD-264）已落地 A-02 后半：每进程 LLM 在途并发上限 4、满则 503 + Retry-After 5 不排队、客服转人工、mermaid 页自动重试一次，不做站内日额度（用户确认）。至此 G1 的 A-01～A-09 全部完成。第六批（TD-265）落地 O-03：三条建库路径的 PG 目录等价回归，修正 `sys_user.role` NOT NULL 与账本 DDL 同源两处漂移。第七批（TD-266）落地 O-01：下载出口快照校验按 inode 状态跳过重复全量哈希（权益判断不缓存）。第八批（TD-267）落地 O-08 的 action SHA 钉住与 CI 权限收窄（镜像 digest 与 pip 哈希锁列为未做）。第九批（TD-268）落地 O-07：重定向逐跳 robots、域状态 LRU 上限、Crawl-delay 上限。第十批（TD-269）落地 O-05：ALTER 外键、隐式父键、标识符折叠。G4 的 O-01/O-03/O-05/O-07 与 O-08 第一部分至此完成；剩余 A-06、O-02/O-04/O-06、O-08 后半与 G2/G3 各项都需要产品/经营决策或真实环境，每批经用户确认。
+**2026-09-20 接手状态**：基线 `ea11619`（远端 tip，六项 CI success）；六项诊断独立复现并同意评级，H-02 关闭；新增 F-09（限流器满桶拒绝所有新客户端）列为 ROADMAP A-07；复核报告提交 `48247ce`（六项 CI success）只写文档。第一修复批次（TD-260）已落地：请求体预算中间件（1 MiB / `/diagrams` 2 MiB / 回调自管 64 KiB）、422 去 `input` 回显、LLM 响应 1 MiB 预算 + 深嵌套归 LLMError + 总时限 + index `type is int`；A-01、A-05 完成，A-02 只剩并发/额度策略；四项诊断已换成默认套件回归，探针文件只剩 A-03/A-04 两项。第二修复批次（TD-261）已落地：限流器满桶从到期队头回收过期桶、满且全活跃仍拒绝并区分 capacity/quota（文案 + 每分钟一条 warning）、IPv6 /64 归并、`GET /shop/dl` 挂 `download` 桶；A-07、A-08 完成，F-09 维持门槛订正为 ≈ 300 请求/秒。第三修复批次（TD-262）已落地：同用户预支付进程内单飞 + `POST /shop/orders` `order` 桶（`RATE_LIMIT_AUTH`，用户确认取值）、`require_login_origin` 表单登录来源检查；A-03、A-04 完成，`tests/audit_handoff_probes.py` 六项诊断全部换成默认套件回归后已删除。第四批（O-09 清理 + TD-263 UI）已落地：TD-214/TD-217 文字订正、`_payload` 死参数、`crawler.py` 裸 assert、7 处无效 noqa；WCAG AA 配色、浮层 dialog 语义/Esc/焦点归还、`:disabled`/`:focus-visible`、`support.css` 去 `:has()`，bundle 重建。第五批（TD-264）已落地 A-02 后半：每进程 LLM 在途并发上限 4、满则 503 + Retry-After 5 不排队、客服转人工、mermaid 页自动重试一次，不做站内日额度（用户确认）。至此 G1 的 A-01～A-09 全部完成。第六批（TD-265）落地 O-03：三条建库路径的 PG 目录等价回归，修正 `sys_user.role` NOT NULL 与账本 DDL 同源两处漂移。第七批（TD-266）落地 O-01：下载出口快照校验按 inode 状态跳过重复全量哈希（权益判断不缓存）。第八批（TD-267）落地 O-08 的 action SHA 钉住与 CI 权限收窄（镜像 digest 与 pip 哈希锁列为未做）。第九批（TD-268）落地 O-07：重定向逐跳 robots、域状态 LRU 上限、Crawl-delay 上限。第十批（TD-269）落地 O-05：ALTER 外键、隐式父键、标识符折叠。G4 的 O-01/O-03/O-05/O-07 与 O-08 第一部分至此完成；剩余 A-06、O-02/O-04/O-06、O-08 后半与 G2/G3 各项都需要产品/经营决策或真实环境，每批经用户确认。 2026-09-22 起进入**验收前复核**：第一批（TD-270）按 Windows 指南在真 PG 上回放第 7～13 步，功能全部符合，修了 422 英文文案、模拟收银台返回路径、ER 表头对比度、静态缓存/gzip、维护 CLI 连接失败提示、文档里的旧分支名；后续批次继续按页面/文档/CLI 分组复核。
 
 ## 本次交接范围
 
@@ -25,12 +25,12 @@
 ```bash
 git branch --show-current
 git rev-parse HEAD
-git ls-remote origin refs/heads/arena/01a08bf5-codemax-platform
-gh run list --workflow ci.yml --branch arena/01a08bf5-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
+git ls-remote origin refs/heads/arena/01a0bf7a-codemax-platform
+gh run list --workflow ci.yml --branch arena/01a0bf7a-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
 gh run view <匹配HEAD的run-id> --json headSha,status,conclusion,jobs,url
 ```
 
-本会话固定 `arena/01a08bf5-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
+本会话固定 `arena/01a0bf7a-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
 
 ## 已核实的上轮发布
 

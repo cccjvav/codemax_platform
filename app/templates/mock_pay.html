@@ -8,6 +8,9 @@
   #pay{margin-top:16px;padding:10px 22px;font-size:16px;cursor:pointer;border-radius:6px;
     border:1px solid #d39e00;background:#ffc107}
   #out{white-space:pre-wrap;font-size:13px;color:#555;margin-top:16px}
+  #pay:disabled{background:#cbd5e1;border-color:#cbd5e1;color:#334155;cursor:not-allowed}
+  #back{margin-top:16px}
+  #back a.cta{display:inline-block;padding:8px 18px;border-radius:6px;background:#15803d;color:#fff;font-weight:600}
 </style>
 <section class="mock-box">
   <div class="mock-banner">⚠️ 模拟支付通道 —— 不会产生真实扣款，仅用于本地开发与答辩演示</div>
@@ -17,6 +20,7 @@
      此时本页与模拟支付接口都会返回 404。</p>
   <button id="pay">模拟支付成功</button>
   <pre id="out"></pre>
+  <p id="back" hidden><a class="cta" href="{{ shop_path }}" id="back-link">返回商城查看订单</a>（本页只是演示收银台，订单状态以商城页为准）</p>
 </section>
 <script src="/static/js/mock-pay-page.js"></script>
 {% endblock %}

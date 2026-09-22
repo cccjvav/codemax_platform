@@ -48,7 +48,8 @@
     const data = await res.json().catch(() => null);
     if (!res.ok) {
       if (alive(stamp) && [401, 403].includes(res.status)) reset(null);
-      const error = new Error(auth.errorText(data, res.status)); error.status = res.status; throw error;
+      const expired = auth.sessionExpired?.(res.status);  // 到期：共享模块清用户并弹登录浮层
+      const error = new Error(expired ? "登录已过期，请重新登录后再操作" : auth.errorText(data, res.status)); error.status = res.status; throw error;
     }
     return data;
   }

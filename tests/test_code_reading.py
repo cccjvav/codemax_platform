@@ -164,7 +164,7 @@ def test_guided_notes_disclose_syntax_not_semantic_certification(specimen):
     data['files'][0]['method'] = 'guided'
     save_notes(root, data)
     entry = cr.build_reading(root, [row], require_complete=True)['files'][0]
-    html = cr.render_notes(entry, (root / row['path']).read_text())
+    html = cr.render_notes(entry, (root / row['path']).read_text(encoding='utf-8'))
     assert entry['method'] == 'guided'
     assert 'AST 语句导读' in html and '不推断设计意图' in html
     assert entry['semantic_review'] == 'not_automatically_verified'

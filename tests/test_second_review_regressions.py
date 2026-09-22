@@ -271,7 +271,7 @@ async def test_pg_legacy_schema_upgrade_preserves_customer_data(client):
         await raw.execute('DROP TABLE support_message; ALTER TABLE oauth_code DROP COLUMN credential_version; ALTER TABLE sys_user DROP COLUMN credential_version;')
         for _ in range(2):
             for name in ['migrate_0007_support_messages.sql', 'migrate_0008_credential_revision.sql']:
-                await raw.execute((ROOT / 'database init' / name).read_text())
+                await raw.execute((ROOT / 'database init' / name).read_text(encoding='utf-8'))
     async with TestSession() as db:
         user = await db.get(User, uid)
         assert user.username == 'migration_user' and user.credential_version == 0

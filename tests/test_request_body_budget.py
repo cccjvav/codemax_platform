@@ -169,3 +169,42 @@ async def test_middleware_refuses_bad_or_negative_content_length():
 async def test_every_json_route_refuses_2mib_bodies(client, path):
     r = await client.post(path, content=b'{"text":"' + b"x" * (2 * MIB) + b'"}', headers=JSON)
     assert r.status_code == 413
+
+
+# ---------------------------------------------------------------- 422 文案中文化（TD-270）
+
+
+@pytest.mark.parametrize(("path", "payload", "expected"), [
+    ("/auth/register", {"username": "ab", "password": "123"}, ["用户名至少 3 个字符", "密码至少 6 个字符"]),
+    ("/auth/register", {"username": "a b", "password": "secret123"}, ["用户名只能包含字母、数字、下划线、连字符或中文，不能有空格与特殊符号"]),
+    ("/auth/register", {"username": "x" * 51, "password": "secret123"}, ["用户名最多 50 个字符"]),
+    ("/tools/er-diagram", {"ddl": ""}, ["DDL至少 1 个字符"]),
+    ("/tools/mermaid", {}, ["缺少文本"]),
+    ("/tools/mermaid", {"text": "x" * 10001}, ["文本最多 10000 个字符"]),
+    ("/support/ask", {"text": 5}, ["文本格式不正确"]),
+])
+async def test_validation_messages_are_chinese_and_specific(client, path, payload, expected):
+    """浮层/工具页把 `msg` 原样显示给用户：pydantic 的英文默认文案与 `Value error, ` 前缀都不该出现。
+
+    `type`/`loc`/`ctx` 保持 FastAPI 默认结构，机器可读部分不变；`input` 仍不回显（上一条用例）。
+    """
+    r = await client.post(path, json=payload)
+    assert r.status_code == 422
+    detail = r.json()["detail"]
+    assert [item["msg"] for item in detail] == expected, detail
+    assert all("Value error" not in item["msg"] and "should have" not in item["msg"] for item in detail)
+    assert all({"type", "loc", "msg"} <= set(item) and "input" not in item for item in detail)
+
+
+async def test_malformed_json_body_is_explained_in_chinese(client):
+    r = await client.post("/tools/er-diagram", content=b"{not json", headers={"content-type": "application/json"})
+    assert r.status_code == 422
+    assert r.json()["detail"][0]["msg"] == "请求内容不是有效的 JSON"
+
+
+def test_unknown_error_types_keep_their_original_message():
+    from app.middleware import localize_validation_message
+
+    assert localize_validation_message({"type": "some_new_type", "loc": ("body", "x"), "msg": "Original text"}) == "Original text"
+    assert localize_validation_message({"type": "value_error", "loc": ("body", "x"), "msg": "Value error, 自定义原因"}) == "自定义原因"
+    assert localize_validation_message({"type": "string_too_short", "loc": ("body", "nickname"), "msg": "", "ctx": {"min_length": 2}}) == "nickname至少 2 个字符"

@@ -54,13 +54,14 @@ function renderEr(selector, graph) {
     .attr("height", (n) => n.h)
     .attr("rx", 6)
     .attr("fill", "#fff")
-    .attr("stroke", "#3b82f6");
+    .attr("stroke", "#2563eb");
   node
     .append("rect")
     .attr("width", (n) => n.w)
     .attr("height", L.headH)
     .attr("rx", 6)
-    .attr("fill", "#3b82f6");
+    // 表头是白色 14px 文字：#3b82f6 只有 3.68:1，换成站内统一的 #2563eb（5.17:1，TD-263 同款）
+    .attr("fill", "#2563eb");
   node
     .append("text")
     .attr("x", 10)

@@ -272,10 +272,10 @@ def test_subpages_load_offline_search_index_before_script():
 def test_real_source_links_resolve_to_local_source_and_range(tmp_path):
     html = bds._postprocess('<a href="../app/models.py#L1-L3">source</a>', 'docs/test.md', {}, {'app/models.py': 's/models.html'})
     assert 'href="../s/models.html?end=3#L1"' in html
-    (tmp_path / 'index.html').write_text('<a href="source.html?end=3#L1">ok</a>')
-    (tmp_path / 'source.html').write_text('<span id="L1"></span><span id="L3"></span>')
+    (tmp_path / 'index.html').write_text('<a href="source.html?end=3#L1">ok</a>', encoding='utf-8')
+    (tmp_path / 'source.html').write_text('<span id="L1"></span><span id="L3"></span>', encoding='utf-8')
     assert bds.validate_site(tmp_path) == []
-    (tmp_path / 'source.html').write_text('<span id="L1"></span>')
+    (tmp_path / 'source.html').write_text('<span id="L1"></span>', encoding='utf-8')
     assert bds.validate_site(tmp_path), 'out-of-bounds source range must fail'
     (tmp_path / 'source.html').unlink()
     assert bds.validate_site(tmp_path), 'missing generated source page must fail'
@@ -287,8 +287,8 @@ def test_graph_keeps_all_import_aliases(tmp_path, monkeypatch):
     subprocess.run(['git', 'init', '-q', str(tmp_path)], check=True)
     (tmp_path / 'app').mkdir()
     for filename in ['__init__.py', 'a.py', 'b.py', 'c.py']:
-        (tmp_path / 'app' / filename).write_text('')
-    (tmp_path / 'main.py').write_text('from app import a, b\nimport app.c, app.b\n')
+        (tmp_path / 'app' / filename).write_text('', encoding='utf-8')
+    (tmp_path / 'main.py').write_text('from app import a, b\nimport app.c, app.b\n', encoding='utf-8')
     monkeypatch.setattr(bds, 'ROOT', tmp_path)
     edges = {(e['from'], e['to']) for e in bds.build_import_graph()['edges']}
     assert edges == {('main', 'app.a'), ('main', 'app.b'), ('main', 'app.c')}
@@ -338,7 +338,7 @@ assert.deepEqual(cards.map(c=>c.style.display),['none','','none']);
 
 
 def test_manifest_counts_actual_headings_and_code_blocks(tmp_path, monkeypatch):
-    (tmp_path / 'README.md').write_text('# Title\n\n```md\n## not a section\n```\n\n## Real section\n\n    indented code\n')
+    (tmp_path / 'README.md').write_text('# Title\n\n```md\n## not a section\n```\n\n## Real section\n\n    indented code\n', encoding='utf-8')
     monkeypatch.setattr(bds, 'ROOT', tmp_path)
     monkeypatch.setattr(bds, 'DOC_GROUPS', [('Docs', ['README.md'])])
     item = bds.build_manifest()[0]
@@ -461,7 +461,7 @@ def test_current_skill_command_blocks_do_not_restore_obsolete_delivery_commands(
 
 def test_full_ci_suites_keep_bounded_budget_and_propagate_failure():
     """Observed full-suite duration outgrew 20m; extend budget, never narrow pytest selection."""
-    workflow = (ROOT / '.github/workflows/ci.yml').read_text()
+    workflow = (ROOT / '.github/workflows/ci.yml').read_text(encoding='utf-8')
     before, suites = workflow.split('  test-sqlite:', 1)
     assert before.count('timeout-minutes: 20') == 4
     for job in suites.split('  test-postgres:'):

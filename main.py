@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 from app import cpu_pool
 from app.config import settings
@@ -69,6 +70,14 @@ app = FastAPI(
 # 这样连安全头中间件自己的耗时也算进去，且异常也能被记录到。
 # 请求体预算最先加 = 最靠近路由：它发出的 413 同样经过安全头与日志两层。
 app.add_middleware(RequestBodyBudgetMiddleware)
+# 响应压缩（TD-270）：Mermaid 页的产物 16 个文件共 669 KiB，gzip 后 167 KiB；本地/直连（Windows 指南、
+# 无 nginx）场景下由应用自己压。starlette 自带，无新依赖；只压 ≥ 1 KiB 的响应，且客户端声明 gzip 才压。
+# 放在安全头中间件之内、路由之外：压缩后的响应照样带安全头与日志。BREACH 只影响"响应里混有攻击者可控
+# 输入 + 秘密"的动态页；本站 JSON/HTML 响应不回显 CSRF 令牌之类的秘密（会话在 HttpOnly Cookie 里，不在正文）。
+# 交付物走 application/octet-stream：不在 starlette 的默认排除表里，但 ZIP 再压一遍只费 CPU、
+# 还会丢掉 Content-Length（浏览器没进度条），所以显式排除；Range（206）请求 starlette 本来就不压。
+app.add_middleware(GZipMiddleware, minimum_size=1024,
+                   exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/octet-stream"))
 app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE)
 app.add_middleware(RequestLoggingMiddleware)
 # 422 只回 type/loc/msg/ctx，不把出错字段的原值（可能几十万字符）整个回显（TD-260）。

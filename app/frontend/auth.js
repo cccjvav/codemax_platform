@@ -145,11 +145,23 @@ window.CodeMaxAuth = (function () {
   }
 
   refresh().catch(() => { err.textContent = "暂时无法确认登录状态，请检查网络后重试"; });
+
+  // 会话在页面打开期间到期（ACCESS_TOKEN_EXPIRE_MINUTES，默认 30 分钟）时，页面脚本收到的只是一个 401：
+  // 顶栏仍显示"已登录"，保存/发送只报"未登录"。各页把 401 交给这里：清掉过期的用户快照、通知监听器、
+  // 弹出登录浮层并给出原因（TD-270）。返回值告诉调用方"已处理"，调用方不必再显示自己的错误。
+  function sessionExpired(status) {
+    if (status !== 401 || !user) return false;
+    user = null; paint(); notify();
+    open("login");
+    err.textContent = "登录已过期，请重新登录后继续；刚才的操作未提交。";
+    return true;
+  }
   return {
     errorText,
     open,
     close,
     refresh,
+    sessionExpired,
     // **返回退订函数**。早先只 push、没有退订接口，于是 shop 页那个
     // 「登录成功后自动补一次下单」的监听器永久残留：用户下次登录（哪怕没点购买）
     // 会再触发一次 buy()；未登录时多点几次「立即购买」还会累积多个监听器，

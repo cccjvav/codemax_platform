@@ -128,7 +128,7 @@ def test_d3_is_actually_bundled_into_the_local_artifact():
         if path in closure:
             return
         closure.add(path)
-        for rel in re.findall(r'(?:from\s*|import\s*)["\'](\.[^"\']+\.js)["\']', path.read_text()):
+        for rel in re.findall(r'(?:from\s*|import\s*)["\'](\.[^"\']+\.js)["\']', path.read_text(encoding='utf-8')):
             visit(path.parent / rel)
     visit(bundle)
     size = sum(path.stat().st_size for path in closure)
@@ -200,8 +200,8 @@ def test_mermaid_is_local_and_locked():
 
     js = (ROOT / "app/frontend/mermaid-page.js").read_text(encoding="utf-8")
     assert 'import mermaid from "mermaid"' in js
-    lock = json.loads((ROOT / "package-lock.json").read_text())
+    lock = json.loads((ROOT / "package-lock.json").read_text(encoding='utf-8'))
     entry = lock["packages"]["node_modules/mermaid"]
     assert entry["version"] == "11.17.2" and entry["integrity"].startswith("sha512-")
     for path in (ROOT / "app/frontend").glob("*.js"):
-        assert not re.search(r'from\s*["\']https?://', path.read_text())
+        assert not re.search(r'from\s*["\']https?://', path.read_text(encoding='utf-8'))

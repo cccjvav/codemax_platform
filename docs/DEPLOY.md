@@ -91,6 +91,7 @@ server {
   否则伪造一个头就能触发。
 - 限流按真实客户端 IP 计（而不是全部算成代理 IP）。
 - 请求体超过应用预算时返回 413 并带 `connection: close`，代理会断开这条上游连接；这是预期行为，不是故障。应用预算只管应用读到的字节，代理仍应保留自己的 `client_max_body_size`。
+- 应用自己会对 ≥ 1 KiB 且客户端接受 gzip 的响应压缩（TD-270，交付 ZIP 除外），静态资源带 `Cache-Control: public, max-age=3600, must-revalidate` 与 ETag。nginx 若也开 `gzip on` 会看到上游已压缩而跳过，不会双重压缩；要在代理层加长静态缓存时以 `/static/` 为准，页面与接口保持 no-store。
 
 微信支付回调地址 `WX_NOTIFY_URL` 必须是公网可达的 **https**。
 

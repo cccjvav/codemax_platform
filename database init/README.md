@@ -57,7 +57,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`database init/db_init.py`](db_init.py) | `7fe7a09d405c` | L1–L59 |
+| [`database init/db_init.py`](db_init.py) | `d5fb616af850` | L1–L64 |
 | [`database init/full_init.sql`](full_init.sql) | `4b2f710dd75c` | L1–L478 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |

@@ -118,20 +118,20 @@ git status --short
 git branch --show-current
 ```
 
-应在 `arena/01a08bf5-codemax-platform`。如果有修改或在其他分支，先保留原目录，不执行 reset/clean/强制切分支；用下面的方式克隆到一个**尚不存在**的新目录，并把后文路径一起替换。
+应在 `arena/01a0bf7a-codemax-platform`。如果有修改或在其他分支，先保留原目录，不执行 reset/clean/强制切分支；用下面的方式克隆到一个**尚不存在**的新目录，并把后文路径一起替换。
 
 **尚未克隆**时，在终端 A：
 
 ```cmd
 if not exist C:\work mkdir C:\work
-git clone -c core.autocrlf=false --branch arena/01a08bf5-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
+git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
 cd /d C:\work\codemax_platform
 ```
 
 如果是已有干净、正确分支的目录，可以更新：
 
 ```cmd
-git pull --ff-only origin arena/01a08bf5-codemax-platform
+git pull --ff-only origin arena/01a0bf7a-codemax-platform
 ```
 
 失败就停止，不改用强制覆盖。然后在 VS Code 菜单「文件 → 打开文件夹」选择实际项目目录；重新打开文件夹后若终端变化，重复第 3 步激活。
@@ -452,7 +452,7 @@ CREATE TABLE purchase (
 
 1. A 打开 `http://127.0.0.1:8000/shop`，点「立即购买」。
 2. 在待付区域点「前往收银台支付」，应看到醒目的“模拟支付”警告。
-3. 点「模拟支付成功」，然后返回商城，查看/刷新我的订单，选择该单。
+3. 点「模拟支付成功」，页面下方会出现「返回商城查看订单」；点它（或浏览器后退）回到商城，页面会立即重查状态，应从“待支付”变为“支付成功”。再点「查看 / 刷新我的订单」也能选到该单。
 4. 点「下载交付物」。应下载 ZIP，打开其中 README.txt，内容为 `CodeMax acceptance test file`。
 5. 再回同一订单点下载，应该还能下载；已领过链接不等于永久消耗权益。
 6. 换 B 看订单，不能看到 A 的订单；刷新/查看历史不自动产生新订单。
@@ -564,7 +564,7 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise S
 在终端 A，克隆到**尚不存在**的验收目录：
 
 ```cmd
-git clone -c core.autocrlf=false --branch arena/01a08bf5-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
+git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
 ```
 
 若已经有这个目录，先核对其用途和改动，不删除重建。用 VS Code「文件 → 新建窗口 → 打开文件夹」打开 `C:\work\codemax_acceptance`，在新窗口建 CMD 终端：
@@ -698,6 +698,8 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 有失败时反馈：**第几步、哪条命令/哪个按钮、实际状态码或错误类型、已脱敏截图**。不要只说“不能用”，也不要发送密码/key/完整下载地址。
 
 这份表全部完成的是所选范围的**学习与本地验收**，不等于真实商户/公网部署已验收；生产入口、备份恢复、真实支付另按[分层验收手册](docs/ACCEPTANCE_GUIDE.md)执行。更深入的 Conda 维护、备份恢复见[原 Conda 指南](docs/WINDOWS_CONDA.md)，不用在第一次操作时来回翻阅。
+
+> **关于下面各批次里的账本版本号**：从「第三批补充」起的各节是按时间追加的，每节写的 0011/0013/0014/0016 都是**当时**的最新版本。现行应用要求的完整账本以 `python "database init/db_init.py" status --confirm-database <库名>` 的输出为准（2026-09-22 为 0017）；升级步骤统一见[数据库指南](database%20init/README.md)，不要按旧节里的数字停在中途。
 
 ## 第三批补充：文件快照与旧库
 

@@ -135,6 +135,11 @@ class SecurityHeadersMiddleware:
                               f"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com") + "; font-src 'self' https://fonts.gstatic.com data:"
                 if not scope.get("path", "").startswith("/static/"):
                     headers.setdefault("cache-control", "no-store")
+                else:
+                    # 静态产物（TD-270）：入口文件名固定（auth.js 等），部署新版本后浏览器必须在短时间内
+                    # 重新校验，所以只给 1 小时并要求 must-revalidate；StaticFiles 已带 ETag/Last-Modified，
+                    # 校验只花一次 304。不用 immutable：只有部分分块名含 hash，不能一概而论。
+                    headers.setdefault("cache-control", "public, max-age=3600, must-revalidate")
                 if hsts is not None:
                     headers.setdefault(hsts[0].decode(), hsts[1].decode())
             await send(message)
@@ -240,16 +245,73 @@ async def _reject(scope, receive, send, status: int, detail: str) -> None:
     await response(scope, receive, send)
 
 
+# 422 的 `msg` 会被 auth.js / support-page.js / er-page.js 原样显示给用户（TD-270）。
+# pydantic 的默认文案是英文（"String should have at least 3 characters"），而站内其余提示全是中文；
+# 自定义 validator 抛的 ValueError 又会被包成 "Value error, 用户名只能…"。这里按 `type` 翻译最常见的
+# 几类，其余保留原文——`type`/`loc`/`ctx` 不动，机器可读部分与 FastAPI 默认一致。
+_FIELD_LABELS = {
+    "username": "用户名", "password": "密码", "old_password": "原密码", "new_password": "新密码",
+    "ddl": "DDL", "text": "文本", "url": "URL", "name": "名称", "content": "内容", "body": "留言内容",
+    "client_nonce": "重试标识", "order_no": "订单号", "evidence": "依据", "amount": "金额", "reference": "流水号",
+    "bucket": "范围", "before": "分页游标", "after": "分页游标", "customer_id": "客户ID", "confirm_order_no": "确认单号",
+}
+
+
+def _field_label(loc) -> str:
+    for part in reversed(loc or ()):
+        if isinstance(part, str) and part not in ("body", "query", "path") and part in _FIELD_LABELS:
+            return _FIELD_LABELS[part]
+    for part in reversed(loc or ()):
+        if isinstance(part, str) and part not in ("body", "query", "path"):
+            return part
+    return "输入"
+
+
+def localize_validation_message(error: dict) -> str:
+    """把一条 pydantic 错误翻成中文；认不出的类型保留原 msg，只剥掉 `Value error, ` 前缀。"""
+    kind, ctx, msg = error.get("type"), error.get("ctx") or {}, error.get("msg", "")
+    label = _field_label(error.get("loc"))
+    if kind == "string_too_short":
+        n = ctx.get("min_length")
+        return f"{label}至少 {n} 个字符" if n is not None else f"{label}太短"
+    if kind == "string_too_long":
+        n = ctx.get("max_length")
+        return f"{label}最多 {n} 个字符" if n is not None else f"{label}太长"
+    if kind == "missing":
+        return f"缺少{label}"
+    if kind in ("string_type", "string_pattern_mismatch"):
+        return f"{label}格式不正确"
+    if kind in ("int_parsing", "int_type", "int_from_float"):
+        return f"{label}必须是整数"
+    if kind in ("json_invalid", "model_attributes_type", "dict_type"):
+        return "请求内容不是有效的 JSON"
+    if kind in ("literal_error", "enum"):
+        expected = str(ctx.get("expected", "")).replace(" or ", "、").replace(", ", "、")
+        return f"{label}只能是 {expected}" if expected else f"{label}取值不在允许范围内"
+    if kind in ("bool_parsing", "bool_type"):
+        return f"{label}必须是 true/false"
+    if kind in ("uuid_parsing", "uuid_type"):
+        return f"{label}必须是 UUID"
+    if kind == "value_error" and msg.startswith("Value error, "):
+        return msg[len("Value error, "):]
+    if kind in ("greater_than", "greater_than_equal", "less_than", "less_than_equal"):
+        bound = ctx.get("gt", ctx.get("ge", ctx.get("lt", ctx.get("le"))))
+        word = {"greater_than": "大于", "greater_than_equal": "不小于", "less_than": "小于", "less_than_equal": "不大于"}[kind]
+        return f"{label}必须{word} {bound}"
+    return msg
+
+
 async def validation_error_without_input(request, exc: RequestValidationError) -> JSONResponse:
-    """422 应答只保留 type/loc/msg/ctx，不回显 `input`/`url`。
+    """422 应答只保留 type/loc/msg/ctx，不回显 `input`/`url`；`msg` 翻成中文（TD-270）。
 
     FastAPI 默认把出错字段的原值整个放进 `input`：一个 60 万字符的超长正文会被原样回显，
     等于让 1 字节的请求成本换来同等大小的响应。前端 `auth.js`/`support-page.js` 只读 `msg`。
     """
-    errors = [
-        {key: value for key, value in error.items() if key not in ("input", "url")}
-        for error in exc.errors()
-    ]
+    errors = []
+    for error in exc.errors():
+        kept = {key: value for key, value in error.items() if key not in ("input", "url")}
+        kept["msg"] = localize_validation_message(error)
+        errors.append(kept)
     return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 

@@ -620,3 +620,18 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 改法：新增 `_ALTER_FK` 正则在 `parse_ddl` 末尾扫描（跳过字符串内、跳过本份 DDL 未定义的表），列级/表级 `FOREIGN KEY` 与 ALTER 共用 `_fk_edges`；`REFERENCES` 的列表改为可选——但只在子句结束或合法后续关键字（ON/MATCH/DEFERRABLE/NOT/…）前才成立，否则 `REFERENCES t-1(id)` 会被截成对幻影表 `t` 的边（第一版就是这样，全量套件里 `test_perf` 的"边数 = 表数 − 1"抓住了它，已补钉住用例）；空列名在所有表解析完后按父表主键补全，只有单列主键才补，复合主键或父表缺失就留空（边仍保留，前端按表连线）；`_resolve` 先做逐字精确匹配（含补/去 schema 前缀两种候选），再按"有效名"匹配——不带引号的段折叠成小写、带引号的按原样，这正是 PostgreSQL 的规则，所以 `"Mixed"` 定义、`mixed` 引用仍然悬空：作图不替用户"修正"数据库会拒绝的写法。放弃了"引入第三方 SQL 解析库"（AGENTS 的依赖门槛，且 ER 图只需结构不需完整语法树）与"MySQL 风格的表名大小写按文件系统决定"（不可知，取标准行为）。
 
 代价：仍不是完整 MySQL/PostgreSQL parser——表级 MySQL `COMMENT=`、CHECK 内容、分区/继承、`ALTER … DROP/RENAME` 不解析；隐式父键在复合主键时留空列名而不是报错；MySQL 在大小写敏感文件系统上的表名区分大小写，本解析器按标准折叠，两者不一致时以数据库实际行为为准。回看条件：出现新的正反语料（用户贴入的真实导出文件）时按同样方式"先探针、再扩展、补钉住用例"。
+
+## TD-270：验收前复核第一批——按 Windows 指南在真 PostgreSQL 上逐步回放，只修回放中暴露的问题
+
+2026-09-22。用户要求在正式验收前先做一轮全面复核。方法：不读代码猜，而是照《Windows 新手逐步验收》第 7～13 步在一次性 PostgreSQL 16（pgserver）上把每一步当作 HTTP 事务回放——init/bootstrap-admin/status、注册/登录/退出、ER/Word、图表的 If-Match/412/428/回收站/跨账号 404、改密、客户与管理员留言与隔离、mock 下单/复用/收银台/确认/两次下载/重领/篡改签名、无 key 时客服与 Mermaid 的降级、管理员账本、限流/跨站登录/413 等安全边界。功能层面全部与指南承诺一致；暴露出的都是"能用但会让新手卡住或看着不对"的问题，本批只修这些：
+
+- **422 文案英文**：pydantic 默认 "String should have at least 3 characters" 被登录浮层/工具页原样显示，而 validator 自己抛的又是 "Value error, 用户名只能…"。`validation_error_without_input` 现按 `type` 翻成中文（长度带上下限、缺字段、格式、JSON 无效、数值比较），`value_error` 只剥前缀，认不出的类型保留原文；`type/loc/ctx` 与 `input` 不回显不变。
+- **模拟收银台是死胡同**：指南第 12 步"点模拟支付成功，然后返回商城"，但页面没有返回入口、401 文案还指向早已不存在的"工具页登录"。成功后显示「返回商城查看订单」（`shop_path`）并禁用按钮防重复；商城页在 bfcache 恢复或标签页重新可见时立即查一次订单状态，不再等最长 3 秒。
+- **ER 图表头对比度**：白字 14px 盖在 `#3b82f6` 上只有 3.68:1（TD-263 当时把 D3 颜色整体列为图形而漏掉了这处文字），换成站内统一的 `#2563eb`（5.17:1）；连线描边不动。
+- **静态资源无缓存策略、无压缩**：Mermaid 页产物 16 个文件 669 KiB，本地直连（指南场景无 nginx）每次全量下载。`/static/` 改为 `public, max-age=3600, must-revalidate`（入口名固定所以只给 1 小时，StaticFiles 的 ETag 让重校验只花一次 304）；加 starlette 自带的 `GZipMiddleware`（无新依赖，≥1 KiB 且客户端声明才压，669 KiB → 约 140 KiB），显式排除 `application/octet-stream`：交付 ZIP 再压只费 CPU还会丢 Content-Length，Range 请求 starlette 本就不压；页面与接口仍 no-store。BREACH 需要"响应里混有攻击者可控输入与秘密"，本站会话在 HttpOnly Cookie 里、正文不含 CSRF 令牌之类的秘密。
+- **维护 CLI 的失败提示无法区分"连不上库"与"基线不对"**：Windows 上最常见的失败是 PostgreSQL 服务没启动，此前只有一句通用拒绝。现在打印异常**类名**（不打印 DSN/密码/驱动原文），OperationalError 时直接提示检查服务与 DB_*/DATABASE_URL。
+- **会话到期后页面装作还在登录**：`ACCESS_TOKEN_EXPIRE_MINUTES` 默认 30 分钟，回放过程中就撞上一次——Cookie 过期后顶栏仍显示已登录，保存/发送只报"未登录"或"读取失败"。共享模块新增 `sessionExpired(status)`：数据接口回 401 且本地仍有用户时清快照、切回登录按钮、弹浮层并写"登录已过期，请重新登录后继续；刚才的操作未提交"；drawio/客服/商城/管理页在各自的 401 处调用它。刻意不做静默续期：那需要 refresh token 或延长 Cookie 寿命，改变的是会话策略而不是提示。
+- **Windows 上会失败的测试**：回放第 14 步（在 Windows 上跑全量 pytest）时发现 `test_shop_page`/`test_shop_polling` 把 Node harness 写到硬编码的 `/tmp/`（Windows 没有），改为 `tempfile.gettempdir()` + pid 后缀；测试里 56 处 `read_text()`/`write_text()` 没写 `encoding=`，CMD 未设 `PYTHONUTF8=1` 时按 GBK 解码，而被读的 `payments-admin.html`/`ci.yml`/`docker-compose.yml` 等含中文——全部改为显式 utf-8（应用代码本来就全部显式）。这两类在 Linux CI 永远是绿的，只有你的机器会红，正是这轮复核要抓的东西。
+- **文档分支名**：指南、Conda 指南、AGENTS、HANDOVER、Agnes 工作流与 finish-subitem 技能里的 `arena/01a08bf5-codemax-platform` 是上一会话的分支，其 tip `ea11619` 是本分支的祖先；用户照抄会克隆到缺少 TD-259～269 全部工作的旧分支。统一改为本会话分支 `arena/01a0bf7a-codemax-platform`；review/ 下的历史报告与旧 TD 原文不改。指南各"第 N 批补充"里的账本版本号（0011/0013/0014/0016）是各自当时的最新值，顶部加一句"以 status 输出为准（当前 0017）"，不逐节改写历史。
+
+未改、如实记录：Drawio 嵌入编辑器（embed.diagrams.net）与 Playwright 浏览器在沙箱都无法访问，第 11.1 步只验了 API 层的版本冲突/回收站，编辑器本身的加载与导出仍归你的真实浏览器；LLM 相关只验了"无 key 时的降级"，真实模型仍是第 13 步。代价：GZip 对每个 ≥1 KiB 的动态响应多一次压缩 CPU（单实例可忽略）；静态 1 小时缓存意味着部署新版本后最坏 1 小时内浏览器仍用旧入口文件（must-revalidate + ETag 让实际只要一次 304 就能发现变化）。回看条件：产物入口改为带 hash 文件名时可放宽为 immutable；出现在正文里回显用户输入且带秘密的接口时重新评估 GZip 范围。
