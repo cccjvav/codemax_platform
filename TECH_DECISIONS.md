@@ -635,3 +635,11 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - **文档分支名**：指南、Conda 指南、AGENTS、HANDOVER、Agnes 工作流与 finish-subitem 技能里的 `arena/01a08bf5-codemax-platform` 是上一会话的分支，其 tip `ea11619` 是本分支的祖先；用户照抄会克隆到缺少 TD-259～269 全部工作的旧分支。统一改为本会话分支 `arena/01a0bf7a-codemax-platform`；review/ 下的历史报告与旧 TD 原文不改。指南各"第 N 批补充"里的账本版本号（0011/0013/0014/0016）是各自当时的最新值，顶部加一句"以 status 输出为准（当前 0017）"，不逐节改写历史。
 
 未改、如实记录：Drawio 嵌入编辑器（embed.diagrams.net）与 Playwright 浏览器在沙箱都无法访问，第 11.1 步只验了 API 层的版本冲突/回收站，编辑器本身的加载与导出仍归你的真实浏览器；LLM 相关只验了"无 key 时的降级"，真实模型仍是第 13 步。代价：GZip 对每个 ≥1 KiB 的动态响应多一次压缩 CPU（单实例可忽略）；静态 1 小时缓存意味着部署新版本后最坏 1 小时内浏览器仍用旧入口文件（must-revalidate + ETag 让实际只要一次 304 就能发现变化）。回看条件：产物入口改为带 hash 文件名时可放宽为 immutable；出现在正文里回显用户输入且带秘密的接口时重新评估 GZip 范围。
+
+## TD-271：第二次接手复核用沙箱内真实浏览器取证，修复只进唯一队列；分支名只改纯文档，工作流触发待确认
+
+2026-09-23。本会话分支 `arena/01a0cdc6-codemax-platform`，起点为上一会话 tip `3e408a1`。前两轮复核都写明“沙箱无浏览器，UI 为静态审阅”；本轮发现 npm 上的 `@sparticuz/chromium`（自带运行库）可以在沙箱启动 Headless Chromium 153，于是把 UI 结论改为实测：7 个页面 × 桌面/手机截图、axe-core 扫描、浏览器内完整购买/客服/管理员流程，以及用计算样式和 `getComputedTextLength` 量字号与溢出。浏览器、字体与 axe-core 全部装在仓库外 `/tmp`，截图放工作区的仓库外目录，**不新增任何仓库依赖**，也不把二进制证据提交进 Git。新发现（N-01 会话过期丢编辑内容、N-02 流程图存储滥用、手机管理页溢出、ER 溢出/遮挡、返回商城落回落地页、bcrypt 占测试 81% 时间等）只写进 `review/FULL_REPOSITORY_REVIEW_2026-09-23.md` 作证据，待办登记为 ROADMAP 新的 V 组（V-01～V-08），报告本身不维护状态；运行逻辑一行不改，修复按批次经用户确认。
+
+分支名：TD-270 刚把上上会话的 `01a08bf5` 改成 `01a0bf7a`，本会话又换成 `01a0cdc6`。本次只替换**纯文档**里的分支名（AGENTS、HANDOVER、finish-subitem Skill、Windows 指南、Conda 指南、AGNES_AI）；`.github/workflows/agnes-connectivity.yml` 的 push 触发分支与 `tests/test_agnes_integration.py` 对它的断言**保持 `01a0bf7a` 不动**——工作流是全局门禁（AGENTS），改触发条件属于 CI 合同变更，需用户确认，并且更好的做法是去掉硬编码（V-08）而不是每个会话再改一次。代价：在用户确认前，本会话分支上带 `[agnes-live-test]` 标记的提交不会触发 Agnes 专项（手动 `workflow_dispatch` 仍可用），这与“普通提交不自动消耗额度”的原意一致。
+
+代价：Headless Chromium 不是用户的 Windows 桌面浏览器，字体（Noto Sans SC 替代微软雅黑）、DPI 与 Safari/Firefox 行为不同，L-04 真实浏览器签收仍然需要；axe-core 只覆盖可自动判定的规则，不替代读屏实测；Drawio 外部编辑器在沙箱不可达，N-01/N-06 用 Node 桩跑真实源码复现。回看条件：V 组任一批次实施时把对应复现转成默认套件保护性回归（先红后绿）；若出现可在 CI 中稳定运行的浏览器（需要新依赖与用户确认），再评估把关键页面的溢出/对比度断言迁到真实渲染。

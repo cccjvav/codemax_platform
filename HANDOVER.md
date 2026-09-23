@@ -1,13 +1,18 @@
 # 项目交接：先核实状态，再继续实现
 
-本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md) 与 [2026-09-20 接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
+本页是唯一恢复入口；[ROADMAP](ROADMAP.md) 是唯一当前任务队列；[全仓审计与交叉复核报告](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)、[2026-09-20 接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md) 与 [2026-09-23 第二次接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md) 提供证据，不另建第二份全局台账。阶段报告仅证明对应日期/基线。
 
 **2026-09-20 接手状态**：基线 `ea11619`（远端 tip，六项 CI success）；六项诊断独立复现并同意评级，H-02 关闭；新增 F-09（限流器满桶拒绝所有新客户端）列为 ROADMAP A-07；复核报告提交 `48247ce`（六项 CI success）只写文档。第一修复批次（TD-260）已落地：请求体预算中间件（1 MiB / `/diagrams` 2 MiB / 回调自管 64 KiB）、422 去 `input` 回显、LLM 响应 1 MiB 预算 + 深嵌套归 LLMError + 总时限 + index `type is int`；A-01、A-05 完成，A-02 只剩并发/额度策略；四项诊断已换成默认套件回归，探针文件只剩 A-03/A-04 两项。第二修复批次（TD-261）已落地：限流器满桶从到期队头回收过期桶、满且全活跃仍拒绝并区分 capacity/quota（文案 + 每分钟一条 warning）、IPv6 /64 归并、`GET /shop/dl` 挂 `download` 桶；A-07、A-08 完成，F-09 维持门槛订正为 ≈ 300 请求/秒。第三修复批次（TD-262）已落地：同用户预支付进程内单飞 + `POST /shop/orders` `order` 桶（`RATE_LIMIT_AUTH`，用户确认取值）、`require_login_origin` 表单登录来源检查；A-03、A-04 完成，`tests/audit_handoff_probes.py` 六项诊断全部换成默认套件回归后已删除。第四批（O-09 清理 + TD-263 UI）已落地：TD-214/TD-217 文字订正、`_payload` 死参数、`crawler.py` 裸 assert、7 处无效 noqa；WCAG AA 配色、浮层 dialog 语义/Esc/焦点归还、`:disabled`/`:focus-visible`、`support.css` 去 `:has()`，bundle 重建。第五批（TD-264）已落地 A-02 后半：每进程 LLM 在途并发上限 4、满则 503 + Retry-After 5 不排队、客服转人工、mermaid 页自动重试一次，不做站内日额度（用户确认）。至此 G1 的 A-01～A-09 全部完成。第六批（TD-265）落地 O-03：三条建库路径的 PG 目录等价回归，修正 `sys_user.role` NOT NULL 与账本 DDL 同源两处漂移。第七批（TD-266）落地 O-01：下载出口快照校验按 inode 状态跳过重复全量哈希（权益判断不缓存）。第八批（TD-267）落地 O-08 的 action SHA 钉住与 CI 权限收窄（镜像 digest 与 pip 哈希锁列为未做）。第九批（TD-268）落地 O-07：重定向逐跳 robots、域状态 LRU 上限、Crawl-delay 上限。第十批（TD-269）落地 O-05：ALTER 外键、隐式父键、标识符折叠。G4 的 O-01/O-03/O-05/O-07 与 O-08 第一部分至此完成；剩余 A-06、O-02/O-04/O-06、O-08 后半与 G2/G3 各项都需要产品/经营决策或真实环境，每批经用户确认。 2026-09-22 起进入**验收前复核**：第一批（TD-270）按 Windows 指南在真 PG 上回放第 7～13 步，功能全部符合，修了 422 英文文案、模拟收银台返回路径、ER 表头对比度、静态缓存/gzip、维护 CLI 连接失败提示、文档里的旧分支名；后续批次继续按页面/文档/CLI 分组复核。
 
+**2026-09-23 第二次接手状态**：本会话分支 `arena/01a0cdc6-codemax-platform`，起点 = 上一会话 tip `3e408a1`（TD-270，六项 CI success，run 35786058282）。接手人独立复核前两轮 F-01～F-09、A-01～A-09 及 TD-260～TD-270 修复，均成立；本地全量 SQLite 1822 passed / 7 skipped（两次），文档契约、完整文档站、Vite 零漂移通过。首次在沙箱用**真实 Chromium** 渲染全部页面（桌面/手机）并跑 axe-core 与完整购买/客服/管理员流程。新发现见[第二次接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md)：N-01（P2 回归：TD-270 的会话过期处理会清空 Drawio 未保存的图与客服草稿）、N-02（P2：流程图存储无每 IP/全站上限，单 IP 15 秒写入约 196 MB）、手机订单管理页横向溢出、ER 节点文字溢出与连线遮挡、单标签页“返回商城”落回落地页（bfcache 被 no-store 拒绝）等 UI 问题，以及测试 81% 时间耗在 bcrypt（测试进程降到 cost 4 全量 1276 s→220 s）。本次提交**只改文档**（登记报告、修正当前入口漂移、分支名），修复批次 C1～C9/O-11～O-17 列入 ROADMAP，每批经用户确认后实施。
+
+**发布状态（2026-09-23）**：本次文档提交已在本地完成，但推送本会话分支时 GitHub 认证失效（`GH_TOKEN` 不再有效），远端 `arena/01a0cdc6-codemax-platform` 尚未创建，因此**本会话还没有可引用的 CI 证据**。需用户在 Arena 重新连接 GitHub 后推送，再按下方命令核对远端 tip 与六项 CI；接手人先 `git ls-remote` 核对，不要把本地提交当作已发布。
+
 ## 本次交接范围
 
-- 审计业务代码基线：`7f2e125dd6dc42fb7b31d8c295f176c8e3cb2f50`，包括第十七批日账只读下载/差异报告。完整迁移仍为 **0017**。
-- 本轮不增加支付功能、依赖或 schema，不操作真实商户/业务数据库。新增六项**诊断探针**、全仓审计、优先队列和文档清理；探针通过表示复现待修行为，**不是安全验收通过**。
+- **当前（2026-09-23）**：复核基线 `3e408a1`（TD-270）；本轮只新增复核报告与文档同步，不改运行逻辑、依赖、schema 或历史 SQL。完整迁移仍为 **0017**。
+- 以下为 2026-09-19 审计时的范围，保留作历史：审计业务代码基线：`7f2e125dd6dc42fb7b31d8c295f176c8e3cb2f50`，包括第十七批日账只读下载/差异报告。完整迁移仍为 **0017**。
+- 本轮不增加支付功能、依赖或 schema，不操作真实商户/业务数据库。当时新增六项**诊断探针**、全仓审计、优先队列和文档清理（探针已在 TD-260/TD-262 修复后转成默认套件回归并删除）。
 - 用户新上传的[支付架构提示词-纯净版.txt](支付架构提示词-纯净版.txt)已取得并保留原文，评估集中审计报告第9节；先确认主体/渠道准入，不把桌面离线许可套进网页文件商城，也不以旧报告代替。
 - 本地验证结果、局限与已删文档见报告；Windows、真实浏览器、商户、TLS/代理、生产备份恢复等仍未签收。
 
@@ -25,22 +30,22 @@
 ```bash
 git branch --show-current
 git rev-parse HEAD
-git ls-remote origin refs/heads/arena/01a0bf7a-codemax-platform
-gh run list --workflow ci.yml --branch arena/01a0bf7a-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
+git ls-remote origin refs/heads/arena/01a0cdc6-codemax-platform
+gh run list --workflow ci.yml --branch arena/01a0cdc6-codemax-platform --limit 5 --json databaseId,headSha,status,conclusion,url
 gh run view <匹配HEAD的run-id> --json headSha,status,conclusion,jobs,url
 ```
 
-本会话固定 `arena/01a0bf7a-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
+本会话固定 `arena/01a0cdc6-codemax-platform`；不切分支、不推其他分支。认证诊断依实际仓库/推送结果，不凭 `gh api user` 的权限错误断言 Git 不可用。
 
 ## 已核实的上轮发布
 
-`2a601344f9a65a4f445871343e464e2cc82625e5` 已推送且含阶段十七；[CI 35469332541](https://github.com/cccjvav/codemax_platform/actions/runs/35469332541) 现已逐job确认六项 success。此前401/PG状态未知的阻断已解除，不再要求重复重连。本次从同分支快进取得用户上传提交 `19f236e`，不继承旧提交绿色；后续增补按自己的最终SHA复验。
+最近一次核实（2026-09-23）：`3e408a17b057b176a2fb5da5959f29b249d35f62`（TD-270）为上一会话分支 `arena/01a0bf7a-codemax-platform` 的远端 tip，[CI 35786058282](https://github.com/cccjvav/codemax_platform/actions/runs/35786058282) 六项 success。本会话提交须按自己的精确 SHA 重新核验。更早记录（历史）：`2a601344f9a65a4f445871343e464e2cc82625e5` 已推送且含阶段十七；[CI 35469332541](https://github.com/cccjvav/codemax_platform/actions/runs/35469332541) 现已逐job确认六项 success。此前401/PG状态未知的阻断已解除，不再要求重复重连。本次从同分支快进取得用户上传提交 `19f236e`，不继承旧提交绿色；后续增补按自己的最终SHA复验。
 
 ## 接手顺序
 
 1. 读 AGENTS、manager/SKILL 和审计报告；核实实际 HEAD、远端和全部 CI。
-2. 独立执行报告中的六项有界合成探针，检查调用链，不把测试数量当安全证明；按报告第9节对照已收到的付款/许可方案，独立复核“已实现/需纠正/可选扩展/待审批”，不把外项目声明当作源码证据。
-3. 按 ROADMAP 的 G1 处理公开接口资源上限、LLM 协议边界、预支付并发/限流及登录来源；先评审方案，再增加保护性回归。不要保持“复现漏洞即通过”的诊断断言来冒充修复测试。
+2. 读最新复核报告（当前为 2026-09-23），独立复核其新发现与最近修复批次；六项探针与 G1 已全部关闭，不要重跑已删除的探针文件。付款/许可方案仍按 2026-09-19 报告第9节对照，不把外项目声明当作源码证据。
+3. 按 ROADMAP 当前余项（验收前复核的 C/O 批次、A-06、O-02/O-04/O-06、O-08 后半）分批处理；先评审方案，再增加保护性回归（新测试须在旧代码上先红）。
 4. 确认首发类型：演示、免费工具、固定文件收费、定制开发服务的门槛不同；不得自动把部分退款、云存储、多实例或全自动会计系统变成首发必须功能。
 5. 分批实施并更新对应模块说明/精读/技术决策；每批选择性提交、真实推送并核对精确 SHA 六项 CI。
 

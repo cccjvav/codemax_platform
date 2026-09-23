@@ -1,6 +1,6 @@
 # 编码与文档维护约定
 
-本会话固定分支 `arena/01a0bf7a-codemax-platform`。当前架构见 docs/ARCHITECTURE_GUIDE.md，交接见 HANDOVER.md，内容审核见 review/FULL_REPOSITORY_HANDOFF_2026-09-19.md；历史报告或 Skill 中旧章节号/固定测试数不覆盖当前指南。
+本会话固定分支 `arena/01a0cdc6-codemax-platform`。当前架构见 docs/ARCHITECTURE_GUIDE.md，交接见 HANDOVER.md，内容审核见 review/README.md「最新独立交接」（当前为 review/FULL_REPOSITORY_REVIEW_2026-09-23.md，全仓基线审计为 review/FULL_REPOSITORY_HANDOFF_2026-09-19.md）；历史报告或 Skill 中旧章节号/固定测试数不覆盖当前指南。
 
 ## 硬边界
 

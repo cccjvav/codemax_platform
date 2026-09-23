@@ -118,7 +118,7 @@ Arena 运行时直连的 TLS 问题尚未修复，具体断开设备未知；Git
 
 当前 GitHub 集成可推送、读取 Actions 元数据，但 workflow_dispatch API 返回权限 403。已授权的重测可由本会话修改本工作流、同步源码讲解，并以带 `[agnes-live-test]` 的明确标记提交推送固定分支；每次共四项探测，普通提交不使用 Secret。空提交或只改说明文档不满足路径过滤，不应为猜测模型 ID 批量触发。
 
-有 Actions 调度权限时也可手动运行：`gh workflow run agnes-connectivity.yml --ref arena/01a0bf7a-codemax-platform -f live_chat=true`。不需要交出 GitHub token、切换/合并默认分支或关闭证书校验。
+有 Actions 调度权限时也可手动运行：`gh workflow run agnes-connectivity.yml --ref arena/01a0cdc6-codemax-platform -f live_chat=true`。不需要交出 GitHub token、切换/合并默认分支或关闭证书校验。
 
 若继续确认 Agnes embedding，向官方支持询问：是否开放 `/v1/embeddings`、确切模型 ID、当前账号权限、请求示例及费用/限额。提供脱敏时间与 HTTP 状态，不发送 key。官方目录未列出相关说明与本次 500，只能支持“尚未确认可用”，不能支持“确定不存在”。
 

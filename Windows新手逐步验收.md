@@ -118,20 +118,20 @@ git status --short
 git branch --show-current
 ```
 
-应在 `arena/01a0bf7a-codemax-platform`。如果有修改或在其他分支，先保留原目录，不执行 reset/clean/强制切分支；用下面的方式克隆到一个**尚不存在**的新目录，并把后文路径一起替换。
+应在 `arena/01a0cdc6-codemax-platform`。如果有修改或在其他分支，先保留原目录，不执行 reset/clean/强制切分支；用下面的方式克隆到一个**尚不存在**的新目录，并把后文路径一起替换。
 
 **尚未克隆**时，在终端 A：
 
 ```cmd
 if not exist C:\work mkdir C:\work
-git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
+git clone -c core.autocrlf=false --branch arena/01a0cdc6-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_platform
 cd /d C:\work\codemax_platform
 ```
 
 如果是已有干净、正确分支的目录，可以更新：
 
 ```cmd
-git pull --ff-only origin arena/01a0bf7a-codemax-platform
+git pull --ff-only origin arena/01a0cdc6-codemax-platform
 ```
 
 失败就停止，不改用强制覆盖。然后在 VS Code 菜单「文件 → 打开文件夹」选择实际项目目录；重新打开文件夹后若终端变化，重复第 3 步激活。
@@ -564,7 +564,7 @@ python -c "from dotenv import load_dotenv; load_dotenv(); import pytest; raise S
 在终端 A，克隆到**尚不存在**的验收目录：
 
 ```cmd
-git clone -c core.autocrlf=false --branch arena/01a0bf7a-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
+git clone -c core.autocrlf=false --branch arena/01a0cdc6-codemax-platform --single-branch https://github.com/cccjvav/codemax_platform.git C:\work\codemax_acceptance
 ```
 
 若已经有这个目录，先核对其用途和改动，不删除重建。用 VS Code「文件 → 新建窗口 → 打开文件夹」打开 `C:\work\codemax_acceptance`，在新窗口建 CMD 终端：

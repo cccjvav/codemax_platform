@@ -1,6 +1,6 @@
 # 当前工作队列与阶段目标
 
-更新：2026-09-20。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)与[接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)。
+更新：2026-09-23。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)、[接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)与[第二次接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md)。
 
 ## 优先级与范围
 
@@ -16,6 +16,7 @@
 | H-01 | 已取得并初评：《支付架构提示词-纯净版.txt》（19f236e） | 原文/摘要完整性已核对；逐项适配、五个问题与官方准入资料见审计第9节 | 不认证外项目源码；H-02独立复核与L-00实际准入仍待办 |
 | H-02 | 已完成（2026-09-20）：接手人独立复核 | 六项诊断在 SQLite 全部复现并同意评级，调用链复核与新增 F-09 见[复核报告](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)第 3–4 节；修复按 G1 分批 | 本机可丢弃 DB、MockTransport；真实 PG 全量由 CI job 覆盖 |
 | H-03 | 每次交付核实：发布 | 本地 HEAD=远端分支=全部六项 CI 的 headSha；不使用 dry-run/历史绿色 | 固定分支仓库访问；最终交付消息关联 |
+| H-04 | 已完成（2026-09-23）：第二次接手独立复核 | 前两轮修复与 TD-260～TD-270 逐项复核成立；全量 SQLite 1822 passed / 7 skipped；首次真实 Chromium 渲染 + axe-core + 完整流程；新发现 N-01～N-08 见[第二次复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md)第 3、6、7 节，修复按下方 V 组分批 | 本机可丢弃 SQLite、仓库外 Headless Chromium；真实 PG 由同一 SHA 的 CI 覆盖；Windows/商户/模型仍归 G2 |
 
 ## G1：公开接口资源与边界（建议下一实现批次）
 
@@ -32,6 +33,21 @@
 | A-09 / P3 | 已完成（2026-09-20，TD-263）：`#3b82f6→#2563eb`、`#16a34a→#15803d`、`#94a3b8→#64748b`；浮层 `role="dialog" aria-modal aria-labelledby`、Esc 关闭、焦点归还；`button:disabled` 灰化 + `not-allowed`、`:focus-visible` 轮廓；`support.css` 改 `.with-inbox` class；bundle 已重建提交 | 回归 `tests/test_ui_accessibility.py`（对比度公式对照值、六处颜色 ≥ 4.5:1、旧色不再出现、ARIA 属性、源码与产物 Node 真跑 Esc/焦点）| 静态 + Node VM；真实浏览器视觉/读屏签收仍归 L-04 |
 
 退出条件：保护性回归进入默认套件，诊断旧行为断言被替换/注明已失效；模块 README、精读、配置/部署指南同步；精确 SHA 全 CI。可以拆小批次，不能为保持诊断绿色保留缺陷。
+
+## V：验收前复核（2026-09-22 起，按页面/文档/CLI 分组）
+
+第一批 TD-270 已完成（Windows 指南第 7～13 步真 PG 回放：422 中文化、收银台返回入口、ER 表头对比度、静态缓存/gzip、CLI 连接失败提示、会话过期提示、Windows 测试兼容）。以下为 [2026-09-23 第二次复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md) 提出的批次，**均未实施**，每批经用户确认。
+
+| ID / 优先级 | 工作与依据 | 验收标准 | 环境/约束 |
+| --- | --- | --- | --- |
+| V-01 / P2（回归） | N-01：会话过期时保留 Drawio 未保存的图与客服草稿（TD-270 的 `sessionExpired` 触发登出通知，`syncAuth(null)` 重置编辑器、`onUser(null)` 清空草稿） | Node 桩：过期→同账号重登，编辑器内容与草稿仍在；过期→换账号仍清空（账号隔离不退化）；新断言在当前代码上先红 | 前端 3 文件 + 产物；无依赖/配置 |
+| V-02 / P2 | N-02：流程图写入无每 IP/全站上限（单 IP 15 秒约 196 MB） | `POST/PUT /diagrams` 限流桶；注册每日或全站速率上限；ASGI 回归复现后变 429 | 是否新增配置项及取值需确认 |
+| V-03 / P2（工程） | O-11：测试 81% 时间在 bcrypt；测试进程 cost 4 全量 1276 s→220 s（1822 passed） | conftest 降 cost、生产哈希格式不变；`test_auth_crypto` 时序用例保持含义；CI 两个测试 job 时长显著下降 | 只影响测试进程 |
+| V-04 / P3（UI） | 手机订单管理页横向溢出 28px；ER 节点文字溢出/连线穿越与遮挡；按钮不继承字体（13.33px Arial）、iOS 输入框 <16px 缩放；客服时间 4.34:1；Drawio 下拉框无可访问名称；工具页无页面标题、管理页双 h1；手机顶栏 208px | 浏览器/Node 断言：390px 无横向滚动、ER 文字宽 ≤ 节点宽、axe-core 0 违规、按钮/输入框字号继承 | CSS + er-layout + 产物；真实浏览器验收仍归 L-04 |
+| V-05 / P3（流程） | 单标签页“返回商城”落回落地页（`/shop` no-store 使 bfcache 失效，`currentNo` 丢失）；已付用户再点购买静默新建订单 | 返回后显示该单状态（`/shop?order=` 或登录后自动恢复最近订单）；已购用户主按钮为“去下载”；Windows 指南第 12 步文字同步 | 复购规则属业务决定 |
+| V-06 / P3 | Drawio 首屏重复重建 iframe（外部编辑器下载 2～3 次）；无网页改密码入口（生产关闭 /docs 后无法改密）；Mermaid 首屏 626 KiB 可按需加载 | 桩断言首次加载 ≤1 次创建；改密浮层回归；Mermaid 点生成时才加载 | 前端 + 产物 |
+| V-07 / P3 | 开发模式经 https 代理访问时登录/财务操作 403（N-07，文档）；gzip level 9→6；`/static/README.md` 公开与缺 favicon；生产检查 `TRUST_PROXY_HEADERS` 硬拒绝但文案称“可忽略” | DEPLOY/WINDOWS_LOCAL_RUN 说明；响应头/静态路由回归；启动检查文案或级别与部署形态一致 | O-15 需确定部署形态 |
+| V-08 / P3（文档/工作流） | 分支名硬编码在指南/Skill/Agnes 工作流，每个会话都要改 7 处（TD-270 与本轮各改一次） | 指南引用 HANDOVER 唯一一处分支名；Skill 用 `git branch --show-current`；Agnes push 触发改模式或仅手动（工作流变更需确认） | 本轮已把纯文档中的分支名改为本会话分支；工作流触发与其测试断言仍为 `01a0bf7a`，待确认 |
 
 ## G2：有边界的发布验收（和代码修复分开签收）
 
