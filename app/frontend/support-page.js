@@ -118,8 +118,11 @@
       if (stamp === epoch && err.name !== "AbortError") el("error").textContent = `发送未确认，可重试（不会重复入库）：${err.message}`;
     } finally { if (stamp === epoch) { sending = false; el("send").disabled = false; } }
   };
-  function onUser(user) {
+  function onUser(user, reason) {
+    // 会话到期不是主动退出：留言草稿还在用户手上，先留住再重置视图（TD-271 复核的 N-01）。
+    const draft = reason === "expired" ? el("body").value : "";
     reset(); currentUser = user; target = null; inboxCursor = null;
+    if (draft) el("body").value = draft;
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;

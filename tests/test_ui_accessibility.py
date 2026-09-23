@@ -191,9 +191,13 @@ require(authPath);
   const auth = global.CodeMaxAuth;
   const before = { user: auth.user && auth.user.username, btnAuthHidden: els["btn-auth"].hidden, whoHidden: els["auth-who"].hidden };
   require(supportPath);           // page boots with a logged-in user, then its first poll gets 401
+  // 用户已经写了一半的草稿：到期时**必须留住**（TD-273 / 复核 N-01）。清空它等于
+  // 在提示「请重新登录后继续」的同一秒里把用户写的东西删掉。
+  els["support-body"].value = "写了一半的留言";
   await new Promise((r) => setImmediate(r)); await new Promise((r) => setImmediate(r));
   const after = { user: auth.user, btnAuthHidden: els["btn-auth"].hidden, whoHidden: els["auth-who"].hidden,
                   modalOpen: els["auth-mask"].classes.has("open"), err: els["auth-error"].textContent,
+                  draft: els["support-body"].value,
                   workspaceHidden: els["support-workspace"].hidden, loginHidden: els["support-login"].hidden };
   console.log(JSON.stringify({ before, after, fetches }));
 })().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
@@ -218,6 +222,9 @@ def test_expired_session_reopens_login_and_clears_the_user_everywhere(tmp_path):
     assert after["user"] is None and after["btnAuthHidden"] is False and after["whoHidden"] is True, after
     assert after["modalOpen"] is True and "登录已过期" in after["err"], after
     assert after["workspaceHidden"] is True and after["loginHidden"] is False, after
+    assert after["draft"] == "写了一半的留言", (
+        "会话到期把未发送的留言清空了（N-01）—— 到期是凭证过期，不是用户放弃草稿"
+    )
     assert "/support/messages" in result["fetches"]
 
 

@@ -136,13 +136,20 @@
     finally { event.target.value = ""; }
   };
   document.getElementById("btn-login").onclick = () => CodeMaxAuth.open("login");
-  async function syncAuth(user) {
+  async function syncAuth(user, reason) {
     const next = user?.username || null;
     loggedIn = !!user; authStatus.textContent = user ? "已登录，可保存到云端" : "未登录，图只能在本地画";
+    // 会话到期（不是主动退出）：身份没变、图和版本还是同一个人的，只是凭证过期。
+    // 此时重建编辑器等于把用户没保存的图丢掉（TD-271 复核的 N-01）；只提示、不清空、不重建。
+    // 重新登录同一账号后 identity 仍是原值，可以直接接着保存；换成别的账号则走下面的完整重置。
+    if (reason === "expired") return;
     if (next === identity) return;
     if (!identityReady) {
-      // 首次同步：模板里的 iframe 已经在加载编辑器，这里只登记身份并（登录时）取列表，
-      // 不重置编辑器 —— 否则编辑器会被整个重建一次（见 identityReady 的定义处）。
+      // 启动阶段。模板里的 iframe 已经在加载编辑器，所以这里不重建 —— 但要分清两种 null：
+      //   · `settled === false`：首次 /auth/me 还在飞，`null` 只是「还不知道」，先什么都不做；
+      //   · 否则是确定的身份（访客或某个账号），登记它并取一次列表，同样不重建。
+      // 这样「页面打开时已登录」也只加载一次外部编辑器（TD-272），而换账号仍走下面的完整重置。
+      if (CodeMaxAuth.settled === false && !user) return;
       identityReady = true; identity = next;
       if (user) await refreshList();
       return;

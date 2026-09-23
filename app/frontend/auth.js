@@ -24,6 +24,9 @@ window.CodeMaxAuth = (function () {
   let mode = "login";
   let user = null;
   let authSeq = 0;
+  // 是否已经问过服务端并拿到过答案（成功或失败都算）。启动瞬间 user 是 null，
+  // 但那是「还没问完」而不是「访客」—— 页面据此避免把「登录态稍后到达」误当成「换账号」。
+  let settled = false;
 
   function errorText(data, status) {
     if (typeof data?.detail === "string") return data.detail;
@@ -47,7 +50,13 @@ window.CodeMaxAuth = (function () {
 
   // 遍历**副本**：监听器可能在回调里退订自己（shop 页的「登录后补一次下单」就是这样），
   // 直接 forEach 原数组会因 splice 导致后续元素被跳过 —— 那类 bug 只在有多个监听器时出现。
-  function notify() { listeners.slice().forEach((f) => f(user)); }
+  //
+  // reason 是给订阅页的第二个参数（默认 "sync"，不影响只用一个参数的旧回调）：
+  //   "sync"    —— 常规登录态同步：退出、登录、换账号、首次加载
+  //   "expired" —— 会话在页面打开期间到期（401）。这一种**必须与主动退出区分开**：
+  //                主动退出表示「我不想再看了」，页面清空是合理的；到期只是凭证过期，
+  //                用户画了一半的图、写了一半的留言还在，绝不能在提示「请重新登录」的同时把它丢掉。
+  function notify(reason = "sync") { listeners.slice().forEach((f) => f(user, reason)); }
 
   function setMode(m) {
     mode = m;
@@ -142,8 +151,9 @@ window.CodeMaxAuth = (function () {
       const next = res.ok ? await res.json() : null;
       if (next !== null && (typeof next !== "object" || !next.username)) throw new Error("登录响应格式无效");
       if (stamp !== authSeq) return user;
-      user = next; paint(); notify(); return user;
+      user = next; settled = true; paint(); notify(); return user;
     } catch (e) {
+      settled = true;
       if (stamp === authSeq) { user = null; paint(); notify(); }
       throw e;
     }
@@ -156,7 +166,7 @@ window.CodeMaxAuth = (function () {
   // 弹出登录浮层并给出原因（TD-270）。返回值告诉调用方"已处理"，调用方不必再显示自己的错误。
   function sessionExpired(status) {
     if (status !== 401 || !user) return false;
-    user = null; paint(); notify();
+    user = null; paint(); notify("expired");
     open("login");
     err.textContent = "登录已过期，请重新登录后继续；刚才的操作未提交。";
     return true;
@@ -181,6 +191,10 @@ window.CodeMaxAuth = (function () {
     },
     get user() {
       return user;
+    },
+    // 供页面区分「启动中」与「确实是访客」：只有 === false 才表示首次 /auth/me 还没回来。
+    get settled() {
+      return settled;
     },
   };
 })();

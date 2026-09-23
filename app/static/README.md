@@ -25,7 +25,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/architecture-7GRP2DOG.js`](js/architecture-7GRP2DOG.js) | `509d093d6593` | 生成物，见模块构建说明 |
 | [`app/static/js/architectureDiagram-5GKGNRK7.js`](js/architectureDiagram-5GKGNRK7.js) | `198519b0d7f0` | 生成物，见模块构建说明 |
 | [`app/static/js/array.js`](js/array.js) | `63126646dbf6` | 生成物，见模块构建说明 |
-| [`app/static/js/auth.js`](js/auth.js) | `661edef2d473` | 生成物，见模块构建说明 |
+| [`app/static/js/auth.js`](js/auth.js) | `f1c87a133e14` | 生成物，见模块构建说明 |
 | [`app/static/js/blockDiagram-I7D4REHJ.js`](js/blockDiagram-I7D4REHJ.js) | `cd411aa15cda` | 生成物，见模块构建说明 |
 | [`app/static/js/c4Diagram-7LVT6UL2.js`](js/c4Diagram-7LVT6UL2.js) | `1ff47f09c4ed` | 生成物，见模块构建说明 |
 | [`app/static/js/channel.js`](js/channel.js) | `46376a0454cf` | 生成物，见模块构建说明 |
@@ -64,7 +64,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `bd9b31ce6bed` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `aa8b75627d07` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `246045c9de3e` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `491e317211aa` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `2fdef19157c2` | 生成物，见模块构建说明 |
 | [`app/static/js/er-page.js`](js/er-page.js) | `7557bdb128ba` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `1e225335524d` | 生成物，见模块构建说明 |
@@ -109,7 +109,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `150172a4838f` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `28780fcb0898` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `0b7e352156f4` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `ce0a2db7e67c` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `9e322d4f0bd5` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `c2ceefb41216` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `b74e03e6b933` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `32c8e2e90cc3` | 生成物，见模块构建说明 |
@@ -156,3 +156,5 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 - 新增 `favicon.svg`：纯 `<path>` + `xmlns` 的站点图标，不含脚本/外链/字体引用，符合 CSP `img-src 'self'`。此前没有图标文件，浏览器对每个页面都会额外请求一次并拿到 404。
 - `support.css` 的消息时间色由 `#64748b` 改为 `#475569`：11.7px 的小字落在 `#f1f5f9`（客户气泡）上是 4.34:1，低于 WCAG AA；`#475569` 在白底系气泡上为 6.92/6.96:1。
 - 产物 `js/auth.js`、`js/drawio-page.js`、`js/mermaid-page.js` 随源码重建提交（`npm run build`，CI 漂移检查会核对）。
+
+- TD-273 重建：`js/auth.js`、`js/drawio-page.js`、`js/support-page.js`（会话到期只提示、不清空编辑内容与草稿）。

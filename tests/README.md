@@ -82,7 +82,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `8e1372f4d8f5` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `ba592b2a93e5` | L1–L471 |
 | [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
-| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `3747f005c012` | L1–L115 |
+| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `5c713f8fe00c` | L1–L214 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
@@ -135,7 +135,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `6b0e492643f8` | L1–L368 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `6a3c2415237c` | L1–L375 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -295,3 +295,5 @@ full_init维护函数继续增长，ER与Word改用conftest.project_ddl_for_api�
 `test_ui_accessibility.py` 增加排版与导航组：跳过链接与 `#main` 目标、表单控件 `font: inherit`、窄屏 16px 输入框（iOS 缩放）、窄屏导航/页脚 24px 命中区、favicon 零外链、管理员入口按角色显隐（Node 真跑 `auth.js` 与产物：匿名保留、普通用户隐藏、管理员显示）、客服时间色在两种气泡底色上 ≥4.5:1、工具页有可见页面标题（真实渲染断言整站每页只有一个 `h1`）、订单管理页只读分区与危险操作红框、长订单号换行规则。`test_drawio_auth_state.py` 增加「首屏零次重建 iframe、换账号必须重建」。`test_llm_concurrency.py` 增加未配置模型时的访客文案与其反例（其它 502 仍原样显示）。
 
 测试成本：`tests/conftest.py` 现在把**测试进程**的 bcrypt 成本降到 4（实测全量 1276 s → 约 220 s，占原时长 81% 的热点），并给 `default_llm` 一个明显的占位 key，让依赖注入之外的用例拿到可断言的上游行为而不是「未配置 key」的本地错误。`test_auth_crypto.py` 用 `production_cost` fixture 把两条时序/侧信道断言恢复到生产轮数：它同时重置那枚缓存的假哈希 —— 假哈希轮数在生成时固定，只改 CryptContext 会让两侧成本不同（实测跑出 35.9 倍假差异）。新增 `product_file` fixture 覆盖「相对根 `storage/`」这条默认路径。
+
+TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 Node 场景，真实驱动「编辑器握手 → autosave → 保存拿 401」，断言到期时**零次**重建 iframe、浮层弹出、同一账号重登仍不重建、换账号必须重建（旧代码上必红）；`test_ui_accessibility.py` 的到期场景新增草稿断言（到期后 `#support-body` 仍是用户写的内容，旧代码上必红）。首屏 iframe 用例扩成三种情形（访客、启动即登录、登录态迟到）都断言零次重建，之后换账号仍必须重建。

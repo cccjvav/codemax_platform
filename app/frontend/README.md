@@ -46,8 +46,8 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `74cd4259bb25` | L1–L186 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `cb7faaa17f7e` | L1–L191 |
+| [`app/frontend/auth.js`](auth.js) | `017009249638` | L1–L200 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `28d7fa39f787` | L1–L198 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
 | [`app/frontend/er-page.js`](er-page.js) | `5fbfafa54c86` | L1–L165 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `14cc54fcc3c9` | L1–L87 |
@@ -55,7 +55,7 @@
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `e9575b6df56e` | L1–L329 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `0678d5552fdd` | L1–L251 |
-| [`app/frontend/support-page.js`](support-page.js) | `b02efc102577` | L1–L135 |
+| [`app/frontend/support-page.js`](support-page.js) | `dfa82468ebf0` | L1–L138 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -139,3 +139,13 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - `auth.js::paint()` 同步顶栏管理员入口的可见性（已登录且 `role !== 1` 时隐藏）。它只影响导航，不参与鉴权判断。
 - `drawio-page.js::syncAuth()` 用 `identityReady` 区分「首次同步」与「账号切换」：首次只登记身份（访问者与已登录都一样），**不重建** iframe —— 首屏此前会把模板里刚开始加载的 `embed.diagrams.net` 换掉，登录态异步返回时再换一次（访客 2 次、已登录 3 次下载）。账号切换仍走完整重置，账号隔离不退化。
 - `mermaid-page.js::serverMessage()` 把 502 且 detail 含 `LLM_API_KEY` 的服务端文案换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 不变，其它 502（上游故障）原样显示。
+
+## 2026-09-23：会话到期与主动退出分开（TD-273）
+
+2026-09-23 复核的 N-01（P2 回归）：TD-270 把每个 401 都交给 `sessionExpired()`，它会清用户并通知订阅者；订阅页把这条通知当成「用户主动退出」，于是 Drawio 重建编辑器加载空白图、客服清空未发送的留言 —— 提示变好了，用户的活儿却没了。
+
+- `auth.js::notify(reason)` 现在把第二个参数传给监听器（默认 `"sync"`，只用一个参数的旧回调不受影响）；`sessionExpired()` 用 `"expired"`。主动退出、登录、换账号仍是 `"sync"`。
+- `drawio-page.js::syncAuth(user, reason)`：`reason === "expired"` 时只更新顶栏与状态文字，**不清 identity / 不丢 xml / 不重建 iframe**；同一账号重新登录后 identity 仍是原值，可以直接接着保存；换成别的账号才走完整重置，账号隔离不退化。
+- `support-page.js::onUser(user, reason)`：到期时先把 `#support-body` 的草稿取出来，重置视图后再放回去；轮询照常停止。
+- 到期提示文案不变（仍是「登录已过期，请重新登录后继续；刚才的操作未提交」），只是这句话现在是真的。
+- 另有 `CodeMaxAuth.settled`：启动瞬间 `user` 是 null，但那是「首次 /auth/me 还没回来」而不是「访客」。`drawio-page.js` 据此判断 `settled === false && !user` 时先什么都不做，等身份真正到达再登记 —— 因此「页面打开时已登录」也只加载一次外部编辑器（真实浏览器实测 3 次 → 1 次），而账号切换仍走完整重置。

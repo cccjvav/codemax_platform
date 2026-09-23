@@ -64,10 +64,11 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
 
 _FIRST_LOAD_HARNESS = r"""
 const fs = require('fs'); const vm = require('vm');
+const cfg = JSON.parse(process.argv[2]);      // {user: null|{...}, settled: bool, lateUser: null|{...}}
 let built = 0;
 function newFrame() {
   const frame = { value: '', textContent: '', innerHTML: '', hidden: false,
-    contentWindow: { postMessage() {} }, parentNode: { replaceChild(next) { built += 1; } },
+    contentWindow: { postMessage() {} }, parentNode: { replaceChild() { built += 1; } },
     cloneNode() { return newFrame(); } };
   return frame;
 }
@@ -78,38 +79,136 @@ function get(id) {
   return nodes.get(id);
 }
 let listener; const calls = [];
-const auth = { user: JSON.parse(process.argv[2]),
+const auth = { user: cfg.user, settled: cfg.settled,
   onChange(fn) { listener = fn; }, open() {}, errorText(d, s) { return String((d && d.detail) || s); } };
 vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
   document: { getElementById: get, createElement: () => ({}) },
   window: { addEventListener() {} }, CodeMaxAuth: auth,
   fetch: async (url) => { calls.push(url); return { ok: true, status: 200, json: async () => [] }; },
-  setTimeout: () => 1, clearTimeout: () => {},
+  setTimeout: () => 1, clearTimeout: () => {}, Promise, JSON, String, Array, Object, Error, Date, Math,
 });
 (async () => {
   await new Promise(setImmediate); await new Promise(setImmediate);
-  const afterBoot = built;
-  auth.user = { username: 'bob' };                        // 换账号：必须重建（账号隔离）
-  await listener({ username: 'bob' });
-  await new Promise(setImmediate);
-  const afterSwitch = built;
-  console.log(JSON.stringify({ afterBoot, afterSwitch, calls }));
+  const afterBoot = built, callsAfterBoot = calls.length;
+  if (cfg.lateUser) {                        // 首次 /auth/me 迟到：身份随后到达
+    auth.user = cfg.lateUser; auth.settled = true;
+    await listener(cfg.lateUser); await new Promise(setImmediate);
+  }
+  const afterLateIdentity = built;
+  auth.user = { username: 'someone-else', role: 0 };   // 之后的换账号仍必须重建
+  await listener(auth.user); await new Promise(setImmediate);
+  console.log(JSON.stringify({ afterBoot, callsAfterBoot, afterLateIdentity, afterSwitch: built, calls }));
 })().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
 """
 
 
 @pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
 @pytest.mark.parametrize("source", ["app/frontend/drawio-page.js", "app/static/js/drawio-page.js"])
-@pytest.mark.parametrize("user", [None, {"username": "alice"}])
-def test_first_sync_does_not_rebuild_the_editor_iframe(source, user):
-    """首屏（访客与已登录都一样）**零次**替换 iframe；换账号时才重建。"""
-    proc = subprocess.run(["node", "-e", _FIRST_LOAD_HARNESS, str(ROOT / source), json.dumps(user)],
+@pytest.mark.parametrize("case", [
+    {"user": None, "settled": True, "lateUser": None},                     # 确定是访客
+    {"user": {"username": "alice"}, "settled": True, "lateUser": None},    # 启动时已登录
+    {"user": None, "settled": False, "lateUser": {"username": "alice"}},   # /auth/me 迟到
+])
+def test_first_sync_does_not_rebuild_the_editor_iframe(source, case):
+    """首屏**零次**替换 iframe（访客、已登录、登录态迟到三种都一样）；之后的换账号必须重建。
+
+    真实浏览器实测：改前每次加载都会重建 1～2 次，外部编辑器被下载 2～3 次；
+    登录态迟到那一种尤其常见（页面先渲染成访客，/auth/me 回来后才变成已登录）。
+    """
+    proc = subprocess.run(["node", "-e", _FIRST_LOAD_HARNESS, str(ROOT / source), json.dumps(case)],
                           capture_output=True, text=True, timeout=20)
     assert proc.returncode == 0, f"{source} 执行失败：\n{proc.stdout}\n{proc.stderr}"
     result = json.loads(proc.stdout.strip().splitlines()[-1])
-    assert result["afterBoot"] == 0, (
-        f"首屏重建了 {result['afterBoot']} 次 iframe —— 外部编辑器会被重复下载（TD-272）"
-    )
+    assert result["afterBoot"] == 0, f"首屏重建了 {result['afterBoot']} 次 iframe（TD-272）"
+    assert result["afterLateIdentity"] == 0, "登录态迟到时重建了编辑器 —— 用户会看到空白图"
     assert result["afterSwitch"] >= 1, "换账号必须重建编辑器，否则上一账号的图会留在新账号名下"
     # 只允许 /diagrams 列表请求：首屏不该为了确认身份额外打 /auth/me（那是 auth.js 的事）
-    assert result["calls"] and set(result["calls"]) == {"/diagrams"}, result["calls"]
+    assert set(result["calls"]) == {"/diagrams"}, result["calls"]
+
+
+# ---------------------------------------------------------------- TD-273：会话到期不许丢掉正在编辑的内容
+#
+# 2026-09-23 复核的 N-01（P2 回归）：TD-270 给所有 401 加了统一的登出通知，页面把「到期」
+# 当成了「主动退出」—— Drawio 重建编辑器加载空白图、客服清空未发送的留言。提示变好了，
+# 用户的工作却没了。修复方式是把到期作为第二个参数传给订阅者（`reason === "expired"`），
+# 页面据此只提示、不清理；换账号仍走完整重置，账号隔离不退化。
+
+_SESSION_EXPIRY_HARNESS = r"""
+const fs = require('fs'), vm = require('vm');
+let built = 0, opened = 0;
+const sent = [];
+function newFrame() {
+  const frame = { value: '', textContent: '', innerHTML: '', hidden: false, children: [],
+    contentWindow: { postMessage(text) { sent.push(JSON.parse(text)); } },
+    parentNode: { replaceChild() { built += 1; } }, cloneNode() { return newFrame(); },
+    appendChild() {}, replaceChildren() {} };
+  return frame;
+}
+const nodes = new Map();
+function get(id) {
+  if (!nodes.has(id)) nodes.set(id, id === 'drawio-frame' ? newFrame() : { id, value: '', textContent: '',
+    innerHTML: '', hidden: false, children: [], appendChild() {}, replaceChildren() {},
+    classList: { add() {}, remove() {} }, focus() {} });
+  return nodes.get(id);
+}
+let listener = null, messageHandler = null;
+const auth = { user: { username: 'alice', role: 0 },
+  onChange(fn) { listener = fn; },
+  open() { opened += 1; },
+  errorText(d, s) { return String((d && d.detail) || s); },
+  sessionExpired(status) {
+    if (status !== 401 || !this.user) return false;
+    this.user = null; listener(null, 'expired'); this.open(); return true;
+  } };
+vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
+  document: { getElementById: get, createElement: () => ({}) },
+  window: { addEventListener(name, fn) { if (name === 'message') messageHandler = fn; } },
+  CodeMaxAuth: auth,
+  fetch: async (url, options = {}) => (options.method === 'POST' || options.method === 'PUT')
+    ? { ok: false, status: 401, json: async () => ({ detail: '未登录' }), headers: { get: () => null } }
+    : { ok: true, status: 200, json: async () => [] },
+  setTimeout: () => 1, clearTimeout: () => {}, JSON, Promise, Error, String, Array, Object, Math, Date,
+  DOMParser: class { parseFromString() { return { documentElement: { nodeName: 'mxfile' }, querySelector() { return null } } } },
+});
+const tick = async () => { for (let i = 0; i < 4; i++) await new Promise(setImmediate); };
+const fromEditor = (message, source) => messageHandler({ origin: 'https://embed.diagrams.net',
+  source: source || get('drawio-frame').contentWindow, data: JSON.stringify(message) });
+(async () => {
+  await tick();
+  get('diagram-name').value = '我的图';
+  fromEditor({ event: 'init' });            // 编辑器就绪握手
+  fromEditor({ event: 'load' });            // ready = true
+  fromEditor({ event: 'autosave', xml: '<mxfile>ALICE_WORK_30_MINUTES</mxfile>' });
+  const saving = get('btn-save').onclick(); // 保存：先向编辑器要 export
+  await tick();
+  const request = sent.filter((m) => m.action === 'export').at(-1);
+  fromEditor({ event: 'export', xml: '<mxfile>ALICE_WORK_30_MINUTES</mxfile>', message: { requestId: request.requestId } });
+  await saving;
+  await tick();
+  const statusAfter401 = get('drawio-status').textContent;
+  const builtAfterExpiry = built;
+  auth.user = { username: 'alice', role: 0 };
+  await listener(auth.user, 'sync');        // 同一账号重新登录
+  await tick();
+  const builtAfterSameUser = built;
+  auth.user = { username: 'bob', role: 0 };
+  await listener(auth.user, 'sync');        // 换账号
+  await tick();
+  console.log(JSON.stringify({ statusAfter401, builtAfterExpiry, builtAfterSameUser, builtAfterSwitch: built, opened }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+@pytest.mark.parametrize("source", ["app/frontend/drawio-page.js", "app/static/js/drawio-page.js"])
+def test_session_expiry_keeps_the_diagram_and_still_isolates_accounts(source):
+    """到期（401）不重建编辑器、不清身份；重新登录同一账号不重建；换账号仍必须重建。"""
+    proc = subprocess.run(["node", "-e", _SESSION_EXPIRY_HARNESS, str(ROOT / source)],
+                          capture_output=True, text=True, timeout=20)
+    assert proc.returncode == 0, f"{source} 执行失败：\n{proc.stdout}\n{proc.stderr}"
+    result = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result["builtAfterExpiry"] == 0, "会话到期时重建了编辑器 —— 用户没保存的图会被丢掉（N-01）"
+    assert result["opened"] >= 1, "到期必须弹出登录浮层，不能静默"
+    assert "登录已过期" in result["statusAfter401"], result["statusAfter401"]
+    assert result["builtAfterSameUser"] == 0, "同一账号重新登录不该重建（重建就是重新加载空白图）"
+    assert result["builtAfterSwitch"] >= 1, "换账号必须重建，账号隔离不能退化"
