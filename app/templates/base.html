@@ -11,8 +11,15 @@
     {% if description %}<meta name="description" content="{{ description }}" />{% endif %}
     {% if keywords %}<meta name="keywords" content="{{ keywords }}" />{% endif %}
     {% if canonical %}<link rel="canonical" href="{{ canonical }}" />{% endif %}
+    {# 站点图标：此前每个页面都会额外产生一次 /favicon.ico 的 404（真实浏览器实测）。
+       用 SVG 而不是 ICO/PNG：单文件、体积极小、任何现代浏览器都认。 #}
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <style>
       * { box-sizing: border-box; }
+      /* `hidden` 是 UA 样式里的 display:none，任何作者写的 display 规则都会盖掉它 ——
+         实测：给导航链接加 `display: inline-block` 之后，带 hidden 的管理员入口又显示出来了。
+         这条 !important 是全局兜底：hidden 就是真的不显示，与页面里其它 display 规则无关。 */
+      [hidden] { display: none !important; }
       body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b;
              display: flex; flex-direction: column; min-height: 100vh; }
       /* 颜色对比度按 WCAG AA（4.5:1）取值，见 TD-263：蓝 #2563eb 5.17:1、绿 #15803d 5.02:1、灰 #64748b 4.76:1 */
@@ -24,10 +31,38 @@
       .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
       .actions .who { color: #64748b; }
       main { padding: 16px 24px; flex: 1; }
+      /* 跳过导航（WCAG 2.4.1）：键盘/读屏用户不必每次穿过顶栏与页脚导航。
+         视觉上隐藏，聚焦时才出现 —— 用绝对定位而不是 display:none，后者收不到焦点。 */
+      .skip { position: absolute; left: -9999px; top: 0; background: #fff; border: 1px solid #2563eb;
+              padding: 8px 12px; border-radius: 0 0 6px 0; z-index: 100; }
+      .skip:focus { left: 0; }
+      /* 触控目标：窄屏导航与页脚链接此前只有 21–24px 高，低于 WCAG 2.2 AA 的 24×24，
+         更远低于移动端常用的 44px。给内边距而不是放大字号，视觉不变、命中区变大。 */
+      @media (max-width: 900px) {
+        header { padding: 10px 14px; gap: 10px; }
+        main { padding: 12px 14px; }
+        nav, .actions { gap: 6px 10px; }
+        header nav a, .actions a, footer .fnav a { display: inline-block; padding: 8px 4px; }
+        /* 手机端顶栏原来高 208px（约占首屏 25%）：三行导航 + 单独一行「登录/注册」。
+           收窄间距后再允许导航横向滚动一行，顶栏回落到 ~100px。 */
+        header nav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+        header nav a { white-space: nowrap; }
+      }
+      /* 手机端输入框字号必须 ≥16px：iOS Safari 在更小的字号上聚焦时会自动放大整页，
+         放大后布局错乱且不会自动缩回。桌面端保持原字号。 */
+      @media (max-width: 700px) {
+        input, select, textarea { font-size: 16px; }
+      }
       footer { border-top: 1px solid #e2e8f0; padding: 14px 24px; color: #64748b; font-size: 13px; }
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+      /* details 的折叠标题同样可点：窄屏实测 22px 高，低于 WCAG 2.2 AA 的 24×24。 */
+      summary { padding: 6px 0; }
       .split { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
       textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+      /* 表单控件默认字体是浏览器给的 13.33px Arial：比正文小一号且与全站字体不一致。
+         `font: inherit` 让按钮/输入框跟随所在容器（正文 14px、.modal 13px 等）。 */
+      button, input, select, textarea { font: inherit; }
+      textarea { font: 13px/1.5 ui-monospace, Consolas, monospace; }
       button { padding: 6px 14px; border: 1px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
       button.ghost { background: #fff; color: #2563eb; }
       button.cta { background: #15803d; border-color: #15803d; font-weight: 600; }
@@ -65,12 +100,16 @@
     </style>
   </head>
   <body>
+    <a class="skip" href="#main">跳到主内容</a>
     <header>
       <h1><a href="/">{{ site_name }}</a></h1>
-      <nav>{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
+      <nav aria-label="工具导航">{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
       <div class="actions">
         <a href="/support/center">站内客服</a>
-        <a href="/admin/payments">订单管理（管理员）</a>
+        {# 管理员入口（顶栏）：默认 hidden，只有登录后确认 role == 1 才由 auth.js 显示 ——
+           对访客与普通用户它是死链接（点进去只显示「请使用管理员账号登录」），是纯噪音。
+           页脚保留一个常驻入口（不标 id、不参与显隐），否则管理员在登录前找不到它。 #}
+        <a id="admin-entry" href="/admin/payments" hidden>订单管理（管理员）</a>
         <a class="cta-link" href="{{ shop_path }}">{{ product_name }}</a>
         {# auth_ui 为假的页面（OAuth 同意页）不渲染登录控件也不加载脚本 ——
            那页必须零脚本，见 tests/test_oauth_consent.py #}
@@ -116,13 +155,14 @@
     <script src="/static/js/auth.js"></script>
     {% endif %}
 
-    <main>
+    <main id="main">
       {% block content %}{% endblock %}
     </main>
     <footer>
       <div class="fnav">
         {% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}
         <a href="{{ shop_path }}">{{ product_name }}</a>
+        <a href="/admin/payments">订单管理（管理员）</a>
       </div>
       <div>© {{ site_name }} · 公开工具目前免费试用；云端保存及客服留言需登录</div>
     </footer>

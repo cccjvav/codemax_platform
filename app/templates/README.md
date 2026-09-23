@@ -25,14 +25,14 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `31c5cbd7b3c9` | L1–L131 |
-| [`app/templates/drawio.html`](drawio.html) | `485d6c82ffba` | L1–L44 |
-| [`app/templates/er.html`](er.html) | `8a0d4678bbeb` | L1–L25 |
+| [`app/templates/base.html`](base.html) | `f3f574657810` | L1–L171 |
+| [`app/templates/drawio.html`](drawio.html) | `9ec605383589` | L1–L47 |
+| [`app/templates/er.html`](er.html) | `d48d4e3001c0` | L1–L26 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
-| [`app/templates/mermaid.html`](mermaid.html) | `c4642e4f7e01` | L1–L20 |
+| [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `e7397fa26fa2` | L1–L26 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `fb1bd213c1a8` | L1–L137 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `68f8647b9046` | L1–L157 |
 | [`app/templates/shop.html`](shop.html) | `ca33ad28aa91` | L1–L107 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
@@ -88,3 +88,13 @@ payments-admin新增verification-control-view和verification-control表单（任
 payments-admin新增不可覆盖授权历史details与独立重新授权表单；客户原因输入置于两个授权表单之外由JS显式读取验证，共用确认单号/原退款号/全额/依据。停止说明限定原版本，不误称解除停止或召回渠道；模板只提供壳，权限/可更正条件在服务器重查。
 
 管理页渠道关单分区与退款分开：显示本地closed不等于渠道关闭、先独立查单和手输合同金额，按钮只提交用户确认的close-channel；未知恢复另由源码保留原命令。
+
+
+## 2026-09-23 排版、导航与表单契约（TD-272）
+
+真实 Chromium 复核（桌面 1366×900 / 手机 390×844、axe-core 4）暴露的问题与本次修改：
+
+- `base.html` 新增跳过导航链接（`<a class="skip" href="#main">` 与 `<main id="main">`）与站点图标 `<link rel="icon" href="/static/favicon.svg">`（此前每个页面都会多打一次 `/favicon.ico` 并 404）。顶栏「订单管理（管理员）」加了 `id="admin-entry"`，由 `auth.js` 在已登录且非管理员时隐藏；未登录保留，否则管理员找不到入口。**前端隐藏不是权限**，角色仍由 `require_admin` 读库判断。
+- 表单控件字体：`button, input, select, textarea { font: inherit }` —— 浏览器默认的 13.33px Arial 比正文小一号且字体不一致；窄屏另有 16px 覆盖，避免 iOS Safari 在输入框聚焦时放大整页。窄屏导航与页脚链接加内边距，命中区从 21–24px 提到 ≥24px（WCAG 2.2 AA）。
+- 页面标题层级：整站每页**一个** `<h1>`（顶栏站点名）。`er.html`/`mermaid.html`/`drawio.html` 渲染 `page_heading`（值来自 `Tool.title`，由 `routers/site.py` 注入；首页为空）。`payments-admin.html` 的 `<h1>` 降为 `<h2 class="finance-heading">`，字号由 CSS 保持。
+- 订单管理页：`.finance` 在窄屏去掉外层内边距与 section 内边距，`#finance-title`/`#finance-list button` 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；只读凭证并入 `<details class="finance-readonly" open>`（默认展开，折叠只是减少滚动）；`finance-refund-send`/`finance-refund-stop` 两个真实资金动作加 `.danger` 红框，与只读信息区分。

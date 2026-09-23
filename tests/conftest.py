@@ -13,6 +13,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.pool import NullPool
 
+from app import security
 from app.config import settings
 from app.database import Base, get_db
 from app.models import OAuthClient
@@ -23,6 +24,27 @@ from main import app
 # 测试默认关掉限流：所有用例共用同一个客户端 IP，开着的话几十个注册/登录会互相挤爆配额。
 # 限流本身由 tests/test_ratelimit.py 显式打开后测试（见 HANDOVER 的坑）。
 settings.RATE_LIMIT_ENABLED = False
+
+# 测试进程把 bcrypt 成本降到 4（O-11 / TD-272）。
+#
+# 实测：全量套件里 bcrypt 的 hash/verify 共 3491 次、耗时 1030.9 s，占总时长 1276 s 的 81%；
+# 降成本后全量 220 s（5.8×），结果仍是 1822 passed / 7 skipped。生产级成本 12 是**运行期**属性，
+# 它值多少钱由真实攻击成本决定，不该由测试重复支付 —— 每个用例都付一遍 260 ms，
+# 只是让 CI 逼近 35 分钟超时。真实哈希格式不变（仍是 `$2b$` 前缀，只因轮数变成 4 而更短）。
+#
+# 为什么只改这一个进程：CryptContext 只在导入时读默认轮数，改的是本进程内存里的策略；
+# `app/security.py` 的模块级对象与生产启动路径不受影响。需要真实成本的用例
+# （tests/test_auth_crypto.py 的两条时序/侧信道断言）自己在用例内恢复到生产值。
+settings_rounds_production = security.pwd_context.handler("bcrypt").default_rounds
+security.pwd_context.update(bcrypt__rounds=4)
+
+# 沙箱与 CI 都没有真实模型 key。大多数用例走 dependency_overrides 注入假客户端；
+# 少数直接打路由的用例（配额、路由形状）会拿到 `default_llm`，于是拿到的是
+# 「未配置 LLM_API_KEY」这条本地配置错误，而不是它们真正想验证的上游错误。
+# 这里给一个**明显是假的**占位 key，让 `chat()` 真的走到 httpx 层，由测试自己的
+# transport 决定结果；它不会让任何真实请求被发出（没有 base_url 可达性声明）。
+# 用例若要断言「未配置 key」的行为，用 monkeypatch 删掉它。
+settings.LLM_API_KEY = settings.LLM_API_KEY or "test-placeholder-key-not-a-credential"
 
 # Default tests use a disposable SQLite file and independent connections. StaticPool's single
 # connection interleaves unrelated sessions/rollbacks and cannot validate settlement transactions.
@@ -202,6 +224,26 @@ def product(tmp_path, monkeypatch):
     monkeypatch.setattr(settings, "STORAGE_PRODUCT_KEY", PRODUCT_KEY)
     LocalStorage(str(tmp_path), "http://test", settings.SECRET_KEY).put(PRODUCT_KEY, PRODUCT_BYTES)
     return tmp_path
+
+
+@pytest.fixture
+def product_file(tmp_path, monkeypatch):
+    """同上，但**直接落在 settings.STORAGE_LOCAL_ROOT 的默认值**（相对路径 `storage/`）下。
+
+    为什么需要第二个商品桩：`product` 把根目录改成 tmp_path，于是默认相对根
+    （`storage/`，相对**进程工作目录**）在测试里从没被解析过。真实部署里它才是
+    「没配 .env 时商品放在哪」的答案，而 Windows 指南第 8 步也要求把 ZIP 放进
+    `storage/product/`。这个 fixture 让「相对根能不能被正确解析」变成可回归的断言，
+    而不是只能靠人在另一台机器上手测。
+    """
+    root = Path(settings.STORAGE_LOCAL_ROOT)
+    assert not root.is_absolute(), "前提校验：默认根应当是相对路径，否则这条回归失去意义"
+    monkeypatch.chdir(tmp_path)  # 相对根按运行目录解析；测试里把「运行目录」固定在临时目录
+    (tmp_path / PRODUCT_KEY).parent.mkdir(parents=True, exist_ok=True)
+    (tmp_path / PRODUCT_KEY).write_bytes(PRODUCT_BYTES)
+    monkeypatch.setattr(settings, "STORAGE_BACKEND", "local")
+    monkeypatch.setattr(settings, "STORAGE_PRODUCT_KEY", PRODUCT_KEY)
+    return tmp_path / PRODUCT_KEY
 
 
 def project_ddl_for_api() -> str:

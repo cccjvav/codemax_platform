@@ -7,5 +7,6 @@
 #support-messages { list-style: none; padding: 0; max-height: 55vh; overflow: auto; }
 #support-messages li { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f5f9; padding: 12px; margin: 8px 0; border-radius: 8px; }
 #support-messages li.admin { background: #eff6ff; border-left: 3px solid #2563eb; }
-#support-messages small { display: block; color: #64748b; }
+#support-messages small { display: block; color: #475569; }  /* TD-272：11.7px 的 #64748b 落在气泡底色上只有 4.34:1，
+   低于 WCAG AA 的 4.5:1（axe-core 实测）；#475569 是 6.92:1，与站内次级正文同色。 */
 @media (max-width: 700px) { .support-layout.with-inbox { grid-template-columns: 1fr; } }

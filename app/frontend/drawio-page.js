@@ -9,7 +9,10 @@
   const name = document.getElementById("diagram-name");
   const list = document.getElementById("diagram-list");
   let currentId = null, xml = BLANK, etag = null, epoch = 0, sequence = 0, listSeq = 0, manageSeq = 0;
-  let identity, loggedIn = false, ready = false, saving = false, pending = null, loading = false;
+  // identityReady 区分「还没有同步过身份」与「同步过、当前是访客」。初值 undefined 与 null 不相等，
+  // 于是首次 syncAuth(null) 也会走重建分支，把模板刚加载好的 iframe 换掉 —— 加上登录态异步返回
+  // 再换一次，外部编辑器首屏被下载 2～3 次（TD-272 用 Node 桩实测）。首次只记录身份。
+  let identity, identityReady = false, loggedIn = false, ready = false, saving = false, pending = null, loading = false;
 
   function send(message) { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
   function load() { if (loading) return; send({ action: "load", xml, autosave: 1 }); }
@@ -137,6 +140,13 @@
     const next = user?.username || null;
     loggedIn = !!user; authStatus.textContent = user ? "已登录，可保存到云端" : "未登录，图只能在本地画";
     if (next === identity) return;
+    if (!identityReady) {
+      // 首次同步：模板里的 iframe 已经在加载编辑器，这里只登记身份并（登录时）取列表，
+      // 不重置编辑器 —— 否则编辑器会被整个重建一次（见 identityReady 的定义处）。
+      identityReady = true; identity = next;
+      if (user) await refreshList();
+      return;
+    }
     if (identity) xml = BLANK; // guest work may be kept on first login, account-owned work never is
     document.getElementById("diagram-manage").innerHTML = "";
     loading = false; identity = next; currentId = null; etag = null; name.value = ""; list.innerHTML = ""; resetEditor();

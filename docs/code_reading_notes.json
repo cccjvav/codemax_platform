@@ -369,7 +369,7 @@
     },
     {
       "path": "app/frontend/auth.js",
-      "sha256": "4118c97851e47f41c2ad529289961acdf084f7f6ad48a21b3cdd5ff7aa781efb",
+      "sha256": "74cd4259bb250333e365fe503ab7ca68d96e575c0100711e8d2bad24419be362",
       "blocks": [
         {
           "end": 27,
@@ -382,37 +382,37 @@
           "explanation": "后端 detail 可能是字符串，也可能是字段校验数组；分别取文本或拼接 msg，其余退回 HTTP 状态。listeners 保存订阅函数，尚未执行它们；错误展示不是改变服务端结果。"
         },
         {
-          "end": 46,
+          "end": 61,
           "title": "paint 和 notify 分工",
-          "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。"
+          "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。 TD-272：paint 额外同步 #admin-entry 的可见性（已登录且 role≠1 时隐藏）。这是导航整洁，不是权限：角色仍由服务端 require_admin 查库判断。 TD-272 追加：判定改为 `adminEntry.hidden = !(on && user.role === 1)` —— 入口默认隐藏，只有管理员才显示（页脚保留常驻入口）。"
         },
         {
-          "end": 82,
+          "end": 97,
           "title": "登录浮层与事件绑定",
           "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。 TD-263：open 记住 document.activeElement 为 opener；close 只在焦点仍在浮层内（或落回 body）时把焦点还给 opener，用户已点到别处就不抢；mask.onkeydown 捕获 Escape 关闭并 stopPropagation。ARIA 属性在 base.html。"
         },
         {
-          "end": 92,
+          "end": 107,
           "title": "退出为什么先等服务器",
           "explanation": "POST /auth/logout 成功后才清 user 并通知；seq 过期则丢弃响应。网络失败不能假装退出完成，显示错误让用户重试。credentials=same-origin 允许带同源 Cookie，但 JS 不读取 Cookie 内容。"
         },
         {
-          "end": 115,
+          "end": 130,
           "title": "表单提交的注册阶段",
           "explanation": "preventDefault 阻止浏览器整页表单导航；disabled 挡住重复点击，finally 会恢复按钮。注册用 application/json 和 JSON.stringify；失败兼容非 JSON 响应。成功注册只创建用户，所以接下来还要走登录，不是已经有会话。"
         },
         {
-          "end": 132,
+          "end": 147,
           "title": "登录阶段与异常恢复",
           "explanation": "登录用 application/x-www-form-urlencoded 和 URLSearchParams，与注册格式不同。成功后 refresh 查 /auth/me，再关浮层；不把返回 token 存 localStorage。网络错误显示提示，finally 恢复提交按钮。此处不是所有 await 都有独立的操作序号检查，不能泛称彻底消除了所有前端竞态。"
         },
         {
-          "end": 146,
+          "end": 161,
           "title": "refresh 的序号防旧结果覆盖",
           "explanation": "每次调用增加 authSeq；非成功响应当未登录，成功 JSON 至少要有对象和 username。若更晚的认证动作已开始，则不写回旧 user。异常时只有当前序号可清本地状态，并重新抛给调用方处理。"
         },
         {
-          "end": 181,
+          "end": 186,
           "title": "启动检查、订阅与 getter",
           "explanation": "初次 refresh 的 rejection 有兜底提示。onChange 返回退订函数，调用方不必保留回调引用；getter 每次读取当前闭包里的 user。它返回可用状态接口，不是把页面永远绑定到第一次加载时的旧对象。 TD-270：新增 sessionExpired(status)——数据接口回 401 且本地仍有用户时清快照、paint/notify、弹登录浮层并写\"登录已过期\"；返回 true 表示已处理。各页在 401 处调用它。"
         }
@@ -420,66 +420,66 @@
     },
     {
       "path": "app/frontend/drawio-page.js",
-      "sha256": "4cdc971cee0753caaa67151505ed1d8308a557f7a30c8b2de18702c795366507",
+      "sha256": "cb7faaa17f7e5a480bd1f313d8bb00f66e539fbc89a289ba7a489a287d0c906c",
       "method": "manual",
       "blocks": [
         {
-          "end": 13,
+          "end": 16,
           "title": "外部编辑器与三类版本",
-          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。"
+          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。 TD-272：新增 identityReady，用来区分「尚未同步身份」与「同步过、当前是访客」—— identity 初值 undefined 与 null 不相等，会让首次 syncAuth(null) 也走重建分支。"
         },
         {
-          "end": 22,
+          "end": 25,
           "title": "send / load / validXml：消息和输入边界",
           "explanation": "send 将对象序列化，只发当前 frame。load 在 loading 时不发送，并启 autosave:1；autosave 仅缓存 XML。validXml 拒空/超 500000 字符、DOCTYPE、解析错误和非允许根名；本地文件另用字节大小检查，前后端界限不能混同。"
         },
         {
-          "end": 30,
+          "end": 33,
           "title": "resetEditor：使旧文档消息失效",
           "explanation": "递增 epoch，清 ready/saving；取消 pending 定时器并 reject 等待者。克隆替换 iframe 产生新 browsing context，旧窗口即使 origin 相同也因 event.source 不同被拒。不是仅把文本变量设空。"
         },
         {
-          "end": 41,
+          "end": 44,
           "title": "exportXml：明确取当前内容再保存",
           "explanation": "未 ready 或已有 pending 立即拒绝；Promise 保存 requestId、epoch、resolve/reject，10 秒无回复清 pending 并报“未保存”。发 export format=xml，等回包中 message.requestId 对应，不直接拿最近 autosave 当最新。 TD-270：api() 对非 2xx 先问 CodeMaxAuth.sessionExpired，到期抛\"登录已过期，请重新登录后再保存\"。"
         },
         {
-          "end": 53,
+          "end": 56,
           "title": "api：Cookie、JSON 与 ETag",
           "explanation": "同源Cookie请求，按需JSON编码body/headers；204无正文，其他响应解析失败转null。成功但无有效JSON给固定可读错误；412保留冲突提示，其他失败交给auth.errorText，返回data与ETag。仍需调用方验证各业务响应字段。"
         },
         {
-          "end": 67,
+          "end": 70,
           "title": "message 回调：只接当前编辑器协议",
           "explanation": "先同时核 origin/source，再 JSON.parse；init 发送 load，load 标就绪。export 必须匹配 pending id/epoch，清 timer 后校验 XML 再 resolve；autosave 只更新缓存，save 事件仍调用 save 获取明确导出。"
         },
         {
-          "end": 81,
+          "end": 84,
           "title": "refreshList：拒绝迟到的列表",
           "explanation": "仅登录时请求 /diagrams，记录 epoch 与列表序号；两者仍匹配才更新 option。name 用 textContent，错误也只写当前代际。不是用服务器名字拼 HTML。"
         },
         {
-          "end": 98,
+          "end": 101,
           "title": "save：导出→POST/PUT→保存版本",
           "explanation": "未登录/重复保存拒绝；await exportXml 后和 HTTP 返回后都核 epoch。已有 id 用 PUT+If-Match，新图 POST；缺 id/ETag 不假报成功，提示刷新确认。若导出之后编辑器又变，提示有新改动；finally 仅给当前代际清 saving。"
         },
         {
-          "end": 113,
+          "end": 116,
           "title": "打开/新建：请求期间重置编辑上下文",
           "explanation": "保存按钮只绑定函数。列表选择先 loading=true 并重建 iframe，读取云端内容、ETag/name 后再重建一次，以免请求途中初始化拿到旧 XML。新建清 id/etag，保持本地空白而不自动 POST。"
         },
         {
-          "end": 134,
+          "end": 137,
           "title": "下载/导入：本地文件与云端对象分离",
           "explanation": "下载也明确 export 当前 XML，Blob URL 点链接后延时 revoke。导入通过隐藏 file-input：先限字节、异步读文本、再校验 XML/epoch；清云 id/etag 避免覆盖原文件，导入完清 input 允许再次选同文件。"
         },
         {
-          "end": 144,
+          "end": 154,
           "title": "syncAuth：保留游客草稿但不跨账号带走资产",
-          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。"
+          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。"
         },
         {
-          "end": 181,
+          "end": 191,
           "title": "manage / action：回收站、恢复与永久删",
           "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。"
         }
@@ -541,7 +541,7 @@
     },
     {
       "path": "app/frontend/mermaid-page.js",
-      "sha256": "47b77692a487218bef1a8d81a28998626fb6aaa07bca4f0ba1d5e6a89209471f",
+      "sha256": "14cc54fcc3c9818930a86a9e07b6f50bda8afe8fb88bcbfe4898dc5d8cc5cac5",
       "method": "manual",
       "blocks": [
         {
@@ -555,14 +555,14 @@
           "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。"
         },
         {
-          "end": 57,
+          "end": 68,
           "title": "503 自动重试一次：requestDiagram",
-          "explanation": "503 是本站模型并发闸门已满（TD-264），带 Retry-After，不是上游故障。requestDiagram 最多重试 MAX_BUSY_RETRIES=1 次：等待秒数取 Retry-After，不可解析退回 5，钳在 1–30 秒，等待期间用 fail 显示\"服务繁忙，N 秒后自动重试…\"；第二次仍 503 或任何非 503 状态原样返回给调用方，不无限打转。setTimeout 由测试桩接管，Node 里不真等。"
+          "explanation": "503 是本站模型并发闸门已满（TD-264），带 Retry-After，不是上游故障。requestDiagram 最多重试 MAX_BUSY_RETRIES=1 次：等待秒数取 Retry-After，不可解析退回 5，钳在 1–30 秒，等待期间用 fail 显示\"服务繁忙，N 秒后自动重试…\"；第二次仍 503 或任何非 503 状态原样返回给调用方，不无限打转。setTimeout 由测试桩接管，Node 里不真等。 TD-272：新增 serverMessage()，把 502 且 detail 含 LLM_API_KEY 的服务端文案替换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 与其它 502 文案不变。"
         },
         {
-          "end": 76,
+          "end": 87,
           "title": "文本→模型接口→Mermaid 渲染",
-          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。"
+          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。"
         }
       ]
     },
@@ -1420,7 +1420,7 @@
     },
     {
       "path": "app/routers/site.py",
-      "sha256": "3c1007582b6415a1933c524be4d2e96275de5f9150ab81074929514518a8eee0",
+      "sha256": "3bb8b8e3c35ccf3ea22304cbb1dfb0e58597463b02e9a3b4b386161721bba9a5",
       "method": "guided",
       "blocks": [
         {
@@ -1439,17 +1439,17 @@
           "explanation": "功能契约：闭包捕获每个 Tool，给生成处理器明确名字，避免循环变量晚绑定导致所有页变成同页。\n\n输入签名：tool: Tool；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 44,
+          "end": 48,
           "title": "_page_view.view",
-          "explanation": "功能契约：由模板名和 page_context 返回 HTML 外壳，不读取私人图/订单。\n\n输入签名：request: Request；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL25 结束当前函数，返回 调用 templates.TemplateResponse(request, tool.template, page_context(request, title=page_title(tool), description=tool.description, keywords=tool.keywords, canonical=_base() + tool.path))；不会自动commit未提交事务。\nL37 计算右侧并赋给 `view.__name__`：f'page_{tool.key}'。\nL38 结束当前函数，返回 view；不会自动commit未提交事务。\nL41 逐项遍历 `PAGES`，绑定 `_tool`；循环体按缩进执行，break可提前结束。\nL42 调用 router.add_api_route(_tool.path, _page_view(_tool), methods=['GET'], include_in_schema=False)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：由模板名和 page_context 返回 HTML 外壳，不读取私人图/订单。\n\n输入签名：request: Request；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL25 结束当前函数，返回 调用 templates.TemplateResponse(request, tool.template, page_context(request, title=page_title(tool), description=tool.description, keywords=tool.keywords, canonical=_base() + tool.path))；不会自动commit未提交事务。\nL37 计算右侧并赋给 `view.__name__`：f'page_{tool.key}'。\nL38 结束当前函数，返回 view；不会自动commit未提交事务。\nL41 逐项遍历 `PAGES`，绑定 `_tool`；循环体按缩进执行，break可提前结束。\nL42 调用 router.add_api_route(_tool.path, _page_view(_tool), methods=['GET'], include_in_schema=False)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：page_context 现在多传 page_heading（=Tool.title，首页为空字符串），供工具页渲染可见的页面级 h2；名称仍只有 Tool.title 一处来源。"
         },
         {
-          "end": 55,
+          "end": 59,
           "title": "sitemap",
           "explanation": "功能契约：列 PAGES 的绝对地址为 XML；不是扫描所有 API，也不是自动 SEO 收录保证。\n\n登记/装饰：router.get('/sitemap.xml', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL47 计算右侧并赋给 `urls`：调用 '\\n'.join((f'  <url><loc>{_base()}{p.path}</loc></url>' for p in PAGES))。\nL48 结束当前函数，返回 调用 Response(f'<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\\n{urls}\\n</urlset>\\n', media_type='application/xml')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 61,
+          "end": 65,
           "title": "robots",
           "explanation": "功能契约：允许站点抓取并给 sitemap 地址；robots 不是访问控制。\n\n登记/装饰：router.get('/robots.txt', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL58 结束当前函数，返回 调用 Response(f'User-agent: *\\nAllow: /\\n\\nSitemap: {_base()}/sitemap.xml\\n', media_type='text/plain')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
@@ -1679,7 +1679,7 @@
     },
     {
       "path": "app/static/support.css",
-      "sha256": "503d4bad1277521641290379af426028286bdabc45b7254d1ba5575acaa78439",
+      "sha256": "95c5202a9699fd8a8d74654d8b8f86895dee56948f850404b7a1ef282617828e",
       "blocks": [
         {
           "end": 5,
@@ -1687,14 +1687,9 @@
           "explanation": "父容器限宽居中；默认单列网格。:has 发现可见 aside 才增加管理员侧栏列，minmax(0,1fr) 允许正文收缩；[hidden] 显式 display:none，避免其他 display 规则把未登录区域显示出来。CSS 控制布局，不授予权限。 两栏改由 .with-inbox class 触发（support-page.js 按管理员角色切换），不再用 :has()——旧内核不支持时管理员只剩单栏（TD-263）。"
         },
         {
-          "end": 10,
+          "end": 12,
           "title": "列表可读性",
-          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。"
-        },
-        {
-          "end": 11,
-          "title": "窄屏覆盖",
-          "explanation": "700px 以下把含侧栏的双列布局改回一列。媒体规则在基础规则后且匹配同类选择器，才能正确覆盖；仅静态检查 CSS 不能代替实际小屏/缩放验收。 窄屏覆盖同样针对 .with-inbox。"
+          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。 TD-272：消息时间色 #64748b → #475569：11.7px 小字落在 #f1f5f9 气泡上只有 4.34:1（axe-core 实测），#475569 为 6.92/6.96:1。"
         }
       ]
     },
@@ -1742,63 +1737,58 @@
     },
     {
       "path": "app/templates/base.html",
-      "sha256": "31c5cbd7b3c9c1cf4fdddc51537ae1f99ec6c3eeae13d02156a1f4c6638a0f73",
+      "sha256": "f3f57465781060ac6fb40bb84a0a0343fc1340ceaa1f2c810246d90063b45b5c",
       "method": "manual",
       "blocks": [
         {
-          "end": 13,
+          "end": 16,
           "title": "HTML 外壳与 SEO 条件",
-          "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。"
+          "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。 TD-272：新增站点图标 link（/static/favicon.svg）—— 此前没有图标文件，浏览器对每个页面都会多打一次 /favicon.ico 并拿到 404。"
         },
         {
-          "end": 48,
+          "end": 100,
           "title": "全站 CSS：盒模型、导航和工具布局",
-          "explanation": "border-box、body纵向flex与main flex:1撑满视口；actions margin-left:auto 靠右，split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。"
+          "explanation": "border-box、body纵向flex与main flex:1撑满视口；actions margin-left:auto 靠右，split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（实测 208px → 147px 匿名态）。"
         },
         {
-          "end": 66,
-          "title": "登录浮层样式和窄屏",
-          "explanation": "fixed/inset 覆盖屏幕，默认 display:none，open类改flex；modal 限宽，输入沿用字体，900以下 split 一列。样式不会主动开浮层，auth.js 管类名和提交。 提示灰由 #94a3b8（2.56:1）改为 #64748b（4.76:1）。"
-        },
-        {
-          "end": 83,
+          "end": 122,
           "title": "导航与可选身份控件",
-          "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。"
+          "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。 TD-272：管理员入口改为**默认 hidden**、只有 role===1 才由 auth.js 显示（页脚另有一个常驻入口，管理员登录前也找得到）；导航加 aria-label；正文前新增指向 #main 的跳过导航链接。隐藏只是导航整洁，权限仍由 require_admin 读库判断。"
         },
         {
-          "end": 117,
+          "end": 156,
           "title": "登录表单必须先于页面脚本",
           "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。 浮层容器带 role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\"（TD-263）；Esc 与焦点归还在 auth.js。"
         },
         {
-          "end": 131,
+          "end": 171,
           "title": "模板插槽与页脚",
-          "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。"
+          "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。 TD-272：<main> 增加 id=main 作为跳过导航的落点；页脚导航补一个常驻的管理员入口，并同步获得窄屏命中区内边距。"
         }
       ]
     },
     {
       "path": "app/templates/drawio.html",
-      "sha256": "485d6c82ffba17995ba65956ac54e33af4e729efbbbe3d632d9396500a643725",
+      "sha256": "9ec60538358920eaceb71eeb45513230c438247e1ae732c1238a0541903e34f5",
       "method": "manual",
       "blocks": [
         {
-          "end": 12,
+          "end": 15,
           "title": "继承壳与编辑区域样式",
-          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。"
+          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。 TD-272：新增 .page-heading（20px）与 page_heading 的 h2 渲染。"
         },
         {
-          "end": 23,
+          "end": 26,
           "title": "登录提示：复用一个身份源",
           "explanation": "保留按钮仅唤共享登录浮层，auth-status 由 drawio-page 更新；不另建第二套密码字段或 token 存储。"
         },
         {
-          "end": 40,
+          "end": 43,
           "title": "工具条与回收站",
-          "explanation": "name/list、保存/本地下载/导入/新建都按固定 ID 绑定；file input hidden+accept 只改善选择体验，JS/后端仍验证 XML。回收站提示永久删除不可恢复并计总预算。"
+          "explanation": "name/list、保存/本地下载/导入/新建都按固定 ID 绑定；file input hidden+accept 只改善选择体验，JS/后端仍验证 XML。回收站提示永久删除不可恢复并计总预算。 TD-272：流程图名称输入与「我的流程图」下拉补 aria-label —— axe-core 报下拉框没有可访问名称。"
         },
         {
-          "end": 44,
+          "end": 47,
           "title": "iframe 协议与本站桥接脚本",
           "explanation": "embed=1/proto=json 配 JSON postMessage；src 外域须能联网，&amp; 是 HTML 属性转义。本站经典 drawio-page 脚本在 iframe 元素之后，auth.js 已由 base 先装配；不是把云端文件直接放 URL query。"
         }
@@ -1806,16 +1796,16 @@
     },
     {
       "path": "app/templates/er.html",
-      "sha256": "8a0d4678bbeb6866cc3fdfdb63b60d6e1d99866ef4c27a3798c077c58b379c5d",
+      "sha256": "d48d4e3001c0b4508dd5233000ae2a7c10d253d66eb04b040b7e0ba15590f1bf",
       "method": "manual",
       "blocks": [
         {
-          "end": 17,
+          "end": 18,
           "title": "DDL 输入和 SVG 输出",
-          "explanation": "继承 base 的 split 布局。form 的 submit 生成 ER，Word/示例 type=button 避免误提交；error role=alert 是错误播报区域，SVG仅容器。元素 ID 是 er-page 的契约。"
+          "explanation": "继承 base 的 split 布局。form 的 submit 生成 ER，Word/示例 type=button 避免误提交；error role=alert 是错误播报区域，SVG仅容器。元素 ID 是 er-page 的契约。 TD-272：内容块顶部按 page_heading 渲染可见的 h2（值来自 Tool.title，首页为空），工具页不再只有顶栏站点名一个标题。"
         },
         {
-          "end": 25,
+          "end": 26,
           "title": "按页加载本地 D3 bundle",
           "explanation": "module 脚本 defer 执行；打包入口已包含所需 D3，不请求 npm CDN。锁文件和产物漂移测试保证构建可追溯，不意味着第三方库永无漏洞。"
         }
@@ -1835,13 +1825,13 @@
     },
     {
       "path": "app/templates/mermaid.html",
-      "sha256": "c4642e4f7e012c3f466b435a9250abfe9babe5ec9d84b19c5ee8bb7214a3936b",
+      "sha256": "529281507e008dbe826dc123c1acc89cc17e134475bb682c9fd81521ff5094cf",
       "method": "manual",
       "blocks": [
         {
-          "end": 20,
+          "end": 21,
           "title": "自然语言表单与两个输出区",
-          "explanation": "extends/base split 布局，text-input 收原文；submit/示例按钮职责分开。error 与 mermaid-source 默认 hidden；preview 是 Mermaid 渲染目标。末尾 type=module 加载本地 mermaid-page，输入通过 textContent 后由 strict Mermaid 处理，模板不直插模型 HTML。"
+          "explanation": "extends/base split 布局，text-input 收原文；submit/示例按钮职责分开。error 与 mermaid-source 默认 hidden；preview 是 Mermaid 渲染目标。末尾 type=module 加载本地 mermaid-page，输入通过 textContent 后由 strict Mermaid 处理，模板不直插模型 HTML。 TD-272：同上，先渲染 page_heading 的 h2 再进 split 布局。"
         }
       ]
     },
@@ -3489,58 +3479,58 @@
     },
     {
       "path": "tests/conftest.py",
-      "sha256": "e540b21e04bd7b5186279f515663ecc519d8a49cf134fcf35272300d599f2b21",
+      "sha256": "bc1e7693175a480f852910571204a9de5b8314483edd840e39730fb118471bd5",
       "method": "manual",
       "blocks": [
         {
-          "end": 37,
+          "end": 59,
           "title": "装配与边界",
-          "explanation": "默认临时文件SQLite+NullPool独立连接，30秒写锁等待；TEST_DATABASE_URL只允许专用可丢弃库用途，PG保持NullPool防跨事件循环复用。测试关闭限流并提供独立商品，不依赖生产storage目录。"
+          "explanation": "默认临时文件SQLite+NullPool独立连接，30秒写锁等待；TEST_DATABASE_URL只允许专用可丢弃库用途，PG保持NullPool防跨事件循环复用。测试关闭限流并提供独立商品，不依赖生产storage目录。 TD-272：新增两条进程级收敛 —— 测试进程把 bcrypt 成本降到 4（实测占全量时长 81%，1276 s → 约 220 s，生产默认 12 不变），并给 default_llm 一个明显的占位 key，让依赖注入之外的用例拿到可断言的上游行为而不是「未配置 key」的本地错误。"
         },
         {
-          "end": 73,
+          "end": 95,
           "title": "iter_app_routes",
           "explanation": "递归展开当前FastAPI的original_router包装以取得运行期真实路由，不依赖私有类型名。后面的seed_clients每次新建两份合成演示客户端，仅供测试，对应显式seed_demo；普通生产init不再插入这些身份。"
         },
         {
-          "end": 97,
+          "end": 119,
           "title": "seed_clients",
           "explanation": "功能契约：每次新建两个 ORM 客户端并哈希测试密钥，避免跨测试共享附着 Session 的对象；测试种子凭证不可用于生产。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：list[OAuthClient]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 结束当前函数，返回 [OAuthClient(client_id='tools', client_secret_hash=hash_password('codemax-tools-secret'), name='工具平台', redirect_uri='https://tools.codemax.top/callback'), OAuthClient(client_id='shop', client_secret_hash=hash_password('codemax-shop-secret'), name='商业平台', redirect_uri='https://shop.codemax.top/callback')]；不会自动commit未提交事务。\nL103 计算右侧并赋给 `_SIG_RE`：调用 re.compile('name=\"sig\" value=\"([^\"]+)\"')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 126,
+          "end": 148,
           "title": "sso_authorize",
           "explanation": "功能契约：模拟 GET 同意页提 sig，再 POST 批准/拒绝；不绕签名从数据库偷取 code。\n\n输入签名：client, headers, *, client_id='tools', redirect_uri='https://tools.codemax.top/callback', state='xyz', approve='1'；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL116 计算右侧并赋给 `page`：await 调用 client.get('/oauth/authorize', params={'response_type': 'code', 'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state}, headers=headers, follow_redirects=False)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL123 核对 `page.status_code == 200`：要求请求成功；不满足即本用例失败。\nL124 计算右侧并赋给 `m`：调用 _SIG_RE.search(page.text)。\nL125 核对 `m`：此条件为假即测试失败；不是生产输入校验。\nL126 结束当前函数，返回 await 调用 client.post('/oauth/authorize', data={'client_id': client_id, 'redirect_uri': redirect_uri, 'state': state, 'sig': m.group(1), 'approve': approve}, headers=headers, follow_redirects=False)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 130,
+          "end": 152,
           "title": "sso_code",
           "explanation": "功能契约：从 Location 查询串取 code，缺失会直接让测试失败而非造假码。\n\n输入签名：response；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL137 结束当前函数，返回 parse_qs(urlsplit(response.headers['location']).query)['code'][0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 173,
           "title": "client",
           "explanation": "HTTP测试按用例建表/清理及覆盖get_db，依赖product提供独立小文件以满足新下单必须先有交付物。SQLite临时文件+NullPool独立连接，PG也独立连接避免跨事件循环复用；不能把业务DSN传给会清表的fixture。"
         },
         {
-          "end": 178,
+          "end": 200,
           "title": "db",
           "explanation": "功能契约：仅数据库层 fixture，建表后 yield Session，结束拆表；没有 HTTP 中间件路径。\n\n登记/装饰：pytest_asyncio.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；这是异步生成器，通过async for/异步上下文管理器或pytest fixture驱动推进，不直接await生成器对象。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL167 进入 engine.begin() as conn 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL168 await 调用 conn.run_sync(Base.metadata.create_all)；等待期间可让出事件循环，恢复后才执行下一句。\nL169 进入 TestSession() as session 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL170 yield 交出 session；生成器下次恢复才继续后续清理。\nL171 进入 engine.begin() as conn 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL172 await 调用 conn.run_sync(Base.metadata.drop_all)；等待期间可让出事件循环，恢复后才执行下一句。\nL183 计算右侧并赋给 `PRODUCT_KEY`：'product/codemax_package.zip'。\nL184 计算右侧并赋给 `PRODUCT_BYTES`：b'PK\\x03\\x04 ' + '这是商品文件的内容'.encode()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 本次仅修正当前名称/注释与可恢复下载语义，原业务断言不削弱。"
         },
         {
-          "end": 196,
+          "end": 218,
           "title": "mock_mode",
           "explanation": "功能契约：临时改 SHOP_PAY_MODE=mock，并把真 native_prepay 换成会断言失败的替身，防测试误发商户请求。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL194 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'mock')：仅在本测试替换属性，fixture结束恢复。\nL196 导入 from app.routers import shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 功能契约：只要 mock 流程误调用真实支付适配器就失败，不能用返回假 code_url 掩盖依赖越界。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL199 抛出 AssertionError('模拟模式不该调用微信支付')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL201 调用 monkeypatch.setattr(shop, 'native_prepay', no_wechat)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 206,
+          "end": 228,
           "title": "product",
           "explanation": "功能契约：把存储根改 tmp_path 并写 PK 开头测试 bytes；不是可交付商品 ZIP 完整性验收。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL208 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'local')：仅在本测试替换属性，fixture结束恢复。\nL209 调用 monkeypatch.setattr(settings, 'STORAGE_LOCAL_ROOT', str(tmp_path))：仅在本测试替换属性，fixture结束恢复。\nL210 调用 monkeypatch.setattr(settings, 'STORAGE_PRODUCT_KEY', PRODUCT_KEY)：仅在本测试替换属性，fixture结束恢复。\nL211 调用 LocalStorage(str(tmp_path), 'http://test', settings.SECRET_KEY).put(PRODUCT_KEY, PRODUCT_BYTES)。\nL212 结束当前函数，返回 tmp_path；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 217,
+          "end": 259,
           "title": "project_ddl_for_api",
-          "explanation": "读取完整full_init，只取解析器支持的全部CREATE TABLE构造工具输入；断言parse_ddl投影图等于原始完整图，防裁表/列/FK或丢受支持注释。公共API仍20000字符，不把maintenance函数当图结构；真实PG另验证SQL业务触发器，helper不是生产迁移入口。"
+          "explanation": "读取完整full_init，只取解析器支持的全部CREATE TABLE构造工具输入；断言parse_ddl投影图等于原始完整图，防裁表/列/FK或丢受支持注释。公共API仍20000字符，不把maintenance函数当图结构；真实PG另验证SQL业务触发器，helper不是生产迁移入口。 TD-272：新增 product_file fixture，覆盖 settings.STORAGE_LOCAL_ROOT 的**默认相对路径** storage/（product 会把根改到 tmp_path，默认路径在测试里从没被解析过）。"
         }
       ]
     },
@@ -3954,63 +3944,63 @@
     },
     {
       "path": "tests/test_auth_crypto.py",
-      "sha256": "ae02f0e03c7a0e1306609640fc8fab2f8992d433dbbb6ba92d9b872125dca79c",
+      "sha256": "44aa173912335f1442739c20956b3380939f3f5097f069b12d81303b51d69d89",
       "method": "guided",
       "blocks": [
         {
-          "end": 28,
+          "end": 29,
           "title": "模块装配",
-          "explanation": "模块协作与边界：bcrypt线程卸载、登录不存在用户的dummy耗时，以及UTF-8密码72字节上限。事件循环漂移和耗时比是本机预算回归，不是形式化恒时证明或公网抗爆破认证。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL15 导入 import asyncio；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 import time；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app.security import ahash_password, averify_password, hash_password；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from tests.test_download import auth_headers；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 计算右侧并赋给 `_MAX_LOOP_DRIFT_MS`：80.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：bcrypt线程卸载、登录不存在用户的dummy耗时，以及UTF-8密码72字节上限。事件循环漂移和耗时比是本机预算回归，不是形式化恒时证明或公网抗爆破认证。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL15 导入 import asyncio；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 import time；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app.security import ahash_password, averify_password, hash_password；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from tests.test_download import auth_headers；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 计算右侧并赋给 `_MAX_LOOP_DRIFT_MS`：80.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：新导入 Path 用于核对 app/security.py 没有写死轮数；新增 production_cost fixture（恢复成本 12）与两条生产成本下的复验用例，以及「测试进程 $2b$04$ / 生产默认 12」的钉子。"
         },
         {
-          "end": 33,
+          "end": 34,
           "title": "test_bcrypt_does_not_block_the_event_loop",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL31 计算右侧并赋给 `hashed`：await 调用 ahash_password('secret123')；等待期间可让出事件循环，恢复后才执行下一句。\nL32 计算右侧并赋给 `drift`：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 51,
+          "end": 52,
           "title": "test_bcrypt_does_not_block_the_event_loop.watch",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL35 逐项遍历 `range(60)`，绑定 `_`；循环体按缩进执行，break可提前结束。\nL36 计算右侧并赋给 `t0`：调用 time.perf_counter()。\nL37 await 调用 asyncio.sleep(0.01)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL38 调用 drift.append((time.perf_counter() - t0 - 0.01) * 1000)。\nL40 计算右侧并赋给 `watcher`：调用 asyncio.create_task(watch())：启动独立任务，调用者还需管理完成/取消/异常。\nL41 await 调用 asyncio.gather(*[averify_password('secret123', hashed) for _ in range(5)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL42 await watcher；等待期间可让出事件循环，恢复后才执行下一句。\nL44 核对 `drift`：此条件为假即测试失败；不是生产输入校验。\nL45 计算右侧并赋给 `worst`：调用 max(drift)。\nL46 核对 `worst < _MAX_LOOP_DRIFT_MS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 55,
+          "end": 56,
           "title": "test_login_timing_does_not_leak_whether_the_user_exists",
           "explanation": "本用例的准备条件：client。涉及接口：/auth/login、/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL54 await 调用 client.post('/auth/register', json={'username': 'realuser', 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 73,
+          "end": 74,
           "title": "test_login_timing_does_not_leak_whether_the_user_exists.median_ms",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：payload, n=5；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL57 计算右侧并赋给 `samples`：[]。\nL58 逐项遍历 `range(n)`，绑定 `_`；循环体按缩进执行，break可提前结束。\nL59 计算右侧并赋给 `t0`：调用 time.perf_counter()。\nL60 await 调用 client.post('/auth/login', data=payload)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL61 调用 samples.append((time.perf_counter() - t0) * 1000)。\nL62 结束当前函数，返回 sorted(samples)[len(samples) // 2]；不会自动commit未提交事务。\nL64 计算右侧并赋给 `no_user`：await 调用 median_ms({'username': 'nosuchuser_xyz', 'password': 'secret123'})；等待期间可让出事件循环，恢复后才执行下一句。\nL65 计算右侧并赋给 `bad_pass`：await 调用 median_ms({'username': 'realuser', 'password': 'wrongpass1'})；等待期间可让出事件循环，恢复后才执行下一句。\nL67 计算右侧并赋给 `ratio`：max(no_user, bad_pass) / max(1.0, min(no_user, bad_pass))。\nL68 核对 `ratio < 2.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 91,
+          "end": 92,
           "title": "test_oauth_token_endpoint_is_rate_limited",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/oauth/token、/oauth/token 没有挂限流（实际依赖：。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL80 导入 from main import app；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL82 计算右侧并赋给 `route`：调用 next((r for r in iter_app_routes(app.routes) if getattr(r, 'path', '') == '/oauth/token'))。\nL85 计算右侧并赋给 `deps`：{d.call.__qualname__ for d in route.dependant.dependencies if d.call}。\nL86 核对 `any(('rate_limit' in d for d in deps))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 96,
+          "end": 97,
           "title": "test_sync_helpers_still_exist_for_scripts_and_tests",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL94 核对 `hash_password('x' * 8).startswith('$2')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 120,
+          "end": 121,
           "title": "test_async_wrapper_agrees_with_sync",
           "explanation": "本用例的准备条件：plain。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('plain', ['secret123', ''])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：plain；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL99 导入 from app.security import verify_password；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL101 计算右侧并赋给 `hashed`：调用 hash_password(plain or 'placeholder')。\nL102 判断 `plain`，为真进入当前缩进分支，为假进入else/elif。\nL103 核对 `await averify_password(plain, hashed) is verify_password(plain, hashed) is True`：此条件为假即测试失败；不是生产输入校验。\nL105 核对 `await averify_password(plain, hashed) is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 152,
           "title": "test_password_longer_than_72_bytes_is_rejected",
           "explanation": "本用例的准备条件：client, password, marker。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize(('password', 'marker'), [('密' * 25, '72'), ('密' * 64, '72'), ('a' * 73, '64')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, password, marker；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL141 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': 'longpw_user', 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL142 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\nL146 核对 `marker in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 165,
+          "end": 166,
           "title": "test_truncation_collision_is_actually_closed",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL158 导入 from pydantic import ValidationError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL160 导入 from app.schemas import RegisterIn；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL162 进入 pytest.raises(ValidationError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL163 调用 RegisterIn(username='collision_u', password='密' * 64)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 180,
+          "end": 263,
           "title": "test_password_change_has_the_same_72_byte_limit",
-          "explanation": "本用例的准备条件：client。涉及接口：/auth/password。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL172 计算右侧并赋给 `h`：await 调用 auth_headers(client, 'pwlimit_u')；等待期间可让出事件循环，恢复后才执行下一句。\nL173 计算右侧并赋给 `r`：await 调用 client.post('/auth/password', headers=h, json={'old_password': 'secret123', 'new_password': '密' * 64})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL178 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/auth/password。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL172 计算右侧并赋给 `h`：await 调用 auth_headers(client, 'pwlimit_u')；等待期间可让出事件循环，恢复后才执行下一句。\nL173 计算右侧并赋给 `r`：await 调用 client.post('/auth/password', headers=h, json={'old_password': 'secret123', 'new_password': '密' * 64})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL178 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：本文件末尾新增生产成本复验组，块界随之延长到文件尾；原 72 字节用例内容未变。"
         }
       ]
     },
@@ -5075,7 +5065,7 @@
     },
     {
       "path": "tests/test_drawio_auth_state.py",
-      "sha256": "15736019e19b73dc1e80d0e420432a791644a9311fc0ff7e975046d58415019a",
+      "sha256": "3747f005c012ebaa8e069a451866404c0c641374881b858debdefa30493418d6",
       "method": "guided",
       "blocks": [
         {
@@ -5084,9 +5074,9 @@
           "explanation": "模块协作与边界：用Node DOM/CodeMaxAuth替身分别排列认证先到/页面先到，核初始和后续登录/退出提示及列表调用。只验证宿主页事件时序，不请求diagrams.net。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 56,
+          "end": 115,
           "title": "test_drawio_receives_initial_and_future_auth_state",
-          "explanation": "本用例的准备条件：source, auth_ready_first。涉及接口：/diagrams。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='未安装 node')；pytest.mark.parametrize('source', ['app/frontend/drawio-page.js', 'app/static/js/drawio-page.js'])；pytest.mark.parametrize('auth_ready_first', [True, False])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：source, auth_ready_first；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL16 把测试JavaScript多行字面量存入 `script`（1166字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL48 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', script, str(ROOT / source), json.dumps(auth_ready_first)], capture_output=True, text=True, check=True, timeout=15)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL52 计算右侧并赋给 `result`：调用 json.loads(proc.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL53 核对 `result['initial'] == ('已登录，可保存到云端' if auth_ready_first else '未登录，图只能在本地画')`：此条件为假即测试失败；不是生产输入校验。\nL54 核对 `result['loggedIn'] == '已登录，可保存到云端'`：此条件为假即测试失败；不是生产输入校验。\nL55 核对 `result['loggedOut'] == '未登录，图只能在本地画'`：此条件为假即测试失败；不是生产输入校验。\nL56 核对 `result['calls'] == ['/diagrams']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：source, auth_ready_first。涉及接口：/diagrams。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='未安装 node')；pytest.mark.parametrize('source', ['app/frontend/drawio-page.js', 'app/static/js/drawio-page.js'])；pytest.mark.parametrize('auth_ready_first', [True, False])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：source, auth_ready_first；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL16 把测试JavaScript多行字面量存入 `script`（1166字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL48 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', script, str(ROOT / source), json.dumps(auth_ready_first)], capture_output=True, text=True, check=True, timeout=15)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL52 计算右侧并赋给 `result`：调用 json.loads(proc.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL53 核对 `result['initial'] == ('已登录，可保存到云端' if auth_ready_first else '未登录，图只能在本地画')`：此条件为假即测试失败；不是生产输入校验。\nL54 核对 `result['loggedIn'] == '已登录，可保存到云端'`：此条件为假即测试失败；不是生产输入校验。\nL55 核对 `result['loggedOut'] == '未登录，图只能在本地画'`：此条件为假即测试失败；不是生产输入校验。\nL56 核对 `result['calls'] == ['/diagrams']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：文件末尾新增首屏 iframe 复验组（首屏零次重建、换账号必须重建、只允许 /diagrams 请求），块界延长到文件尾；原认证顺序用例内容未变。"
         }
       ]
     },
@@ -6138,7 +6128,7 @@
     },
     {
       "path": "tests/test_llm_concurrency.py",
-      "sha256": "f23e2e40e0d485c3888b87421d7ae5c3ec2ff0ab9712e950f79a6e4695b68978",
+      "sha256": "22001102f542b05f1ac6e0fed0a0b1e7c9ba4c5390f70a275c135c79b3b8ca83",
       "method": "guided",
       "blocks": [
         {
@@ -6232,9 +6222,9 @@
           "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 502 只 fetch 一次、不等待、显示上游文案。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL237 判断 `shutil.which('node') is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL238 调用 pytest.skip('需要 node 执行真实前端代码')：明确跳过，不计为执行通过。\nL239 计算右侧并赋给 `result`：调用 _run_page(tmp_path, 'app/frontend/mermaid-page.js', [{'status': 502, 'body': {'detail': '上游故障'}}])。\nL240 核对 `result['fetches'] == 1 and result['sleeps'] == [] and (result['errors'][-1] == '上游故障')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 248,
+          "end": 270,
           "title": "test_source_and_bundle_agree_on_retry_policy",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 源码含 MAX_BUSY_RETRIES=1 与 503 判断；产物含 Retry-After、\"秒后自动重试\"与 ===503——忘记 npm run build 会在这里失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL245 计算右侧并赋给 `src`：调用 (ROOT / 'app/frontend/mermaid-page.js').read_text(encoding='utf-8')。\nL246 计算右侧并赋给 `bundle`：调用 (ROOT / 'app/static/js/mermaid-page.js').read_text(encoding='utf-8')。\nL247 核对 `re.search('MAX_BUSY_RETRIES\\\\s*=\\\\s*1\\\\b', src) and 'res.status === 503' in src`：此条件为假即测试失败；不是生产输入校验。\nL248 核对 `'Retry-After' in bundle and '秒后自动重试' in bundle and re.search('===\\\\s*503', bundle)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 源码含 MAX_BUSY_RETRIES=1 与 503 判断；产物含 Retry-After、\"秒后自动重试\"与 ===503——忘记 npm run build 会在这里失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL245 计算右侧并赋给 `src`：调用 (ROOT / 'app/frontend/mermaid-page.js').read_text(encoding='utf-8')。\nL246 计算右侧并赋给 `bundle`：调用 (ROOT / 'app/static/js/mermaid-page.js').read_text(encoding='utf-8')。\nL247 核对 `re.search('MAX_BUSY_RETRIES\\\\s*=\\\\s*1\\\\b', src) and 'res.status === 503' in src`：此条件为假即测试失败；不是生产输入校验。\nL248 核对 `'Retry-After' in bundle and '秒后自动重试' in bundle and re.search('===\\\\s*503', bundle)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：文件末尾新增「未配置模型时的访客文案」与其反例，块界延长到文件尾；原重试策略文本级核对未变。"
         }
       ]
     },
@@ -8694,7 +8684,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "e64db740a1809fe9e9f7983ee93a58c029cd1a35b6417845310adc75b60b53d6",
+      "sha256": "6b0e492643f894971645df3daf3f58add0cb864b7cb47c5e7a7a2cf152052219",
       "method": "guided",
       "blocks": [
         {
@@ -8758,9 +8748,9 @@
           "explanation": "本用例的准备条件：tmp_path, path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 对源码与产物两份 auth.js：打开后焦点进入输入框、非 Esc 不关、Esc 关闭并把焦点还给触发按钮、焦点已离开浮层时关闭不抢焦点。旧 auth.js 没有 onkeydown，本用例在修复前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码'); pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL157 计算右侧并赋给 `harness`：tmp_path / 'harness.cjs'。\nL158 调用 harness.write_text(_HARNESS, encoding='utf-8')。\nL159 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL160 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL161 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL163 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL164 核对 `result['openedWithFocusInside']`：此条件为假即测试失败；不是生产输入校验。\nL165 核对 `result['otherKeyIgnored']`：此条件为假即测试失败；不是生产输入校验。\nL166 核对 `result['closedByEsc']`：此条件为假即测试失败；不是生产输入校验。\nL167 核对 `result['focusReturned']`：此条件为假即测试失败；不是生产输入校验。\nL168 核对 `result['focusLeftAlone']`：此条件为假即测试失败；不是生产输入校验。\nL173 把测试JavaScript多行字面量存入 `_EXPIRY_HARNESS`（2106字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 221,
+          "end": 368,
           "title": "test_expired_session_reopens_login_and_clears_the_user_everywhere",
-          "explanation": "本用例的准备条件：tmp_path。涉及接口：/support/messages。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 Node 先加载 auth.js（/auth/me 200 → 已登录），再加载 support-page.js；其首个数据请求得 401 后：auth.user 为 null、顶栏切回登录按钮、浮层打开且文案含\"登录已过期\"、客服工作区隐藏/登录提示显示。改前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL208 计算右侧并赋给 `harness`：tmp_path / 'expiry.cjs'。\nL209 调用 harness.write_text(_EXPIRY_HARNESS, encoding='utf-8')。\nL210 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js')], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL212 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL213 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL215 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL216 核对 `result['before'] == {'user': 'alice', 'btnAuthHidden': True, 'whoHidden': False}`：此条件为假即测试失败；不是生产输入校验。\nL217 计算右侧并赋给 `after`：result['after']。\nL218 核对 `after['user'] is None and after['btnAuthHidden'] is False and (after['whoHidden'] is True)`：此条件为假即测试失败；不是生产输入校验。\nL219 核对 `after['modalOpen'] is True and '登录已过期' in after['err']`：此条件为假即测试失败；不是生产输入校验。\nL220 核对 `after['workspaceHidden'] is True and after['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL221 核对 `'/support/messages' in result['fetches']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path。涉及接口：/support/messages。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 Node 先加载 auth.js（/auth/me 200 → 已登录），再加载 support-page.js；其首个数据请求得 401 后：auth.user 为 null、顶栏切回登录按钮、浮层打开且文案含\"登录已过期\"、客服工作区隐藏/登录提示显示。改前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL208 计算右侧并赋给 `harness`：tmp_path / 'expiry.cjs'。\nL209 调用 harness.write_text(_EXPIRY_HARNESS, encoding='utf-8')。\nL210 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js')], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL212 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL213 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL215 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL216 核对 `result['before'] == {'user': 'alice', 'btnAuthHidden': True, 'whoHidden': False}`：此条件为假即测试失败；不是生产输入校验。\nL217 计算右侧并赋给 `after`：result['after']。\nL218 核对 `after['user'] is None and after['btnAuthHidden'] is False and (after['whoHidden'] is True)`：此条件为假即测试失败；不是生产输入校验。\nL219 核对 `after['modalOpen'] is True and '登录已过期' in after['err']`：此条件为假即测试失败；不是生产输入校验。\nL220 核对 `after['workspaceHidden'] is True and after['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL221 核对 `'/support/messages' in result['fetches']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：文件末尾新增排版/导航/对比度回归组（跳过链接、font:inherit、窄屏 16px 输入框、24px 命中区、favicon 零外链、管理员入口角色显隐的 Node 复验、页面级标题的真实渲染断言、订单管理页分区与危险红框、长订单号换行），块界延长到文件尾；会话到期用例内容未变。"
         }
       ]
     },
@@ -10129,36 +10119,36 @@
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "fb1bd213c1a8f404c46a2c2fa3983e4e1a1723ca1705180950dc51fb0c4fc321",
+      "sha256": "68f8647b9046d1bbe45fef63a10269fb534deac153f37ddab1063b63be74389a",
       "method": "manual",
       "blocks": [
         {
-          "end": 17,
+          "end": 51,
           "title": "布局和隐藏边界",
-          "explanation": "继承公共base，局部响应式两栏grid，窄屏改一栏；hidden用important避免grid覆盖浏览器默认隐藏。pre允许长单号/摘要换行，表单/按钮有基本布局；需真实浏览器验证。"
+          "explanation": "继承公共base，局部响应式两栏grid，窄屏改一栏；hidden用important避免grid覆盖浏览器默认隐藏。pre允许长单号/摘要换行，表单/按钮有基本布局；需真实浏览器验证。 TD-272：页面标题由 h1 降为 h2.finance-heading（字号由 CSS 保持），整站每页恢复只有一个 h1；窄屏去掉 .finance 外层与 section 内边距；#finance-title 与 #finance-list button 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；真实发送/停止表单加 .danger 红框；只读凭证并入 details.finance-readonly（默认 open，折叠只是减少滚动）。 TD-272 追加：折叠标题的命中区内边距统一由 base.html 的 `summary` 规则提供，本页不再重复写死，避免两处漂移。"
         },
         {
-          "end": 32,
+          "end": 69,
           "title": "公开壳与订单筛选",
-          "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。"
+          "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。 TD-272：标题从 h1 改为 h2.finance-heading，页面外层的说明与登录态块不变。"
         },
         {
-          "end": 41,
+          "end": 80,
           "title": "筛选与详情容器",
           "explanation": "完整订单号可为空做筛选，列表/下一页由JS填写；详情显示当前单标题、合同、客服链接和刷新按钮，未加载前不可刷新。客服只引导人工联系，不承诺自动派单。 HTML pattern按现代浏览器v标志解释，字面连字符和斜线必须转义；不能把普通JS正则写法直接照搬，另有Node Unicode Sets构造回归。"
         },
         {
-          "end": 61,
+          "end": 101,
           "title": "财务写的共同确认与人工核账",
           "explanation": "准备、通知、成功退款、复核独立显示；operations默认hidden，共用手动订单号/单行依据。复核和人工收款按原合同填写，不用准备状态冒充金融完成。 新增finance-verification-view只读分区，仍保留十类手动操作；查询观察与成功凭证分开。 新增最近核验控制显示块，不将历史操作冒称当前状态。"
         },
         {
-          "end": 126,
+          "end": 146,
           "title": "主动查单与历史原件",
-          "explanation": "增加refund-request准备表单及整数全额输入，submit说明仅保存、不发送/授权、不撤权；并保留付款查单、独立退款查询、人工已退款登记。新增request-prefill与通知填号均type=button且默认禁用。历史绑定仍一次性核准，所有权限由API再次检查。 新增verification-control独立表单：手输任务ID，选择hold/retry，说明仅此任务、不召回GET、不清次数及耗尽人工查询；仍复用公共原单确认和依据。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 客户原因移到两授权表单共用位置；新增authorization-history details和独立reauthorize按钮，说明原版停止不解除、仅新授权且不发送。 新渠道关单分区在退款前，专用close-amount手填，说明本地closed/最新NOTPAY/未知边界，按钮不是退款。"
+          "explanation": "增加refund-request准备表单及整数全额输入，submit说明仅保存、不发送/授权、不撤权；并保留付款查单、独立退款查询、人工已退款登记。新增request-prefill与通知填号均type=button且默认禁用。历史绑定仍一次性核准，所有权限由API再次检查。 新增verification-control独立表单：手输任务ID，选择hold/retry，说明仅此任务、不召回GET、不清次数及耗尽人工查询；仍复用公共原单确认和依据。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 客户原因移到两授权表单共用位置；新增authorization-history details和独立reauthorize按钮，说明原版停止不解除、仅新授权且不发送。 新渠道关单分区在退款前，专用close-amount手填，说明本地closed/最新NOTPAY/未知边界，按钮不是退款。 TD-272：finance-refund-send / finance-refund-stop 两个真实资金动作加 .danger 红框，与只读信息在视觉上分开；元素的 hidden/显示条件与提交路径不变。"
         },
         {
-          "end": 137,
+          "end": 157,
           "title": "事件历史与构建入口",
           "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。 第九批新增独立客户原因/手输原号全额、授权及发送表单和冻结正文区；发送默认hidden、明确可能真实转款。new-attempt是button不自动提交。 新stop-view/stop表单默认hidden，submit明确不能撤回渠道退款、释放号码或恢复下载，没有恢复发送按钮。"
         }
@@ -12934,6 +12924,18 @@
           "end": 99,
           "title": "不绕过资质且不下发商户密钥",
           "explanation": "三条边界要求商户秘密只留服务端、不以绕过签约为目标、准确说出资格。原文保持字节不改，纠正和采纳决策写报告/ROADMAP，不把原文建议升级为已实现承诺；真实资料不进入Git。当前增补不新建商户、发起支付或迁移运行架构。"
+        }
+      ]
+    },
+    {
+      "path": "app/static/favicon.svg",
+      "sha256": "f53a579480dd11462fa016b9a9eb4a1aad19c1d075bae5e0a792db0e762ce1b1",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 10,
+          "title": "站点图标：零外链的内联 SVG",
+          "explanation": "单个 <svg> + 一条 rect 背景与三条 path 图形，配色与站内主色 #2563eb 一致；除 xml 命名空间外没有任何 URL，也没有 <script>、外链、字体或 url() 引用，因此符合 CSP 的 img-src 'self'。它由 base.html 以 <link rel=\"icon\"> 引用；此前没有图标文件，浏览器会对每个页面额外请求一次 /favicon.ico 并拿到 404（TD-272）。图标不是品牌资源承诺，替换时只需保持这两条边界：无外链、无脚本。"
         }
       ]
     }

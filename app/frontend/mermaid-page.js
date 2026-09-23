@@ -32,6 +32,17 @@ function fail(msg) {
   error.textContent = msg;
 }
 
+// 服务端把「本站没配 LLM_API_KEY」原样返回（那是给运维看的），对访客是开发者术语。
+// 只改这一条的**展示**文案，不改服务端 detail（运维/测试仍按原文判断），也不隐藏其它错误。
+function serverMessage(res, data) {
+  const text = window.CodeMaxAuth.errorText(data, res.status);
+  const detail = typeof data?.detail === "string" ? data.detail : "";
+  if (res.status === 502 && detail.includes("LLM_API_KEY")) {
+    return "AI 生成暂不可用（站点未开启模型服务）；可以先使用「SQL DDL 转 ER 图」，或在站内客服留言。";
+  }
+  return text;
+}
+
 // 503 = 本站模型并发闸门已满（TD-264），带 Retry-After；不是上游故障，等几秒再试通常就能成功。
 // 只自动重试一次：第二次仍繁忙就把服务端文案原样给用户，不无限打转。
 const MAX_BUSY_RETRIES = 1;
@@ -61,7 +72,7 @@ form.onsubmit = async (ev) => {
   submit.disabled = true;
   try {
     const { res, data } = await requestDiagram(input.value);
-    if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
+    if (!res.ok) return fail(serverMessage(res, data));
     error.hidden = true;
     source.hidden = false;
     source.textContent = data.mermaid;

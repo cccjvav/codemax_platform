@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block content %}
+{% if page_heading %}<h2 class="page-heading">{{ page_heading }}</h2>{% endif %}
 <div class="split">
   <section>
     <form id="mermaid-form">

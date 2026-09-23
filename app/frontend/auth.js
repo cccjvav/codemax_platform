@@ -38,6 +38,11 @@ window.CodeMaxAuth = (function () {
     btnAuth.hidden = on;
     btnLogout.hidden = !on;
     if (on) who.textContent = user.nickname || user.username;
+    // 顶栏的「订单管理（管理员）」对访客与普通用户都是死链接（点进去只看到「请使用管理员账号登录」），
+    // 所以默认 hidden，只有确认管理员身份才显示；页脚另有一个常驻入口，管理员登录前也找得到。
+    // 这只是导航整洁，**不是权限**：真正的判断在 require_admin（读库、不看前端控件）。
+    const adminEntry = document.getElementById("admin-entry");
+    if (adminEntry) adminEntry.hidden = !(on && user.role === 1);
   }
 
   // 遍历**副本**：监听器可能在回调里退订自己（shop 页的「登录后补一次下单」就是这样），

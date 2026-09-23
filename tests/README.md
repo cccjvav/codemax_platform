@@ -62,13 +62,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`tests/conftest.py`](conftest.py) | `e540b21e04bd` | L1–L217 |
+| [`tests/conftest.py`](conftest.py) | `bc1e7693175a` | L1–L259 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `b483fe6c874c` | L1–L176 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `bcb6bbe584a2` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `dfdda98099dc` | L1–L374 |
-| [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `ae02f0e03c7a` | L1–L180 |
+| [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `44aa17391233` | L1–L263 |
 | [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f7fb58420a6c` | L1–L164 |
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `76bcfd71fc58` | L1–L206 |
@@ -82,7 +82,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `8e1372f4d8f5` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `ba592b2a93e5` | L1–L471 |
 | [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
-| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `15736019e19b` | L1–L56 |
+| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `3747f005c012` | L1–L115 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
@@ -91,7 +91,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `d48d914d5308` | L1–L207 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
-| [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `f23e2e40e0d4` | L1–L248 |
+| [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `22001102f542` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
@@ -135,7 +135,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `e64db740a180` | L1–L221 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `6b0e492643f8` | L1–L368 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -289,3 +289,9 @@ full_init维护函数继续增长，ER与Word改用conftest.project_ddl_for_api�
 `test_refund_health.py`以临时私有文件检查原子替换/锁/坏状态/告警和脱敏；只读聚合用真实隔离会话，PG maintenance夹具验证完整DDL/账本启动与拒漂移。POSIX子进程SIGTERM/SIGKILL及重启真实执行，合成阻塞出站边界不触商户；未过期租约不偷领、过期新token拒旧结果、无退款凭证。另有真实空队列daemon和OS锁恢复。Windows信号项显式跳过，不算Windows服务签收；Compose文本回归不等于Docker部署。新组与全量均不能指向业务库。
 
 第十六批test_order_closures验证真实合成RSA签名POST/204空体、开始/结果故障、同key/并发、旧查询拒绝、权限/来源/限流与迟到支付不覆盖；前端源码/bundle另验冻结未知请求和账号隔离。无真实关单，完整PG轮次用独立连接重跑竞态，不增schema或改历史迁移。
+
+## 2026-09-23 排版/导航回归与测试成本（TD-272）
+
+`test_ui_accessibility.py` 增加排版与导航组：跳过链接与 `#main` 目标、表单控件 `font: inherit`、窄屏 16px 输入框（iOS 缩放）、窄屏导航/页脚 24px 命中区、favicon 零外链、管理员入口按角色显隐（Node 真跑 `auth.js` 与产物：匿名保留、普通用户隐藏、管理员显示）、客服时间色在两种气泡底色上 ≥4.5:1、工具页有可见页面标题（真实渲染断言整站每页只有一个 `h1`）、订单管理页只读分区与危险操作红框、长订单号换行规则。`test_drawio_auth_state.py` 增加「首屏零次重建 iframe、换账号必须重建」。`test_llm_concurrency.py` 增加未配置模型时的访客文案与其反例（其它 502 仍原样显示）。
+
+测试成本：`tests/conftest.py` 现在把**测试进程**的 bcrypt 成本降到 4（实测全量 1276 s → 约 220 s，占原时长 81% 的热点），并给 `default_llm` 一个明显的占位 key，让依赖注入之外的用例拿到可断言的上游行为而不是「未配置 key」的本地错误。`test_auth_crypto.py` 用 `production_cost` fixture 把两条时序/侧信道断言恢复到生产轮数：它同时重置那枚缓存的假哈希 —— 假哈希轮数在生成时固定，只改 CryptContext 会让两侧成本不同（实测跑出 35.9 倍假差异）。新增 `product_file` fixture 覆盖「相对根 `storage/`」这条默认路径。

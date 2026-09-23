@@ -19,12 +19,13 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
+| [`app/static/favicon.svg`](favicon.svg) | `f53a579480dd` | L1–L10 |
 | [`app/static/js/abnfDiagram-VCTEODGH.js`](js/abnfDiagram-VCTEODGH.js) | `22e93e1e23f8` | 生成物，见模块构建说明 |
 | [`app/static/js/arc.js`](js/arc.js) | `fd7da114edcf` | 生成物，见模块构建说明 |
 | [`app/static/js/architecture-7GRP2DOG.js`](js/architecture-7GRP2DOG.js) | `509d093d6593` | 生成物，见模块构建说明 |
 | [`app/static/js/architectureDiagram-5GKGNRK7.js`](js/architectureDiagram-5GKGNRK7.js) | `198519b0d7f0` | 生成物，见模块构建说明 |
 | [`app/static/js/array.js`](js/array.js) | `63126646dbf6` | 生成物，见模块构建说明 |
-| [`app/static/js/auth.js`](js/auth.js) | `fbc8fc48038c` | 生成物，见模块构建说明 |
+| [`app/static/js/auth.js`](js/auth.js) | `661edef2d473` | 生成物，见模块构建说明 |
 | [`app/static/js/blockDiagram-I7D4REHJ.js`](js/blockDiagram-I7D4REHJ.js) | `cd411aa15cda` | 生成物，见模块构建说明 |
 | [`app/static/js/c4Diagram-7LVT6UL2.js`](js/c4Diagram-7LVT6UL2.js) | `1ff47f09c4ed` | 生成物，见模块构建说明 |
 | [`app/static/js/channel.js`](js/channel.js) | `46376a0454cf` | 生成物，见模块构建说明 |
@@ -63,7 +64,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `bd9b31ce6bed` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `aa8b75627d07` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `998043985346` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `246045c9de3e` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `2fdef19157c2` | 生成物，见模块构建说明 |
 | [`app/static/js/er-page.js`](js/er-page.js) | `7557bdb128ba` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `1e225335524d` | 生成物，见模块构建说明 |
@@ -81,7 +82,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/katex.js`](js/katex.js) | `57d7eb6dbbc3` | 生成物，见模块构建说明 |
 | [`app/static/js/line.js`](js/line.js) | `655f21b5e91d` | 生成物，见模块构建说明 |
 | [`app/static/js/linear.js`](js/linear.js) | `e397ec34a46d` | 生成物，见模块构建说明 |
-| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `226f95cfe75f` | 生成物，见模块构建说明 |
+| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `6b84f4cba241` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid-parser.core.js`](js/mermaid-parser.core.js) | `9520a3f6428b` | 生成物，见模块构建说明 |
 | [`app/static/js/mindmap-definition-YA3MSWOX.js`](js/mindmap-definition-YA3MSWOX.js) | `681c78495038` | 生成物，见模块构建说明 |
 | [`app/static/js/mock-pay-page.js`](js/mock-pay-page.js) | `3dd0b4be7370` | 生成物，见模块构建说明 |
@@ -119,7 +120,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `c8f3a7cb403f` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `48d7bbc18667` | 生成物，见模块构建说明 |
 | [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
-| [`app/static/support.css`](support.css) | `503d4bad1277` | L1–L11 |
+| [`app/static/support.css`](support.css) | `95c5202a9699` | L1–L12 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -148,3 +149,10 @@ payments-admin.js由Vite生成，新增核验状态只读展示/账号清屏；�
 ## 第十二批产物
 
 payments-admin.js由新增核验调度表单源码重建；不要直接修改压缩文件。未知body/key恢复、409重新确认、取消及账号切换必须在源码和bundle同时执行测试，并重建比较摘要。
+
+
+## 2026-09-23 图标、对比度与产物重建（TD-272）
+
+- 新增 `favicon.svg`：纯 `<path>` + `xmlns` 的站点图标，不含脚本/外链/字体引用，符合 CSP `img-src 'self'`。此前没有图标文件，浏览器对每个页面都会额外请求一次并拿到 404。
+- `support.css` 的消息时间色由 `#64748b` 改为 `#475569`：11.7px 的小字落在 `#f1f5f9`（客户气泡）上是 4.34:1，低于 WCAG AA；`#475569` 在白底系气泡上为 6.92/6.96:1。
+- 产物 `js/auth.js`、`js/drawio-page.js`、`js/mermaid-page.js` 随源码重建提交（`npm run build`，CI 漂移检查会核对）。

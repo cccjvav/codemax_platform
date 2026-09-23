@@ -31,6 +31,10 @@ def _page_view(tool: Tool):
                 description=tool.description,
                 keywords=tool.keywords,
                 canonical=_base() + tool.path,
+                # 可见的页面级标题（`<h2>`）。此前工具页只有顶栏的站点名 `<h1>`，
+                # 读屏用户按标题跳转时看不到「这一页是干什么的」；首页不需要重复，
+                # 所以首页为空、模板按有值才渲染。名字只有 `Tool.title` 一处来源。
+                page_heading="" if tool.key == "home" else tool.title,
             ),
         )
 

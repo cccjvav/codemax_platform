@@ -46,11 +46,11 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `4118c97851e4` | L1–L181 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `4cdc971cee07` | L1–L181 |
+| [`app/frontend/auth.js`](auth.js) | `74cd4259bb25` | L1–L186 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `cb7faaa17f7e` | L1–L191 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
 | [`app/frontend/er-page.js`](er-page.js) | `5fbfafa54c86` | L1–L165 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `47b77692a487` | L1–L76 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `14cc54fcc3c9` | L1–L87 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `e9575b6df56e` | L1–L329 |
@@ -132,3 +132,10 @@ payments-admin从ledger读取refund.recorded_by及verification_event_id，以tex
 authorization-history用textContent显示有界历史/截断、前版/首笔人/正文/停止，账号和详情隔离沿用epoch/viewSeq，clearDetail同时清历史和未知请求。Node源码/bundle覆盖save/unknown/changed/denied/race，不冒充浏览器。
 
 第十六批新增第十三类channel-close显式表单：本地closed+可信NOTPAY只是显示条件，后端锁内重查；输入原合同金额，弹窗警告旧码可能失效但不是退款。pendingClose冻结原query_attempt/key/body，刷新新查询不偷换未知命令，恢复不重发；改未知依据拒绝。换账号清屏/拒迟到，关单观察仅textContent展示，没有自动reconcile/POST或localStorage财务正文。
+
+
+## 2026-09-23：登录态导航、编辑器首屏与访客文案（TD-272）
+
+- `auth.js::paint()` 同步顶栏管理员入口的可见性（已登录且 `role !== 1` 时隐藏）。它只影响导航，不参与鉴权判断。
+- `drawio-page.js::syncAuth()` 用 `identityReady` 区分「首次同步」与「账号切换」：首次只登记身份（访问者与已登录都一样），**不重建** iframe —— 首屏此前会把模板里刚开始加载的 `embed.diagrams.net` 换掉，登录态异步返回时再换一次（访客 2 次、已登录 3 次下载）。账号切换仍走完整重置，账号隔离不退化。
+- `mermaid-page.js::serverMessage()` 把 502 且 detail 含 `LLM_API_KEY` 的服务端文案换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 不变，其它 502（上游故障）原样显示。

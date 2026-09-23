@@ -3,6 +3,9 @@
 <style>
   .finance [hidden] { display:none !important; }
   .finance { max-width: 1180px; margin: 0 auto; padding: 22px; }
+  /* 页面标题是 h2 而不是 h1：整站每页只有一个 h1（顶栏站点名），否则读屏的标题导航里
+     会出现两个一级标题（真实浏览器 + axe 复核发现）。字号用 CSS 保持原来的视觉层级。 */
+  .finance .finance-heading { margin: 0 0 10px; font-size: 24px; }
   .finance-grid { display:grid; grid-template-columns:minmax(240px,1fr) minmax(320px,2fr); gap:24px; }
   .finance section { border:1px solid #cbd5e1; padding:18px; border-radius:10px; min-width:0; }
   .finance label { display:block; margin:10px 0; }
@@ -11,12 +14,26 @@
   .finance li { margin:10px 0; overflow-wrap:anywhere; }
   .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
   .finance .warning { padding:12px; background:#fffbeb; border-left:4px solid #d97706; }
+  /* 28 位订单号没有空格，会把整页撑出横向滚动条（390px 实测溢出 28px）。
+     `overflow-wrap:anywhere` 让长标识在任意位置换行，而不是把布局顶开。 */
+  .finance .finance-heading, #finance-title, #finance-list button { overflow-wrap:anywhere; }
   #finance-list { list-style:none; padding:0; }
   #finance-list button { text-align:left; width:100%; }
-  @media(max-width:760px) { .finance-grid { grid-template-columns:1fr; } }
+  /* 只读凭证默认展开：它们是操作前的核对材料，不该被藏起来；折叠只是给操作员减少滚动。
+     危险操作（真实发送 / 停止）加红框，与只读信息区分开。 */
+  .finance-readonly { margin: 8px 0 14px; }
+  .finance-readonly summary { cursor: pointer; font-weight: 600; }  /* 命中区由 base.html 的 summary 规则补齐 */
+  .finance .danger { border:1px solid #b91c1c; border-left:6px solid #b91c1c; border-radius:8px;
+                     padding:10px 14px; margin:12px 0; }
+  .finance .danger > .warning { margin-top: 6px; }
+  @media(max-width:760px) {
+    .finance-grid { grid-template-columns:1fr; }
+    .finance { padding: 12px 0; }
+    .finance section { padding: 12px; }
+  }
 </style>
 <div class="finance">
-<h1>订单与收款管理</h1>
+<h2 class="finance-heading">订单与收款管理</h2>
 <p>核对原订单，再采取操作。仅管理员可读取数据；普通核验不转账；独立授权后的“向微信发送”会申请真实退款，部署开关默认关闭。</p>
 <p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
 <p id="finance-access" role="status">正在确认登录权限…</p>
@@ -38,12 +55,15 @@
 <pre id="finance-contract"></pre>
 <p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
+<details class="finance-readonly" open>
+<summary>只读凭证与核验记录（核对完再操作）</summary>
 <h3>收款凭证</h3><pre id="finance-receipt">尚未选择订单</pre>
 <h3>本地退款准备（不是发送授权或退款凭证）</h3><pre id="finance-request-view"></pre>
 <h3>通知后续核验任务（只读）</h3><pre id="finance-verification-view"></pre><pre id="finance-verification-control-view"></pre>
 <h3>退款通知线索（需独立查询核验）</h3><pre id="finance-refund-notice"></pre>
 <h3>成功退款凭证（原收款保留）</h3><pre id="finance-refund-receipt"></pre>
 <h3>人工复核进度（不改变资金和权益）</h3><pre id="finance-review-status"></pre>
+</details>
 <div id="finance-operations" hidden>
 <label>手动输入本次操作的完整订单号<input id="finance-confirm-no" maxlength="32" autocomplete="off"></label>
 <label>核查依据 / 原因（3–500字，不含换行；不要填写密钥或完整银行卡号）<input id="finance-evidence" minlength="3" maxlength="500" autocomplete="off"></label>
@@ -83,11 +103,11 @@
 <button id="finance-refund-reauthorize-submit" type="submit">确认更正并重新授权（不发送）</button>
 </form>
 <pre id="finance-stop-view"></pre>
-<form id="finance-refund-stop" hidden>
+<form id="finance-refund-stop" class="danger" hidden>
 <p class="warning">停止只阻止新的本站发送，不撤回已经开始的网络请求，不取消微信退款，不恢复下载，也不释放原退款号。停办/纠错依据会永久保留，原版本永久停止；仅从未发送且无观察时可通过独立新版本重新授权，不是解除旧停止。</p>
 <button id="finance-refund-stop-submit" type="submit">停止后续本站发送（不撤回渠道退款）</button>
 </form>
-<form id="finance-refund-send" hidden>
+<form id="finance-refund-send" class="danger" hidden>
 <p class="warning">此操作可能转出真实资金。冻结内容、原商户退款号不能修改；申请应答不是成功凭证，须独立查询。旧准备/授权不会自动发送。</p>
 <button id="finance-refund-send-submit" type="submit">确认向微信发送 / 恢复本次尝试</button>
 <button id="finance-send-new-attempt" type="button">未知时准备同号新尝试（不发送）</button>

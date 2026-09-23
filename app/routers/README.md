@@ -105,7 +105,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
 | [`app/routers/shop.py`](shop.py) | `e4a48ff24b12` | L1–L740 |
-| [`app/routers/site.py`](site.py) | `3c1007582b64` | L1–L61 |
+| [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
 
@@ -199,3 +199,7 @@ POST /shop/admin/orders/{order_no}/refunds/verification/control接收Verificatio
 RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘要且拒额外字段；POST refunds/reauthorize有管理员、来源及限流，active_actor在用户锁内重查角色/凭据版本，再交服务订单锁。返回authorization为该key首笔、submission为当前叶子，503不证明未提交。初始authorize也新增首笔authorization响应，重放旧根不冒充当前新版；GET ledger仅投影，无自动操作。
 
 第十六批payments_admin新增POST `/shop/admin/orders/{order_no}/close-channel`：严格输入/来源/限流/活跃管理员凭据复核，默认门禁关闭。显式原订单/金额/查询attempt/请求key/依据；同key仅读，首次started提交后才向渠道POST。不能由reconcile或GET自动关单，finish不改原收款，503保留未知恢复内容。
+
+## 2026-09-23：页面级标题由清单注入（TD-272）
+
+`routers/site.py` 在渲染工具页时多传一个 `page_heading`（值就是 `Tool.title`，首页为空字符串），模板据此渲染可见的 `<h2 class="page-heading">`：此前工具页只有顶栏的站点名 `<h1>`，读屏用户按标题导航时看不到「这一页是做什么的」。名称仍只有 `Tool.title` 一处来源，模板不重复写死；首页不渲染，避免与卡片标题重复。可见标题不是权限或路由声明，页面仍由 `PAGES` 清单注册。

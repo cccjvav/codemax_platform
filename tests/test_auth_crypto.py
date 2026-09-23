@@ -14,6 +14,7 @@
 """
 import asyncio
 import time
+from pathlib import Path
 
 import pytest
 
@@ -178,3 +179,85 @@ async def test_password_change_has_the_same_72_byte_limit(client):
     assert r.status_code == 422, (
         f"改密码接受了 {len(('密' * 64).encode())} 字节的新密码（{r.status_code}）"
     )
+
+
+# ---------------------------------------------------------------- TD-272：测试进程的 bcrypt 成本
+#
+# 全量套件里 bcrypt 占 81% 的时间（3491 次 hash/verify 共 1030.9 s / 总 1276 s）。
+# `tests/conftest.py` 把**测试进程**的成本降到 4，全量降到 220 s（5.8×），
+# 生产默认值（12）不在应用代码里改。这两条把「测试便宜、生产不变」钉住。
+
+def test_test_process_lowers_bcrypt_cost_but_not_the_production_default():
+    """测试进程：哈希是 $2b$04$；生产默认轮数仍是 12（由本用例显式恢复后验证）。"""
+    from app.security import pwd_context
+
+    handler = pwd_context.handler("bcrypt")
+    assert handler.default_rounds == 4, "conftest 应当把测试进程的成本降到 4（见 tests/conftest.py）"
+    assert hash_password("x" * 8).startswith("$2b$04$"), "测试进程里 hash/verify 才是真的便宜"
+    try:
+        pwd_context.update(bcrypt__rounds=12)
+        assert hash_password("x" * 8).startswith("$2b$12$")
+    finally:
+        pwd_context.update(bcrypt__rounds=4)
+    # 应用代码不写死轮数：默认值来自 passlib（12）。改动这里等于改变真实哈希强度。
+    source = (Path(__file__).resolve().parents[1] / "app" / "security.py").read_text(encoding="utf-8")
+    assert 'CryptContext(schemes=["bcrypt"], deprecated="auto")' in source
+    assert "rounds" not in source.split("pwd_context = ")[1].split("\n")[0]
+
+
+@pytest.fixture
+def production_cost():
+    """按需把当前进程恢复到生产成本，用完还原 —— 时序类断言才有原来的含义。
+
+    `_DUMMY_HASH` 也要一起丢掉：它是「用户不存在」路径上用来拉平耗时的那枚假哈希，
+    轮数在**生成时**就固定了。只改 CryptContext 而不重建它，假哈希是成本 4、真哈希是成本 12，
+    两侧就不再可比 —— 实测跑出 35.9 倍差，看起来像安全回归，其实是夹具没跟上。
+    （生产进程里两者从头到尾都是同一个成本，不存在这个缝隙。）
+    """
+    from app import security
+    from app.security import pwd_context
+
+    cached = security._DUMMY_HASH
+    security._DUMMY_HASH = None
+    pwd_context.update(bcrypt__rounds=12)
+    try:
+        yield
+    finally:
+        pwd_context.update(bcrypt__rounds=4)
+        security._DUMMY_HASH = cached
+
+
+async def test_bcrypt_does_not_block_the_event_loop_at_production_cost(production_cost):
+    """同一条事件循环断言，在**生产成本**下再跑一遍：单次 260 ms 时若留在事件循环里必然超阈值。"""
+    hashed = await ahash_password("secret123")
+    assert hashed.startswith("$2b$12$"), "前提校验：本条必须在生产成本下运行"
+    drift: list[float] = []
+
+    async def watch():
+        for _ in range(30):
+            t0 = time.perf_counter()
+            await asyncio.sleep(0.01)
+            drift.append((time.perf_counter() - t0 - 0.01) * 1000)
+
+    watcher = asyncio.create_task(watch())
+    await asyncio.gather(*[averify_password("secret123", hashed) for _ in range(3)])
+    await watcher
+    assert drift and max(drift) < _MAX_LOOP_DRIFT_MS, f"生产成本下事件循环被阻塞 {max(drift):.0f} ms"
+
+
+async def test_login_timing_does_not_leak_whether_the_user_exists_at_production_cost(client, production_cost):
+    """同一条侧信道断言，在**生产成本**下再跑一遍（那时单次成本才是可测量的量级）。"""
+    await client.post("/auth/register", json={"username": "realuser2", "password": "secret123"})
+
+    async def median_ms(payload, n=3):
+        samples = []
+        for _ in range(n):
+            t0 = time.perf_counter()
+            await client.post("/auth/login", data=payload)
+            samples.append((time.perf_counter() - t0) * 1000)
+        return sorted(samples)[len(samples) // 2]
+
+    no_user = await median_ms({"username": "nosuchuser_xyz", "password": "secret123"})
+    bad_pass = await median_ms({"username": "realuser2", "password": "wrongpass1"})
+    ratio = max(no_user, bad_pass) / max(1.0, min(no_user, bad_pass))
+    assert ratio < 2.0, f"耗时差 {ratio:.1f} 倍（不存在 {no_user:.1f} ms / 密码错 {bad_pass:.1f} ms）"

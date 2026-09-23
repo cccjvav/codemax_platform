@@ -246,3 +246,25 @@ def test_source_and_bundle_agree_on_retry_policy():
     bundle = (ROOT / "app/static/js/mermaid-page.js").read_text(encoding="utf-8")
     assert re.search(r"MAX_BUSY_RETRIES\s*=\s*1\b", src) and 'res.status === 503' in src
     assert "Retry-After" in bundle and "秒后自动重试" in bundle and re.search(r"===\s*503", bundle), "产物未包含 503 重试逻辑——忘了 npm run build？"
+
+
+# ---------------------------------------------------------------- TD-272：未配置模型时的访客文案
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_unconfigured_model_shows_a_visitor_facing_message(tmp_path):
+    """502 + 「未配置 LLM_API_KEY」对访客是开发者术语；页面给一句人话，服务端文案不变。
+
+    只换这一条的展示：其它 502（上游故障）仍原样显示服务端说明，便于排障。
+    """
+    result = _run_page(tmp_path, "app/frontend/mermaid-page.js", [
+        {"status": 502, "body": {"detail": "未配置 LLM_API_KEY，无法调用大模型"}},
+    ])
+    assert result["fetches"] == 1 and result["sleeps"] == [], "配置缺失不该重试"
+    assert result["errors"][-1] == "AI 生成暂不可用（站点未开启模型服务）；可以先使用「SQL DDL 转 ER 图」，或在站内客服留言。"
+    assert "LLM_API_KEY" not in result["errors"][-1]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_other_upstream_failures_keep_the_server_message(tmp_path):
+    result = _run_page(tmp_path, "app/frontend/mermaid-page.js", [{"status": 502, "body": {"detail": "上游故障"}}])
+    assert result["errors"][-1] == "上游故障", "只有配置缺失那一类才换文案"

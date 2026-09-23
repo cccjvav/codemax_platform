@@ -219,3 +219,150 @@ def test_expired_session_reopens_login_and_clears_the_user_everywhere(tmp_path):
     assert after["modalOpen"] is True and "登录已过期" in after["err"], after
     assert after["workspaceHidden"] is True and after["loginHidden"] is False, after
     assert "/support/messages" in result["fetches"]
+
+
+# ---------------------------------------------------------------- TD-272：真实浏览器复核暴露的排版与导航问题
+#
+# 这一节的对应用例都来自 2026-09-23 的第二次接手复核（真实 Chromium + axe-core 实测），
+# 断言的是「模板里有没有那条规则/那个元素」，不是「浏览器渲染出来一定好看」。
+# 视觉签收仍在 Windows 指南第 10～12 步，这里只防回退。
+
+def test_header_has_skip_link_and_main_target():
+    """WCAG 2.4.1：键盘用户要能跳过顶栏与页脚导航直接到正文。"""
+    html = BASE.read_text(encoding="utf-8")
+    assert 'class="skip" href="#main"' in html
+    assert '<main id="main">' in html
+
+
+def test_buttons_and_inputs_inherit_the_page_font():
+    """表单控件默认是浏览器给的 13.33px Arial：比正文小一号且字体不一致。"""
+    html = BASE.read_text(encoding="utf-8")
+    assert re.search(r"button,\s*input,\s*select,\s*textarea\s*\{\s*font:\s*inherit", html)
+
+
+def test_mobile_inputs_avoid_ios_zoom():
+    """iOS Safari 在 <16px 的输入框聚焦时会放大整页 —— 窄屏必须有 16px 覆盖。"""
+    html = BASE.read_text(encoding="utf-8")
+    mobile = html.split("@media (max-width: 700px)")[1].split("}")[0]
+    assert "input, select, textarea { font-size: 16px; }" in html
+    assert "max-width: 700px" in html and mobile
+
+
+def test_mobile_navigation_and_footer_links_get_touchable_padding():
+    """窄屏导航链接此前只有 21–24px 高，低于 WCAG 2.2 AA 的 24×24 下限。"""
+    html = BASE.read_text(encoding="utf-8")
+    assert "header nav a, .actions a, footer .fnav a { display: inline-block; padding: 8px 4px; }" in html
+
+
+def test_favicon_exists_and_is_a_dependency_free_svg():
+    """此前没有图标：浏览器对每个页面都会多打一次 /favicon.ico 并拿到 404。"""
+    html = BASE.read_text(encoding="utf-8")
+    assert '<link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />' in html
+    svg = (ROOT / "app" / "static" / "favicon.svg").read_text(encoding="utf-8")
+    # 零外部引用：除 xml 命名空间外不该出现第二个 URL，也没有脚本、外链或字体引用。
+    assert "<script" not in svg.lower() and "href=" not in svg and "url(" not in svg
+    assert svg.count("http") == 1 and "http://www.w3.org/2000/svg" in svg
+
+
+def test_admin_link_is_labelled_and_hidden_for_non_admins():
+    """顶栏「订单管理（管理员）」对普通用户是死链接；脚本按角色隐藏，但**不是**权限。
+
+    角色仍由后端 `require_admin` 查库判断（get_current_user → User.role），前端只是导航整洁。
+    """
+    html = BASE.read_text(encoding="utf-8")
+    assert '<a id="admin-entry" href="/admin/payments" hidden>' in html, "顶栏入口默认隐藏，由脚本按角色显示"
+    assert '<a href="/admin/payments">订单管理（管理员）</a>' in html.split("<footer>")[1], "页脚要有常驻入口"
+    source = (ROOT / "app" / "frontend" / "auth.js").read_text(encoding="utf-8")
+    assert 'getElementById("admin-entry")' in source and "on && user.role === 1" in source
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/auth.js", "app/static/js/auth.js"])
+def test_admin_entry_visibility_follows_the_reported_role(tmp_path, path):
+    """Node 真跑 auth.js：访客与普通用户都隐藏，只有 role=1 显示（页脚另有常驻入口）。"""
+    harness = tmp_path / "admin_entry.cjs"
+    harness.write_text(_ADMIN_ENTRY_HARNESS, encoding="utf-8")
+    proc = subprocess.run([ "node", str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"{path} 执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    result = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result == {"anon": True, "member": True, "admin": False}, result
+
+
+_ADMIN_ENTRY_HARNESS = r"""
+const els = {};
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false,
+  classList: { add() {}, remove() {}, contains() { return false; } },
+  focus() {}, contains() { return false; }, addEventListener() {}, click() {} });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t),
+  body: mkEl("body"), activeElement: null, addEventListener() {} };
+global.window = global; global.addEventListener = () => {};
+let current = null;
+global.fetch = async () => ({ ok: !!current, status: current ? 200 : 401,
+  json: async () => current || {} });
+require(process.argv[2]);
+(async () => {
+  const auth = global.CodeMaxAuth;
+  await new Promise((r) => setImmediate(r));
+  const anon = !!els["admin-entry"].hidden;
+  current = { username: "alice", role: 0 };
+  await auth.refresh();
+  const member = !!els["admin-entry"].hidden;
+  current = { username: "boss", role: 1 };
+  await auth.refresh();
+  const admin = !!els["admin-entry"].hidden;
+  console.log(JSON.stringify({ anon, member, admin }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+def test_support_message_timestamp_meets_contrast_on_its_own_bubble():
+    """客服消息时间：11.7px 的 #64748b 落在 #f1f5f9 气泡上只有 4.34:1（axe 实测）。"""
+    css = SUPPORT_CSS.read_text(encoding="utf-8")
+    rule = re.search(r"#support-messages small \{[^}]*\}", css)
+    assert rule, "support.css 里应有消息时间样式"
+    assert "color: #475569" in rule.group(0), rule.group(0)
+    assert contrast("#475569", "#f1f5f9") >= 4.5
+    assert contrast("#475569", "#eff6ff") >= 4.5  # 管理员气泡底色
+
+
+def test_tool_pages_have_a_visible_page_heading():
+    """工具页此前只有顶栏的站点名 h1：读屏按标题跳转时看不到「这页是干什么的」。"""
+    for name in ("er.html", "mermaid.html", "drawio.html"):
+        text = (ROOT / "app" / "templates" / name).read_text(encoding="utf-8")
+        assert '{% if page_heading %}<h2 class="page-heading">{{ page_heading }}</h2>{% endif %}' in text, name
+    site = (ROOT / "app" / "routers" / "site.py").read_text(encoding="utf-8")
+    assert 'page_heading="" if tool.key == "home" else tool.title' in site, "标题只该有 Tool.title 一处来源"
+
+
+async def test_pages_render_one_h1_and_a_page_heading(client):
+    """真实渲染：整站每页只有一个 h1（站点名）；工具页额外有可见的页面标题 h2。"""
+    for path, heading in (("/tools/er", "SQL DDL 转 ER 图"), ("/tools/mermaid", "自然语言生成 UML 类图"),
+                          ("/tools/drawio", "Drawio 在线流程图"), ("/admin/payments", "订单与收款管理")):
+        html = (await client.get(path)).text
+        assert html.count("<h1>") == 1, f"{path} 应当只有一个 h1"
+        assert heading in html, f"{path} 缺少页面级标题"
+    home = (await client.get("/")).text
+    assert 'class="page-heading"' not in home, "首页的卡片标题已经是 h2，不该再重复一个页面标题"
+
+
+def test_admin_console_separates_read_only_evidence_from_dangerous_actions():
+    """订单管理页 13 个表单与 12 个 pre 叠在一列：只读凭证单独成组、危险操作加红框。"""
+    html = (ROOT / "app" / "templates" / "payments-admin.html").read_text(encoding="utf-8")
+    assert '<details class="finance-readonly" open>' in html, "只读凭证应当可折叠（默认展开）"
+    assert 'class="finance-readonly" open>\n<summary>只读凭证与核验记录' in html
+    for form in ("finance-refund-send", "finance-refund-stop"):
+        assert re.search(r'<form id="' + form + r'" class="danger" hidden>', html), form
+    assert "#finance-title, #finance-list button { overflow-wrap:anywhere; }" in html, "长订单号不许撑破布局"
+    assert "summary { padding: 6px 0; }" in BASE.read_text(encoding="utf-8"), "折叠标题也要够 24px（base.html 统一给）"
+
+
+def test_hidden_attribute_wins_over_layout_display_rules():
+    """`hidden` 必须真的不显示：作者写的 `display: inline-block` 会盖掉 UA 的 display:none。
+
+    实测踩过：给导航链接加内边距与 `display: inline-block` 之后，带 `hidden` 的
+    管理员入口重新出现在顶栏（它是 hidden，却占了 38px 高）。全局兜底并钉住。
+    """
+    html = BASE.read_text(encoding="utf-8")
+    assert "[hidden] { display: none !important; }" in html

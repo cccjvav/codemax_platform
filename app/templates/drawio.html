@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
+  .page-heading { margin: 0 0 10px; font-size: 20px; }
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   .toolbar input[type="text"], .toolbar input[type="password"], .toolbar select {
     padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit;
@@ -9,6 +10,8 @@
   #drawio-status { color: #64748b; }
   .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
 </style>
+
+{% if page_heading %}<h2 class="page-heading">{{ page_heading }}</h2>{% endif %}
 
 <!-- 登录入口收敛到 base.html 的全站浮层（S2-02-2）。
      这里原先是常驻的用户名/密码输入框，问题有两个：
@@ -22,8 +25,8 @@
 </div>
 
 <div class="toolbar">
-  <input type="text" id="diagram-name" placeholder="流程图名称" />
-  <select id="diagram-list"><option value="">— 我的流程图 —</option></select>
+  <input type="text" id="diagram-name" placeholder="流程图名称" aria-label="流程图名称" />
+  <select id="diagram-list" aria-label="我的流程图"><option value="">— 我的流程图 —</option></select>
   <button type="button" id="btn-new">新建</button>
   <button type="button" id="btn-save">保存到云端</button>
   <button type="button" class="ghost" id="btn-download">下载 .drawio</button>
