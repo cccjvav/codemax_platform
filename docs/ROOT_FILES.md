@@ -8,7 +8,7 @@
 `lifespan`先等待生产数据库安全检查（账本/已知演示凭据/管理员），再做best-effort语义FAQ预热；finally在启动失败或退出时也关闭CPU池并dispose engine。预热失败可回落词袋，不代表所有模型增强已经成功启用。
 
 `RequestLoggingMiddleware` 后注册，因此位于安全响应头中间件外层。业务路由来自 app/routers；site 的页面来自明确清单，不是吞掉其余 API 的通配路由。
-生产关闭 docs/redoc/openapi；开发保留。`/static` 指向由 __file__ 确定的目录，Jinja HTML 页面仍走页面路由。
+生产关闭 docs/redoc/openapi；开发保留。`/static` 指向由 __file__ 确定的目录，Jinja HTML 页面仍走页面路由；该挂载点把 `.md`/`.markdown` 一律答 404 —— 目录里的 README 受文档契约要求必须存在，但它曾匿名可下载并列出全部产物文件名与 SHA 前缀（复核 O-14）。响应压缩用 gzip level 6（复核 O-13：647 KiB 分块 23.3 ms → 16.4 ms，体积不变），交付 ZIP 与 Range 请求不压。
 
 ## 构建与依赖
 

@@ -98,7 +98,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `876fff3193d5` | L1–L176 |
 | [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
-| [`tests/test_ops.py`](test_ops.py) | `491ded43bf56` | L1–L593 |
+| [`tests/test_ops.py`](test_ops.py) | `734a6fd52991` | L1–L637 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `7832a0b2f1c3` | L1–L249 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `9a2e75439553` | L1–L339 |

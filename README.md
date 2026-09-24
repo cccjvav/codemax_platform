@@ -222,7 +222,7 @@ start docs\site\index.html
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
-| [`main.py`](main.py) | `dac4496c0d12` | L1–L105 |
+| [`main.py`](main.py) | `bd5f1fca3990` | L1–L120 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

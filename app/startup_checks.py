@@ -49,11 +49,18 @@ def check_production_settings() -> list[str]:
     # 限流关掉的话，不设鉴权的 /tools/* 可以被无限刷
     if not settings.RATE_LIMIT_ENABLED:
         problems.append("RATE_LIMIT_ENABLED=false：公开工具端点可被无限刷（TD-15）")
-    # 在反向代理之后却不信任代理头，客户端 IP 会全部记成代理的 IP，限流形同虚设
+    # 在反向代理之后却不信任代理头，客户端 IP 会全部记成代理的 IP，限流形同虚设。
+    # 这一项保持**硬拦**（复核 O-15，用户 2026-09-24 委托助手决定）：配错的后果是
+    # 全体用户共享一个限流桶（自助式拒绝服务），而生产里没人为一条告警回头改配置。
+    # 旧文案写「确实不在代理之后才可忽略此项」——硬错误无法忽略，文案必须与行为一致。
+    # 直连公网时把它设成 true 也是安全的：是否采信 X-Forwarded-* 另由 TRUSTED_PROXY_CIDRS
+    # 决定（默认只信任回环），公网对端伪造的转发头不会被采信。
     if not settings.TRUST_PROXY_HEADERS:
         problems.append(
-            "TRUST_PROXY_HEADERS=false：若部署在反向代理之后，限流会把所有用户"
-            "当成同一个 IP（TD-142）。确实不在代理之后才可忽略此项"
+            "TRUST_PROXY_HEADERS=false：生产环境必须设为 true（TD-142）。"
+            "在反向代理之后关闭它，限流会把所有用户当成同一个 IP；"
+            "直连公网时开启同样安全 —— 是否采信 X-Forwarded-* 由 TRUSTED_PROXY_CIDRS "
+            "单独决定（默认只信任回环地址），请把代理地址段写进 TRUSTED_PROXY_CIDRS"
         )
     # A-12：DB_PASSWORD 为空。默认值就是 ""，`.env` 漏一行就是空。真库若开了 trust
     # 认证会**静默连上**一个没设密码的库；没开则是等用户下单时才连接失败。

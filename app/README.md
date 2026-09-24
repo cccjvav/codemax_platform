@@ -136,7 +136,7 @@ pending → closed → paid
 | [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
-| [`app/startup_checks.py`](startup_checks.py) | `8a89346a1a07` | L1–L153 |
+| [`app/startup_checks.py`](startup_checks.py) | `cb2e081a4545` | L1–L160 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
 | [`app/wechat_bills.py`](wechat_bills.py) | `fdb132bebf41` | L1–L232 |

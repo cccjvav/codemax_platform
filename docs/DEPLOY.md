@@ -28,7 +28,7 @@ Docker 已传 `--no-access-log`，保留应用的有界、不含查询参数的�
 | `RATE_LIMIT_ENABLED` | `true` | 公开的 `/tools/*` 可被无限刷（TD-15） |
 | `RATE_LIMIT_DIAGRAM_WRITES` | 保持默认 `60`（每 IP 每 60 秒的保存次数） | 调大等于放开「单 IP 15 秒写约 196 MB」的资源滥用面（TD-275） |
 | `RATE_LIMIT_REGISTER_DAILY` | 保持默认 `20`（每 IP 每 24 小时注册数） | 只限每分钟时，一个 IP 一天可批量开号、按账号配额刷存储（TD-275） |
-| `TRUST_PROXY_HEADERS` | `true`（在反向代理之后） | 所有用户被当成同一个 IP，限流形同虚设（TD-142） |
+| `TRUST_PROXY_HEADERS` | **必须** `true`（硬检查，`false` 直接拒绝启动） | 代理之后关掉它，所有用户被当成同一个 IP、限流形同虚设（TD-142）；直连公网时开启同样安全 —— 是否采信 `X-Forwarded-*` 由 `TRUSTED_PROXY_CIDRS` 单独决定（TD-276 / 复核 O-15） |
 | `DB_PASSWORD` | 真实密码 | 连不上库，`/readyz` 返回 503 |
 
 启动失败时会一次性列出**现有检查覆盖到的**问题（未覆盖商户真实可用性、商品完整性及架构版本等全部就绪条件），不是报一个改一个。
@@ -93,7 +93,13 @@ server {
   否则伪造一个头就能触发。
 - 限流按真实客户端 IP 计（而不是全部算成代理 IP）。
 - 请求体超过应用预算时返回 413 并带 `connection: close`，代理会断开这条上游连接；这是预期行为，不是故障。应用预算只管应用读到的字节，代理仍应保留自己的 `client_max_body_size`。
-- 应用自己会对 ≥ 1 KiB 且客户端接受 gzip 的响应压缩（TD-270，交付 ZIP 除外），静态资源带 `Cache-Control: public, max-age=3600, must-revalidate` 与 ETag。nginx 若也开 `gzip on` 会看到上游已压缩而跳过，不会双重压缩；要在代理层加长静态缓存时以 `/static/` 为准，页面与接口保持 no-store。
+- 应用自己会对 ≥ 1 KiB 且客户端接受 gzip 的响应压缩（TD-270，交付 ZIP 除外；压缩级别 6 —— 复核 O-13 实测 647 KiB 分块 23.3 ms → 16.4 ms 而体积不变），静态资源带 `Cache-Control: public, max-age=3600, must-revalidate` 与 ETag。nginx 若也开 `gzip on` 会看到上游已压缩而跳过，不会双重压缩；要在代理层加长静态缓存时以 `/static/` 为准，页面与接口保持 no-store。
+
+**开发模式经 https 代理/隧道访问（ngrok、云 IDE 预览、只转发不加头的 nginx）**：设
+`TRUST_PROXY_HEADERS=true` 并把代理地址段写进 `TRUSTED_PROXY_CIDRS`。否则开发模式的公开基址按
+请求头推导成 `http://…`，与浏览器 `https://` 的 Origin 对不上，`POST /auth/login` 会以
+「登录来源不匹配」403（财务写操作同样按跨源拒绝）。生产固定使用 `SITE_BASE_URL`，不受此影响
+（复核 N-07 / TD-276）。
 
 微信支付回调地址 `WX_NOTIFY_URL` 必须是公网可达的 **https**。
 

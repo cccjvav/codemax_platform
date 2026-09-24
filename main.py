@@ -2,7 +2,7 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
@@ -76,7 +76,9 @@ app.add_middleware(RequestBodyBudgetMiddleware)
 # 输入 + 秘密"的动态页；本站 JSON/HTML 响应不回显 CSRF 令牌之类的秘密（会话在 HttpOnly Cookie 里，不在正文）。
 # 交付物走 application/octet-stream：不在 starlette 的默认排除表里，但 ZIP 再压一遍只费 CPU、
 # 还会丢掉 Content-Length（浏览器没进度条），所以显式排除；Range（206）请求 starlette 本来就不压。
-app.add_middleware(GZipMiddleware, minimum_size=1024,
+# compresslevel 取 6 而不是 starlette 默认的 9（复核 O-13）：实测同一 647 KiB 产物 level 9 需 30.7 ms、
+# level 6 需 22.8 ms，压缩后体积只差 0.5% —— 省下约四分之一 CPU，代价可以忽略。
+app.add_middleware(GZipMiddleware, minimum_size=1024, compresslevel=6,
                    exclude_content_types=(*DEFAULT_EXCLUDED_CONTENT_TYPES, "application/octet-stream"))
 app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE)
 app.add_middleware(RequestLoggingMiddleware)
@@ -98,8 +100,21 @@ app.include_router(support.router)  # S4-02：智能客服三层
 app.include_router(admin.router)  # TD-138：管理员抓取入库（S4-01-4 的 HTTP 入口）
 
 # 工具平台前端静态资源（Vite 页面入口和分块等）；HTML 页面走 Jinja2 SSR，见 app/routers/site.py
+class MarkdownBlockingStaticFiles(StaticFiles):
+    """静态目录里也有 README（文档契约要求每个目录一份），但它是给维护者看的，不是可下载资源。
+
+    `/static/README.md` 曾匿名可读（14 KB，列出全部产物文件名与 SHA 前缀，复核 O-14）；
+    文件不能删（文档门禁要求它存在），所以在挂载入口把 Markdown 一律挡成 404，
+    其余资源原样交给 `StaticFiles`。"""
+
+    async def get_response(self, path: str, scope):
+        if path.lower().endswith((".md", ".markdown")):
+            raise HTTPException(status_code=404)
+        return await super().get_response(path, scope)
+
+
 app.mount(
     "/static",
-    StaticFiles(directory=Path(__file__).resolve().parent / "app" / "static", html=True),
+    MarkdownBlockingStaticFiles(directory=Path(__file__).resolve().parent / "app" / "static", html=True),
     name="static",
 )

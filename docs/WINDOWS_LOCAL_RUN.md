@@ -47,6 +47,7 @@ npm run build
 | 改 .env 没效果 | 是否从项目根启动、是否有同名环境变量覆盖、是否已重启 |
 | 登录后没权限使用管理员功能 | 数据库角色必须是管理员，昵称不算权限；开发演示身份需先改默认密码 |
 | 端口 8000 被占用 | 停止自己先前启动的实例或选新端口，同时更新本地 SITE_BASE_URL；不随意结束陌生进程 |
+| 经 https 代理/隧道访问时登录或财务操作 403（登录来源不匹配） | 开发模式把 `TRUST_PROXY_HEADERS=true`，并把代理地址段写进 `TRUSTED_PROXY_CIDRS`；只开代理不转发头时应用按 `http://` 推导基址，与 https Origin 对不上（复核 N-07 / TD-276） |
 | conda activate 不可用 | 用安装器提供的 Anaconda/Miniconda Prompt；按 conda 指南初始化 cmd 后重新打开 |
 | 文档门禁说多了未知文件 | 测试日志/环境导出放仓库外；不要关闭扫描、提交密钥或扩大忽略规则遮盖新源码 |
 | Drawio 空白 | 核对 diagrams.net 网络可达性、浏览器 Console；这与被停用的爬虫 Chromium 不是同一功能 |

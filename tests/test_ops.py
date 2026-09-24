@@ -59,6 +59,34 @@ async def test_static_assets_are_cacheable_and_revalidate_while_pages_stay_no_st
 
 
 @pytest.mark.asyncio
+async def test_markdown_files_under_static_are_not_public(client):
+    """复核 O-14：`/static/README.md` 曾匿名可下载（14 KB，列出全部产物文件名与 SHA 前缀）。
+
+    静态目录同时受文档契约管（每个目录一份 README），所以不能靠删文件解决 ——
+    必须在静态挂载入口把 `.md`/`.markdown` 挡成 404。正常资源（图标、脚本）不受影响。
+    """
+    assert (await client.get("/static/README.md")).status_code == 404
+    assert (await client.get("/static/README.MD")).status_code == 404
+    assert (await client.get("/static/favicon.svg")).status_code == 200
+    assert (await client.get("/static/js/auth.js")).status_code == 200
+
+
+def test_gzip_uses_level_6_instead_of_the_starlette_default_9():
+    """复核 O-13：同一 647 KiB 产物 level 9 需 30.7 ms、level 6 需 22.8 ms，体积只差 0.5%。
+
+    响应头里看不出压缩级别（只有 content-encoding: gzip），所以直接钉住中间件的构造参数；
+    解压后逐字节相同由上面的 gzip 用例保证。
+    """
+    from starlette.middleware.gzip import GZipMiddleware
+
+    from main import app
+
+    configured = [m for m in app.user_middleware if m.cls is GZipMiddleware]
+    assert len(configured) == 1, "压缩只应有一层，重复挂会增加一次全量拷贝"
+    assert configured[0].kwargs.get("compresslevel") == 6
+
+
+@pytest.mark.asyncio
 async def test_large_responses_are_gzipped_only_when_the_client_accepts_it(client):
     """本地直连（Windows 指南、无 nginx）时由应用压缩：Mermaid 产物 669 KiB → 约 140 KiB。
     小响应（< 1 KiB）与不声明 gzip 的客户端不压；压缩后安全头照常。"""
@@ -336,6 +364,22 @@ def test_production_with_all_defaults_is_rejected(monkeypatch):
         "SHOP_PAY_MODE", "SECRET_KEY", "RATE_LIMIT_ENABLED", "TRUST_PROXY_HEADERS", "DB_PASSWORD"
     ):
         assert keyword in joined
+
+
+def test_trust_proxy_headers_requirement_message_matches_the_hard_failure(monkeypatch):
+    """复核 O-15：这一项是**硬拒绝启动**，旧文案却写「确实不在代理之后才可忽略此项」——
+    无法忽略的东西不能写成可忽略（用户 2026-09-24 委托助手决定，选择保留硬拦、改文案）。
+
+    保留硬拦的理由：代理之后关掉它，限流会把所有用户算成一个桶（自助式拒绝服务），
+    而生产里没人会认真读告警。文案要指向真正的开关 —— 是否采信 X-Forwarded-* 由
+    `TRUSTED_PROXY_CIDRS` 单独决定（默认只信回环），所以直连公网时开启也是安全的。
+    """
+    _clean_prod(monkeypatch, TRUST_PROXY_HEADERS=False)
+    problems = check_production_settings()
+    assert len(problems) == 1
+    text = problems[0]
+    assert "可忽略" not in text
+    assert "必须" in text and "TRUSTED_PROXY_CIDRS" in text
 
 
 def test_mock_pay_in_production_is_the_first_thing_reported(monkeypatch):
