@@ -6,6 +6,8 @@
 另一个重点是：模拟支付走的是与真实回调**完全相同**的状态机与幂等逻辑，
 所以演示跑通的路径和上生产是同一条，不会漏测。
 """
+import re
+
 import pytest
 from sqlalchemy import select
 
@@ -51,6 +53,23 @@ async def test_mock_pay_page_renders_warning(client, mock_mode):
     assert r.status_code == 200
     assert "模拟支付通道" in r.text
     assert "CM123" in r.text
+
+
+async def test_mock_pay_return_link_carries_the_order_number(client, mock_mode):
+    """「返回商城查看订单」必须带上订单号（V-05）。
+
+    `/shop` 响应带 no-store，返回时是全新加载（bfcache 被拒），不带单号就只会
+    落回落地页 —— 用户刚付完款却看不到自己的订单。无单号时不应拼出空参数。
+    """
+    def back_link(html: str) -> str:
+        m = re.search(r'<a class="cta" href="([^"]*)" id="back-link">', html)
+        assert m, "模拟收银台少了返回商城的链接"
+        return m.group(1)
+
+    assert back_link((await client.get("/shop/mock-pay", params={"order_no": "CM123"})).text) == \
+        "/shop?order=CM123"
+    # 没带单号时不能拼出空参数（那会变成"打开商城但什么都不恢复"）
+    assert back_link((await client.get("/shop/mock-pay")).text) == "/shop"
 
 
 async def test_mock_confirm_marks_paid(client, mock_mode):

@@ -20,7 +20,9 @@
      此时本页与模拟支付接口都会返回 404。</p>
   <button id="pay">模拟支付成功</button>
   <pre id="out"></pre>
-  <p id="back" hidden><a class="cta" href="{{ shop_path }}" id="back-link">返回商城查看订单</a>（本页只是演示收银台，订单状态以商城页为准）</p>
+  {# 返回链接带上订单号（V-05）：/shop 是全新加载且带 no-store（bfcache 被拒），
+     不带单号就只会落回落地页，看不到刚付的这一单。 #}
+  <p id="back" hidden><a class="cta" href="{{ shop_path }}{% if order_no %}?order={{ order_no | urlencode }}{% endif %}" id="back-link">返回商城查看订单</a>（本页只是演示收银台，订单状态以商城页为准）</p>
 </section>
 <script src="/static/js/mock-pay-page.js"></script>
 {% endblock %}

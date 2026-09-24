@@ -54,7 +54,7 @@
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `e9575b6df56e` | L1–L329 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `0678d5552fdd` | L1–L251 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `ca708fccc40c` | L1–L368 |
 | [`app/frontend/support-page.js`](support-page.js) | `dfa82468ebf0` | L1–L138 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -149,3 +149,10 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - `support-page.js::onUser(user, reason)`：到期时先把 `#support-body` 的草稿取出来，重置视图后再放回去；轮询照常停止。
 - 到期提示文案不变（仍是「登录已过期，请重新登录后继续；刚才的操作未提交」），只是这句话现在是真的。
 - 另有 `CodeMaxAuth.settled`：启动瞬间 `user` 是 null，但那是「首次 /auth/me 还没回来」而不是「访客」。`drawio-page.js` 据此判断 `settled === false && !user` 时先什么都不做，等身份真正到达再登记 —— 因此「页面打开时已登录」也只加载一次外部编辑器（真实浏览器实测 3 次 → 1 次），而账号切换仍走完整重置。
+
+## 2026-09-24：已购用户与返回商城恢复（TD-274，复核 N-05/C8）
+
+- `shop-page.js` 新增 `entitledNo`/`restored`/`userActed` 与 `resetPrimary()`/`offerDownload()`：登录后取一次 `GET /shop/orders`，有 `paid`/`downloaded` 且未退款的订单就把主按钮从「立即购买」换成**「已购买，去下载」**并在 `#buy-note` 说明原因。点这个按钮走 `primary()` → `fetchOrder()` → `render()`，**不会 POST /shop/orders**（用户 2026-09-24 确认：单 SKU 数字商品不设计复购）。
+- 返回恢复：`bootstrap()` 只跑一次 —— 先认 `?order=CM…`（收银台返回链接带的单号，正则限定字符集），再 `restoreLatest()`。`restoreLatest()` 的顺序是**已购优先**：最新一张就是已购单就直接显示该单（刚付完款返回商城时不用等轮询），否则有已购权益就只换按钮（更晚的未付款单不再诱导付款），都没有才恢复未过期的待支付单并重新起轮询；**过期单不恢复**。`fetchOrder()` 用 `undefined`/`null` 区分「这单不存在」与「暂时读不到（未登录/网络）」，后者留给下一次身份变化。
+- 账号隔离：身份变化时 `resetPrimary()` + `restored = false`，再对新身份 `bootstrap()`；`userActed` 保证用户点过购买/取消/历史订单后自动恢复不再介入，不和页面内的操作抢状态。
+- 主按钮的还原值 `BUY_TEXT` 在加载时从服务端渲染的按钮文案里取（价格来自配置），退款单被排除在权益之外 —— 全额退款后按钮必须回到「立即购买」，否则退完款就再也买不了。

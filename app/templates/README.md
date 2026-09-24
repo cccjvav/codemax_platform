@@ -30,10 +30,10 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/er.html`](er.html) | `d48d4e3001c0` | L1–L26 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
 | [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
-| [`app/templates/mock_pay.html`](mock_pay.html) | `e7397fa26fa2` | L1–L26 |
+| [`app/templates/mock_pay.html`](mock_pay.html) | `7ac2d4c38e64` | L1–L28 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `68f8647b9046` | L1–L157 |
-| [`app/templates/shop.html`](shop.html) | `ca33ad28aa91` | L1–L107 |
+| [`app/templates/shop.html`](shop.html) | `8e96e730dfe8` | L1–L112 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -98,3 +98,8 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 - 表单控件字体：`button, input, select, textarea { font: inherit }` —— 浏览器默认的 13.33px Arial 比正文小一号且字体不一致；窄屏另有 16px 覆盖，避免 iOS Safari 在输入框聚焦时放大整页。窄屏导航与页脚链接加内边距，命中区从 21–24px 提到 ≥24px（WCAG 2.2 AA）。
 - 页面标题层级：整站每页**一个** `<h1>`（顶栏站点名）。`er.html`/`mermaid.html`/`drawio.html` 渲染 `page_heading`（值来自 `Tool.title`，由 `routers/site.py` 注入；首页为空）。`payments-admin.html` 的 `<h1>` 降为 `<h2 class="finance-heading">`，字号由 CSS 保持。
 - 订单管理页：`.finance` 在窄屏去掉外层内边距与 section 内边距，`#finance-title`/`#finance-list button` 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；只读凭证并入 `<details class="finance-readonly" open>`（默认展开，折叠只是减少滚动）；`finance-refund-send`/`finance-refund-stop` 两个真实资金动作加 `.danger` 红框，与只读信息区分。
+
+## 2026-09-24 已购状态与收银台返回（TD-274）
+
+- `shop.html` 主按钮下新增 `#buy-note`（默认 `hidden`，脚本写已购说明）；FAQ 增加「已经买过一次，还能再买吗？」——同一商品不重复购买，但**全额退款后按钮会恢复为「立即购买」**，模板文案与 `shop-page.js` 的判定必须一致。
+- `mock_pay.html` 的「返回商城查看订单」链接改为 `{{ shop_path }}?order={{ order_no | urlencode }}`。原因：`/shop` 响应带 `no-store`（全局中间件），Chromium 拒绝入 bfcache，返回时是全新加载、`currentNo` 为 null —— 不带单号就只能落回落地页，用户刚付完款却看不到自己的订单。没带单号时不拼空的 `?order=`。

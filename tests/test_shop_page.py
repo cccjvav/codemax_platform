@@ -457,3 +457,281 @@ def test_a_stale_401_cannot_revive_a_purchase_intent():
         f"乱序时序不符：{at}（预期 [1, 1, 2, 2, 2]）。"
         "第 5 个数变成 3 = 迟到的 401 复活了补单意图，未来登录会幽灵下单。"
     )
+
+
+# =============================================== 已购用户与返回恢复（V-05，2026-09-24）
+#
+# 2026-09-23 复核的 N-05：单 SKU 商品没有"已购买"这一状态。
+#   · 已付款用户回到落地页，主按钮还是「立即购买」，再点一次会**静默新建一张待支付单**；
+#   · 收银台点「返回商城」（或浏览器后退）时 `/shop` 是全新加载（响应带 no-store，
+#     bfcache 被拒），`currentNo` 为 null → 又落回落地页，看不到刚付的那一单。
+#
+# 用户 2026-09-24 确认：不设计复购 —— 已购用户的主按钮直接变成「已购买，去下载」。
+# 这里仍然用 Node 真跑 `auth.js` + `shop-page.js`，覆盖五种页面加载形态。
+
+_OWNED_EXECUTOR = r"""
+const CASE = process.env.SHOP_CASE || "none";
+// 收银台「返回商城」带的 ?order= —— 必须在页面脚本执行**之前**就在 location 上。
+const SEARCH = { order_paid: "?order=CM7", order_refunded: "?order=CM8" }[CASE] || "";
+
+const els = {};
+const mkEl = () => ({
+  value: "", textContent: "", innerHTML: "", hidden: false, width: 0, alt: "",
+  appendChild() {}, click() {}, addEventListener() {}, focus() {},
+  classList: { add() {}, remove() {} },
+});
+global.document = { getElementById: (id) => (els[id] ||= mkEl()), createElement: mkEl };
+global.addEventListener = () => {};
+global.window = global;                    // 浏览器里 window 就是全局对象本身
+global.window.location = { href: "", search: SEARCH };
+const store = { getItem(){}, setItem(){}, removeItem(){}, clear(){} };
+global.localStorage = store; global.sessionStorage = store;
+
+// 假时钟只替换 setInterval/clearInterval（与 test_shop_polling 同款）；
+// setTimeout 保持真实 —— 场景里的 `await tick()` 用它让出事件循环。
+let __timer = null;
+global.setInterval = (fn, ms) => { __timer = { fn, ms }; return __timer; };
+global.clearInterval = (id) => { if (id === __timer) __timer = null; };
+
+// 页面初始形态：只有落地态可见，主按钮文案是服务端渲染的（脚本把它记下来当还原值）。
+els["btn-buy"] = mkEl(); els["btn-buy"].textContent = "立即购买（¥199.00）";
+els["buy-note"] = mkEl(); els["buy-note"].hidden = true;
+els["st-landing"] = mkEl();
+["st-pending", "st-paid", "st-refunded", "st-closed", "st-downloaded"].forEach((id) => {
+  els[id] = mkEl(); els[id].hidden = true;
+});
+
+let loggedIn = true;
+let postOrders = 0;
+const fetched = [];
+const LIST = {
+  paid: [{ order_no: "CM2", status: "paid", refunded: false }],
+  // 已购一张，但之后又开过一张没付款的单（旧代码点购买会在这上面再下一单）
+  owned_later_pending: [{ order_no: "CM9", status: "pending", refunded: false },
+                        { order_no: "CM2", status: "paid", refunded: false }],
+  owned_refunded: [{ order_no: "CM3", status: "downloaded", refunded: true }],
+  pending_live: [{ order_no: "CM4", status: "pending", refunded: false }],
+  pending_expired: [{ order_no: "CM4", status: "pending", refunded: false }],
+}[CASE] || [];
+const SINGLE = {
+  CM2: { order_no: "CM2", status: "paid", refunded: false },
+  CM3: { order_no: "CM3", status: "downloaded", refunded: true },
+  CM4: { order_no: "CM4", status: "pending", refunded: false, expired: CASE === "pending_expired",
+         code_url: "weixin://wxpay/bizpayurl?x=1", qr_svg: "<svg></svg>", qr_image: null },
+  CM7: { order_no: "CM7", status: "paid", refunded: false },
+  CM8: { order_no: "CM8", status: "paid", refunded: true },
+  CM9: { order_no: "CM9", status: "pending", refunded: false, expired: false,
+         code_url: "weixin://wxpay/bizpayurl?x=1", qr_svg: "<svg></svg>", qr_image: null },
+};
+
+global.fetch = async (url, opts = {}) => {
+  const method = opts.method || "GET";
+  fetched.push(`${method} ${url}`);
+  if (url === "/shop/orders" && method === "POST") {
+    postOrders += 1;
+    return { ok: true, status: 200, json: async () => SINGLE.CM4 };
+  }
+  if (url === "/shop/orders") {
+    return loggedIn
+      ? { ok: true, status: 200, json: async () => ({ orders: LIST, next_cursor: null }) }
+      : { ok: false, status: 401, json: async () => ({}) };
+  }
+  if (url.startsWith("/shop/orders/")) {
+    const o = SINGLE[url.slice("/shop/orders/".length)];
+    return o ? { ok: true, status: 200, json: async () => o }
+             : { ok: false, status: 404, json: async () => ({}) };
+  }
+  if (url === "/auth/me") return loggedIn
+    ? { ok: true, status: 200, json: async () => ({ id: 1, username: "alice", nickname: "A" }) }
+    : { ok: false, status: 401, json: async () => ({}) };
+  return { ok: true, status: 200, json: async () => ({}) };
+};
+
+global.__state = () => {
+  // 元素是惰性创建的（只有脚本真的取过的 id 才存在），所以这里也要走 getElementById。
+  const text = (id) => document.getElementById(id).textContent;
+  const visible = [["landing", "st-landing"], ["pending", "st-pending"], ["paid", "st-paid"],
+                   ["refunded", "st-refunded"], ["closed", "st-closed"], ["downloaded", "st-downloaded"]]
+    .filter(([, id]) => document.getElementById(id).hidden === false).map(([k]) => k);
+  return {
+    buyText: text("btn-buy"),
+    noteHidden: document.getElementById("buy-note").hidden,
+    noteText: text("buy-note"),
+    paidNo: text("d-no"),
+    pendingNo: text("p-no"),
+    visible, postOrders, timerActive: __timer !== null,
+    fetchGets: fetched.filter((f) => f.startsWith("GET ")),
+  };
+};
+"""
+
+
+def _run_owned_scenario(case: str, scenario: str) -> dict:
+    """按浏览器真实顺序执行 auth.js + shop-page.js，返回场景末行 JSON。"""
+    root = Path(__file__).resolve().parents[1]
+    auth = (root / "app/frontend/auth.js").read_text(encoding="utf-8")
+    shop_js = (root / "app/frontend/shop-page.js").read_text(encoding="utf-8")
+    assert shop_js.strip(), "下单页脚本是空的 —— 很可能读错了文件"
+    script = "\n;\n".join([auth, shop_js])
+
+    harness = Path(tempfile.gettempdir()) / f"_shop_owned_harness_{os.getpid()}.js"
+    harness.write_text(_OWNED_EXECUTOR + "\n;\n" + script + "\n" + scenario, encoding="utf-8")
+    proc = subprocess.run(
+        ["node", str(harness)], capture_output=True, text=True, timeout=60,
+        env={**os.environ, "SHOP_CASE": case},
+    )
+    assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_an_owned_latest_order_opens_its_status_instead_of_repurchase():
+    """**V-05 主断言之一**：最新一张就是已购单时，打开 /shop 直接显示那一单。
+
+    这是「返回商城恢复订单状态」的自动恢复路径（收银台不带 `?order=` 时也成立）：
+    用户看到的是「✅ 支付成功」和取链接按钮，而不是一个能再下一单的「立即购买」。
+    """
+    out = _run_owned_scenario(
+        "paid",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();                                  // 等首次身份解析 + 自动恢复
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["visible"] == ["paid"], f"应直接显示该单状态，实际 {out['visible']}"
+    assert out["paidNo"] == "CM2", f"显示的应当是已购的那一单，实际 {out['paidNo']!r}"
+    assert out["postOrders"] == 0, "恢复状态不该下单"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_paid_user_sees_download_button_and_cannot_repurchase():
+    """**V-05 主断言之二**：有已购权益、最新一张却是未付款单时，只给「已购买，去下载」。
+
+    这是旧代码最危险的一条路径：已付过款的用户看到「立即购买」，点下去会**静默新建一张
+    待支付单**。修好之后应当是：落地页 + 已购说明；点按钮回到已购那一单，且订单数不变。
+    """
+    out = _run_owned_scenario(
+        "owned_later_pending",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  const before = __state();
+  await els["btn-buy"].onclick();                 // 点主按钮
+  await tick();
+  console.log(JSON.stringify({ before, after: __state() }));
+})();
+        """,
+    )
+    assert out["before"]["buyText"] == "已购买，去下载", (
+        f"已购用户的主按钮仍是 {out['before']['buyText']!r} —— 再点一次会静默新建待支付单。"
+    )
+    assert out["before"]["noteHidden"] is False, "切换到去下载后应说明已购原因"
+    assert "CM2" in out["before"]["noteText"], "已购说明里应当有订单号"
+    assert out["before"]["visible"] == ["landing"], (
+        f"已购优先：不该把更晚的未付款单（CM9）恢复成待支付视图，实际 {out['before']['visible']}"
+    )
+    assert out["after"]["postOrders"] == 0, "点「已购买，去下载」不该再下单"
+    assert out["after"]["visible"] == ["paid"], f"应切到支付成功视图，实际 {out['after']['visible']}"
+    assert out["after"]["paidNo"] == "CM2", "去下载的应当是已购的那一单"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_a_fully_refunded_order_does_not_block_buying_again():
+    """已全额退款的订单不算已购权益：按钮必须还原成「立即购买」。
+
+    否则用户退完款就再也买不了了 —— 「不设计复购」不等于「退款后不能重买」。
+    """
+    out = _run_owned_scenario(
+        "owned_refunded",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["buyText"] == "立即购买（¥199.00）", "退款后的订单不该把主按钮切成去下载"
+    assert out["noteHidden"] is True, "没有已购权益时不该显示已购说明"
+    assert out["visible"] == ["landing"]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_returning_with_order_number_restores_that_order():
+    """收银台「返回商城」带的 `?order=` 必须直接把那一单的状态显示出来。
+
+    这条替代的是原来的「靠 bfcache 恢复」——`/shop` 响应带 no-store，Chromium 实测
+    拒绝入 bfcache，全新加载时 `currentNo` 是 null，只会落回落地页（复核 6.3）。
+    """
+    out = _run_owned_scenario(
+        "order_paid",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["visible"] == ["paid"], f"应直接显示该单的支付成功视图，实际 {out['visible']}"
+    assert out["paidNo"] == "CM7"
+    assert out["postOrders"] == 0, "恢复订单状态绝不能顺手下单"
+    assert "GET /shop/orders/CM7" in out["fetchGets"], f"应当直接查这一单：{out['fetchGets']}"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_returning_with_order_number_shows_refund_state():
+    """退款单也要按 URL 里的单号恢复：显示"已全额退款"而不是落地页。"""
+    out = _run_owned_scenario(
+        "order_refunded",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["visible"] == ["refunded"], f"实际 {out['visible']}"
+    assert out["postOrders"] == 0
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_a_live_pending_order_is_restored_with_polling():
+    """未过期的待支付单要接着展示并重新起轮询 —— 用户从收银台回来才看得到状态变化。"""
+    out = _run_owned_scenario(
+        "pending_live",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["visible"] == ["pending"], f"实际 {out['visible']}"
+    assert out["pendingNo"] == "CM4"
+    assert out["timerActive"] is True, "恢复的待支付单必须继续轮询，否则付款后页面不会更新"
+    assert out["postOrders"] == 0, "恢复状态不该下单"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+def test_an_expired_pending_order_is_not_restored():
+    """对照：已过期的待支付单不能恢复成\"可以扫码\"的样子（二维码早就失效）。"""
+    out = _run_owned_scenario(
+        "pending_expired",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  console.log(JSON.stringify(__state()));
+})();
+        """,
+    )
+    assert out["visible"] == ["landing"], f"实际 {out['visible']}"
+    assert out["timerActive"] is False, "过期的单不该起轮询"
+    assert out["buyText"] == "立即购买（¥199.00）", "没有已购权益，按钮保持原样"

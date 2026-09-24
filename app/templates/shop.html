@@ -50,6 +50,8 @@
     <p style="text-align:center">
       <button type="button" class="cta buy" id="btn-buy">立即购买（¥{{ '%.2f'|format(product_amount / 100) }}）</button>
     </p>
+    <!-- 已购用户：脚本把上面的主按钮换成「已购买，去下载」并在这里说明原因（V-05）。 -->
+    <p class="muted" id="buy-note" style="text-align:center" hidden></p>
     <p class="error" id="buy-error"></p>
 
     <dl class="faq">
@@ -57,6 +59,9 @@
       <dd>付款确认后可在本页或「我的订单」领取下载链接。<strong>链接短时有效，过期或中断可重新领取</strong>。</dd>
       <dt>支付成功但页面没反应？</dt>
       <dd>刷新本页并重新登录同一账号，订单状态会保留；若仍显示待支付，请联系我们核对订单号。</dd>
+      <dt>已经买过一次，还能再买吗？</dt>
+      <dd>同一份商品不用重复购买：登录后本页主按钮会变成「已购买，去下载」，点它直接回到订单领取链接。
+          订单全额退款后按钮会恢复为「立即购买」。</dd>
       <dt>工具收费吗？</dt>
       <dd>公开工具目前免费试用；流程图云端保存和客服留言需要登录。</dd>
     </dl>

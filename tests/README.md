@@ -95,7 +95,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
-| [`tests/test_mock_pay.py`](test_mock_pay.py) | `96bc978f5dc2` | L1–L157 |
+| [`tests/test_mock_pay.py`](test_mock_pay.py) | `876fff3193d5` | L1–L176 |
 | [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `491ded43bf56` | L1–L593 |
@@ -126,7 +126,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `956df70a0124` | L1–L341 |
-| [`tests/test_shop_page.py`](test_shop_page.py) | `65a3c4c477c9` | L1–L459 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `c5a8fc0ef6a2` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
@@ -297,3 +297,7 @@ full_init维护函数继续增长，ER与Word改用conftest.project_ddl_for_api�
 测试成本：`tests/conftest.py` 现在把**测试进程**的 bcrypt 成本降到 4（实测全量 1276 s → 约 220 s，占原时长 81% 的热点），并给 `default_llm` 一个明显的占位 key，让依赖注入之外的用例拿到可断言的上游行为而不是「未配置 key」的本地错误。`test_auth_crypto.py` 用 `production_cost` fixture 把两条时序/侧信道断言恢复到生产轮数：它同时重置那枚缓存的假哈希 —— 假哈希轮数在生成时固定，只改 CryptContext 会让两侧成本不同（实测跑出 35.9 倍假差异）。新增 `product_file` fixture 覆盖「相对根 `storage/`」这条默认路径。
 
 TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 Node 场景，真实驱动「编辑器握手 → autosave → 保存拿 401」，断言到期时**零次**重建 iframe、浮层弹出、同一账号重登仍不重建、换账号必须重建（旧代码上必红）；`test_ui_accessibility.py` 的到期场景新增草稿断言（到期后 `#support-body` 仍是用户写的内容，旧代码上必红）。首屏 iframe 用例扩成三种情形（访客、启动即登录、登录态迟到）都断言零次重建，之后换账号仍必须重建。
+
+## 2026-09-24 已购用户与返回恢复（TD-274 / V-05）
+
+`test_shop_page.py` 新增一节用 Node 真跑 `auth.js` + `shop-page.js`（`_OWNED_EXECUTOR` + `_run_owned_scenario`，`SHOP_CASE` 决定订单列表与单张订单，`?order=` 形态在脚本执行前写进 `location.search`）：最新一张就是已购单时打开 `/shop` 直接显示该单状态、点它不下单（旧代码红）；有已购权益但最新一张是未付款单时只给「已购买，去下载」+ 说明、点它回到已购那一单且订单数不变（旧代码红）；全额退款的订单不算权益、按钮仍是「立即购买」（防过修的对照）；`?order=` 直接显示该单的支付成功/已全额退款；未过期的待支付单恢复后重新起轮询，过期的不恢复也不起轮询。`test_mock_pay.py` 增加返回链接必须带订单号、无单号时不拼空参数。这些是**源码 + Node 桩**证据；真实点击链路由沙箱内 Chromium 走完（付款 → 返回 → 已购按钮 → 手机视图），仍未做 Windows/真实商户验收。

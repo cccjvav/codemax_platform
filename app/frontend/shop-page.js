@@ -19,6 +19,10 @@ let timer = null;
 let currentNo = null;
 let pollBusy = false;
 let historyCursor = null;
+// 主按钮的原始文案（服务端按配置渲染的价格）。切成「已购买，去下载」之后要能还原 ——
+// 例如订单在别的标签页里被全额退款，回来点按钮时应当重新允许购买。
+const buyBtn = document.getElementById("btn-buy");
+const BUY_TEXT = buyBtn.textContent;
 
 function show(name) {
   Object.entries(ST).forEach(([k, el]) => { el.hidden = k !== name; });
@@ -113,6 +117,112 @@ async function poll() {
 
 function stop() { if (timer) { clearInterval(timer); timer = null; } }
 
+// ---------------------------------------------------------------- 已购用户与返回恢复（V-05）
+//
+// 两件之前做不到的事（2026-09-23 复核 N-05 / C8）：
+//   ① 已付款用户再看落地页，主按钮仍是「立即购买」—— 再点一次会**静默新建一张待支付单**。
+//      单 SKU 数字商品重复购买没有价值（用户 2026-09-24 确认：不设计复购）。
+//   ② 收银台「返回商城」或浏览器后退回到 /shop 时，页面是全新加载、currentNo 为 null，
+//      `/shop` 又带 no-store（bfcache 被拒），于是又落回落地页，看不到刚付的订单。
+//
+// 做法：页面加载/登录后取一次自己的订单，按最新状态恢复视图；`?order=CM…` 直接在 URL 里
+// 指名要看哪一单（收银台的返回链接带订单号）。
+// 只在用户还没动过手（没点过购买/取消/历史订单）时自动恢复，免得和页面内的操作打架。
+let entitledNo = null;   // 最近一张 paid/downloaded 且未退款的订单号；null = 没有已购权益
+let restored = false;    // 本次加载是否已经自动恢复过
+let userActed = false;   // 用户是否已经在本页点过东西
+
+function resetPrimary() {
+  entitledNo = null;
+  buyBtn.textContent = BUY_TEXT;
+  document.getElementById("buy-note").hidden = true;
+}
+
+// 已购权益换成主按钮「已购买，去下载」：点它直接回到那张单，不再 POST /shop/orders。
+function offerDownload(order) {
+  entitledNo = order.order_no;
+  buyBtn.textContent = "已购买，去下载";
+  const note = document.getElementById("buy-note");
+  note.textContent = `你已经购买过此商品（订单 ${order.order_no}），同一商品无需重复购买；`
+    + "点上方按钮即可重新领取下载链接。";
+  note.hidden = false;
+}
+
+// 收银台返回链接带的 ?order=CM… ；只接受与订单号同形的字符，别把 URL 参数当选择器用。
+function orderFromUrl() {
+  try {
+    const v = new URLSearchParams(location.search || "").get("order");
+    return v && /^[A-Za-z0-9_-]{1,32}$/.test(v) ? v : null;
+  } catch (e) { return null; }
+}
+
+// 取单张订单。返回订单对象；`undefined` = 这单不存在/不属于我（当作没有该参数）；
+// `null` = 暂时读不到（未登录、网络或服务端问题）—— 留给下次身份变化再试。
+async function fetchOrder(no) {
+  try {
+    const res = await fetch(`/shop/orders/${no}`, { credentials: "same-origin" });
+    if (res.status === 401) return null;
+    if (!res.ok) return undefined;
+    const o = await res.json();
+    return o && o.order_no === no ? o : undefined;
+  } catch (e) { return null; }
+}
+
+// 订单列表按 id 倒序（最新在前），见后端 order_history。
+function isOwned(o) { return (o.status === "paid" || o.status === "downloaded") && !o.refunded; }
+
+async function restoreLatest() {
+  let orders;
+  try {
+    const res = await fetch("/shop/orders", { credentials: "same-origin" });
+    if (!res.ok) return;
+    orders = (await res.json())?.orders;
+  } catch (e) { return; }
+  if (!Array.isArray(orders) || !orders.length) return;
+  const newest = orders[0];
+  const owned = orders.filter(isOwned);
+  // ① 最新一张就是已购单：直接把这一单的状态显示出来（刚付完款返回商城时就是这条路，
+  //    即使没带 ?order= 也能看到「支付成功」）。
+  if (owned.length && owned[0].order_no === newest.order_no) { render(newest); return; }
+  // ② 有已购权益：主按钮换成「已购买，去下载」。**已购优先于更晚的未付款单** ——
+  //    已经买过就不该再为同一件商品付一次钱。刻意不自动跳支付成功视图，用户打开的是商品页。
+  if (owned.length) { offerDownload(owned[0]); return; }
+  // ③ 没有已购权益：未过期的待支付单接着付（用户可能在收银台中途关页/返回）。
+  if (newest.status === "pending") {
+    const o = await fetchOrder(newest.order_no);
+    if (o && !o.refunded && !o.expired) render(o);
+  }
+}
+
+async function bootstrap() {
+  if (restored || userActed) return;
+  const no = orderFromUrl();
+  if (no) {
+    const o = await fetchOrder(no);
+    if (o === null) return;              // 未登录/暂时读不到：等身份确定后还有一次机会
+    if (o) { restored = true; render(o); return; }
+  }
+  if (!window.CodeMaxAuth?.user) return; // 未登录：等登录后的 onChange 再恢复
+  restored = true;
+  await restoreLatest();
+}
+
+// 主按钮：有已购权益时是「去下载」，否则才是下单。
+async function primary() {
+  if (!entitledNo) return buy();
+  userActed = true;
+  const errEl = document.getElementById("buy-error");
+  errEl.textContent = "";
+  const o = await fetchOrder(entitledNo);
+  if (o) { render(o); return; }
+  if (o === undefined) {                 // 单子没了/不属于我（例如刚被退款又清了记录）
+    resetPrimary();
+    show("landing");
+    return;
+  }
+  errEl.textContent = "暂时读不到订单状态，请稍后重试，或点「查看 / 刷新我的订单」。";
+}
+
 // 待补发的「登录后自动下单」监听器的退订函数；null 表示当前没有待补发的购买意图。
 let offBuy = null;
 // 每次 buy() 领一个递增序号。**只有最新尝试的响应才算数。**
@@ -123,6 +233,7 @@ let offBuy = null;
 let buySeq = 0;
 
 async function buy() {
+  userActed = true;   // 用户明确点了购买：自动恢复不再介入（见 bootstrap）
   const attempt = buySeq + 1;
   try { await doBuy(); } catch (e) {
     if (attempt === buySeq) document.getElementById("buy-error").textContent = `下单失败：${e.message}`;
@@ -187,9 +298,10 @@ document.addEventListener?.("visibilitychange", () => {
   if (document.visibilityState === "visible") refreshOnReturn();
 });
 
-document.getElementById("btn-buy").onclick = buy;
+buyBtn.onclick = primary;
 document.getElementById("btn-rebuy").onclick = buy;
 document.getElementById("btn-cancel").onclick = () => {
+  userActed = true;
   ++buySeq; currentNo = null; stop(); show("landing");
   if (offBuy) { offBuy(); offBuy = null; }
 };
@@ -223,7 +335,7 @@ async function loadHistory(more = false) {
     for (const order of data.orders) {
       const button = document.createElement("button"); button.type = "button";
       button.textContent = `${order.order_no} · ${order.refunded ? "已全额退款（不可下载）" : labels[order.status] || order.status}`;
-      button.onclick = () => { ++buySeq; stop(); render(order); };
+      button.onclick = () => { userActed = true; ++buySeq; stop(); render(order); };
       box.appendChild(button);
     }
     historyCursor = data.next_cursor; document.getElementById("btn-history-more").hidden = !historyCursor;
@@ -242,7 +354,12 @@ if (window.CodeMaxAuth) {
     document.getElementById("history-error").textContent = "";
     historyCursor = null; document.getElementById("btn-history-more").hidden = true;
     if (!user && offBuy) { offBuy(); offBuy = null; }
+    // 换人/退出后重新按新身份恢复：已购按钮不能跟着上一个账号留下来（账号隔离）。
+    resetPrimary();
+    restored = false;
+    if (user) bootstrap();
   });
+  if (identity) bootstrap();   // auth.js 可能在本脚本之前就完成了首次身份解析
 }
 
 // 进页面时**不自动下单**：自动下单会在用户还没决定时就产生订单。

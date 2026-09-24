@@ -597,43 +597,53 @@
     },
     {
       "path": "app/frontend/shop-page.js",
-      "sha256": "0678d5552fdd0c819409989f5d70b48e8dbefb33d1adbb5aaecb905cdf58f662",
+      "sha256": "ca708fccc40c2747db6fd9b358ddce3efda6c1ebd41818b9645bc92a42936cdc",
       "method": "manual",
       "blocks": [
         {
-          "end": 32,
-          "title": "订单 UI 状态与 show/yuan",
-          "explanation": "ST保存各视图，timer/currentNo/pollBusy/historyCursor分别管理轮询与分页。show切换视图并在离开pending时清定时器；删除未使用yuan。当前下单请求与轮询的过期判断用buySeq，不能只隐藏DOM而保留旧请求资格。"
+          "end": 36,
+          "title": "订单 UI 状态与 show",
+          "explanation": "ST保存各视图，timer/currentNo/pollBusy/historyCursor分别管理轮询与分页；buyBtn/BUY_TEXT 记住主按钮的原始文案，供已购或退款后还原（V-05）。show切换视图并在离开pending时清定时器；删除未使用yuan。当前下单请求与轮询的过期判断用buySeq，不能只隐藏DOM而保留旧请求资格。"
         },
         {
-          "end": 95,
+          "end": 99,
           "title": "render：只读订单状态，不申请下载",
           "explanation": "currentNo赋值后先判断refunded，直接show退款区域并停止旧轮询；否则按pending/paid/downloaded/closed显示。pending只用受控SVG或DOM图片/链接展示码；过期停止。paid/downloaded可重领仅对未退款单成立；渲染不调用下载POST。"
         },
         {
-          "end": 115,
+          "end": 119,
           "title": "poll / stop：单在途与旧响应丢弃",
           "explanation": "pollBusy 禁止重叠轮询，记录订单号和 buySeq；fetch 与 json 两个 await 后都核身份/订单代际。401 停止，普通错误等下一轮，格式错误给重试提示。finally 清 busy；stop 只清计时器，不取消已在途请求，后者由序号挡住。 TD-270：轮询 401 时另调 sessionExpired 弹浮层。"
         },
         {
-          "end": 131,
-          "title": "一次性购买意图与 buy",
-          "explanation": "offBuy 保存真实退订函数，不是再注册空监听器。buySeq 递增使旧 401 不得复活购买意图；buy 包装 doBuy 的异常，并且只有本次仍最新才写错误。取消显示不会向服务器退款或关单。"
+          "end": 225,
+          "title": "V-05：已购用户与返回恢复",
+          "explanation": "entitledNo/restored/userActed：有已购权益（paid/downloaded 且未退款）时主按钮换成「已购买，去下载」，点它 fetchOrder 后 render 回到该单，**不再 POST /shop/orders**（用户 2026-09-24 确认单 SKU 不设计复购）。orderFromUrl 只接受与订单号同形的 ?order=（收银台返回链接带单号）。bootstrap 在首次身份确定时只跑一次：先认 URL 单号，再 restoreLatest —— 最新一张就是已购单就直接显示该单，否则**已购优先于更晚的未付款单**，没有已购权益才恢复未过期的待支付单（过期的不恢复、重新起轮询）。fetchOrder 用 undefined/null 区分「这单不存在」与「暂时读不到（未登录/网络）」，后者不锁死本次恢复。userActed 保证用户点过按钮后自动恢复不再介入；账号切换 resetPrimary + restored=false，保持账号隔离。"
         },
         {
-          "end": 189,
+          "end": 242,
+          "title": "一次性购买意图与 buy",
+          "explanation": "offBuy 保存真实退订函数，不是再注册空监听器。buySeq 递增使旧 401 不得复活购买意图；buy 包装 doBuy 的异常，并且只有本次仍最新才写错误。取消显示不会向服务器退款或关单。 V-05：buy() 开头置 userActed，页面内的主动操作优先于自动恢复。"
+        },
+        {
+          "end": 300,
           "title": "doBuy：仅最新尝试可以补单",
           "explanation": "POST /shop/orders 后先核 mySeq；401 唤登录并至多挂一个监听，登录成功先清 offBuy 再退订并 buy 一次。503 说明支付未配置，其他非 2xx 统一错误；解析成功订单后还要核序号和字段再 render，避免账号切换污染。"
         },
         {
-          "end": 212,
-          "title": "按钮与下载：主动操作、短时链接可重领",
-          "explanation": "购买/重买绑定buy。取消递增buySeq、清currentNo/轮询和待登录补单订阅，让已在途poll或下单结果失效。主动下载记录当前订单/序号，返回后再检查；已付款者可重领短时链接，非法URL/错误可重试，不自动烧掉权益。 TD-270：新增 refreshOnReturn——bfcache 恢复（pageshow.persisted）或标签页重新可见且正在看待支付单时立即 poll 并确保定时器在跑；领取与订单历史的 401 交给 sessionExpired。document.addEventListener 用可选链，Node 测试桩没有它也不报错。"
+          "end": 308,
+          "title": "refreshOnReturn 与按钮绑定",
+          "explanation": "pageshow.persisted（bfcache 恢复）或标签页重新可见且正在看待支付单时立即 poll 一次并确保定时器在跑，用户从收银台回来不用再等最长 3 秒。buyBtn 绑定 primary（V-05：按 entitledNo 决定下单还是回订单）；rebuy 仍是 buy（只针对已过期的待支付单），cancel 递增 buySeq、清 currentNo/轮询与待补单订阅。"
         },
         {
-          "end": 251,
+          "end": 324,
+          "title": "下载：主动操作、短时链接可重领",
+          "explanation": "只有用户主动点击才 POST /shop/download/{no}；成功后校验下载 URL 形状再跳转。已付款/已领过都可重领短时链接，失败不烧权益、可重试；401 交给 sessionExpired。"
+        },
+        {
+          "end": 368,
           "title": "loadHistory 与身份变化：游标分页",
-          "explanation": "GET 历史带可选 before，检查 orders 数组，用文本按钮展示。选一张订单递增 buySeq 并停止旧轮询再 render；next_cursor 控制更早按钮。账号变更清编号、列表/游标与 timer，注销还退订待补购买，防止下次登录意外下单。"
+          "explanation": "GET 历史带可选 before，检查 orders 数组，用文本按钮展示。选一张订单递增 buySeq 并停止旧轮询再 render；next_cursor 控制更早按钮。账号变更清编号、列表/游标与 timer，注销还退订待补购买，防止下次登录意外下单。 V-05：账号变更后 resetPrimary + restored=false 并对新身份 bootstrap，保证「已购买，去下载」不会跟着上一个账号留下来。"
         }
       ]
     },
@@ -1837,7 +1847,7 @@
     },
     {
       "path": "app/templates/mock_pay.html",
-      "sha256": "e7397fa26fa2adf439441ff6fcc1ab5cdb8358842b21b2989e65497f368132b0",
+      "sha256": "7ac2d4c38e642d19d5dbce44062ae71af75e31e0356adc016ce3e44ca9a625a6",
       "method": "manual",
       "blocks": [
         {
@@ -1846,9 +1856,9 @@
           "explanation": "黄色 banner 与 pay 按钮明确 mock；code word-break 防长订单号撑破容器，out pre-wrap 展示分行结果。CSS 不是生产开关，后端 SHOP_PAY_MODE 决定是否可用。 TD-270：补 #pay:disabled 灰化与 #back 返回链接（绿色 CTA #15803d）样式。"
         },
         {
-          "end": 26,
+          "end": 28,
           "title": "订单标识与真实限制",
-          "explanation": "order_no 转义进 #no 供脚本读取；wechat/manual 生产模式关闭这页/模拟确认端点。按钮触发本地模拟，不走商户，不产生真实扣款；服务端仍校验买家。 TD-270：新增隐藏的 #back 段，含指向 shop_path 的「返回商城查看订单」链接，由脚本在模拟支付成功后显示。"
+          "explanation": "order_no 转义进 #no 供脚本读取；wechat/manual 生产模式关闭这页/模拟确认端点。按钮触发本地模拟，不走商户，不产生真实扣款；服务端仍校验买家。 TD-270：新增隐藏的 #back 段，含指向 shop_path 的「返回商城查看订单」链接，由脚本在模拟支付成功后显示。 V-05：返回链接改为 shop_path?order=<订单号>（urlencode），因为 /shop 全新加载且带 no-store（bfcache 被拒），不带单号只会落回落地页。"
         }
       ]
     },
@@ -1871,7 +1881,7 @@
     },
     {
       "path": "app/templates/shop.html",
-      "sha256": "ca33ad28aa9164f449523a5542b74e16762762e48bf3515763b0a42b611fc1e6",
+      "sha256": "8e96e730dfe8feefce6029a5fb39e06d0d95abe73ba041ddd698fb997ce421ff",
       "method": "manual",
       "blocks": [
         {
@@ -1880,22 +1890,22 @@
           "explanation": "价格与 CTA 强调购买，cols 双栏700以下一栏，qr svg 强制220px避免segno模块尺寸太小；warn/error 分别表达业务警告和操作失败。样式不决定币种金额校验。 价格绿改为 #15803d（5.02:1，TD-263）。"
         },
         {
-          "end": 54,
+          "end": 55,
           "title": "固定商品与定制服务边界",
-          "explanation": "展示 product_name 和分金额除100两位小数；固定数字商品不默认含定制开发。定制链接到站内管理员客服，不虚构外部供应商。立即购买仅绑定 JS，模板渲染时不建单。"
+          "explanation": "展示 product_name 和分金额除100两位小数；固定数字商品不默认含定制开发。定制链接到站内管理员客服，不虚构外部供应商。立即购买仅绑定 JS，模板渲染时不建单。 V-05：主按钮下方留 #buy-note（默认 hidden），脚本把按钮换成「已购买，去下载」时写已购说明。"
         },
         {
-          "end": 64,
+          "end": 68,
           "title": "FAQ：权益可恢复",
-          "explanation": "明确短时链接可重领；刷新后须同账号，从我的订单恢复。公开工具免费试用不等于所有资源免登录；说明与后端 paid/downloaded 分支保持一致。"
+          "explanation": "明确短时链接可重领；刷新后须同账号，从我的订单恢复。公开工具免费试用不等于所有资源免登录；说明与后端 paid/downloaded 分支保持一致。 V-05：新增「已经买过一次，还能再买吗？」——同一商品不重复购买，全额退款后按钮恢复为「立即购买」。"
         },
         {
-          "end": 86,
+          "end": 91,
           "title": "订单列表与待付区域",
           "explanation": "历史列表和游标由JS装配；st-refunded独立说明全额退款不可下载并链接站内客服，原closed/expired继续区分本地状态与时间。取消只回商品页，不发起远端关单/退款。"
         },
         {
-          "end": 107,
+          "end": 112,
           "title": "已付/领过链接：都能继续下载",
           "explanation": "st-paid保留主动下载和错误提示，未退款downloaded同样可重领；refunded优先进入独立区域。保留st-downloaded节点不代表一次性权益。末尾经典shop-page依赖base先加载auth，生成bundle需同步。"
         }
@@ -6444,91 +6454,96 @@
     },
     {
       "path": "tests/test_mock_pay.py",
-      "sha256": "96bc978f5dc29a8172183e7b11f2f7b3df554f0f2b5abe3e9e8ced740ce608fd",
+      "sha256": "876fff3193d5146112495202a0038d332e7995d33a876ab5b8639f09936809bc",
       "method": "guided",
       "blocks": [
         {
-          "end": 17,
+          "end": 19,
           "title": "模块装配",
           "explanation": "模块协作与边界：mock本地支付串、演示页文案、本人确认与生产模式隐藏；禁用native_prepay替身防真实出站。共享page_context确保收银台不是缺导航的孤页，模拟流水不可作为收款证据。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL9 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import app.routers.shop as shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from app.models import Order；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from tests.conftest import TestSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 21,
+          "end": 23,
           "title": "mock_mode",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL20 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'mock')：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 27,
+          "end": 29,
           "title": "mock_mode.no_wechat",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL23 抛出 AssertionError('模拟模式不该调用微信支付')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL25 调用 monkeypatch.setattr(shop, 'native_prepay', no_wechat)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 33,
+          "end": 35,
           "title": "auth_headers",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：client, username='buyer', password='secret123'；异步调用需await才推进。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL29 await 调用 client.post('/auth/register', json={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL30 计算右侧并赋给 `r`：await 调用 client.post('/auth/login', data={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL31 结束当前函数，返回 {'Authorization': f\"Bearer {r.json()['access_token']}\"}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 38,
+          "end": 40,
           "title": "order_row",
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：order_no: str；异步调用需await才推进。 返回类型标注：Order。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL35 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL36 结束当前函数，返回 调用 (await s.execute(select(Order).where(Order.order_no == order_no))).scalar_one()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 48,
+          "end": 50,
           "title": "test_mock_order_points_at_local_cashier",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay?order_no=、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL40 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL41 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL42 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL43 计算右侧并赋给 `body`：调用 r.json()。\nL44 核对 `body['pay_mode'] == 'mock'`：此条件为假即测试失败；不是生产输入校验。\nL45 核对 `body['code_url'].endswith(f\"/shop/mock-pay?order_no={body['order_no']}\")`：此条件为假即测试失败；不是生产输入校验。\nL46 核对 `body['code_url'].startswith('http://test')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 55,
+          "end": 57,
           "title": "test_mock_pay_page_renders_warning",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL50 计算右侧并赋给 `r`：await 调用 client.get('/shop/mock-pay', params={'order_no': 'CM123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL51 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL52 核对 `'模拟支付通道' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL53 核对 `'CM123' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 68,
+          "end": 74,
+          "title": "test_mock_pay_return_link_carries_the_order_number",
+          "explanation": "返回链接必须带订单号（V-05），且没带单号时不能拼出空的 ?order=（那会变成「打开商城但什么都不恢复」）。"
+        },
+        {
+          "end": 87,
           "title": "test_mock_confirm_marks_paid",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL57 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL58 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL59 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL60 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL61 核对 `r.json()['status'] == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL62 核对 `r.json()['transaction_id'].startswith('MOCK-')`：此条件为假即测试失败；不是生产输入校验。\nL64 计算右侧并赋给 `row`：await 调用 order_row(order_no)；等待期间可让出事件循环，恢复后才执行下一句。\nL65 核对 `row.status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL66 核对 `row.paid_at is not None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 73,
+          "end": 92,
           "title": "test_mock_confirm_requires_login",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL70 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL71 核对 `r.status_code == 401`：要求未通过身份验证；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 82,
+          "end": 101,
           "title": "test_mock_confirm_rejects_other_users_order",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL75 计算右侧并赋给 `alice`：await 调用 auth_headers(client, 'alice', 'secret123')；等待期间可让出事件循环，恢复后才执行下一句。\nL76 计算右侧并赋给 `bob`：await 调用 auth_headers(client, 'bob', 'secret456')；等待期间可让出事件循环，恢复后才执行下一句。\nL77 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=alice)).json()['order_no']。\nL78 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=bob)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL79 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL80 核对 `(await order_row(order_no)).status == 'pending'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 91,
+          "end": 110,
           "title": "test_mock_confirm_is_idempotent",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL84 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL85 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL86 计算右侧并赋给 `first`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL87 计算右侧并赋给 `again`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL88 核对 `(first.status_code, again.status_code) == (200, 200)`：此条件为假即测试失败；不是生产输入校验。\nL89 核对 `(await order_row(order_no)).status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 100,
+          "end": 119,
           "title": "test_wechat_mode_hides_mock_endpoints",
           "explanation": "本用例的准备条件：client。涉及接口：/shop/mock-pay、/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL94 核对 `settings.SHOP_PAY_MODE == 'wechat'`：此条件为假即测试失败；不是生产输入校验。\nL95 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL96 核对 `(await client.get('/shop/mock-pay')).status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL97 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL98 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 115,
+          "end": 134,
           "title": "test_unknown_pay_mode_rejected",
           "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL102 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'alipay')：仅在本测试替换属性，fixture结束恢复。\nL103 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL104 核对 `(await client.post('/shop/orders', headers=h)).status_code == 500`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 125,
+          "end": 144,
           "title": "test_mock_pay_page_renders_full_site_chrome",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL118 计算右侧并赋给 `html`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL120 核对 `'<h1><a href=\"/\">CodeMax 在线工具</a></h1>' in html`：此条件为假即测试失败；不是生产输入校验。\nL121 核对 `'<nav></nav>' not in html`：此条件为假即测试失败；不是生产输入校验。\nL122 核对 `'href=\"/tools/er\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL123 核对 `'href=\"\"' not in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 134,
+          "end": 153,
           "title": "test_mock_pay_page_has_the_same_chrome_as_a_normal_page",
           "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop、/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL128 计算右侧并赋给 `cashier`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL129 计算右侧并赋给 `normal`：(await client.get('/shop')).text。\nL130 逐项遍历 `('<h1><a href=\"/\">CodeMax 在线工具</a></h1>', 'href=\"/tools/er\"', 'id=\"btn-auth\"')`，绑定 `probe`；循环体按缩进执行，break可提前结束。\nL131 核对 `probe in cashier`：此条件为假即测试失败；不是生产输入校验。\nL132 核对 `probe in normal`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 170,
           "title": "test_page_context_is_the_single_source_of_base_template_fields",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL141 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL142 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL144 导入 from app.site import page_context；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL146 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL147 计算右侧并赋给 `base`：调用 (root / 'app/templates/base.html').read_text(encoding='utf-8')。\nL148 计算右侧并赋给 `used`：调用 set(re.findall('{{\\\\s*([a-z_]+)', base))。\nL150 累积修改 `used`：执行 `used -= {'t', 'request'}`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 157,
+          "end": 176,
           "title": "test_page_context_is_the_single_source_of_base_template_fields._Req",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n结构事实：定义类 test_page_context_is_the_single_source_of_base_template_fields._Req，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL153 pass 是显式空操作；接口/异常类无需额外实现时保留合法语法。\nL155 计算右侧并赋给 `provided`：调用 set(page_context(_Req(), title='x'))。\nL156 计算右侧并赋给 `missing`：used - provided。\nL157 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
@@ -7929,7 +7944,7 @@
     },
     {
       "path": "tests/test_shop_page.py",
-      "sha256": "65a3c4c477c9d46656a18bfd6f07d99760563f39f8d3e1da22de9dce218572b7",
+      "sha256": "c5a8fc0ef6a282d92f5f33c98316a7739725b4ec58e273ed16c50f502aef85c9",
       "method": "guided",
       "blocks": [
         {
@@ -8048,9 +8063,34 @@
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：//.*$。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL404 计算右侧并赋给 `js`：调用 (Path(__file__).resolve().parents[1] / 'app/frontend/shop-page.js').read_text(encoding='utf-8')。\nL405 计算右侧并赋给 `code`：调用 '\\n'.join((re.sub('//.*$', '', line) for line in js.splitlines()))。\nL406 核对 `'onChange(() => {})' not in code`：此条件为假即测试失败；不是生产输入校验。\nL407 核对 `'offBuy' in code`：此条件为假即测试失败；不是生产输入校验。\nL410 把测试JavaScript多行字面量存入 `_NODE_RACE_SCENARIO`（1261字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 459,
+          "end": 461,
           "title": "test_a_stale_401_cannot_revive_a_purchase_intent",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='未安装 node')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL455 计算右侧并赋给 `at`：调用 _run_shop_frontend(_NODE_RACE_SCENARIO)。\nL456 核对 `at == [1, 1, 2, 2, 2]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 471,
+          "title": "V-05 说明段（已购用户与返回恢复）",
+          "explanation": "2026-09-23 复核 N-05 的两个后果：已购用户再点「立即购买」会静默新建待支付单；收银台返回 /shop 是全新加载（带 no-store，bfcache 被拒、currentNo 为 null）→ 落回落地页看不到刚付的单。用户确认不设计复购。"
+        },
+        {
+          "end": 568,
+          "title": "_OWNED_EXECUTOR（Node 桩）",
+          "explanation": "按浏览器顺序提供 auth.js + shop-page.js 需要的 DOM/fetch/假时钟；SHOP_CASE 决定订单列表与单张订单（paid / owned_later_pending / owned_refunded / pending_live / pending_expired 与两个 ?order= 形态），ORDER 形态的 ?order= 必须在脚本执行前写进 location.search。__state() 用 getElementById 惰性取元素，返回按钮文案、说明、可见视图、下单次数与 GET 轨迹。"
+        },
+        {
+          "end": 587,
+          "title": "_run_owned_scenario",
+          "explanation": "与 _run_shop_frontend 同款：读**源码**拼装（不是产物），tempfile 落盘后用 SHOP_CASE 环境变量跑 node，返回末行 JSON。"
+        },
+        {
+          "end": 662,
+          "title": "已购主按钮与退款后可再买",
+          "explanation": "两条主断言：最新一张就是已购单时打开 /shop 直接显示该单状态（不出现「立即购买」）；有已购权益但最新一张是未付款单时只给「已购买，去下载」+ 含订单号的说明，点它不下单（postOrders 不变）且切到已购那一单 —— 后一条在旧代码上就是「静默新建待支付单」的路径。对照：全额退款的订单不算权益，按钮必须仍是「立即购买」且无说明（旧代码本来就绿，专门防过修）。"
+        },
+        {
+          "end": 737,
+          "title": "返回 ?order= 与待支付恢复",
+          "explanation": "?order=CM7 直接显示该单的支付成功视图、?order=CM8 显示已全额退款，都不允许顺手下单；未过期的待支付单恢复后要重新起轮询；对照：过期单不恢复、不起轮询。"
         }
       ]
     },
