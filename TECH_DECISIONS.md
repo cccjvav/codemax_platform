@@ -714,6 +714,8 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - `docs/AGNES_AI.md`：手动运行示例改用 `--ref "$(git branch --show-current)"`。
 - `.github/workflows/agnes-connectivity.yml`：push 触发从写死上一会话的 `arena/01a0bf7a-codemax-platform` 改为 `arena/*`。**这是本批唯一的运行性变更**：写死的值在下个会话就静默失效（本会话就处于该状态——带 `[agnes-live-test]` 的推送不会触发 Agnes 专项）。触发面没有变宽到"每次提交都跑"：`paths` 仍限定该工作流文件本身，带密钥的 live-chat 仍要求提交信息含 `[agnes-live-test]`，connectivity job 仍无密钥。`tests/test_agnes_integration.py` 的断言同步改为"等于 `arena/*` 且不含会话 ID"。
 
+**同日补充：本次推送误触发了带密钥的 Agnes 探测。** 该工作流的判定是对**整条提交说明**做子串匹配，而 TD-277 的提交说明为了解释「写死的分支名已失效」引用标记本身，于是判定命中，`fee88eb` 上四项探测真的跑了一次（模型列表 12 个 ID、聊天与 Mermaid 通过、探索性 embedding 仍 HTTP 500；Mermaid 只是前缀检查，不等于浏览器渲染通过）。这不是新缺陷，是既有判定方式（子串匹配）与「在说明里讨论这个标记」撞在一起。**本次不做工作流改动**：收紧判定（例如只匹配首行）属 CI 合同变更，需用户确认，已把选项与影响写在 HANDOVER 里待定；本轮只把陷阱记进 `.github/workflows/README.md`、`docs/AGNES_AI.md` 与 `manager/experience.md`，并作为一次真实的提供方可用性证据保留。回看条件：用户确认后再改判定与 `tests/test_agnes_integration.py` 断言；在此之前，写提交说明不要照抄该标记。
+
 **没有选择**"改成仅手动（删掉 push 触发）"：手动 `workflow_dispatch` 在本会话的 GitHub App 上返回 403（无调度权限），push 触发是当前唯一可用的带凭证探测入口，删掉它会把已验证的替代路径也砍掉。也没选择在仓库里保留一个"分支名变量文件"给工作流 `env` 用：GitHub 的 `on.push.branches` 不支持变量，工作流表达式也读不到仓库文件。
 
 证据：`grep -rn "01a0cdc6\|01a0bf7a"` 在现行文档/Skill/工作流里只剩 `HANDOVER.md` 首段一处（其余命中为历史记录、TD-271/277 决策原文与上一次会话的记录）；`tests/test_agnes_integration.py` 与新断言在旧工作流上先红（旧值 `01a0bf7a`）；YAML 用 `yaml.BaseLoader` 解析确认 `on.push` 仍只有 `branches` 与 `paths` 两个键。

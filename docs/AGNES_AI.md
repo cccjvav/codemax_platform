@@ -118,6 +118,8 @@ Arena 运行时直连的 TLS 问题尚未修复，具体断开设备未知；Git
 
 当前 GitHub 集成可推送、读取 Actions 元数据，但 workflow_dispatch API 返回权限 403。已授权的重测可由本会话修改本工作流、同步源码讲解，并以带 `[agnes-live-test]` 的明确标记提交推送到本会话的 `arena/*` 分支；每次共四项探测，普通提交不使用 Secret。空提交或只改说明文档不满足路径过滤，不应为猜测模型 ID 批量触发。
 
+**已实测的触发陷阱（2026-09-24，`fee88eb`）**：判定用的是**整条提交说明的子串匹配**，所以在提交说明里引用 `[agnes-live-test]` 这段字面值（哪怕只是想说明这个标记本身）也会真正触发带密钥的四项探测。TD-277 的提交说明就引用了它，于是四项探测在 `arena/01a0cdc6-…` 分支上实际跑了一次：列表 12 个模型 ID、聊天与 Mermaid 通过（Mermaid 228 字符，前缀检查，不等于浏览器渲染通过）、探索性 embedding 仍是 HTTP 500。这个结果只能当「该 SHA 上提供方可用」的一次真实调用证据，不能当成 embedding 可用性的证明；后续写提交说明时不要照抄该标记。
+
 有 Actions 调度权限时也可手动运行：`gh workflow run agnes-connectivity.yml --ref "$(git branch --show-current)" -f live_chat=true`。不需要交出 GitHub token、切换/合并默认分支或关闭证书校验。
 
 若继续确认 Agnes embedding，向官方支持询问：是否开放 `/v1/embeddings`、确切模型 ID、当前账号权限、请求示例及费用/限额。提供脱敏时间与 HTTP 状态，不发送 key。官方目录未列出相关说明与本次 500，只能支持“尚未确认可用”，不能支持“确定不存在”。

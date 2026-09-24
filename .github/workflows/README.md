@@ -7,7 +7,7 @@
 
 ## 文件与入口
 
-`agnes-connectivity.yml` 是独立网络对照，不改变六项 CI：`arena/*` 会话分支修改本工作流时仅运行无凭证 curl，保留 TLS 校验、不跟重定向、记录 HTTP 与退出码；失败非零。curl 可达后用同一提交、Python3.11及锁定依赖复验无 key 连通性；只有 workflow_dispatch 显式 live_chat=true 或修改工作流的提交说明带 [agnes-live-test] 标记时才执行四项有界的带凭证探测（列表、聊天、Mermaid、一次探索性向量调用），AGNES_API_KEY 只在最后一步注入，不传给安装阶段。此 job 的跳过不是真实模型通过。
+`agnes-connectivity.yml` 是独立网络对照，不改变六项 CI：`arena/*` 会话分支修改本工作流时仅运行无凭证 curl，保留 TLS 校验、不跟重定向、记录 HTTP 与退出码；失败非零。curl 可达后用同一提交、Python3.11及锁定依赖复验无 key 连通性；只有 workflow_dispatch 显式 live_chat=true 或修改工作流的提交说明带 [agnes-live-test] 标记时才执行四项有界的带凭证探测（列表、聊天、Mermaid、一次探索性向量调用），AGNES_API_KEY 只在最后一步注入，不传给安装阶段。此 job 的跳过不是真实模型通过。**标记是整条提交说明的子串匹配**，所以提交说明里只要**引用**了 `[agnes-live-test]` 这一段字面值（例如说明「修好了标记失效的问题」），带密钥的探测就会真的跑起来 —— 2026-09-24 的 `fee88eb`（TD-277）就是这样被误触发的，四项探测实际执行（列表/聊天/Mermaid 通过、embedding 仍 HTTP 500）。写提交说明时不要照抄这个标记；如要改判定方式（例如只匹配首行）属工作流合同变更，需用户确认。
 
 | Job | 做什么 | 边界 |
 | --- | --- | --- |
