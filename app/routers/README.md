@@ -11,7 +11,7 @@
 
 | 函数 / 接口 | 请求与响应 | 权限、副作用与错误 |
 | --- | --- | --- |
-| `register` POST `/auth/register` | JSON RegisterIn → 用户公开信息 | 用户名重复 400；字段错误 422；异步哈希后写库，捕获并发唯一冲突；不能自行指定管理员角色 |
+| `register` POST `/auth/register` | JSON RegisterIn → 用户公开信息 | 用户名重复 400；字段错误 422；异步哈希后写库，捕获并发唯一冲突；不能自行指定管理员角色。限流两道（TD-275）：`RATE_LIMIT_AUTH` 的 60 秒窗口 + `RATE_LIMIT_REGISTER_DAILY` 的每 IP 24 小时上限（独立桶表，429 文案说明是每日注册上限） |
 | `login` POST `/auth/login` | 表单 username/password → token；设置 HttpOnly Cookie | `login` 限流后过 `require_login_origin`（TD-262）：浏览器跨站 Fetch Metadata/外站 Origin 的表单提交 403 且无 Cookie，无来源头的 API 客户端不变；凭据失败 401，已禁用账号 403；不存在用户也走假哈希校验；响应 token 给非浏览器客户端使用，浏览器不另存 localStorage |
 | `change_password` POST `/auth/password` | old_password/new_password → 新 token 与 Cookie | 需登录；用户写锁下重新核验旧密码、更新哈希与时间、递增凭据版本、提交；旧 JWT/授权码失效 |
 | `logout` POST `/auth/logout` | 清除本浏览器 Cookie | 不建立服务器端单 token 黑名单；不能宣称注销了所有设备 |
@@ -37,8 +37,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 
 | 函数 | 写入与并发契约 |
 | --- | --- |
-| `create_diagram` | 用户写锁下检查活跃条数、总条数与总 UTF-8 字节；写入 XML，返回文件与 ETag |
-| `update_diagram` | 必须 If-Match；检查预算后按 version 条件 UPDATE，递增 version；缺头 428、格式错误 400、旧版本 412 |
+| `create_diagram` | 用户写锁下检查活跃条数、总条数与总 UTF-8 字节；写入 XML，返回文件与 ETag；写入走 `diagram_write` 桶（`RATE_LIMIT_DIAGRAM_WRITES`，TD-275） |
+| `update_diagram` | 必须 If-Match；检查预算后按 version 条件 UPDATE，递增 version；缺头 428、格式错误 400、旧版本 412；与 `create_diagram` 共用 `diagram_write` 桶（TD-275） |
 | `delete_diagram` | 软删除活跃文件，成功 204；此操作当前不要求 If-Match。不能把编辑/永久删除的版本前置条件泛化到全部写接口 |
 | `restore_diagram` | 用户写锁；只恢复回收站对象，检查活跃配额并递增 version；非删除状态/配额冲突 409 |
 | `purge_diagram` | 只永久删除自己的回收站对象，必须 If-Match；成功 204；不可撤销并释放总预算 |
@@ -96,8 +96,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/routers/admin.py`](admin.py) | `d8cb7e968e0b` | L1–L86 |
-| [`app/routers/auth.py`](auth.py) | `aad302b94e08` | L1–L135 |
-| [`app/routers/diagrams.py`](diagrams.py) | `1bd6d4225cb1` | L1–L234 |
+| [`app/routers/auth.py`](auth.py) | `f95778c951b3` | L1–L142 |
+| [`app/routers/diagrams.py`](diagrams.py) | `225cdf41a311` | L1–L240 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |

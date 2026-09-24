@@ -90,7 +90,7 @@ pending → closed → paid
 | `run_cpu_bound(fn, *args)` | 返回任务结果；最多 2 个在途任务，响应等待 30 秒。满额或超时抛 CPUQueueFull；取消/超时不杀掉实际任务，完成前继续占槽 |
 | `_get_executor` / `_execute_cpu` / `shutdown` | 懒建单 worker 进程池；基础设施故障才回落线程池；普通任务错误向外传播；shutdown(wait=False) 不意味着已强杀运行中的任务 |
 | `Limiter.admit` / `allow` / `prune` / `reset` | `admit` 返回 `Verdict(allowed, retry_after, reason)`，`allow` 是丢掉 reason 的二元视图。到期时间按最后一次放行排序（OrderedDict），每次请求最多从队头回收 32 个已到期桶再判容量：默认 16384 桶，满且全活跃时拒绝新键（reason=capacity，Retry-After 指向最早到期桶，warning 每分钟至多一条），绝不驱逐活跃桶（TD-261）；同身份超额 reason=quota。prune 为显式全扫描维护，reset 清理全部状态 |
-| `_identity` / `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；IPv6 归并到 /64、IPv4 映射地址还原为 IPv4，解析不出的对端原样占键。依赖按 scope + 身份限流，capacity 与 quota 用不同 429 文案。内存状态不跨进程共享 |
+| `_identity` / `client_key` / `rate_limit` | 可信直接对端才允许解析 XFF，从右侧跳过可信代理；IPv6 归并到 /64、IPv4 映射地址还原为 IPv4，解析不出的对端原样占键。依赖按 scope + 身份限流，capacity 与 quota 用不同 429 文案（`quota_detail` 可换成用户看得懂的专用文案）。长窗口配额（注册的每 IP 每日上限）必须传入独立的桶表 `register_daily_limiter` 与 24 小时窗口：主桶表的队头回收假设所有桶共用同一个 window，混入 24 小时桶会让过期桶收不回来（TD-275）。内存状态不跨进程共享 |
 | `trusted_proxy` / `public_base_url` | 精确 CIDR 控制转发头信任；生产链接固定为已校验 SITE_BASE_URL，开发链接可按可信头派生。应用端口仍须阻止绕过代理访问 |
 | `body_limit_for` / `RequestBodyBudgetMiddleware` | 路径 → 请求体上限：默认 1 MiB，`/diagrams` 2 MiB，`/shop/pay/notify` 与 `/shop/refunds/notify` 返回 None 由路由自己的 64 KiB 流式预算负责（TD-260）。Content-Length 超限不读一字节即 413 + `connection: close`；分块/谎报长度按实际字节计，越界抛 `BodyTooLarge`（HTTPException 子类，FastAPI 读体时原样上抛成 413 而不是 400）。只限制应用读到的字节，不替代代理 `client_max_body_size`，不限制响应大小 |
 | `validation_error_without_input` | 注册为 `RequestValidationError` 处理器：422 只保留 type/loc/msg/ctx，去掉 `input`/`url`，不再把几十万字符的出错字段原样回显；前端只读 `msg`；`msg` 按 pydantic 错误类型翻成中文（长度带上下限、缺字段、格式、JSON 无效），validator 抛的中文原样、未知类型保留原文（TD-270） |
@@ -113,7 +113,7 @@ pending → closed → paid
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/bill_reconcile.py`](bill_reconcile.py) | `9750db145474` | L1–L287 |
-| [`app/config.py`](config.py) | `7a5d9215b962` | L1–L143 |
+| [`app/config.py`](config.py) | `6acbbb805d97` | L1–L150 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
 | [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
@@ -125,7 +125,7 @@ pending → closed → paid
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
 | [`app/payment_review.py`](payment_review.py) | `a26a38f6658e` | L1–L144 |
-| [`app/ratelimit.py`](ratelimit.py) | `8d1624de69f9` | L1–L189 |
+| [`app/ratelimit.py`](ratelimit.py) | `ade83df887d6` | L1–L202 |
 | [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |

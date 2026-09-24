@@ -26,6 +26,8 @@ Docker 已传 `--no-access-log`，保留应用的有界、不含查询参数的�
 | `SECRET_KEY` | 至少 32 字符的高随机性字符串，**不能**是 `dev-secret-change-me` | 任何人都能伪造 JWT |
 | `SHOP_PAY_MODE` | `wechat` 或已安排人工核账的 `manual` | 若是 `mock`＝**免费发货**（TD-124） |
 | `RATE_LIMIT_ENABLED` | `true` | 公开的 `/tools/*` 可被无限刷（TD-15） |
+| `RATE_LIMIT_DIAGRAM_WRITES` | 保持默认 `60`（每 IP 每 60 秒的保存次数） | 调大等于放开「单 IP 15 秒写约 196 MB」的资源滥用面（TD-275） |
+| `RATE_LIMIT_REGISTER_DAILY` | 保持默认 `20`（每 IP 每 24 小时注册数） | 只限每分钟时，一个 IP 一天可批量开号、按账号配额刷存储（TD-275） |
 | `TRUST_PROXY_HEADERS` | `true`（在反向代理之后） | 所有用户被当成同一个 IP，限流形同虚设（TD-142） |
 | `DB_PASSWORD` | 真实密码 | 连不上库，`/readyz` 返回 503 |
 

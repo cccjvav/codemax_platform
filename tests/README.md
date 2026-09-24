@@ -80,7 +80,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `6a4613493dd1` | L1–L153 |
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `8e1372f4d8f5` | L1–L98 |
-| [`tests/test_docs_site.py`](test_docs_site.py) | `ba592b2a93e5` | L1–L471 |
+| [`tests/test_docs_site.py`](test_docs_site.py) | `08d17b62423a` | L1–L473 |
 | [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `5c713f8fe00c` | L1–L214 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
@@ -110,7 +110,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_politeness.py`](test_politeness.py) | `0f7c2d0cf8ae` | L1–L417 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
-| [`tests/test_ratelimit.py`](test_ratelimit.py) | `81b0cfb3ea5a` | L1–L279 |
+| [`tests/test_ratelimit.py`](test_ratelimit.py) | `f83386373f6b` | L1–L386 |
 | [`tests/test_refund_health.py`](test_refund_health.py) | `b4a1020ba64d` | L1–L407 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `a1894e966c2d` | L1–L302 |
@@ -301,3 +301,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-24 已购用户与返回恢复（TD-274 / V-05）
 
 `test_shop_page.py` 新增一节用 Node 真跑 `auth.js` + `shop-page.js`（`_OWNED_EXECUTOR` + `_run_owned_scenario`，`SHOP_CASE` 决定订单列表与单张订单，`?order=` 形态在脚本执行前写进 `location.search`）：最新一张就是已购单时打开 `/shop` 直接显示该单状态、点它不下单（旧代码红）；有已购权益但最新一张是未付款单时只给「已购买，去下载」+ 说明、点它回到已购那一单且订单数不变（旧代码红）；全额退款的订单不算权益、按钮仍是「立即购买」（防过修的对照）；`?order=` 直接显示该单的支付成功/已全额退款；未过期的待支付单恢复后重新起轮询，过期的不恢复也不起轮询。`test_mock_pay.py` 增加返回链接必须带订单号、无单号时不拼空参数。这些是**源码 + Node 桩**证据；真实点击链路由沙箱内 Chromium 走完（付款 → 返回 → 已购按钮 → 手机视图），仍未做 Windows/真实商户验收。
+
+## 2026-09-24 限流补齐（TD-275 / 复核 N-02）
+
+`test_ratelimit.py` 新增一组：把 `RATE_LIMIT_DIAGRAM_WRITES` 调到 2，断言 `POST /diagrams`、`PUT /diagrams/{id}` **共用**同一个写入桶（第三次写入 429、Retry-After 是数字、文案含「频繁」）且读取（列表/打开）不受影响；把 `RATE_LIMIT_REGISTER_DAILY` 调到 2，断言第三次注册 429、文案说明是每日注册上限、Retry-After 大于 60 秒；另有两条按对端地址换身份的用例（同一 IP 用尽后另一个 IP 仍可注册/写入，IPv6 同 /64 共用配额）。这些用例在旧路由上先红。每日桶表独立于主桶表，所以另有一条断言：注册每日配额用尽后工具接口仍 200。

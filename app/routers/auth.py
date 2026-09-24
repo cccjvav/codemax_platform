@@ -10,7 +10,7 @@ from ..config import settings
 from ..database import get_db, lock_user
 from ..deps import get_current_user, require_login_origin
 from ..models import User
-from ..ratelimit import rate_limit
+from ..ratelimit import REGISTER_DAILY_WINDOW, rate_limit, register_daily_limiter
 from ..schemas import PasswordChangeIn, RegisterIn, TokenOut, UserOut
 from ..security import (
     AUTH_COOKIE,
@@ -39,8 +39,15 @@ def _set_auth_cookie(response: Response, token: str) -> None:
     )
 
 
+# 注册挂两道限流：60 秒窗口挡在线爆破，每日上限挡「一个 IP 批量开号再刷流程图配额」
+# （复核 N-02：账号是字节配额的单位，10 次/分钟的注册等于 10 × 20 MB 的额度）。
+# 每日上限用独立桶表与 24 小时窗口，见 app/ratelimit.py 的说明。
 @router.post("/register", response_model=UserOut, status_code=201,
-             dependencies=[Depends(rate_limit("register", "RATE_LIMIT_AUTH"))])
+             dependencies=[Depends(rate_limit("register", "RATE_LIMIT_AUTH")),
+                           Depends(rate_limit(
+                               "register_daily", "RATE_LIMIT_REGISTER_DAILY",
+                               bucket=register_daily_limiter, window=REGISTER_DAILY_WINDOW,
+                               quota_detail="该网络今天注册的账号已达上限，请明天再试（{} 秒后重试）"))])
 async def register(data: RegisterIn, db: AsyncSession = Depends(get_db)):
     if await db.scalar(select(User).where(User.username == data.username)):
         raise HTTPException(400, "用户名已存在")

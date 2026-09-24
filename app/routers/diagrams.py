@@ -15,6 +15,7 @@ from ..config import settings
 from ..database import get_db, lock_user
 from ..deps import get_current_user
 from ..models import SysDiagram, User
+from ..ratelimit import rate_limit
 from ..schemas import DiagramIn, DiagramOut, DiagramSummary
 
 router = APIRouter(prefix="/diagrams", tags=["流程图（Drawio）"])
@@ -94,7 +95,11 @@ async def list_diagrams(
     return rows.all()
 
 
-@router.post("", response_model=DiagramOut, status_code=201)
+# 写入限流（复核 N-02）：POST/PUT 一次最多带 2 MiB 内容，不限流时单 IP 实测 15 秒
+# 能写约 196 MB。POST 与 PUT 共用 `diagram_write` 桶、互相占额度；读取（GET）
+# 不挂桶 —— 列表与打开文件是正常浏览行为，限它只会误伤。
+@router.post("", response_model=DiagramOut, status_code=201,
+             dependencies=[Depends(rate_limit("diagram_write", "RATE_LIMIT_DIAGRAM_WRITES"))])
 async def create_diagram(
     data: DiagramIn,
     response: Response,
@@ -130,7 +135,8 @@ async def get_diagram(
     return diagram
 
 
-@router.put("/{diagram_id}", response_model=DiagramOut)
+@router.put("/{diagram_id}", response_model=DiagramOut,
+            dependencies=[Depends(rate_limit("diagram_write", "RATE_LIMIT_DIAGRAM_WRITES"))])
 async def update_diagram(
     diagram_id: int,
     data: DiagramIn,

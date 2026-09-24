@@ -94,7 +94,9 @@ def test_auth_and_ratelimit_counts(client):
     # 它是密码交换端点，此前是全站唯一没有速率约束的敏感端点。
     # 23 → 24：GET /shop/dl 挂上与 POST /shop/download 相同的 download 桶（TD-261 / A-08）。
     # 24 → 25：POST /shop/orders 有了自己的 order 桶（RATE_LIMIT_AUTH，TD-262 / A-03）。
-    assert sum(1 for r in routes if r["rate_limit"]) == 25
+    # 25 → 27：POST /diagrams 与 PUT /diagrams/{id} 挂上 diagram_write 写入桶（TD-275 / V-02）；
+    # 注册在同一条路由上多挂了每 IP 每日上限，路由数不变所以只加 2。
+    assert sum(1 for r in routes if r["rate_limit"]) == 27
 
 
 # ---------------------------------------------------------------- 纯函数

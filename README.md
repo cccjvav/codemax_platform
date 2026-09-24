@@ -217,7 +217,7 @@ start docs\site\index.html
 | --- | --- | --- |
 | [`.coveragerc`](.coveragerc) | `36436fc1c69c` | L1–L34 |
 | [`.dockerignore`](.dockerignore) | `35521916c620` | L1–L28 |
-| [`.env.example`](.env.example) | `109b3ed4da5e` | L1–L128 |
+| [`.env.example`](.env.example) | `e1f184c654cd` | L1–L132 |
 | [`.gitattributes`](.gitattributes) | `264a18ff7be0` | L1–L5 |
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |

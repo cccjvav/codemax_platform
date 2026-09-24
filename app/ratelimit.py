@@ -132,6 +132,13 @@ class Limiter:
 
 
 limiter = Limiter()
+# 注册的「每 IP 每日」上限用**独立**的桶表，不和 60 秒窗口的桶混在一起。
+# 原因：`admit` 的队头回收假设所有桶共用同一个 window —— 一条 24 小时的桶会一直
+# 挂在队头，让排在它后面、早就过期的短窗口桶收不回来，F-09 的容量保护会退化。
+# 单独的实例里所有桶共用一天窗口，回收假设重新成立；它被刷满也只影响注册，
+# 不会让工具/登录/下载跟着 429。
+register_daily_limiter = Limiter(max_keys=4096)
+REGISTER_DAILY_WINDOW = 86400.0
 
 
 def _identity(raw: str | ipaddress.IPv4Address | ipaddress.IPv6Address) -> str:
@@ -167,23 +174,29 @@ def client_key(request: Request) -> str:
     return _identity(peer)
 
 
-def rate_limit(scope: str, limit_attr: str):
+def rate_limit(scope: str, limit_attr: str, *, bucket: Limiter | None = None,
+               window: float | None = None, quota_detail: str | None = None):
     """生成一个限流依赖。
 
     `limit_attr` 是 settings 上的属性名，运行时才读，方便测试改配额。
+    默认用主桶表与 `RATE_LIMIT_WINDOW`（60 秒）；长窗口的配额（例如注册的每日上限）
+    必须传入**自己的** `bucket` 与 `window`，原因见 `register_daily_limiter` 的注释。
+    `quota_detail` 覆盖「请求过于频繁」这条文案（`{}` 是建议重试秒数），让用户看得懂
+    被拒绝的是哪一类操作。
     """
 
     async def dependency(request: Request) -> None:
         if not settings.RATE_LIMIT_ENABLED:
             return
         limit = getattr(settings, limit_attr)
-        verdict = limiter.admit(
-            f"{scope}:{client_key(request)}", limit=limit, window=settings.RATE_LIMIT_WINDOW
+        verdict = (bucket or limiter).admit(
+            f"{scope}:{client_key(request)}", limit=limit,
+            window=window if window is not None else settings.RATE_LIMIT_WINDOW,
         )
         if not verdict.allowed:
             # capacity：不是这位客户端请求太多，而是键表被其他来源占满；文案要能区分，运维才看得出被刷。
             detail = ("服务器当前访问来源过多，请 {} 秒后再试" if verdict.reason == "capacity"
-                      else "请求过于频繁，请 {} 秒后再试").format(verdict.retry_after)
+                      else (quota_detail or "请求过于频繁，请 {} 秒后再试")).format(verdict.retry_after)
             raise HTTPException(429, detail, headers={"Retry-After": str(verdict.retry_after)})
 
     return dependency

@@ -16,7 +16,7 @@ import httpx
 import pytest
 
 from app.config import settings
-from app.ratelimit import IPV6_PREFIX, Limiter, client_key, limiter
+from app.ratelimit import IPV6_PREFIX, Limiter, client_key, limiter, register_daily_limiter
 from main import app
 
 DDL = {"ddl": "CREATE TABLE t (id INT);"}
@@ -25,8 +25,10 @@ DDL = {"ddl": "CREATE TABLE t (id INT);"}
 @pytest.fixture(autouse=True)
 def _clean():
     limiter.reset()
+    register_daily_limiter.reset()   # 每日桶表独立，测试之间也要清干净
     yield
     limiter.reset()
+    register_daily_limiter.reset()
 
 
 class FakeClock:
@@ -277,3 +279,108 @@ async def test_forwarded_for_honoured_only_when_trusted(client, enabled, monkeyp
     assert (
         await client.post("/tools/er-diagram", json=DDL, headers={"X-Forwarded-For": "9.9.9.9"})
     ).status_code == 200, "不同真实客户端应当各有各的配额"
+
+
+# ---------------------------------------------------------------- 流程图写入与注册每日上限（复核 N-02，TD-275）
+
+DIAGRAM = {"name": "验收图", "content": "<mxfile><diagram/></mxfile>"}
+
+
+async def _login(client, username: str = "rate_buyer") -> dict:
+    await client.post("/auth/register", json={"username": username, "password": "secret123"})
+    r = await client.post("/auth/login", data={"username": username, "password": "secret123"})
+    return {"Authorization": f"Bearer {r.json()['access_token']}"}
+
+
+async def test_diagram_writes_are_rate_limited(client, enabled, monkeypatch):
+    """N-02：`POST/PUT /diagrams` 此前**没有任何限流依赖**。
+
+    一次性 SQLite 实测：单 IP 15 秒写入 490 张图、约 196 MB（单次请求体上限 2 MiB
+    只限单次）。这里把写入配额调到 2，验证 POST 与 PUT 共用同一个写入桶、
+    第三次写入 429，而读取（列表/打开）完全不受影响。
+    """
+    monkeypatch.setattr(settings, "RATE_LIMIT_DIAGRAM_WRITES", 2)
+    h = await _login(client)
+
+    first = await client.post("/diagrams", json=DIAGRAM, headers=h)          # 第 1 次写入
+    assert first.status_code == 201, first.text
+    diagram_id, etag = first.json()["id"], first.headers["etag"]
+
+    put = await client.put(f"/diagrams/{diagram_id}", json=DIAGRAM,
+                           headers={**h, "If-Match": etag})                   # 第 2 次写入
+    assert put.status_code == 200, put.text
+
+    blocked = await client.post("/diagrams", json=DIAGRAM, headers=h)         # 第 3 次写入
+    assert blocked.status_code == 429, (
+        f"流程图写入没有被限流（{blocked.status_code}）—— 旧版单 IP 15 秒能写约 196 MB"
+    )
+    assert blocked.headers["retry-after"].isdigit()
+    assert "频繁" in blocked.json()["detail"]
+    # PUT 与 POST 共用一个桶：刚被 429 的不只是 POST 这一条路径
+    assert (await client.put(f"/diagrams/{diagram_id}", json=DIAGRAM,
+                             headers={**h, "If-Match": etag})).status_code == 429
+    # 读取不吃写入桶
+    assert (await client.get("/diagrams", headers=h)).status_code == 200
+    assert (await client.get(f"/diagrams/{diagram_id}", headers=h)).status_code == 200
+
+
+async def test_register_has_a_daily_per_ip_cap(client, enabled, monkeypatch):
+    """N-02/O-16：分钟级限流挡不住"批量开号"——账号是 20 MB 字节配额的单位。"""
+    monkeypatch.setattr(settings, "RATE_LIMIT_REGISTER_DAILY", 2)
+    codes = [(await client.post("/auth/register",
+                                json={"username": f"daily{i}", "password": "secret123"})).status_code
+             for i in range(4)]
+    assert codes == [201, 201, 429, 429], f"每日注册上限没有生效：{codes}"
+
+    r = await client.post("/auth/register", json={"username": "daily_x", "password": "secret123"})
+    assert r.status_code == 429
+    assert "注册" in r.json()["detail"] and "上限" in r.json()["detail"], r.json()
+    assert int(r.headers["retry-after"]) > settings.RATE_LIMIT_WINDOW, (
+        "每日窗口的重试提示不该只说 60 秒（那会把用户引向分钟级配额）"
+    )
+
+
+async def test_daily_register_bucket_does_not_consume_the_short_window_table(client, enabled, monkeypatch):
+    """每日桶表必须独立：否则一条 24 小时的桶会长期占住主桶表的队头，
+    F-09 的容量保护（过期桶回收）会退化，工具/登录也跟着 429。"""
+    monkeypatch.setattr(settings, "RATE_LIMIT_REGISTER_DAILY", 1)
+    assert (await client.post("/auth/register",
+                              json={"username": "solo1", "password": "secret123"})).status_code == 201
+    assert (await client.post("/auth/register",
+                              json={"username": "solo2", "password": "secret123"})).status_code == 429
+    # 工具接口用主桶表，不因为注册的每日桶被占而受影响
+    assert (await client.post("/tools/er-diagram", json=DDL)).status_code == 200
+
+
+async def test_daily_register_cap_is_per_ip(client, enabled, monkeypatch):
+    """每日上限按客户端身份：同一 IP 用尽后，另一个 IP 仍能注册。"""
+    monkeypatch.setattr(settings, "RATE_LIMIT_REGISTER_DAILY", 1)
+
+    async def post(peer: str, username: str) -> int:
+        # `client` fixture 已经把测试库接到 app.dependency_overrides 上，这里只是换一个
+        # socket 对端地址 —— 限流身份来自对端，数据库仍然是同一个测试库。
+        transport = httpx.ASGITransport(app=app, client=(peer, 40000))
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            return (await c.post("/auth/register",
+                                 json={"username": username, "password": "secret123"})).status_code
+
+    assert await post("203.0.113.7", "ip_a1") == 201
+    assert await post("203.0.113.7", "ip_a2") == 429
+    assert await post("203.0.113.8", "ip_b1") == 201
+
+
+async def test_diagram_write_quota_is_per_ip(client, enabled, monkeypatch):
+    """写入配额也按客户端身份（并且沿用 /64 归并）：换 IP 不能刷新，同一 /64 共享。"""
+    monkeypatch.setattr(settings, "RATE_LIMIT_DIAGRAM_WRITES", 1)
+
+    async def write(peer: str, username: str) -> int:
+        transport = httpx.ASGITransport(app=app, client=(peer, 40000))
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            headers = await _login(c, username)
+            return (await c.post("/diagrams", json=DIAGRAM, headers=headers)).status_code
+
+    assert await write("198.51.100.5", "w_a") == 201
+    assert await write("198.51.100.5", "w_b") == 429          # 同一 IP：写入桶不放行
+    assert await write("198.51.100.6", "w_c") == 201          # 另一个 IP 有自己的配额
+    assert await write("2001:db8:77::1", "w_d") == 201
+    assert await write("2001:db8:77::9", "w_e") == 429        # 同一 /64 归并成一个身份

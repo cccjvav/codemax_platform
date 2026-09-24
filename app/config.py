@@ -93,6 +93,13 @@ class Settings(BaseSettings):
     RATE_LIMIT_LLM: int = Field(10, gt=0)  # LLM 端点更严：每次调用都花钱
     RATE_LIMIT_SUPPORT_MESSAGES: int = Field(30, gt=0)
     RATE_LIMIT_AUTH: int = Field(10, gt=0)  # 注册 / 登录：防在线爆破
+    # 流程图写入（POST/PUT /diagrams）：每次保存最多 2 MiB 请求体，没有这条的话
+    # 单 IP 实测 15 秒可写约 196 MB（复核 N-02）。60 次/分钟远高于人工保存
+    # （编辑器只在你点保存/按 Ctrl+S 时发请求），同时把突发写入压到约 1/33。
+    RATE_LIMIT_DIAGRAM_WRITES: int = Field(60, gt=0)
+    # 注册的「每 IP 每日」上限：账号是 20 MB 字节配额的载体，只限每分钟的话
+    # 一个 IP 一天理论上能开出上万账号。20 个/天 对正常用户（含家庭/校园 NAT）足够。
+    RATE_LIMIT_REGISTER_DAILY: int = Field(20, gt=0)
     TRUSTED_PROXY_CIDRS: str = "127.0.0.1/32,::1/128"
     TRUST_PROXY_HEADERS: bool = False  # 只在可信反向代理之后才打开（TD-142）
 
