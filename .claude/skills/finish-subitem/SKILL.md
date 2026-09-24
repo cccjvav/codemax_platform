@@ -29,17 +29,17 @@ git add <本次逐项审核的文件路径>
 git diff --cached --stat
 git diff --cached
 git commit -F <仓库外的提交说明文件>
-git push origin arena/01a0cdc6-codemax-platform
+git push origin "$(git branch --show-current)"
 git rev-parse HEAD
-git ls-remote origin refs/heads/arena/01a0cdc6-codemax-platform
+git ls-remote origin "refs/heads/$(git branch --show-current)"
 ```
 
-必须在本固定分支；远端 tip 等于本地 SHA。认证失败请用户在 Arena 重连 GitHub，不索要凭证。
+必须在本会话固定分支（见 `HANDOVER.md` 首段；命令里的 `$(git branch --show-current)` 就是它）；远端 tip 等于本地 SHA。认证失败请用户在 Arena 重连 GitHub，不索要凭证。
 
 ## 当前 SHA 的 CI
 
 ```bash
-gh run list --branch arena/01a0cdc6-codemax-platform --limit 20 --json databaseId,headSha,status,conclusion,url
+gh run list --branch "$(git branch --show-current)" --limit 20 --json databaseId,headSha,status,conclusion,url
 ```
 
 选 `headSha` **完全等于本地完整 SHA** 的 CI run；未出现则等待，不能拿上次绿色交差。

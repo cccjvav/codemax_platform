@@ -11,7 +11,9 @@ on:
         default: false
         type: boolean
   push:
-    branches: ["arena/01a0bf7a-codemax-platform"]
+    # 每个会话一个 arena/<会话编号>-codemax-platform 分支；写死某一个会话的分支名会在下个会话
+    # 静默失效（V-08 / TD-277），所以按前缀匹配，且仍然只在该文件被改动时触发。
+    branches: ["arena/*"]
     paths: [".github/workflows/agnes-connectivity.yml"]
 permissions:
   contents: read

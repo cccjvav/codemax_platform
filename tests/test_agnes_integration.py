@@ -157,7 +157,10 @@ def test_live_workflow_requires_manual_opt_in_and_scopes_secret():
     import yaml
     config = yaml.load(Path('.github/workflows/agnes-connectivity.yml').read_text(encoding='utf-8'), Loader=yaml.BaseLoader)
     assert config['on']['push']['paths'] == ['.github/workflows/agnes-connectivity.yml']
-    assert config['on']['push']['branches'] == ['arena/01a0bf7a-codemax-platform']  # 本会话分支（TD-270）
+    # V-08 / TD-277：分支名不再写死某个会话（写死会在下个会话静默失效），按 arena/* 前缀匹配；
+    # paths 过滤与 [agnes-live-test] 提交信息门槛都在，触发面没有变宽。
+    assert config['on']['push']['branches'] == ['arena/*']
+    assert not any('01a0' in branch for branch in config['on']['push']['branches'])
     assert 'pull_request' not in config['on']
     live = config['jobs']['live-chat']
     assert live['if'] == "(github.event_name == 'workflow_dispatch' && inputs.live_chat) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[agnes-live-test]'))"

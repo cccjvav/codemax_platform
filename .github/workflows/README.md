@@ -7,7 +7,7 @@
 
 ## 文件与入口
 
-`agnes-connectivity.yml` 是独立网络对照，不改变六项 CI：固定分支修改本工作流时仅运行无凭证 curl，保留 TLS 校验、不跟重定向、记录 HTTP 与退出码；失败非零。curl 可达后用同一提交、Python3.11及锁定依赖复验无 key 连通性；只有 workflow_dispatch 显式 live_chat=true 或修改工作流的提交说明带 [agnes-live-test] 标记时才执行四项有界的带凭证探测（列表、聊天、Mermaid、一次探索性向量调用），AGNES_API_KEY 只在最后一步注入，不传给安装阶段。此 job 的跳过不是真实模型通过。
+`agnes-connectivity.yml` 是独立网络对照，不改变六项 CI：`arena/*` 会话分支修改本工作流时仅运行无凭证 curl，保留 TLS 校验、不跟重定向、记录 HTTP 与退出码；失败非零。curl 可达后用同一提交、Python3.11及锁定依赖复验无 key 连通性；只有 workflow_dispatch 显式 live_chat=true 或修改工作流的提交说明带 [agnes-live-test] 标记时才执行四项有界的带凭证探测（列表、聊天、Mermaid、一次探索性向量调用），AGNES_API_KEY 只在最后一步注入，不传给安装阶段。此 job 的跳过不是真实模型通过。
 
 | Job | 做什么 | 边界 |
 | --- | --- | --- |
@@ -25,7 +25,7 @@ contents:read 用于 checkout；pull-requests:write **只在两个 test job 上*
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `1748aa2d130c` | L1–L88 |
+| [`.github/workflows/agnes-connectivity.yml`](agnes-connectivity.yml) | `7642bb11a2c0` | L1–L90 |
 | [`.github/workflows/ci.yml`](ci.yml) | `c77be8e6909c` | L1–L348 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

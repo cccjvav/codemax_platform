@@ -91,21 +91,21 @@
     },
     {
       "path": ".github/workflows/agnes-connectivity.yml",
-      "sha256": "1748aa2d130ccb006ccd3d511f6a3f29a089a7e1d94d162631b4f9f6e68542ef",
+      "sha256": "7642bb11a2c0db6eb02fb2dab604a1e6f062f1cbe739a45c49b13cfd035814fb",
       "method": "manual",
       "blocks": [
         {
-          "end": 18,
+          "end": 20,
           "title": "触发范围与权限",
-          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。 本次请求注释记录用户已配置Secret并授权，不保存密钥值。 手动输入说明明确四项请求（列表、聊天、图表、一次向量探索），而非只提示两项。 触发分支名改为本会话分支 arena/01a0bf7a-codemax-platform（TD-270）。"
+          "explanation": "workflow_dispatch 提供默认false的live_chat布尔输入；push严格限定固定分支和本文件路径。没有pull_request触发，contents只读；普通代码提交不自动进行外部网络诊断。 本次请求注释记录用户已配置Secret并授权，不保存密钥值。 手动输入说明明确四项请求（列表、聊天、图表、一次向量探索），而非只提示两项。 触发分支名曾写死为某个会话分支（TD-270 改为 01a0bf7a，下个会话即静默失效）；TD-277（V-08）改为 `arena/*` 前缀匹配，paths 仍限定本工作流文件，live-chat 仍要求提交信息含 [agnes-live-test]。"
         },
         {
-          "end": 46,
+          "end": 48,
           "title": "无密钥跨环境对照",
           "explanation": "Ubuntu runner限时五分钟，无提供方key。先用curl保留系统证书校验、不跟重定向且丢弃正文，只取HTTP码和退出码；set+e保存失败证据后原码退出。GITHUB_OUTPUT、notice和always步骤名保留HTTP状态，下载日志受阻仍能读元数据。curl通后checkout同一提交、Python3.11安装相同依赖，再运行项目connectivity，以排除只换curl程序造成的误判。两种方式均不发送Authorization，401只证明HTTP可达，绝不是鉴权通过。 checkout/setup-python 已钉与 ci.yml 相同的 commit SHA（TD-267）。"
         },
         {
-          "end": 88,
+          "end": 90,
           "title": "仅手动允许的真实请求",
           "explanation": "真实请求仍只允许手动输入或固定分支/路径的显式标记提交。Secret只注入最后步骤，不给依赖安装。用户确认配置后本次逐一执行models、chat、mermaid，以及一次已知agnes-2.5-flash模型的embedding兼容性探索；开关只覆盖该子进程，绝不改应用默认。set+e用于收集每次退出码，末尾notice明确分别记录，并由chat与mermaid结果决定job退出；models与探索失败不阻止聊天测试，job成功不代表embedding通过。脚本不打印key、正文或向量；模型列表ID经过转义脱敏。 日志下载通道受阻时，run_probe捕获脚本已脱敏的摘要/ID，截断到4000字符并转义百分号与换行，发布notice取证；不捕获原始API响应或密钥。函数返回原退出码，最后仍由聊天/图表检查决定job结果，不能因为notice成功就掩盖探测失败。 checkout/setup-python 已钉与 ci.yml 相同的 commit SHA（TD-267）。"
         }
@@ -3708,7 +3708,7 @@
     },
     {
       "path": "tests/test_agnes_integration.py",
-      "sha256": "b483fe6c874c5ac5f4103bb33eeba08299d4e4dcd7eb233955b09a9b8288ed51",
+      "sha256": "f697c9b6d36ae4ad10ea59bcfb9c73b23b8f6fc9e73067ad272cef1a4db81dda",
       "method": "manual",
       "blocks": [
         {
@@ -3772,9 +3772,9 @@
           "explanation": "429 正文回显虚构 key，注入 main 后必须退出1且 stderr含HTTP429而不含key；用户能够区分限频而无需公开完整服务端正文。"
         },
         {
-          "end": 176,
+          "end": 179,
           "title": "test_live_workflow_requires_manual_opt_in_and_scopes_secret",
-          "explanation": "BaseLoader保留YAML on键，检查push严格限定固定分支/本文件、无PR触发。真实job条件必须是手动输入或显式标记提交，手动默认false；这支持Actions API无调度权限时仍通过受控push启动，不让普通提交自动消耗额度。断言Secret仅存在最后步骤，安装/无key诊断均无它，并固定关闭embedding。 工作流合同同时要求四个有界探测调用、探索开关只传子进程、notice的4000字符上限及百分号/换行转义，并保留原退出码和chat/Mermaid联合成功条件；静态配置断言不替代runner实测。 断言的 push 触发分支改为本会话分支 arena/01a0bf7a-codemax-platform（TD-270）。"
+          "explanation": "BaseLoader保留YAML on键，检查push严格限定固定分支/本文件、无PR触发。真实job条件必须是手动输入或显式标记提交，手动默认false；这支持Actions API无调度权限时仍通过受控push启动，不让普通提交自动消耗额度。断言Secret仅存在最后步骤，安装/无key诊断均无它，并固定关闭embedding。 工作流合同同时要求四个有界探测调用、探索开关只传子进程、notice的4000字符上限及百分号/换行转义，并保留原退出码和chat/Mermaid联合成功条件；静态配置断言不替代runner实测。 断言的 push 触发分支改为本会话分支 arena/01a0bf7a-codemax-platform（TD-270）；TD-277（V-08）起断言 ['arena/*'] 且额外要求列表里不含会话 ID，避免再写死。"
         }
       ]
     },

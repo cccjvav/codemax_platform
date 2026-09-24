@@ -702,3 +702,20 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 证据：`tests/test_ops.py` 新增三条，在旧代码上全部先红——`/static/README.md`（含大写扩展名）404 而 `favicon.svg`/`auth.js` 仍 200；gzip 中间件恰好一层且 `compresslevel == 6`；`TRUST_PROXY_HEADERS=false` 的问题文案不含"可忽略"、含"必须"与 `TRUSTED_PROXY_CIDRS`。
 
 代价与边界：本批不改运行语义（唯一行为变化是静态 Markdown 从 200 变 404、压缩级别下降），不做"代理头是否正确"的运行时验证，也没有把 gzip 级别做成可配置项（没有部署需要它的证据）；`TRUSTED_PROXY_CIDRS` 配错（例如写成 `0.0.0.0/0`）仍可让伪造转发头生效，这属于部署评审范围。回看条件：若出现必须直连公网且不愿设 `TRUST_PROXY_HEADERS=true` 的真实部署，再按 O-15 的方案二引入显式开关，并同时补上"开关打开时启动横幅/日志告警"。
+
+## TD-277：分支名去硬编码——只在 HANDOVER 维护一处，工作流按 `arena/*` 触发（V-08）
+
+2026-09-24。基线 `dd69f77`（TD-276）。复核指出：本会话分支名被写进指南/Skill/Agnes 工作流共 7 处，TD-270 与本轮各改一遍；根因不是疏忽，而是把"会话事实"写进了多份现行文档。用户 2026-09-24 同意按建议实施（含工作流触发方式变更）。
+
+**决定**：分支名的**唯一维护处**是 `HANDOVER.md` 首段「本会话固定分支」；其他现行文档不再复制这个值，并且各自用能从仓库状态取到它的方式工作：
+- `AGENTS.md`：只指向 HANDOVER 首段，不写值。
+- `.claude/skills/finish-subitem/SKILL.md`：推送/核对命令用 `$(git branch --show-current)`，`gh run list --branch` 同理。Skill 本来就要求"必须在本会话固定分支"，命令取当前分支正好与该前提一致。
+- Windows 指南（`Windows新手逐步验收.md`、`docs/WINDOWS_CONDA.md`）：命令改成 `set "BRANCH=arena/<HANDOVER 里写的分支>"` + `%BRANCH%`。Windows 的 CMD 没有"读 Markdown"这一步，这是保留复制粘贴可用性的最小代价：每个新终端窗口 set 一次，仓库里不再需要每会话改动。想省这一步的用户也可以直接用 `git clone --branch <分支>`，指南两种都覆盖。
+- `docs/AGNES_AI.md`：手动运行示例改用 `--ref "$(git branch --show-current)"`。
+- `.github/workflows/agnes-connectivity.yml`：push 触发从写死上一会话的 `arena/01a0bf7a-codemax-platform` 改为 `arena/*`。**这是本批唯一的运行性变更**：写死的值在下个会话就静默失效（本会话就处于该状态——带 `[agnes-live-test]` 的推送不会触发 Agnes 专项）。触发面没有变宽到"每次提交都跑"：`paths` 仍限定该工作流文件本身，带密钥的 live-chat 仍要求提交信息含 `[agnes-live-test]`，connectivity job 仍无密钥。`tests/test_agnes_integration.py` 的断言同步改为"等于 `arena/*` 且不含会话 ID"。
+
+**没有选择**"改成仅手动（删掉 push 触发）"：手动 `workflow_dispatch` 在本会话的 GitHub App 上返回 403（无调度权限），push 触发是当前唯一可用的带凭证探测入口，删掉它会把已验证的替代路径也砍掉。也没选择在仓库里保留一个"分支名变量文件"给工作流 `env` 用：GitHub 的 `on.push.branches` 不支持变量，工作流表达式也读不到仓库文件。
+
+证据：`grep -rn "01a0cdc6\|01a0bf7a"` 在现行文档/Skill/工作流里只剩 `HANDOVER.md` 首段一处（其余命中为历史记录、TD-271/277 决策原文与上一次会话的记录）；`tests/test_agnes_integration.py` 与新断言在旧工作流上先红（旧值 `01a0bf7a`）；YAML 用 `yaml.BaseLoader` 解析确认 `on.push` 仍只有 `branches` 与 `paths` 两个键。
+
+代价与边界：`arena/*` 只覆盖本仓库的会话分支命名约定；若将来出现别的分支前缀（例如 `fix/…`），Agnes 的 push 触发不再覆盖，需要重新评估。Windows 指南多了一行 `set`（换来的是仓库里少 4 处每会话都要改的字面值）。历史文档（`review/`、`docs/SECOND_REPAIR_ACCEPTANCE.md`、`manager/experience.md` 的旧记录）按"历史快照"保留原值，不改写成当前分支。
