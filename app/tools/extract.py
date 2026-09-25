@@ -23,6 +23,7 @@ from bs4 import BeautifulSoup
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..cpu_pool import run_cpu_bound
 from ..models import Article
 from .crawler import fetch, to_skeleton
 from .llm import LLMClient, LLMError, default_llm
@@ -120,9 +121,14 @@ async def parse_page(url: str, html: str, *, llm: LLMClient = default_llm) -> Pa
     **怎么抓到这个 html 的，本函数不管** —— httpx 静态抓取（`parse_article`）与
     无头浏览器渲染（TD-191 的 `browser.render`）都调它，所以两条路径的解析行为
     完全一致，不会出现「换个引擎结果就不一样」。
+
+    两次 BeautifulSoup 全量解析（骨架、按选择器提取）走 `run_cpu_bound`（TD-283）：
+    上限 2 MB 的页面各要 1.5 s 左右纯 Python 计算，原先同步跑在事件循环上，
+    一次入库能让全站（含 5 秒窗口的支付/退款回调）停顿 3 秒。任务槽满或超时抛
+    `CPUQueueFull`，由路由映射成 503。
     """
-    selectors = await identify_selectors(to_skeleton(html), llm=llm)
-    fields = extract_fields(html, selectors)
+    selectors = await identify_selectors(await run_cpu_bound(to_skeleton, html), llm=llm)
+    fields = await run_cpu_bound(extract_fields, html, selectors)
     for name in REQUIRED:
         if not fields[name]:
             raise ExtractError(f"必需字段 {name} 为空（选择器：{selectors.get(name)!r}）")

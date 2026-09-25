@@ -13,6 +13,7 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from ..cpu_pool import CPUQueueFull
 from ..database import get_db
 from ..deps import require_admin
 from ..models import User
@@ -40,7 +41,7 @@ async def ingest_article(
     """管理员抓取、模型提取并原子保存文章，返回摘要而非整篇正文。
 
     同 URL 更新原行。抓取/robots/目标网络失败 400；提取或字段宽度校验失败 422；
-    ExtractError 的原因是 LLMError 时返回 502；动态浏览器停用返回 503。
+    ExtractError 的原因是 LLMError 时返回 502；动态浏览器停用、CPU 解析槽满/超时返回 503。
     数据库基础设施故障不包装成输入错误。成功保存会由 save_article 提交事务。"""
     try:
         if data.dynamic:
@@ -51,6 +52,10 @@ async def ingest_article(
         else:
             parsed = await parse_article(data.url, llm=llm)
         row = await save_article(db, parsed)
+    except CPUQueueFull as e:
+        # 页面解析与 Word 导出共用有界 CPU 执行器（TD-283）：槽满或超时是本站繁忙，不是输入错误。
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "页面解析任务繁忙，请稍后重试",
+                            headers={"Retry-After": "5"}) from e
     except BrowserUnavailable as e:
         # 动态渲染停用或可选依赖缺失，不是调用方输入错误 → 503。
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, str(e)) from e

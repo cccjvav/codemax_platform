@@ -24,6 +24,8 @@
 
 **接手状态（2026-09-26，TD-281 / 第 3b 批复核之一）**：`ratelimit.py` 与 `routers/shop.py` 复核完毕。修三处：① 关闭订单页原来不显示订单号（`#x-no` 放在从不显示的 `#st-downloaded` 里），已移入关闭区并删掉死区；② `GET /shop/orders` 给每张带微信码的单都画 SVG（一页 50 张约 160 ms 阻塞事件循环、还下发失效收款码），改为只给 pending 行画；③ 下载 404 不再回显存储对象 key，改写 `codemax.shop` 日志（DEPLOY 告警表已加）。其余路由（oauth / payments_admin / refunds_admin / admin / refund_notify）与 tools、models 继续复核。
 
+**接手状态（2026-09-26，TD-282 / TD-283 / 第 3b 批复核之二）**：oauth / payments_admin / refunds_admin / admin / refund_notify 与 crawler / browser / extract 复核完毕。修两处：① SSRF 公网判定原来只看 `is_global`，Python 把 NAT64 前缀 `64:ff9b::/96` 与 IPv4 兼容 `::a.b.c.d` 视为全球可达，IPv6-only + NAT64 出网时可借 AAAA 记录打到内网/元数据，现连内嵌 IPv4 一起判（`crawler._is_public`）；② 文章入库的两次 BeautifulSoup 解析原在事件循环上（1.5 MB 页面卡全站约 3 秒），改走 `run_cpu_bound`，槽满/超时 503。`docs/code_reading_notes.json` 里这 6 个文件的导读按当前 AST 重新生成，顺带修正了原有的行号漂移。其余 tools（llm / support / faq / sql_ddl / politeness / intent / word）与 models 继续复核。
+
 ## 本次交接范围
 
 - **当前（2026-09-24）**：复核基线 `3e408a1`（TD-270），已落地 TD-272/TD-273/TD-274（UI 与可访问性、测试成本、会话到期保内容、V-05 已购与返回恢复）；这些批次不改依赖、schema 或历史 SQL，完整迁移仍为 **0017**。

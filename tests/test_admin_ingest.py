@@ -294,6 +294,27 @@ async def test_llm_failure_maps_to_502(client, net):
 
 
 @pytest.mark.asyncio
+async def test_cpu_parse_slot_busy_maps_to_503_and_writes_nothing(client, net, monkeypatch):
+    """TD-283：页面解析改走有界 CPU 执行器（与 Word 导出共用）。槽满/超时是本站繁忙：
+    503 + Retry-After，不能漏成 500，也不能写入半条记录。"""
+    import app.tools.extract as extract_module
+    from app.cpu_pool import CPUQueueFull
+
+    async def busy(fn, *args):
+        raise CPUQueueFull("导出任务繁忙，请稍后重试")
+
+    monkeypatch.setattr(extract_module, "run_cpu_bound", busy)
+    _use_llm(FakeLLM(json.dumps({"title": "h1", "content": ".content"})))
+    await _admin_client(client)
+    r = await client.post("/admin/articles/ingest", json={"url": URL})
+    assert r.status_code == 503, r.text
+    assert r.headers["retry-after"] == "5"
+    assert "页面解析任务繁忙" in r.json()["detail"]
+    async with TestSession() as s:
+        assert await s.scalar(select(func.count()).select_from(Article)) == 0
+
+
+@pytest.mark.asyncio
 async def test_failed_ingest_writes_nothing(client, net):
     """失败路径不能留下半条记录。"""
     _use_llm(FakeLLM(exc=LLMError("boom")))

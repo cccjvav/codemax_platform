@@ -63,7 +63,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | --- | --- | --- |
 | [`tests/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`tests/conftest.py`](conftest.py) | `bc1e7693175a` | L1–L259 |
-| [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `9b6e6799819e` | L1–L345 |
+| [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `7aec5a7104ca` | L1–L366 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f697c9b6d36a` | L1–L179 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `bcb6bbe584a2` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
@@ -73,7 +73,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `76bcfd71fc58` | L1–L206 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
-| [`tests/test_crawler.py`](test_crawler.py) | `22cd77a5bd4a` | L1–L344 |
+| [`tests/test_crawler.py`](test_crawler.py) | `52d674f20ecc` | L1–L373 |
 | [`tests/test_db_admin.py`](test_db_admin.py) | `be852d825d0d` | L1–L254 |
 | [`tests/test_delivery_verify_cache.py`](test_delivery_verify_cache.py) | `3c19b727ec19` | L1–L187 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `2a44f9d2a7ea` | L1–L147 |
@@ -86,7 +86,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `f9f85feeeb34` | L1–L310 |
-| [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
+| [`tests/test_extract.py`](test_extract.py) | `acb3766b2ecf` | L1–L294 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `f1379401cba7` | L1–L318 |

@@ -133,7 +133,7 @@ pending → closed → paid
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
 | [`app/refund_worker.py`](refund_worker.py) | `f6dd3bcf022e` | L1–L89 |
 | [`app/refunds.py`](refunds.py) | `6701c38ac7f2` | L1–L88 |
-| [`app/schemas.py`](schemas.py) | `cbeef376aa96` | L1–L153 |
+| [`app/schemas.py`](schemas.py) | `0c9ee37dce43` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
 | [`app/startup_checks.py`](startup_checks.py) | `cb2e081a4545` | L1–L160 |

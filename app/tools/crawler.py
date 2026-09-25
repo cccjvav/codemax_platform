@@ -71,11 +71,40 @@ class Page:
     html: str
 
 
+# NAT64 知名前缀（RFC 6052）。IANA 把它登记为「全球可达」，所以 `is_global` 为 True；
+# 可 IPv6-only 主机在 NAT64 网关（如云厂商 NAT 网关 + DNS64）后面时，网关会把
+# 64:ff9b::a00:1 翻译成 10.0.0.1 转发 —— 攻击者只要让自己的域名返回这样的 AAAA 记录，
+# 就能绕过公网校验打到内网（TD-282）。
+_NAT64 = ipaddress.ip_network("64:ff9b::/96")
+
+
+def _embedded_ipv4(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> list[ipaddress.IPv4Address]:
+    """IPv6 过渡地址里内嵌的 IPv4（映射 / NAT64 / 6to4 / Teredo / 已废弃的 IPv4 兼容 ::/96）。"""
+    if ip.version != 6:
+        return []
+    low = ipaddress.IPv4Address(int(ip) & 0xFFFFFFFF)
+    if ip.ipv4_mapped is not None:
+        return [ip.ipv4_mapped]
+    if ip in _NAT64 or int(ip) >> 32 == 0:   # 后者是 ::a.b.c.d（含 :: 与 ::1）
+        return [low]
+    if ip.sixtofour is not None:
+        return [ip.sixtofour]
+    if ip.teredo is not None:
+        return list(ip.teredo)
+    return []
+
+
+def _is_public(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    """地址本身全球可达且非组播，**并且**内嵌的每个 IPv4 也同样如此。"""
+    return all(a.is_global and not a.is_multicast for a in (ip, *_embedded_ipv4(ip)))
+
+
 async def assert_public_url(url: str) -> list[str]:
     """挡住 SSRF：只允许 http/https，且解析出来的**每一个**地址都必须是公网地址。
 
     用 `is_global` 一次覆盖私网 / 环回 / 链路本地 / 组播 / 保留段（含云厂商元数据
     地址 169.254.169.254）。域名可能解析出多个地址，所以逐个检查，不能只看第一个。
+    IPv6 过渡地址还要核对内嵌的 IPv4（`_is_public`）：NAT64 前缀本身算「全球可达」。
     """
     try:
         parsed = urlparse(url)
@@ -95,7 +124,7 @@ async def assert_public_url(url: str) -> list[str]:
         raise CrawlError(f"域名解析失败：{host}（{e}）") from e
     for info in infos:
         ip = ipaddress.ip_address(info[4][0])
-        if not ip.is_global or ip.is_multicast:
+        if not _is_public(ip):
             raise CrawlError(f"目标不是公网地址：{host} -> {ip}")
     addresses = list(dict.fromkeys(info[4][0] for info in infos))
     if not addresses:

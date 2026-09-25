@@ -118,6 +118,35 @@ async def test_every_resolved_address_is_checked(monkeypatch):
     assert "10.0.0.9" in str(e.value)
 
 
+@pytest.mark.parametrize(
+    "resolved",
+    [
+        "64:ff9b::a00:1",        # NAT64 → 10.0.0.1（is_global 为 True，旧实现放行）
+        "64:ff9b::a9fe:a9fe",    # NAT64 → 169.254.169.254 元数据
+        "64:ff9b::7f00:1",       # NAT64 → 127.0.0.1
+        "::7f00:1",              # 已废弃的 IPv4 兼容地址 ::127.0.0.1（旧实现放行）
+        "::ffff:10.0.0.1",       # IPv4 映射
+        "2002:a9fe:a9fe::1",     # 6to4 → 169.254.169.254
+    ],
+)
+async def test_ipv6_transition_addresses_embedding_private_ipv4_are_rejected(monkeypatch, resolved):
+    """TD-282：攻击者控制 DNS 时可以返回内嵌内网 IPv4 的 AAAA 记录；IPv6-only 主机经 NAT64 网关
+    出网时，64:ff9b::a00:1 会被翻译成 10.0.0.1。必须按内嵌的 IPv4 再判一次。"""
+    monkeypatch.setattr(socket, "getaddrinfo",
+                        lambda host, port: [(socket.AF_INET6, socket.SOCK_STREAM, 0, "", (resolved, port, 0, 0))])
+    with pytest.raises(CrawlError) as e:
+        await assert_public_url("http://aaaa.example/article")
+    assert "目标不是公网地址" in str(e.value)
+
+
+@pytest.mark.parametrize("resolved", ["64:ff9b::5db8:d822", "2606:4700::6810:84e5", "::ffff:93.184.216.34"])
+async def test_public_ipv6_including_nat64_of_public_ipv4_is_allowed(monkeypatch, resolved):
+    """反向：NAT64 到公网 IPv4（IPv6-only 主机正常出网的方式）与普通公网 IPv6 仍放行。"""
+    monkeypatch.setattr(socket, "getaddrinfo",
+                        lambda host, port: [(socket.AF_INET6, socket.SOCK_STREAM, 0, "", (resolved, port, 0, 0))])
+    assert await assert_public_url("http://aaaa.example/article") == [resolved]
+
+
 # ---------------------------------------------------------------- 抓取
 
 

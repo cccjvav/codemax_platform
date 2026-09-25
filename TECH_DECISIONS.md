@@ -792,3 +792,27 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **证据**：三条新/加强用例在改前均失败——`test_missing_product_file_404`（detail 不含 key、日志含 key）、`test_order_history_draws_qr_only_for_pending_rows`（只画 pending 一张）、`test_closed_order_page_shows_its_order_number`。真实 Chromium 390px：从「我的订单」点开一张关闭单，页面显示「订单 CM…」，axe 零违规、无横向溢出；该行历史响应 `qr_svg` 为 null。
 
 **代价与边界**：历史列表里非 pending 行的 `qr_svg` 恒为 null（字段保留，前端不读）；过期但仍是 pending 的单照旧返回码，与单查接口一致。无依赖/schema/接口路径变化。
+
+## TD-282：SSRF 公网判定核对 IPv6 过渡地址内嵌的 IPv4（第 3b 批复核）
+
+2026-09-26。基线 `ad6f924`（TD-281）。复核 `app/tools/crawler.py` / `browser.py` 的抓取安全边界：每跳重定向重新校验、`PublicTransport` 固定连到校验过的 IP（保留 SNI）、关闭 keepalive 与环境代理、重定向上限 10，这些复核后未发现问题。发现一处判定缺口。
+
+**问题**：`assert_public_url` 对每个解析结果只看 `is_global and not is_multicast`。Python 3.11 对 NAT64 知名前缀（RFC 6052，IANA 登记为全球可达）返回 `is_global=True`，于是 `64:ff9b::a00:1`（→ 10.0.0.1）、`64:ff9b::a9fe:a9fe`（→ 169.254.169.254 元数据）、`64:ff9b::7f00:1`（→ 127.0.0.1）都被放行；已废弃的 IPv4 兼容地址 `::7f00:1` 同样放行。服务器若是 IPv6-only、经 NAT64 + DNS64 出网（云厂商 NAT 网关常见），网关会把这些地址翻译成内网 IPv4 转发——攻击者只需让自己的域名返回这样的 AAAA 记录，就能绕过唯一的 SSRF 闸。当前部署是否 IPv6-only 无法从仓库判断，所以按「闸门本身要对」处理。
+
+**决定**：新增 `_embedded_ipv4`（IPv4 映射、NAT64 64:ff9b::/96、IPv4 兼容 ::/96、6to4、Teredo 服务器与客户端）与 `_is_public`（地址本身与内嵌的每个 IPv4 都要 `is_global` 且非组播）；`assert_public_url` 逐地址改用 `_is_public`。仍只有这一处判定（`browser.py` 与 schema 都复用它），`schemas.py` 的 `ArticleIngestIn` 说明同步。
+
+**证据**：`test_ipv6_transition_addresses_embedding_private_ipv4_are_rejected` 6 个参数中 4 个（三个 NAT64 与 `::7f00:1`）在改前放行、改后拒绝；IPv4 映射与 6to4 两个改前就被拒，作为回归保护。`test_public_ipv6_including_nat64_of_public_ipv4_is_allowed` 保证 NAT64 到公网 IPv4、普通公网 IPv6、映射公网 IPv4 仍可抓。
+
+**代价与边界**：RFC 8215 的本地 NAT64 前缀 64:ff9b:1::/48 在 Python 里不是 `is_global`，原判定就会拒绝；运营商自选的网络专用 NAT64 前缀无法从地址本身识别，未覆盖（这类部署需在网络层禁止出网到内网）。Teredo（2001::/32）本来就不是 `is_global`，那个分支只是纵深防御，没有单独用例。无依赖/schema/接口变化。
+
+## TD-283：文章解析的两次 BeautifulSoup 移出事件循环（第 3b 批复核）
+
+2026-09-26。基线 `ad6f924`。复核 `app/tools/extract.py` 与 `routers/admin.py` 时发现。
+
+**问题**：`parse_page` 同步调用 `to_skeleton(html)` 与 `extract_fields(html, selectors)`，两者都是整页 BeautifulSoup 解析。抓取上限 2 MB 的页面各要约 1.5 s 纯 Python 计算，全部跑在事件循环上。实测 1.5 MB 页面一次入库让事件循环最长停顿 **3063 ms**——期间全站请求（含 5 秒响应窗口的支付/退款回调）都不被处理。入口虽然仅限管理员并受 LLM 频率限流，但一次正常操作就足以卡住全站。
+
+**决定**：两次解析改为 `await run_cpu_bound(...)`，复用 Word 导出已有的有界 CPU 执行器（`app/cpu_pool.py`：单工作进程、全站最多 2 个在途任务、30 s 期限、进程池不可用时退化到线程池）。槽满或超时抛 `CPUQueueFull`，`ingest_article` 在 `BrowserUnavailable` 之前捕获，返回 503「页面解析任务繁忙，请稍后重试」+ `Retry-After: 5`，不写库。工作进程里的 `ExtractError` 原样传回，422/502 映射不变。
+
+**证据**：同一脚本改后最长停顿 **2 ms**，总耗时基本不变（约 3.1–3.2 s）。`test_parse_page_runs_both_soup_passes_outside_the_event_loop_process` 用模块级探针记录两次解析的 PID，要求都不是测试进程（改前失败）；`test_cpu_parse_slot_busy_maps_to_503_and_writes_nothing` 改前失败；`test_parse_page_propagates_extract_errors_from_the_worker` 保证错误传递。
+
+**代价与边界**：页面解析与 Word 导出共用 2 个任务槽，两者同时繁忙时后到者得 503；`CPUQueueFull` 自带的「导出任务繁忙」文案只在内部出现，两个路由各自给出面向用户的说明。HTML 与骨架需在进程间序列化（2 MB 级别，毫秒量级）。进程池退化为线程池时解析仍在本进程、受 GIL 影响，届时停顿问题会部分回来——与 Word 导出相同，已有日志告警。无依赖/schema/接口路径变化。

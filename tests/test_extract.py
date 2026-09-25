@@ -8,6 +8,11 @@ LLM 一律用假客户端（不打网络），抓取一律用 `httpx.MockTranspo
 2. **模型不听话时要报清楚的错**：返回非 JSON、造不存在的选择器、漏必需字段，
    都不能静默产出半截数据。
 """
+import json
+import os
+import tempfile
+from pathlib import Path
+
 import pytest
 import pytest_asyncio
 from sqlalchemy import select
@@ -21,6 +26,7 @@ from app.tools.extract import (
     extract_fields,
     identify_selectors,
     parse_article,
+    parse_page,
     save_article,
 )
 from app.tools.llm import LLMError
@@ -238,3 +244,51 @@ async def test_save_article_updates_same_url_instead_of_duplicating():
         rows = (await s.execute(select(Article))).scalars().all()
     assert len(rows) == 1
     assert rows[0].title == "新标题"
+
+
+# ---------------------------------------------------------------- TD-283：解析不占事件循环
+
+_PARSE_PID_FILE = Path(tempfile.gettempdir()) / f"codemax-parse-pids-{os.getpid()}.txt"
+
+
+def _spy_to_skeleton(html):
+    """顶层函数才能被 pickle 进子进程；记下实际运行的进程号再交给真实实现。"""
+    from app.tools.crawler import to_skeleton
+    with open(_PARSE_PID_FILE, "a", encoding="utf-8") as f:
+        f.write(f"skeleton {os.getpid()}\n")
+    return to_skeleton(html)
+
+
+def _spy_extract_fields(html, selectors):
+    from app.tools.extract import extract_fields as real
+    with open(_PARSE_PID_FILE, "a", encoding="utf-8") as f:
+        f.write(f"extract {os.getpid()}\n")
+    return real(html, selectors)
+
+
+async def test_parse_page_runs_both_soup_passes_outside_the_event_loop_process(monkeypatch):
+    """TD-283：上限 2 MB 的页面，骨架与提取各要约 1.5 s 纯 Python 计算；原先同步跑在事件循环上，
+    一次管理员入库能让全站（含 5 秒窗口的支付/退款回调）停 3 秒。两次解析都必须落在别的进程里
+    （线程池让不出 GIL，同 PID 也算失败，判据与 test_build_data_dictionary_runs_in_a_separate_process 相同）。"""
+    import app.tools.extract as extract_module
+    _PARSE_PID_FILE.unlink(missing_ok=True)
+    monkeypatch.setattr(extract_module, "to_skeleton", _spy_to_skeleton)
+    monkeypatch.setattr(extract_module, "extract_fields", _spy_extract_fields)
+    llm = FakeLLM(json.dumps(SELECTORS))
+    try:
+        article = await parse_page("https://blog.example.com/p/1", BLOG_HTML, llm=llm)
+        rows = [line.split() for line in _PARSE_PID_FILE.read_text(encoding="utf-8").splitlines()]
+    finally:
+        _PARSE_PID_FILE.unlink(missing_ok=True)
+    assert article.title == "毕业设计的开题报告怎么写"
+    assert sorted(kind for kind, _ in rows) == ["extract", "skeleton"], rows
+    assert all(int(pid) != os.getpid() for _, pid in rows), f"解析跑在事件循环所在进程 {os.getpid()}：{rows}"
+    assert "article" in llm.calls[0][1], "模型拿到的仍应是子进程算出的骨架"
+
+
+async def test_parse_page_propagates_extract_errors_from_the_worker():
+    """子进程里抛的 ExtractError 要原样回到调用方（路由据此返回 422，不能变成 500）。"""
+    with pytest.raises(ExtractError, match="匹配不到"):
+        await parse_page("https://blog.example.com/p/1", BLOG_HTML,
+                         llm=FakeLLM(json.dumps({**SELECTORS, "title": "h2.not-exist"})))
+

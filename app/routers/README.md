@@ -95,7 +95,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/routers/admin.py`](admin.py) | `d8cb7e968e0b` | L1–L86 |
+| [`app/routers/admin.py`](admin.py) | `6a6d47579bf1` | L1–L91 |
 | [`app/routers/auth.py`](auth.py) | `f95778c951b3` | L1–L142 |
 | [`app/routers/diagrams.py`](diagrams.py) | `225cdf41a311` | L1–L240 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
