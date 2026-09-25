@@ -312,7 +312,9 @@ document.getElementById("btn-download").onclick = async () => {
   const errEl = document.getElementById("d-error"); errEl.textContent = "";
   try {
     const res = await fetch(`/shop/download/${no}`, { method: "POST", credentials: "same-origin" });
-    const data = await res.json();
+    // 非 JSON 应答（反向代理的 502/504 HTML 页）不能变成「Unexpected token <」这种天书：
+    // 解析失败按 null 处理，交给下面的 errorText 给出「请求失败（502）」。
+    const data = await res.json().catch(() => null);
     if (stamp !== buySeq || no !== currentNo) return;
     if (window.CodeMaxAuth?.sessionExpired?.(res.status)) throw new Error("登录已过期，请重新登录后再领取");
     if (!res.ok) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || `下载失败（${res.status}）`);
@@ -326,7 +328,7 @@ async function loadHistory(more = false) {
   const stamp = buySeq, box = document.getElementById("order-history");
   try {
     const res = await fetch("/shop/orders" + (more && historyCursor ? `?before=${historyCursor}` : ""), { credentials: "same-origin" });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);   // 同上：代理错误页不是 JSON
     if (stamp !== buySeq) return;
     if (window.CodeMaxAuth?.sessionExpired?.(res.status)) throw new Error("登录已过期，请重新登录后查看订单");
     if (!res.ok || !Array.isArray(data?.orders)) throw new Error(window.CodeMaxAuth?.errorText(data, res.status) || "请登录后查看订单");

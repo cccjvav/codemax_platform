@@ -305,6 +305,18 @@ if(scenario.startsWith('close-')){
   await first;await el('review').onsubmit({preventDefault(){}});await tick();
   console.log(JSON.stringify({bodies:posts().map(x=>JSON.parse(x.options.body)),url:posts()[0].url,text:el('review-status').textContent}));
  }
+}else if(scenario==='empty-list'){
+ impl=async()=>({orders:[],next_cursor:null});
+ start();await tick();
+ const e=el('list-empty');
+ console.log(JSON.stringify({items:el('list').children.length,listText:el('list').textContent,emptyHidden:e.hidden,emptyText:e.textContent}));
+}else if(scenario==='detail-visibility'){
+ start();await tick();
+ const before={detail:el('detail').hidden,hint:el('detail-hint').hidden};
+ await clickOrder();
+ const selected={detail:el('detail').hidden,hint:el('detail-hint').hidden};
+ await auth.listener(null);await tick();
+ console.log(JSON.stringify({before,selected,after:{detail:el('detail').hidden,hint:el('detail-hint').hidden}}));
 }else if(scenario==='lost-response'){
  start();await tick();await clickOrder();input();
  impl=async(url,opt)=>{if(opt.method==='POST'){paid=true;throw Error('response lost')}return ledger('ORDER1')};
@@ -319,7 +331,8 @@ if(scenario.startsWith('close-')){
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
                                      'mutation-account-race', 'lost-response', 'query', 'binding',
-                                     'review-retry', 'review-stale', 'review-switch', 'review-filter'])
+                                     'review-retry', 'review-stale', 'review-switch', 'review-filter',
+                                     'empty-list', 'detail-visibility'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
                             text=True, capture_output=True, check=True, timeout=20)
@@ -345,6 +358,15 @@ def test_workbench_browser_logic(folder, scenario):
         else:
             assert data['url'] == '/shop/orders/ORDER1/legacy-binding'
             assert data['body'] == {'evidence': '已在银行核对', 'payment_mode': 'wechat', 'source_key': 'original/paid.zip'}
+    elif scenario == 'empty-list':
+        # TD-278：空结果提示写在列表**外**的 role=status 段落里。以前直接写进 <ul> 的 textContent，
+        # 读屏把它当成「没有列表项的列表」（axe-core `list`，serious 级，管理页实测命中）。
+        assert data == {'items': 0, 'listText': '', 'emptyHidden': False, 'emptyText': '没有匹配订单'}
+    elif scenario == 'detail-visibility':
+        # 选单前只显示提示、不显示十几个空凭证框；选单后反过来；换账号/退出回到提示。
+        assert data['before'] == {'detail': True, 'hint': False}
+        assert data['selected'] == {'detail': False, 'hint': True}
+        assert data['after'] == {'detail': True, 'hint': False}
     elif scenario == 'review-filter':
         assert 'bucket=reviewed' in data['urls'][1] and 'before=' not in data['urls'][1]
         assert 'before=100' in data['urls'][2]

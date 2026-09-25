@@ -29,6 +29,7 @@
     for (const id of inputs.filter((x) => x !== "order-no")) el(id).value = "";
     for (const id of ["contract", "receipt", "refund-receipt", "verification-view"]) el(id).textContent = "";
     el("title").textContent = "请选择订单"; el("events").replaceChildren();
+    el("detail").hidden = true; el("detail-hint").hidden = false;
     el("operations").hidden = true; el("older").hidden = true;
     el("refresh").disabled = true;
     for (const id of forms) el(`${id}-submit`).disabled = false;
@@ -36,7 +37,7 @@
   function reset(next) {
     epoch++; listSeq++; controller.abort(); controller = new AbortController();
     user = next?.role === 1 ? next : null;
-    clearDetail(); listCursor = null; el("list").replaceChildren();
+    clearDetail(); listCursor = null; el("list").replaceChildren(); el("list-empty").hidden = true;
     el("order-no").value = ""; el("bucket").value = "all"; el("mode").value = "manual";
     el("next").hidden = true; el("workspace").hidden = !user;
     el("login").hidden = !!user; message("");
@@ -67,7 +68,7 @@
     try {
       const data = await request(`/shop/admin/orders?${params}`);
       if (!alive(stamp) || serial !== listSeq) return;
-      el("list").replaceChildren();
+      el("list").replaceChildren(); el("list-empty").hidden = true;
       for (const row of data.orders) {
         const li = document.createElement("li"), button = document.createElement("button");
         button.type = "button";
@@ -78,7 +79,12 @@
         };
         li.append(button); el("list").append(li);
       }
-      if (!data.orders.length) el("list").textContent = data.next_cursor ? "本段候选暂无匹配，请点下一页继续（未到末页）" : "没有匹配订单";
+      // 空结果的提示放在列表外的 <p>：直接往 <ul> 里写文字违反列表结构（axe-core `list` 规则，serious），
+      // 读屏会把它当成一个没有列表项的列表。
+      if (!data.orders.length) {
+        el("list-empty").textContent = data.next_cursor ? "本段候选暂无匹配，请点下一页继续（未到末页）" : "没有匹配订单";
+        el("list-empty").hidden = false;
+      }
       listFilter = filter; listCursor = data.next_cursor; el("next").hidden = !listCursor;
     } catch (error) { if (serial === listSeq) report(error, stamp); }
   }
@@ -86,6 +92,7 @@
     if (!user || !selected || busy) return;
     const stamp = epoch, view = ++viewSeq, number = selected;
     const cursor = older ? eventCursor : null;
+    el("detail").hidden = false; el("detail-hint").hidden = true;
     el("operations").hidden = true; el("older").hidden = true; el("refresh").disabled = true;
     try {
       const data = await request(ledgerURL(number) + (cursor ? `?before=${cursor}` : ""));

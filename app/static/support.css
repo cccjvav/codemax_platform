@@ -10,3 +10,6 @@
 #support-messages small { display: block; color: #475569; }  /* TD-272：11.7px 的 #64748b 落在气泡底色上只有 4.34:1，
    低于 WCAG AA 的 4.5:1（axe-core 实测）；#475569 是 6.92:1，与站内次级正文同色。 */
 @media (max-width: 700px) { .support-layout.with-inbox { grid-template-columns: 1fr; } }
+/* 留言框用正文字体：base.html 给 textarea 的等宽字体是为 DDL/代码输入准备的，写中文留言不合适。
+   只改字体族、不改字号 —— 手机 16px 规则（base.html 末尾）照常生效。 */
+#support-body { font-family: inherit; line-height: 1.6; }

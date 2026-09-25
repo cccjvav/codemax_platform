@@ -25,15 +25,15 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `f3f574657810` | L1–L171 |
-| [`app/templates/drawio.html`](drawio.html) | `9ec605383589` | L1–L47 |
+| [`app/templates/base.html`](base.html) | `3104c491e94b` | L1–L187 |
+| [`app/templates/drawio.html`](drawio.html) | `1f33348a0b0f` | L1–L50 |
 | [`app/templates/er.html`](er.html) | `d48d4e3001c0` | L1–L26 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
 | [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
-| [`app/templates/mock_pay.html`](mock_pay.html) | `7ac2d4c38e64` | L1–L28 |
+| [`app/templates/mock_pay.html`](mock_pay.html) | `dd6aaa5ba764` | L1–L30 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `68f8647b9046` | L1–L157 |
-| [`app/templates/shop.html`](shop.html) | `8e96e730dfe8` | L1–L112 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `503e7d3cdec3` | L1–L165 |
+| [`app/templates/shop.html`](shop.html) | `1561b62290e7` | L1–L120 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -94,7 +94,7 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 真实 Chromium 复核（桌面 1366×900 / 手机 390×844、axe-core 4）暴露的问题与本次修改：
 
-- `base.html` 新增跳过导航链接（`<a class="skip" href="#main">` 与 `<main id="main">`）与站点图标 `<link rel="icon" href="/static/favicon.svg">`（此前每个页面都会多打一次 `/favicon.ico` 并 404）。顶栏「订单管理（管理员）」加了 `id="admin-entry"`，由 `auth.js` 在已登录且非管理员时隐藏；未登录保留，否则管理员找不到入口。**前端隐藏不是权限**，角色仍由 `require_admin` 读库判断。
+- `base.html` 新增跳过导航链接（`<a class="skip" href="#main">` 与 `<main id="main">`）与站点图标 `<link rel="icon" href="/static/favicon.svg">`（此前每个页面都会多打一次 `/favicon.ico` 并 404）。顶栏「订单管理（管理员）」加了 `id="admin-entry"`，**默认 `hidden`**，只有 `auth.js` 确认 `role === 1` 才显示（TD-272 追加；页脚另有常驻入口，管理员登录前也找得到）。**前端隐藏不是权限**，角色仍由 `require_admin` 读库判断。
 - 表单控件字体：`button, input, select, textarea { font: inherit }` —— 浏览器默认的 13.33px Arial 比正文小一号且字体不一致；窄屏另有 16px 覆盖，避免 iOS Safari 在输入框聚焦时放大整页。窄屏导航与页脚链接加内边距，命中区从 21–24px 提到 ≥24px（WCAG 2.2 AA）。
 - 页面标题层级：整站每页**一个** `<h1>`（顶栏站点名）。`er.html`/`mermaid.html`/`drawio.html` 渲染 `page_heading`（值来自 `Tool.title`，由 `routers/site.py` 注入；首页为空）。`payments-admin.html` 的 `<h1>` 降为 `<h2 class="finance-heading">`，字号由 CSS 保持。
 - 订单管理页：`.finance` 在窄屏去掉外层内边距与 section 内边距，`#finance-title`/`#finance-list button` 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；只读凭证并入 `<details class="finance-readonly" open>`（默认展开，折叠只是减少滚动）；`finance-refund-send`/`finance-refund-stop` 两个真实资金动作加 `.danger` 红框，与只读信息区分。
@@ -103,3 +103,16 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 - `shop.html` 主按钮下新增 `#buy-note`（默认 `hidden`，脚本写已购说明）；FAQ 增加「已经买过一次，还能再买吗？」——同一商品不重复购买，但**全额退款后按钮会恢复为「立即购买」**，模板文案与 `shop-page.js` 的判定必须一致。
 - `mock_pay.html` 的「返回商城查看订单」链接改为 `{{ shop_path }}?order={{ order_no | urlencode }}`。原因：`/shop` 响应带 `no-store`（全局中间件），Chromium 拒绝入 bfcache，返回时是全新加载、`currentNo` 为 null —— 不带单号就只能落回落地页，用户刚付完款却看不到自己的订单。没带单号时不拼空的 `?order=`。
+
+## 2026-09-25 顶栏两行、输入框字号真正生效与页面结构（TD-278）
+
+真实 Chromium（桌面 1366×900 / 手机 390×844、Noto Sans SC、axe-core 4）复核后修改：
+
+- **顶栏**：「站内客服 / 订单管理（管理员）/ 商品」从 `.actions` 移进 `<nav aria-label="站点导航">`；桌面用 `.nav-end { margin-left: auto }` 把它们推到右侧（视觉不变），`.actions` 只剩登录/退出控件。≤900px 时 `header` 改为两列 grid：第一行站点名 + 登录态，第二行整组导航 `nowrap` 横向滚动。手机顶栏高度 189px（管理员更高）→ 88px。
+- **手机 16px 输入框**：TD-272 的规则写在样式表中段，被后面的 `textarea { font: 13px … }` 和特异性更高的 `.modal input { font: inherit }` 盖掉，实测登录框、客服留言框、DDL 框全是 13px。现在它是 `base.html` 样式表的**最后一条**并点名 `.modal input`；页面模板自己的 `<style>` 不许再给输入控件写 `font`/`font-size`（`drawio.html` 工具条的 `font: inherit` 已删，测试钉住）。
+- `.page-heading`（20px）移到 `base.html`，三个工具页标题一致（此前只有 drawio 自己定义，ER/Mermaid 落回浏览器默认 h2）。
+- `shop.html`：「我的订单」移到所有状态区**之后**。付完款回到 `/shop`，此前「我的订单」排在「支付成功」上面，h3 也先于状态区 h2（axe `heading-order`）。
+- `drawio.html`：「云端保存需登录：[登录 / 注册]」包进 `#drawio-login-prompt`，登录后由脚本整段隐藏（此前与「已登录，可保存到云端」同时出现）。
+- `payments-admin.html`：列表空结果写进列表外的 `#finance-list-empty`（`role="status"`）——往 `<ul>` 里直接写字命中 axe `list`（serious）；选单前只显示 `#finance-detail-hint`，合同/凭证/操作全部包在默认 `hidden` 的 `#finance-detail` 里；`.finance pre:empty` 不画空框。
+- `mock_pay.html`：页内标题 `h1` → `h2.mock-title`，恢复整站每页一个 h1（单 h1 测试现在也覆盖这页）。
+

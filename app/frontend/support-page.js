@@ -44,7 +44,14 @@
     el("messages").replaceChildren(); el("body").value = ""; el("error").textContent = "";
     el("send").disabled = false; el("older").hidden = true;
   }
+  // 消息区有最大高度并自带滚动条。追加新消息时，如果用户本来就停在底部（或这是第一屏），
+  // 就把视图带到最新一条；用户正往上翻旧消息时不打断他。此前新回复到达后停在原处，
+  // 管理员的回复常常落在可视区之外，看起来像「没有收到」。
+  function nearBottom(box) {
+    return !box.scrollHeight || box.scrollHeight - box.scrollTop - box.clientHeight < 48;
+  }
   function render(rows, prepend = false) {
+    const box = el("messages"), stick = !prepend && nearBottom(box);
     const nodes = [];
     for (const row of rows) {
       if (seen.has(row.id)) continue;
@@ -55,7 +62,8 @@
       const text = document.createElement("div"); text.textContent = row.body;
       li.append(meta, text); nodes.push(li);
     }
-    if (prepend) el("messages").prepend(...nodes); else el("messages").append(...nodes);
+    if (prepend) box.prepend(...nodes); else box.append(...nodes);
+    if (stick && nodes.length && typeof box.scrollHeight === "number") box.scrollTop = box.scrollHeight;
   }
   async function poll() {
     if (!currentUser || polling) return;

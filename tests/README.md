@@ -67,7 +67,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f697c9b6d36a` | L1–L179 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `bcb6bbe584a2` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
-| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `dfdda98099dc` | L1–L374 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `7f453e412ec9` | L1–L378 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `44aa17391233` | L1–L263 |
 | [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f7fb58420a6c` | L1–L164 |
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
@@ -82,7 +82,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `8e1372f4d8f5` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `08d17b62423a` | L1–L473 |
 | [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
-| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `5c713f8fe00c` | L1–L214 |
+| [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
@@ -105,7 +105,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `873ff3bbbb65` | L1–L271 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `00807849f853` | L1–L569 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `273dc1b88cd5` | L1–L591 |
 | [`tests/test_perf.py`](test_perf.py) | `75404eeca36d` | L1–L360 |
 | [`tests/test_politeness.py`](test_politeness.py) | `0f7c2d0cf8ae` | L1–L417 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
@@ -124,7 +124,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_equivalence.py`](test_schema_equivalence.py) | `763478f8979b` | L1–L219 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
-| [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `642952b432cc` | L1–L86 |
+| [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `800cc9a7fe0d` | L1–L104 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `956df70a0124` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `c5a8fc0ef6a2` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
@@ -135,7 +135,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `6a3c2415237c` | L1–L375 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `fa4ad9a061cd` | L1–L431 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -305,3 +305,14 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-24 限流补齐（TD-275 / 复核 N-02）
 
 `test_ratelimit.py` 新增一组：把 `RATE_LIMIT_DIAGRAM_WRITES` 调到 2，断言 `POST /diagrams`、`PUT /diagrams/{id}` **共用**同一个写入桶（第三次写入 429、Retry-After 是数字、文案含「频繁」）且读取（列表/打开）不受影响；把 `RATE_LIMIT_REGISTER_DAILY` 调到 2，断言第三次注册 429、文案说明是每日注册上限、Retry-After 大于 60 秒；另有两条按对端地址换身份的用例（同一 IP 用尽后另一个 IP 仍可注册/写入，IPv6 同 /64 共用配额）。这些用例在旧路由上先红。每日桶表独立于主桶表，所以另有一条断言：注册每日配额用尽后工具接口仍 200。
+
+## 2026-09-25 真实浏览器复核回归（TD-278）
+
+- `test_ui_accessibility.py`：`test_mobile_inputs_avoid_ios_zoom` 重写 —— 原来只查规则字符串存在，而规则实际被覆盖；现在钉住「16px 规则是 base 样式表最后一条、点名 `.modal input`」与「其他模板的 `<style>` 不给输入控件写 font」两个层叠前提。命中区用例的选择器随顶栏结构去掉 `.actions a`（顶栏右侧已无链接）。新增窄屏两行顶栏结构、shop 状态区先于「我的订单」、drawio 登录提示可整段切换；单 h1 渲染用例加入客服页、商店页与模拟收银台（`mock_mode` fixture）。
+- `test_payments_frontend.py`：HARNESS 增 `empty-list` 与 `detail-visibility` 场景。
+- `test_drawio_auth_state.py`：认证顺序用例同时断言 `#drawio-login-prompt` 在首屏/登录后/退出后的显隐。
+- `test_auth_cookie.py`：Node 登录用例断言登录后密码框被清空、用户名保留。
+- `test_second_frontend_regressions.py`：`support-scroll` 场景验证新消息的自动滚动与不打断阅读。
+
+所有新增/改写断言都在改前的模板或脚本上失败（先红后绿），没有删除或放宽既有断言：被替换的两条字符串断言由更强的层叠/结构断言接替。
+

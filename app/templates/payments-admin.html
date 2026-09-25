@@ -18,6 +18,9 @@
      `overflow-wrap:anywhere` 让长标识在任意位置换行，而不是把布局顶开。 */
   .finance .finance-heading, #finance-title, #finance-list button { overflow-wrap:anywhere; }
   #finance-list { list-style:none; padding:0; }
+  .finance-hint { color:#475569; }
+  /* 没有内容的只读框不画空边框（例如订单尚无退款通知时）；有文字时照常显示 */
+  .finance pre:empty { display:none; }
   #finance-list button { text-align:left; width:100%; }
   /* 只读凭证默认展开：它们是操作前的核对材料，不该被藏起来；折叠只是给操作员减少滚动。
      危险操作（真实发送 / 停止）加红框，与只读信息区分开。 */
@@ -48,10 +51,14 @@
 <button type="submit">查询 / 刷新</button>
 </form>
 <ul id="finance-list"></ul>
+<p id="finance-list-empty" class="finance-hint" role="status" hidden></p>
 <button id="finance-next" type="button" hidden>下一页订单</button>
 </section>
 <section>
 <h2 id="finance-title">请选择订单</h2>
+<p id="finance-detail-hint" class="finance-hint">从订单列表（手机上在上方）选择一张订单后，这里显示合同、凭证与当前可用的操作。</p>
+{# 选单前整块隐藏：此前十几个空的 <pre> 框与「刷新此单记录」禁用按钮叠成一列，看起来像加载失败。 #}
+<div id="finance-detail" hidden>
 <pre id="finance-contract"></pre>
 <p><a href="/support/center">打开站内客服，按客户账号联系</a></p>
 <button id="finance-refresh" type="button" disabled>刷新此单记录</button>
@@ -150,6 +157,7 @@
 <h3>操作 / 尝试记录（每页最多50条，最新在前）</h3>
 <p>started 没有后续结果表示进程可能中断，仍需核查；有异常记录不是异常已结案。</p>
 <ul id="finance-events"></ul><button id="finance-older" type="button" hidden>更早的记录</button>
+</div>
 </section>
 </div>
 </div>

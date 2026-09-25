@@ -137,6 +137,9 @@ window.CodeMaxAuth = (function () {
         err.textContent = errorText(await res.json().catch(() => null), res.status);
         return;
       }
+      // 登录成功就清掉密码框：浮层只是被隐藏、DOM 仍在，否则明文密码会一直留在页面里，
+      // 下次（例如退出后）打开浮层还原样填着上一个人的密码。用户名保留，方便同一账号重登。
+      document.getElementById("auth-pass").value = "";
       await refresh();
       close();
     } catch (ex) {

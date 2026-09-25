@@ -46,16 +46,16 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `017009249638` | L1–L200 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `28d7fa39f787` | L1–L198 |
+| [`app/frontend/auth.js`](auth.js) | `e390f2c40994` | L1–L203 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `240ada1a59cf` | L1–L201 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
 | [`app/frontend/er-page.js`](er-page.js) | `5fbfafa54c86` | L1–L165 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `14cc54fcc3c9` | L1–L87 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `e9575b6df56e` | L1–L329 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `ca708fccc40c` | L1–L368 |
-| [`app/frontend/support-page.js`](support-page.js) | `dfa82468ebf0` | L1–L138 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `e170a861138c` | L1–L370 |
+| [`app/frontend/support-page.js`](support-page.js) | `ffb34cd74bbd` | L1–L146 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -156,3 +156,14 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - 返回恢复：`bootstrap()` 只跑一次 —— 先认 `?order=CM…`（收银台返回链接带的单号，正则限定字符集），再 `restoreLatest()`。`restoreLatest()` 的顺序是**已购优先**：最新一张就是已购单就直接显示该单（刚付完款返回商城时不用等轮询），否则有已购权益就只换按钮（更晚的未付款单不再诱导付款），都没有才恢复未过期的待支付单并重新起轮询；**过期单不恢复**。`fetchOrder()` 用 `undefined`/`null` 区分「这单不存在」与「暂时读不到（未登录/网络）」，后者留给下一次身份变化。
 - 账号隔离：身份变化时 `resetPrimary()` + `restored = false`，再对新身份 `bootstrap()`；`userActed` 保证用户点过购买/取消/历史订单后自动恢复不再介入，不和页面内的操作抢状态。
 - 主按钮的还原值 `BUY_TEXT` 在加载时从服务端渲染的按钮文案里取（价格来自配置），退款单被排除在权益之外 —— 全额退款后按钮必须回到「立即购买」，否则退完款就再也买不了。
+
+## 2026-09-25：真实浏览器复核的交互修正（TD-278）
+
+- `auth.js`：登录成功后清空 `#auth-pass`（浮层只是隐藏，DOM 仍在；否则明文密码留在页面里，退出后再打开还原样填着）。用户名保留。
+- `drawio-page.js`：`syncAuth` 切换 `#drawio-login-prompt` —— 已登录隐藏「云端保存需登录」整段，访客或会话到期后重新出现。
+- `payments-admin.js`：空结果写 `#finance-list-empty` 而不是 `<ul>` 的 textContent；`detail()` 显示 `#finance-detail`、`clearDetail()` 隐藏它并恢复提示段落。
+- `shop-page.js`：下载与历史订单的 `res.json()` 加 `.catch(() => null)`，反向代理 502/504 的 HTML 页不再显示成「Unexpected token <」。
+- `support-page.js`：追加新消息时，如果用户停在底部（或首屏）就滚到最新一条；正往上翻旧消息时不打断。
+
+验证：`tests/test_auth_cookie.py`、`test_drawio_auth_state.py`、`test_payments_frontend.py`（empty-list / detail-visibility）、`test_second_frontend_regressions.py`（support-scroll）对源码与 `app/static/js` 产物各跑一遍，改前均失败。
+

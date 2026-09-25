@@ -721,3 +721,20 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 证据：`grep -rn "01a0cdc6\|01a0bf7a"` 在现行文档/Skill/工作流里只剩 `HANDOVER.md` 首段一处（其余命中为历史记录、TD-271/277 决策原文与上一次会话的记录）；`tests/test_agnes_integration.py` 与新断言在旧工作流上先红（旧值 `01a0bf7a`）；YAML 用 `yaml.BaseLoader` 解析确认 `on.push` 仍只有 `branches` 与 `paths` 两个键。
 
 代价与边界：`arena/*` 只覆盖本仓库的会话分支命名约定；若将来出现别的分支前缀（例如 `fix/…`），Agnes 的 push 触发不再覆盖，需要重新评估。Windows 指南多了一行 `set`（换来的是仓库里少 4 处每会话都要改的字面值）。历史文档（`review/`、`docs/SECOND_REPAIR_ACCEPTANCE.md`、`manager/experience.md` 的旧记录）按"历史快照"保留原值，不改写成当前分支。
+
+## TD-278：真实浏览器复核后的 UI 修正——顶栏两行、手机 16px 真正生效、页面结构与空状态（V-04 续）
+
+2026-09-25。基线 `69265e1`（TD-277 后续）。新接手会话（分支 `arena/01a0da70-codemax-platform`，从 `arena/01a0cdc6-codemax-platform` 同一 tip 分出）先用真实 Chromium（@sparticuz/chromium + Noto Sans SC，桌面 1366×900 / 手机 390×844，axe-core 4）对匿名、普通用户、管理员三种身份走遍全部页面和一次完整模拟购买，再动手。**本批不改依赖、schema、后端接口或业务规则**，只改模板、前端脚本与样式。
+
+**发现与决定**：
+- **TD-272 的手机 16px 输入框规则从未生效。** 它写在样式表中段，被后面的 `textarea { font: 13px … }` 与特异性更高的 `.modal input { font: inherit }` 盖掉；390px 实测登录框、客服留言框、DDL 输入框全是 13px（iOS 聚焦会放大整页）。原测试只查规则字符串存在，所以一直是绿的。决定：规则移到 `base.html` 样式表**最后**并点名 `.modal input`，测试改为钉住层叠结果的前提（最后一条 + 其他模板 `<style>` 不给输入控件写 font）；`drawio.html` 工具条的 `font: inherit` 删掉。改后实测四个输入框都是 16px。
+- **手机顶栏 189px（管理员 230px 以上），约占首屏四分之一。** TD-272 记录的 147px 是在无 CJK 字体环境测的。决定：客服/管理员入口/商品链接移进 `nav`（桌面 `.nav-end` 推到右侧，视觉与原来一致），`.actions` 只剩登录态；≤900px 改为两行 grid（站点名 + 登录态 / 整组导航横向滚动）。实测 88px，所有页面都没有横向溢出。**没有选择**汉堡菜单：需要新的开合状态与焦点管理脚本，而导航项只有 6 个，横向滚动足够且零脚本。
+- **付款后「我的订单」排在「支付成功」上面**（390px 实测 top 218 vs 268），h3 先于状态区 h2 触发 axe `heading-order`。决定：历史区移到所有状态区之后。
+- **Drawio 已登录仍显示「云端保存需登录：[登录 / 注册]」**，紧挨着「已登录，可保存到云端」。决定：提示与按钮包进 `#drawio-login-prompt`，`syncAuth` 整段切换；到期后重新出现。
+- **订单管理页**：空结果直接写进 `<ul>` 命中 axe `list`（serious）；选单前十几个空 `<pre>` 与禁用按钮叠成一列，像加载失败。决定：空结果写进列表外 `role="status"` 段落；详情包进默认 hidden 的 `#finance-detail`，选单前只显示一句提示；`pre:empty` 不画框。
+- 其余小项：`mock_pay.html` 第二个 h1 → h2（单 h1 测试现在覆盖这页、客服页和商店页）；`.page-heading` 移到 `base.html`（ER/Mermaid 页此前是浏览器默认 h2）；登录成功清空密码框；客服新消息在用户停留底部时自动滚到最新、正在翻旧消息时不打断；客服留言框用正文字体；`shop-page.js` 两处 `res.json()` 容忍代理错误页。
+
+**证据**：新增或改写的用例/场景 11 处，全部在改前的模板或脚本上失败（`git stash` 复验），改后通过；真实浏览器改后复测：32 个页面×身份组合 axe 零违规、零横向溢出，手机顶栏 88px，模拟购买回到 /shop 时「支付成功」top 100、「我的订单」top 475。
+
+**代价与边界**：两条原有字符串断言（16px 规则文本、命中区选择器含 `.actions a`）被替换为更强的结构断言，没有删除或放宽任何检查；替换原因写在测试 docstring。手机导航第二行需要横向滑动才能看到后几项（「站内客服 / 商品」在最右），滚动条保持可见（`scrollbar-width: thin`）作为可滚提示；如果将来导航项继续增加，应重新评估折叠菜单。ER 图节点溢出/连线穿越（V-04 剩余部分）不在本批，单独一批重写布局。截图与 axe 结果来自本地沙箱，不等于 iOS Safari 真机签收。
+

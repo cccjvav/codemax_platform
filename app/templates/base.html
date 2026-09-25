@@ -25,12 +25,19 @@
       /* 颜色对比度按 WCAG AA（4.5:1）取值，见 TD-263：蓝 #2563eb 5.17:1、绿 #15803d 5.02:1、灰 #64748b 4.76:1 */
       a { color: #2563eb; text-decoration: none; }
       header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
-      header h1 { margin: 0; font-size: 18px; }
-      nav { display: flex; gap: 14px; flex-wrap: wrap; }
-      /* 顶栏右侧的动作区：靠 margin-left:auto 推到最右，窄屏会自然换行 */
-      .actions { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-      .actions .who { color: #64748b; }
+      header h1 { margin: 0; font-size: 18px; white-space: nowrap; }
+      /* 站点导航：工具在左，「站内客服 / 管理员入口 / 商品」由 .nav-end 推到右侧（桌面视觉与改版前一致）。
+         它们与工具链接放在同一个 nav 里，是为了窄屏能把整组收进一行横向滚动（见下方媒体查询）。 */
+      nav { display: flex; gap: 14px; flex-wrap: wrap; flex: 1 1 auto; align-items: center; }
+      nav .nav-end { margin-left: auto; }
+      nav .cta-link { color: #15803d; font-weight: 600; }  /* 商品入口：绿 #15803d 在白底 5.02:1（TD-263） */
+      /* 顶栏右侧只剩登录态控件 */
+      .actions { display: flex; gap: 8px; align-items: center; }
+      .actions .who { color: #64748b; max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       main { padding: 16px 24px; flex: 1; }
+      /* 各页可见的页面级标题（TD-272）。此前只有 drawio.html 自己写了这条样式，
+         ER / Mermaid 页落回浏览器默认 h2（约 21px + 大外边距），三个工具页标题大小不一。 */
+      .page-heading { margin: 0 0 10px; font-size: 20px; }
       /* 跳过导航（WCAG 2.4.1）：键盘/读屏用户不必每次穿过顶栏与页脚导航。
          视觉上隐藏，聚焦时才出现 —— 用绝对定位而不是 display:none，后者收不到焦点。 */
       .skip { position: absolute; left: -9999px; top: 0; background: #fff; border: 1px solid #2563eb;
@@ -39,26 +46,25 @@
       /* 触控目标：窄屏导航与页脚链接此前只有 21–24px 高，低于 WCAG 2.2 AA 的 24×24，
          更远低于移动端常用的 44px。给内边距而不是放大字号，视觉不变、命中区变大。 */
       @media (max-width: 900px) {
-        header { padding: 10px 14px; gap: 10px; }
         main { padding: 12px 14px; }
-        nav, .actions { gap: 6px 10px; }
-        header nav a, .actions a, footer .fnav a { display: inline-block; padding: 8px 4px; }
-        /* 手机端顶栏原来高 208px（约占首屏 25%）：三行导航 + 单独一行「登录/注册」。
-           收窄间距后再允许导航横向滚动一行，顶栏回落到 ~100px。 */
-        header nav { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
+        header nav a, footer .fnav a { display: inline-block; padding: 8px 4px; }
+        /* 窄屏顶栏两行：第一行「站点名 + 登录态」，第二行整组导航横向滚动。
+           改版前是三～四行（站点名 / 导航 / 客服·商品·登录各占一行），真实 CJK 字体下 390px 宽实测
+           189px（管理员 230px 以上），约占首屏四分之一；改为网格后约 100px。 */
+        header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 8px 14px 0; }
+        header h1 { grid-column: 1; grid-row: 1; overflow: hidden; text-overflow: ellipsis; }
+        .actions { grid-column: 2; grid-row: 1; }
+        header nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto; gap: 6px 12px;
+                     -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
         header nav a { white-space: nowrap; }
-      }
-      /* 手机端输入框字号必须 ≥16px：iOS Safari 在更小的字号上聚焦时会自动放大整页，
-         放大后布局错乱且不会自动缩回。桌面端保持原字号。 */
-      @media (max-width: 700px) {
-        input, select, textarea { font-size: 16px; }
+        nav .nav-end { margin-left: 0; }
       }
       footer { border-top: 1px solid #e2e8f0; padding: 14px 24px; color: #64748b; font-size: 13px; }
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
       /* details 的折叠标题同样可点：窄屏实测 22px 高，低于 WCAG 2.2 AA 的 24×24。 */
       summary { padding: 6px 0; }
       .split { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
-      textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: 13px/1.5 ui-monospace, Consolas, monospace; }
+      textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
       /* 表单控件默认字体是浏览器给的 13.33px Arial：比正文小一号且与全站字体不一致。
          `font: inherit` 让按钮/输入框跟随所在容器（正文 14px、.modal 13px 等）。 */
       button, input, select, textarea { font: inherit; }
@@ -97,28 +103,38 @@
       .modal .hint { color: #64748b; font-size: 12px; margin: -6px 0 10px; }
       .modal .row { display: flex; gap: 8px; align-items: center; }
       @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+      /* 手机端输入框字号必须 ≥16px：iOS Safari 在更小的字号上聚焦时会自动放大整页，
+         放大后布局错乱且不会自动缩回。桌面端保持原字号。
+         ⚠️ 这条必须留在样式表**最后**、并显式点名 `.modal input`：它曾写在中段，结果被后面的
+         `textarea { font: 13px … }` 与特异性更高的 `.modal input { font: inherit }` 盖掉，
+         真实 Chromium 390px 实测登录框、客服留言框、DDL 输入框全是 13px（规则形同虚设）。 */
+      @media (max-width: 700px) {
+        input, select, textarea, .modal input { font-size: 16px; }
+      }
     </style>
   </head>
   <body>
     <a class="skip" href="#main">跳到主内容</a>
     <header>
       <h1><a href="/">{{ site_name }}</a></h1>
-      <nav aria-label="工具导航">{% for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}</nav>
-      <div class="actions">
-        <a href="/support/center">站内客服</a>
+      <nav aria-label="站点导航">
+        {%- for t in tools %}<a href="{{ t.path }}">{{ t.title }}</a>{% endfor %}
+        <a class="nav-end" href="/support/center">站内客服</a>
         {# 管理员入口（顶栏）：默认 hidden，只有登录后确认 role == 1 才由 auth.js 显示 ——
            对访客与普通用户它是死链接（点进去只显示「请使用管理员账号登录」），是纯噪音。
            页脚保留一个常驻入口（不标 id、不参与显隐），否则管理员在登录前找不到它。 #}
         <a id="admin-entry" href="/admin/payments" hidden>订单管理（管理员）</a>
         <a class="cta-link" href="{{ shop_path }}">{{ product_name }}</a>
-        {# auth_ui 为假的页面（OAuth 同意页）不渲染登录控件也不加载脚本 ——
-           那页必须零脚本，见 tests/test_oauth_consent.py #}
-        {% if auth_ui %}
+      </nav>
+      {# auth_ui 为假的页面（OAuth 同意页）不渲染登录控件也不加载脚本 ——
+         那页必须零脚本，见 tests/test_oauth_consent.py #}
+      {% if auth_ui %}
+      <div class="actions">
         <span class="who" id="auth-who" hidden></span>
         <button type="button" class="ghost" id="btn-auth">登录 / 注册</button>
         <button type="button" class="ghost" id="btn-logout" hidden>退出</button>
-        {% endif %}
       </div>
+      {% endif %}
     </header>
     <!-- ⚠️ 浮层与共享脚本必须在 main 之前：
          页面脚本（写在 content block 里）在文档顺序上先执行，

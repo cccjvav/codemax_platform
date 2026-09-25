@@ -139,6 +139,9 @@
   async function syncAuth(user, reason) {
     const next = user?.username || null;
     loggedIn = !!user; authStatus.textContent = user ? "已登录，可保存到云端" : "未登录，图只能在本地画";
+    // 已登录就不再显示「云端保存需登录：[登录 / 注册]」—— 那句提示与上一行的状态自相矛盾。
+    // 会话到期（reason === "expired"）时 user 为 null，提示会重新出现，正好引导重新登录。
+    const prompt = document.getElementById("drawio-login-prompt"); if (prompt) prompt.hidden = !!user;
     // 会话到期（不是主动退出）：身份没变、图和版本还是同一个人的，只是凭证过期。
     // 此时重建编辑器等于把用户没保存的图丢掉（TD-271 复核的 N-01）；只提示、不清空、不重建。
     // 重新登录同一账号后 identity 仍是原值，可以直接接着保存；换成别的账号则走下面的完整重置。

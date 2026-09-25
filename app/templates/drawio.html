@@ -1,10 +1,11 @@
 {% extends "base.html" %}
 {% block content %}
 <style>
-  .page-heading { margin: 0 0 10px; font-size: 20px; }
   .toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
   .toolbar input[type="text"], .toolbar input[type="password"], .toolbar select {
-    padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px; font: inherit;
+    /* 字体已由 base.html 的 `button, input, select, textarea { font: inherit }` 统一；这里再写 font
+       会以更高特异性盖掉 base 末尾的手机 16px 规则（iOS 聚焦放大）。 */
+    padding: 5px 8px; border: 1px solid #cbd5e1; border-radius: 6px;
   }
   #drawio-frame { width: 100%; height: 74vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
   #drawio-status { color: #64748b; }
@@ -19,8 +20,10 @@
      ② 与顶栏的登录入口重复，两处状态还各管各的，容易一个显示已登录另一个没显示。
      现在登录/退出都在顶栏，本页只保留一个唤起浮层的按钮 + 状态提示。 -->
 <div class="auth">
-  <span>云端保存需登录：</span>
-  <button type="button" class="ghost" id="btn-login">登录 / 注册</button>
+  {# 登录后整段提示连同按钮一起隐藏（drawio-page.js 的 syncAuth 切换）：此前已登录用户仍看到
+     「云端保存需登录：[登录 / 注册]」紧挨着「已登录，可保存到云端」，两句话互相矛盾。 #}
+  <span id="drawio-login-prompt"><span>云端保存需登录：</span>
+  <button type="button" class="ghost" id="btn-login">登录 / 注册</button></span>
   <span id="auth-status"></span>
 </div>
 

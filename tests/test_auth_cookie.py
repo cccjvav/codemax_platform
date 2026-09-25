@@ -79,7 +79,7 @@ process.on("unhandledRejection", (e) => { console.error("UNHANDLED " + e.message
   // id 也从 login-user/login-pass 改成了 auth-user/auth-pass。
   await byId("auth-form").onsubmit({ preventDefault() {} });
   await new Promise((r) => setTimeout(r, 80));
-  console.log(JSON.stringify(calls));
+  console.log(JSON.stringify({ calls, user: byId("auth-user").value, pass: byId("auth-pass").value }));
 })();
 """
 
@@ -297,7 +297,11 @@ async def test_drawio_frontend_runs_without_browser_storage(client, tmp_path):
     script.write_text(_script_with_login(page_js, auth_js), encoding="utf-8")
     proc = subprocess.run(["node", str(harness), str(script)], capture_output=True, text=True, timeout=30)
     assert proc.returncode == 0, f"前端脚本执行失败：\n{proc.stdout}\n{proc.stderr}"
-    calls = json.loads(proc.stdout.strip().splitlines()[-1])
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    calls = out["calls"]
+    # TD-278：登录成功后清空密码框。浮层只是隐藏、DOM 还在，否则明文密码一直留在页面里，
+    # 退出后再打开浮层还原样填着。用户名保留，方便同一账号重登。
+    assert out["pass"] == "" and out["user"] == "alice"
 
     assert any(c["url"] == "/auth/me" for c in calls), \
         "进页面应该问后端要登录态，而不是靠读存储判断"

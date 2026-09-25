@@ -49,6 +49,21 @@ if(scenario==='support-privacy'){
   await get('support-form').onsubmit({preventDefault(){}});await tick();
   console.log(JSON.stringify({payloads:requests.filter(r=>r.options.method==='POST').map(r=>JSON.parse(r.options.body)),
     messages:get('support-messages').children.map(n=>n.children[1].textContent)}));
+}else if(scenario==='support-scroll'){
+  // 消息框桩：每条 100px 高、可视 200px，scrollHeight 随条数增长 —— 足够判断「是否被带到底部」。
+  const box=get('support-messages');
+  Object.defineProperty(box,'scrollHeight',{get(){return this.children.length*100}});
+  box.clientHeight=200; box.scrollTop=0;
+  let id=0;const row=()=>({id:++id,body:'m'+id,sender_role:1,create_time:'2026-09-12T00:00:00Z'});
+  let batch=[row(),row(),row(),row(),row()];
+  fetchImpl=async(url,opt)=>{if(opt.method==='POST')return {id:999};const out=batch;batch=[];return out};
+  const send=async()=>{get('support-body').value='x'+id;await get('support-form').onsubmit({preventDefault(){}});await tick()};
+  start();await tick();
+  const first=box.scrollTop;                       // 首屏：带到最新
+  box.scrollTop=0; batch=[row()]; await send();    // 用户在翻旧消息：不打断
+  const reading=box.scrollTop;
+  box.scrollTop=box.scrollHeight-box.clientHeight; batch=[row()]; await send();   // 停在底部：跟随
+  console.log(JSON.stringify({first,reading,following:box.scrollTop,height:box.scrollHeight}));
 }else if(scenario==='drawio-export'){
   fetchImpl=async(url,opt)=>opt.method==='POST'?{id:10}:[];start();await tick();
   event({event:'init'});event({event:'load'});event({event:'autosave',xml:'<mxfile>STALE</mxfile>'});
@@ -68,7 +83,7 @@ if(scenario==='support-privacy'){
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
-@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'drawio-export'])
+@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])
 def test_browser_lifecycle(folder, scenario):
     filename = 'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario],
@@ -79,6 +94,9 @@ def test_browser_lifecycle(folder, scenario):
     elif scenario == 'support-retry':
         assert output['payloads'][0] == output['payloads'][1]
         assert output['messages'] == ['admin reply', 'customer text']
+    elif scenario == 'support-scroll':
+        # TD-278：新消息到达时，停在底部（或首屏）就带到最新一条；正在往上翻旧消息时不打断。
+        assert output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}
     else:
         assert output['before'] == 0
         assert output['body']['content'] == '<mxfile>FRESH</mxfile>'

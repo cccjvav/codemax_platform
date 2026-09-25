@@ -37,12 +37,15 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
 (async () => {
   await new Promise(setImmediate);
   const initial = get('auth-status').textContent;
+  const promptInitial = get('drawio-login-prompt').hidden;
   if (!ready) {auth.user = {username:'alice'};await listener(auth.user);}
   await new Promise(setImmediate);
   const loggedIn = get('auth-status').textContent;
+  const promptLoggedIn = get('drawio-login-prompt').hidden;
   auth.user = null;
   await listener(null);
-  console.log(JSON.stringify({initial, loggedIn, loggedOut:get('auth-status').textContent, calls}));
+  console.log(JSON.stringify({initial, loggedIn, loggedOut:get('auth-status').textContent, calls,
+    promptInitial, promptLoggedIn, promptLoggedOut:get('drawio-login-prompt').hidden}));
 })().catch(e => {console.error(e);process.exit(1);});
 """
     proc = subprocess.run(
@@ -54,6 +57,11 @@ vm.runInNewContext(fs.readFileSync(process.argv[1], 'utf8'), {
     assert result["loggedIn"] == "已登录，可保存到云端"
     assert result["loggedOut"] == "未登录，图只能在本地画"
     assert result["calls"] == ["/diagrams"], "认证复用共享模块，不额外请求 /auth/me"
+    # TD-278：已登录时「云端保存需登录：[登录 / 注册]」整段隐藏 —— 此前它与「已登录，可保存到云端」
+    # 同时显示、互相矛盾；退出后必须重新出现，否则访客找不到登录入口。
+    assert result["promptInitial"] is auth_ready_first
+    assert result["promptLoggedIn"] is True
+    assert result["promptLoggedOut"] is False
 
 
 # ---------------------------------------------------------------- TD-272：首屏只建一次编辑器 iframe

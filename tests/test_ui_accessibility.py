@@ -248,17 +248,51 @@ def test_buttons_and_inputs_inherit_the_page_font():
 
 
 def test_mobile_inputs_avoid_ios_zoom():
-    """iOS Safari 在 <16px 的输入框聚焦时会放大整页 —— 窄屏必须有 16px 覆盖。"""
+    """iOS Safari 在 <16px 的输入框聚焦时会放大整页 —— 窄屏必须有 16px 覆盖，而且这条覆盖必须**真的生效**。
+
+    TD-272 写过这条规则，但它放在样式表中段：后面的 `textarea { font: 13px … }` 与特异性更高的
+    `.modal input { font: inherit }` 把它盖掉了，真实 Chromium 390px 实测登录框/留言框/DDL 框全是 13px
+    （TD-278）。所以这里不只查「规则存在」，还钉住两件决定层叠结果的事：
+    ① 它是 base.html 样式表里的**最后一条**规则，且点名 `.modal input`；
+    ② 各页模板自己的 <style>（文档顺序在 base 之后）不给输入控件写 font / font-size。
+    """
     html = BASE.read_text(encoding="utf-8")
-    mobile = html.split("@media (max-width: 700px)")[1].split("}")[0]
-    assert "input, select, textarea { font-size: 16px; }" in html
-    assert "max-width: 700px" in html and mobile
+    style = html.split("<style>")[1].split("</style>")[0]
+    tail = style[style.rindex("@media (max-width: 700px)"):]
+    assert "input, select, textarea, .modal input { font-size: 16px; }" in tail
+    after = tail.split("font-size: 16px; }", 1)[1]
+    assert after.strip() == "}", f"16px 规则后面还有规则，会被覆盖：{after!r}"
+    control = re.compile(r"([^{}]*\b(?:input|select|textarea)\b[^{}]*)\{([^}]*)\}")
+    for tpl in (ROOT / "app" / "templates").glob("*.html"):
+        if tpl.name == "base.html":
+            continue
+        for block in re.findall(r"<style>(.*?)</style>", tpl.read_text(encoding="utf-8"), re.S):
+            for selector, body in control.findall(re.sub(r"/\*.*?\*/", "", block, flags=re.S)):
+                assert not re.search(r"\bfont(-size)?\s*:", body), f"{tpl.name} 的 {selector.strip()} 会盖掉手机 16px"
 
 
 def test_mobile_navigation_and_footer_links_get_touchable_padding():
     """窄屏导航链接此前只有 21–24px 高，低于 WCAG 2.2 AA 的 24×24 下限。"""
     html = BASE.read_text(encoding="utf-8")
-    assert "header nav a, .actions a, footer .fnav a { display: inline-block; padding: 8px 4px; }" in html
+    assert "header nav a, footer .fnav a { display: inline-block; padding: 8px 4px; }" in html
+
+
+def test_mobile_header_is_two_rows_brand_and_login_then_scrolling_nav():
+    """窄屏顶栏曾是三～四行（真实 CJK 字体 390px 实测 189px，管理员更高）。TD-278 改成网格两行：
+    第一行站点名 + 登录态，第二行整组导航（工具 / 客服 / 管理员入口 / 商品）横向滚动。
+
+    客服、管理员入口、商品链接必须在 nav 里，窄屏才能进入同一滚动行；登录控件留在 .actions。
+    """
+    html = BASE.read_text(encoding="utf-8")
+    header = html.split("<header>")[1].split("</header>")[0]
+    nav = header.split("<nav")[1].split("</nav>")[0]
+    for link in ('href="/support/center"', 'id="admin-entry"', 'class="cta-link"'):
+        assert link in nav, f"{link} 应在站点导航里"
+    actions = header.split('<div class="actions">')[1]
+    assert 'id="btn-auth"' in actions and 'id="btn-logout"' in actions and "<a " not in actions
+    mobile = html.split("@media (max-width: 900px) {")[1].split("\n      }\n")[0]
+    assert "header { display: grid; grid-template-columns: minmax(0, 1fr) auto;" in mobile
+    assert "header nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto;" in mobile
 
 
 def test_favicon_exists_and_is_a_dependency_free_svg():
@@ -343,10 +377,12 @@ def test_tool_pages_have_a_visible_page_heading():
     assert 'page_heading="" if tool.key == "home" else tool.title' in site, "标题只该有 Tool.title 一处来源"
 
 
-async def test_pages_render_one_h1_and_a_page_heading(client):
+async def test_pages_render_one_h1_and_a_page_heading(client, mock_mode):
     """真实渲染：整站每页只有一个 h1（站点名）；工具页额外有可见的页面标题 h2。"""
     for path, heading in (("/tools/er", "SQL DDL 转 ER 图"), ("/tools/mermaid", "自然语言生成 UML 类图"),
-                          ("/tools/drawio", "Drawio 在线流程图"), ("/admin/payments", "订单与收款管理")):
+                          ("/tools/drawio", "Drawio 在线流程图"), ("/admin/payments", "订单与收款管理"),
+                          ("/support/center", "站内客服"), ("/shop", "我的订单"),
+                          ("/shop/mock-pay?order_no=CM1", "模拟收银台")):
         html = (await client.get(path)).text
         assert html.count("<h1>") == 1, f"{path} 应当只有一个 h1"
         assert heading in html, f"{path} 缺少页面级标题"
@@ -373,3 +409,23 @@ def test_hidden_attribute_wins_over_layout_display_rules():
     """
     html = BASE.read_text(encoding="utf-8")
     assert "[hidden] { display: none !important; }" in html
+
+
+# ---------------------------------------------------------------- TD-278：真实浏览器复核发现的页面结构问题
+
+
+def test_shop_order_history_comes_after_every_status_section():
+    """「我的订单」曾夹在落地区与状态区之间：付完款回到 /shop，390px 实测「我的订单」在上、
+    「支付成功 / 下载」在下（top 218 vs 268），而且 h3 先于状态区的 h2（axe `heading-order`）。"""
+    html = (ROOT / "app" / "templates" / "shop.html").read_text(encoding="utf-8")
+    history = html.index('id="btn-history"')
+    for status in ("st-pending", "st-paid", "st-downloaded", "st-refunded", "st-closed"):
+        assert html.index(f'id="{status}"') < history, f"{status} 应排在「我的订单」之前"
+
+
+def test_drawio_login_prompt_is_one_toggleable_element():
+    """已登录时「云端保存需登录：[登录 / 注册]」要整段隐藏，所以文字和按钮必须包在同一个可切换元素里。"""
+    html = (ROOT / "app" / "templates" / "drawio.html").read_text(encoding="utf-8")
+    prompt = html.split('<span id="drawio-login-prompt">')[1].split("</button></span>")[0]
+    assert "云端保存需登录" in prompt and 'id="btn-login"' in prompt
+    assert 'id="auth-status"' not in prompt, "登录状态文字不能跟着提示一起隐藏"

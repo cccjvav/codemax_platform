@@ -25,7 +25,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/architecture-7GRP2DOG.js`](js/architecture-7GRP2DOG.js) | `509d093d6593` | 生成物，见模块构建说明 |
 | [`app/static/js/architectureDiagram-5GKGNRK7.js`](js/architectureDiagram-5GKGNRK7.js) | `198519b0d7f0` | 生成物，见模块构建说明 |
 | [`app/static/js/array.js`](js/array.js) | `63126646dbf6` | 生成物，见模块构建说明 |
-| [`app/static/js/auth.js`](js/auth.js) | `f1c87a133e14` | 生成物，见模块构建说明 |
+| [`app/static/js/auth.js`](js/auth.js) | `7ad8592c77ad` | 生成物，见模块构建说明 |
 | [`app/static/js/blockDiagram-I7D4REHJ.js`](js/blockDiagram-I7D4REHJ.js) | `cd411aa15cda` | 生成物，见模块构建说明 |
 | [`app/static/js/c4Diagram-7LVT6UL2.js`](js/c4Diagram-7LVT6UL2.js) | `1ff47f09c4ed` | 生成物，见模块构建说明 |
 | [`app/static/js/channel.js`](js/channel.js) | `46376a0454cf` | 生成物，见模块构建说明 |
@@ -64,7 +64,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `bd9b31ce6bed` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `aa8b75627d07` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `491e317211aa` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `60180eac737f` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `2fdef19157c2` | 生成物，见模块构建说明 |
 | [`app/static/js/er-page.js`](js/er-page.js) | `7557bdb128ba` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `1e225335524d` | 生成物，见模块构建说明 |
@@ -89,7 +89,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `0fa5dbd0e2ec` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `116e0b0c2872` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `e7a30edbfb21` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `637c1b861223` | 生成物，见模块构建说明 |
@@ -104,12 +104,12 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/rough.esm.js`](js/rough.esm.js) | `ef405c5eaa33` | 生成物，见模块构建说明 |
 | [`app/static/js/sankeyDiagram-P5KCCOFB.js`](js/sankeyDiagram-P5KCCOFB.js) | `85d173a4a0d0` | 生成物，见模块构建说明 |
 | [`app/static/js/sequenceDiagram-WJ2MYXX4.js`](js/sequenceDiagram-WJ2MYXX4.js) | `1b5c908c5705` | 生成物，见模块构建说明 |
-| [`app/static/js/shop-page.js`](js/shop-page.js) | `227a72675eee` | 生成物，见模块构建说明 |
+| [`app/static/js/shop-page.js`](js/shop-page.js) | `47c3cb169975` | 生成物，见模块构建说明 |
 | [`app/static/js/sizeCapture-INFHLROL.js`](js/sizeCapture-INFHLROL.js) | `1686f2a8163c` | 生成物，见模块构建说明 |
 | [`app/static/js/src.js`](js/src.js) | `150172a4838f` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `28780fcb0898` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `0b7e352156f4` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `9e322d4f0bd5` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `4708cfc724cc` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `c2ceefb41216` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `b74e03e6b933` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `32c8e2e90cc3` | 生成物，见模块构建说明 |
@@ -120,7 +120,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `c8f3a7cb403f` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `48d7bbc18667` | 生成物，见模块构建说明 |
 | [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
-| [`app/static/support.css`](support.css) | `95c5202a9699` | L1–L12 |
+| [`app/static/support.css`](support.css) | `b9404b1b372d` | L1–L15 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -158,3 +158,9 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 - 产物 `js/auth.js`、`js/drawio-page.js`、`js/mermaid-page.js` 随源码重建提交（`npm run build`，CI 漂移检查会核对）。
 
 - TD-273 重建：`js/auth.js`、`js/drawio-page.js`、`js/support-page.js`（会话到期只提示、不清空编辑内容与草稿）。
+
+## 2026-09-25 客服留言框字体与产物重建（TD-278）
+
+- `support.css`：`#support-body` 改用正文字体族（base 给 textarea 的等宽字体是为 DDL 准备的）；只改 `font-family`，手机 16px 规则照常生效。
+- `js/` 下 `auth.js`、`drawio-page.js`、`payments-admin.js`、`shop-page.js`、`support-page.js` 由 `npm run build` 从 `app/frontend` 重建（本批 TD-278 源码改动），`vite.config.mjs` 与产物名不变。
+
