@@ -12,5 +12,5 @@
     "mermaid": "11.17.2",
     "vite": "^8.2.2"
   },
-  "//": "⚠️ 刻意**不**写 \"type\": \"module\"：那会让 Node 把全仓每个 .js 都当 ES 模块，于是 app/static/er.js 里的 `module.exports = {layoutEr}` 失效，tests/test_er_page.py 的 node 契约测试会报 `layoutEr is not a function`（实测踩过）。Vite 的配置文件改用 .mjs 后缀单独声明 ESM 即可。"
+  "//": "⚠️ 刻意**不**写 \"type\": \"module\"：tests/ 里的 Node 执行器用 require() 加载 app/static/js 下的经典脚本（auth.js、shop-page.js 等由 <script src> 加载，不是 ES 模块）。声明后这些文件被当成 ES 模块，Node 22 之前的版本 require() 会以 ERR_REQUIRE_ESM 拒绝 —— CI 的测试 job 不经 setup-node，用的是 runner 自带的 Node，版本不受本仓库控制（2026-09-25 在 Node 22 上试加 type:module，前端相关 269 条用例全绿，只是因为 22 默认允许 require(esm)）。历史上 app/static/er.js 的 module.exports 也因此失效过（TD-221）。Vite 配置用 .mjs 后缀单独声明 ESM，app/frontend/ 用局部 package.json 划范围。"
 }

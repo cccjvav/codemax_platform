@@ -72,7 +72,7 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | POST | `/auth/register` | 注册（返回用户信息，不含密码） |
 | POST | `/auth/login` | 登录（OAuth2 表单）。**两条通道**：给浏览器下发 HttpOnly cookie（脚本读不到，防 XSS 偷 token），同时返回 JWT `access_token` 供 Swagger / API 客户端走 Bearer 头 |
 | GET | `/auth/me` | 当前用户（需 Cookie 或 Bearer） |
-| POST | `/auth/password` | 修改密码（需 Cookie 或 Bearer；**会吊销该用户此前签发的所有 token**，同时返回一个新 token） |
+| POST | `/auth/password` | 修改密码（需 Cookie 或 Bearer；**会吊销该用户此前签发的所有 token**，同时返回一个新 token）。网页入口：顶栏用户名 →「修改密码」浮层（TD-280） |
 | POST | `/auth/logout` | 退出登录：清掉登录 cookie（204） |
 | GET | `/oauth/authorize` | **授权同意页**：显示申请方与当前账号，由用户点「同意/拒绝」（不再直接签发 code） |
 | POST | `/oauth/authorize` | 用户点同意后签发一次性 code 并 302 跳回调；表单需带同意页给出的签名 |
@@ -224,11 +224,11 @@ start docs\site\index.html
 | [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
 | [`main.py`](main.py) | `bd5f1fca3990` | L1–L120 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
-| [`package.json`](package.json) | `e7e67df85389` | L1–L16 |
+| [`package.json`](package.json) | `cd1b05811e56` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |
 | [`requirements.txt`](requirements.txt) | `d4c24e34109d` | L1–L65 |
 | [`ruff.toml`](ruff.toml) | `c14a566fa6ec` | L1–L52 |
-| [`vite.config.mjs`](vite.config.mjs) | `b822ef8586a3` | L1–L57 |
+| [`vite.config.mjs`](vite.config.mjs) | `81be1e288e5d` | L1–L62 |
 | [`支付架构提示词-纯净版.txt`](%E6%94%AF%E4%BB%98%E6%9E%B6%E6%9E%84%E6%8F%90%E7%A4%BA%E8%AF%8D-%E7%BA%AF%E5%87%80%E7%89%88.txt) | `d990ce0e2c40` | L1–L99 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -253,3 +253,8 @@ FastAPI 是生产运行时，Node 只用于 Vite 构建；生产配置与开发�
 已有单笔全额原路退款查询核验、人工已完成全额退款登记与订单绑定下载门禁，见[管理手册](docs/PAYMENTS_ADMIN_GUIDE.md)及[证据/限制](review/RELEASE_BLOCKERS_PHASE6.md)。当前还需0017授权版本迁移；第六批以前的key-only下载链接失效，但未退款用户可以重领。本批准备不影响现行下载链接。显式退款申请见第九批（默认关闭）；部分退款、定制服务取消及真实商户签收仍未完成。
 
 核验进程的本地监督/告警与恢复命令见[运行手册](docs/REFUND_OPERATIONS.md)。Compose profile默认不启动，实际容器/Windows服务需独立验收。
+
+## 2026-09-25：Vite base 与根 package.json 说明（TD-280）
+
+- `vite.config.mjs` 新增 `base: "/static/js/"`：动态 import 会被 Vite 包一层预加载（插 `<link rel="modulepreload">`），地址 = base + 文件名。原来的默认 `/` 让预加载请求 `/mermaid.core.js` 这类 404；JS 预加载失败不报错，所以功能一直正常，只是预加载无效且多一串 404。分块之间的 import 是相对路径，不受影响。
+- `package.json` 的 `//` 说明改为现行理由（Node 执行器 `require()` 经典脚本；Node 22 之前遇到 type:module 会 ERR_REQUIRE_ESM，CI 测试 job 用 runner 自带的 Node），不再把已删除的 `app/static/er.js` 当作现存理由。

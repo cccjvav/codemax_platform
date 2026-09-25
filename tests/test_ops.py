@@ -86,13 +86,22 @@ def test_gzip_uses_level_6_instead_of_the_starlette_default_9():
     assert configured[0].kwargs.get("compresslevel") == 6
 
 
+# 模块级取一次（名字, 字节数）：async 用例里调用阻塞的 pathlib 会被 ruff ASYNC240 拦
+_LARGEST_JS = max(((f.name, f.stat().st_size) for f in (ROOT / "app/static/js").glob("*.js")), key=lambda t: t[1])
+
+
 @pytest.mark.asyncio
 async def test_large_responses_are_gzipped_only_when_the_client_accepts_it(client):
-    """本地直连（Windows 指南、无 nginx）时由应用压缩：Mermaid 产物 669 KiB → 约 140 KiB。
-    小响应（< 1 KiB）与不声明 gzip 的客户端不压；压缩后安全头照常。"""
+    """本地直连（Windows 指南、无 nginx）时由应用压缩：Mermaid 最大分块约 650 KiB → 约 150 KiB。
+    小响应（< 1 KiB）与不声明 gzip 的客户端不压；压缩后安全头照常。
+
+    TD-280 之前固定取 mermaid-page.js；它改成按需加载后入口只剩几 KiB，于是改取产物里最大的文件，
+    免得分块名（含 hash）变化时测试跟着失效。
+    """
     import gzip
 
-    path = "/static/js/mermaid-page.js"
+    assert _LARGEST_JS[1] > 100_000, "需要一个足够大的产物来验证压缩"
+    path = f"/static/js/{_LARGEST_JS[0]}"
     plain = await client.get(path, headers={"Accept-Encoding": "identity"})
     assert plain.status_code == 200 and "content-encoding" not in plain.headers
     req = client.build_request("GET", path, headers={"Accept-Encoding": "gzip"})

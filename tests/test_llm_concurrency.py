@@ -182,9 +182,9 @@ global.fetch = async (url, opts) => {
   return { ok: next.status < 400, status: next.status, json: async () => next.body,
            headers: { get: (k) => (k.toLowerCase() === "retry-after" ? next.retryAfter ?? null : null) } };
 };
-// 源码是 ES module（import mermaid）：把 import 换成桩后再执行；产物则是自包含的 bundle。
+// 源码是 ES module：TD-280 起 Mermaid 在提交时才 import("mermaid")，换成返回桩的 promise 后再执行。
 const fs = require("fs");
-let code = fs.readFileSync(path, "utf8").replace(/^import\s+mermaid\s+from\s+"mermaid";?/m, "const mermaid = { initialize() {}, run: async () => {} };");
+let code = fs.readFileSync(path, "utf8").replace(/import\(\s*"mermaid"\s*\)/, "Promise.resolve({ default: { initialize() {}, run: async () => {} } })");
 (async () => {
   const vm = require("vm");
   vm.runInThisContext(code, { filename: path });

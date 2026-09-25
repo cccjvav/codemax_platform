@@ -4,10 +4,10 @@
 
 | 文件 | 输入 / 输出与关键边界 |
 | --- | --- |
-| `auth.js` | `/auth/me` 与登录/退出表单；维护共享用户快照、顺序号与可退订监听器；初始网络错误有兜底，失败退出不假装成功。浮层打开时记住触发元素、Esc 关闭、关闭后焦点只在仍留在浮层内时归还（TD-263） |
+| `auth.js` | `/auth/me` 与登录/退出表单，顶栏用户名打开的修改密码浮层（`POST /auth/password`）；维护共享用户快照、顺序号与可退订监听器；初始网络错误有兜底，失败退出不假装成功。浮层打开时记住触发元素、Esc 关闭、关闭后焦点只在仍留在浮层内时归还（TD-263） |
 | `er-layout.js` | 图数据到布局，纯函数；Node 测试无需安装 d3。按外键深度分列、按文字估算宽度（超长截断）、正交折线只走列间通道和顶部车道，另给出初始视图（TD-279） |
 | `er-page.js` | DDL 表单、D3 图与 Word 文件；第三方代码来自本地构建。只画布局算好的东西，负责箭头、悬停提示/高亮、缩放与「查看全图」 |
-| `mermaid-page.js` | 自然语言表单到 Mermaid 展示；strict 模式，不允许模型放宽为 loose；503（模型并发闸门满）按 `Retry-After`（1–30 秒，默认 5）自动重试一次，再次繁忙原样显示服务端文案，502 等上游错误不重试 |
+| `mermaid-page.js` | 自然语言表单到 Mermaid 展示；Mermaid 点「生成类图」才按需 import（与模型请求并行，失败不缓存）；strict 模式，不允许模型放宽为 loose；503（模型并发闸门满）按 `Retry-After`（1–30 秒，默认 5）自动重试一次，再次繁忙原样显示服务端文案，502 等上游错误不重试 |
 | `drawio-page.js` | 检查消息 origin/source，以关联的 export 请求读取实时 XML；文档或账号切换替换 iframe 上下文、拒绝旧响应；串行保存并保留 ETag 冲突 |
 | `shop-page.js` | 主动下单、无重叠状态轮询、历史订单、短时链接重领；取消/账号切换清理状态，不自动再次下单 |
 | `support-page.js` | 客户自己的消息或管理员选中的会话；分页、轮询、UUID 重试去重、账号/会话 epoch、纯文本渲染；按角色切 `.with-inbox` 两栏 class 替代 CSS `:has()` |
@@ -46,11 +46,11 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `e390f2c40994` | L1–L203 |
+| [`app/frontend/auth.js`](auth.js) | `46a027998953` | L1–L276 |
 | [`app/frontend/drawio-page.js`](drawio-page.js) | `240ada1a59cf` | L1–L201 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
 | [`app/frontend/er-page.js`](er-page.js) | `642a63a8fdc5` | L1–L211 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `14cc54fcc3c9` | L1–L87 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
@@ -178,3 +178,7 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 
 实测（同一 16 表 DDL，Chromium + Noto Sans SC）：穿表 20/24 → 0/24，文字溢出 0，axe 无违规，手机 390px 无横向溢出。
 
+## 2026-09-25：修改密码入口与 Mermaid 按需加载（TD-280，V-06 收尾）
+
+- `auth.js::openPassword / closePassword / #pw-form.onsubmit`：顶栏用户名（`#auth-who`，现为按钮）打开修改密码浮层。两次新密码不一致、新旧相同在前端拦下，不白白消耗改密限流额度；原密码错（400）显示服务端文案；401 只可能是会话本身到期，先关浮层再交给 `sessionExpired`。成功后服务端已吊销旧 token、给本会话换了新 cookie，所以不 refresh；三个密码框在打开、关闭、成功时都清空。退出/到期时 `paint()` 顺手关掉浮层。焦点归还抽成 `returnFocus(box, from)`，两个浮层共用。
+- `mermaid-page.js::loadMermaid`：`import("mermaid")` 按需加载并缓存 promise，`initialize`（strict）在加载完成时调用；下载失败清缓存，下一次点击重新下载。提交时与模型请求同时开始下载；渲染器下载失败时仍显示生成的源码。

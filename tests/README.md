@@ -89,16 +89,16 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
-| [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `d48d914d5308` | L1–L207 |
+| [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `f1379401cba7` | L1–L318 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
-| [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `22001102f542` | L1–L270 |
+| [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `c7c6f8df0def` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `876fff3193d5` | L1–L176 |
 | [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
-| [`tests/test_ops.py`](test_ops.py) | `734a6fd52991` | L1–L637 |
+| [`tests/test_ops.py`](test_ops.py) | `8176210c71dd` | L1–L646 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `7832a0b2f1c3` | L1–L249 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `9a2e75439553` | L1–L339 |
@@ -135,7 +135,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `fa4ad9a061cd` | L1–L431 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `eceec8f1679b` | L1–L536 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -323,3 +323,10 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 前两条在旧 `er-layout.js` 上失败（先红后绿）；被替换的坐标断言由更强的几何断言接替，没有跳过或删除用例。
 
+## 2026-09-25 修改密码与 Mermaid 按需加载（TD-280）
+
+- `test_ui_accessibility.py`：`test_password_dialog_changes_password_and_handles_every_outcome`（Node 真跑 auth.js 源码与产物：前端拦截、400 文案、成功请求体与清空、Esc 焦点归还、再次打开不残留、401 走到期）与 `test_password_dialog_markup_matches_the_backend_contract`。
+- `test_frontend_supply_chain.py`：`test_mermaid_loads_on_first_generate_and_retries_a_failed_download`（页面加载 0 次 import、失败不缓存、成功复用、strict 不变）与 `test_mermaid_page_bundle_defers_the_renderer_and_preloads_from_static_js`（首屏闭包 < 20 KiB、预加载前缀只能是 /static/js/）；`test_mermaid_is_local_and_locked` 的字面量从静态 import 换成 `import("mermaid")`，并新增「不得动态 import 远程地址」。
+- `test_llm_concurrency.py` 执行器把 `import("mermaid")` 换成桩；`test_ops.py` 的 gzip 用例改取产物里最大的文件（mermaid-page.js 已只剩几 KiB）。
+
+新增用例均在改前的源码/产物上失败；替换的两处断言保持同等或更强的约束，没有跳过或删除用例。

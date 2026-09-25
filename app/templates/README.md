@@ -25,7 +25,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `3104c491e94b` | L1–L187 |
+| [`app/templates/base.html`](base.html) | `c3b67898c439` | L1–L221 |
 | [`app/templates/drawio.html`](drawio.html) | `1f33348a0b0f` | L1–L50 |
 | [`app/templates/er.html`](er.html) | `2ba44cf7c2c1` | L1–L38 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
@@ -120,3 +120,7 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 - `er.html`：SVG 包进 `section.er-view`，前面是生成后才显示的 `#er-tools`（「查看全图」按钮 `#er-fit` + 操作说明）；SVG 加 `role="img"`，`aria-label` 由脚本写成表数与关系数。页内 `<style>` 只排这一块，不给输入控件写字体（TD-278 的 16px 层叠约束不受影响）。`ddl-input`/`er-word`/脚本路径等测试钉住的 ID 不变。
 
+## 2026-09-25 修改密码浮层（TD-280）
+
+- `base.html`：`#auth-who` 从 span 改为 ghost 按钮（`aria-haspopup="dialog"`，可访问名称由 auth.js 写成「用户名（修改密码）」），点它打开 `#pw-mask`。浮层字段：隐藏只读的 `pw-user`（autocomplete=username，供密码管理器认账号）、`pw-old`（current-password）、`pw-new`/`pw-again`（new-password，minlength 6 / maxlength 64，与 `PasswordChangeIn` 一致）；`#pw-error` role=alert、`#pw-done` role=status。与登录浮层一样在 auth.js 之前、`auth_ui` 为假时不输出。
+- 不另加顶栏按钮：窄屏第一行只放得下站点名 + 两个控件（390px 实测顶栏仍 88px、站点名不截断）。`.actions .who` 去掉灰字（按钮灰字像禁用），新增 `.modal .ok` / `.modal .account`；16px 规则仍是样式表最后一条。

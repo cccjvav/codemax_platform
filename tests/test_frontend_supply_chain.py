@@ -199,9 +199,120 @@ def test_mermaid_is_local_and_locked():
     import json
 
     js = (ROOT / "app/frontend/mermaid-page.js").read_text(encoding="utf-8")
-    assert 'import mermaid from "mermaid"' in js
+    # TD-280 起按需加载：动态 import 仍是裸模块名，由 Vite 从锁定的本地包打成同源分块
+    assert 'import("mermaid")' in js
     lock = json.loads((ROOT / "package-lock.json").read_text(encoding='utf-8'))
     entry = lock["packages"]["node_modules/mermaid"]
     assert entry["version"] == "11.17.2" and entry["integrity"].startswith("sha512-")
     for path in (ROOT / "app/frontend").glob("*.js"):
-        assert not re.search(r'from\s*["\']https?://', path.read_text(encoding='utf-8'))
+        text = path.read_text(encoding='utf-8')
+        assert not re.search(r'from\s*["\']https?://', text)
+        assert not re.search(r'import\(\s*["\'`]https?://', text), f"{path.name} 动态 import 了远程地址"
+
+
+# ---------------------------------------------------------------- V-06 / TD-280：Mermaid 按需加载
+
+_LAZY_HARNESS = r"""
+const path = process.argv[2];
+const els = {}; let loads = 0, failNext = false, inits = [], runs = 0, reply = null; const errors = [];
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false, removeAttribute() {} });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)) };
+global.window = global;
+global.CodeMaxAuth = { errorText: (d, s) => (d && d.detail) || `请求失败（${s}）` };
+global.fetch = async () => ({ ok: reply.status === 200, status: reply.status, json: async () => reply.body,
+                              headers: { get: () => null } });
+global.__loadMermaid = () => {
+  loads += 1;
+  if (failNext) { failNext = false; return Promise.reject(new Error("chunk 404")); }
+  return Promise.resolve({ default: { initialize(cfg) { inits.push(cfg); }, run: async () => { runs += 1; } } });
+};
+process.on("unhandledRejection", (e) => { console.error("UNHANDLED " + e.message); process.exit(3); });
+const fs = require("fs");
+const code = fs.readFileSync(path, "utf8").replace(/import\(\s*"mermaid"\s*\)/, "__loadMermaid()");
+require("vm").runInThisContext(code, { filename: path });
+const tick = () => new Promise((r) => setImmediate(r));
+(async () => {
+  const out = { atLoad: loads };
+  Object.defineProperty(els["mermaid-error"], "textContent", { set(v) { errors.push(v); }, get() { return errors.at(-1) || ""; } });
+  const submit = async (status, body, fail = false) => {
+    reply = { status, body }; failNext = fail;
+    await els["mermaid-form"].onsubmit({ preventDefault() {} }); await tick();
+    return { loads, runs, inits: inits.length, err: els["mermaid-error"].hidden ? "" : errors.at(-1),
+             source: els["mermaid-source"].textContent, enabled: !els["mermaid-submit"].disabled };
+  };
+  out.serverDownAndChunkFails = await submit(502, { detail: "上游故障" }, true);
+  out.chunkFails = await submit(200, { mermaid: "classDiagram\nclass A" }, true);
+  out.ok = await submit(200, { mermaid: "classDiagram\nclass B" });
+  out.again = await submit(200, { mermaid: "classDiagram\nclass C" });
+  out.cfg = inits[0];
+  console.log(JSON.stringify(out));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+def test_mermaid_loads_on_first_generate_and_retries_a_failed_download(tmp_path):
+    """原来 Mermaid（约 650 KiB）随页面一起下载；现在点「生成类图」才 import，并与模型请求同时开始。
+
+    - 页面加载时 0 次；
+    - 下载失败不被缓存（下一次提交会重新 import），也不产生未处理的 promise 拒绝（服务端报错那次同样）；
+    - 渲染器下载失败时仍显示生成的 Mermaid 源码并说明原因；
+    - 成功后缓存：再生成不重复下载，initialize 只调一次且仍是 strict。
+    """
+    import json
+    import shutil
+    import subprocess
+
+    if shutil.which("node") is None:
+        import pytest
+
+        pytest.skip("需要 node 执行真实前端代码")
+    harness = tmp_path / "lazy.cjs"
+    harness.write_text(_LAZY_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / "app/frontend/mermaid-page.js")],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    r = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert r["atLoad"] == 0, "页面加载时不应下载 Mermaid"
+    down = r["serverDownAndChunkFails"]
+    assert down["loads"] == 1 and down["err"] == "上游故障" and down["enabled"], down
+    failed = r["chunkFails"]
+    assert failed["loads"] == 2, "上一次下载失败不能被缓存"
+    assert "渲染组件下载失败" in failed["err"] and failed["source"] == "classDiagram\nclass A" and failed["runs"] == 0, failed
+    assert r["ok"] == {"loads": 3, "runs": 1, "inits": 1, "err": "", "source": "classDiagram\nclass B", "enabled": True}, r["ok"]
+    assert r["again"]["loads"] == 3 and r["again"]["runs"] == 2 and r["again"]["inits"] == 1, "成功后应复用已加载的 Mermaid"
+    assert r["cfg"] == {"startOnLoad": False, "securityLevel": "strict"}
+
+
+def _static_closure(entry: str) -> set[str]:
+    """产物入口在页面加载时会下载的文件：沿静态 import 走，动态 import(...) 不算。"""
+    out_dir = ROOT / "app/static/js"
+    seen: set[str] = set()
+    todo = [entry]
+    while todo:
+        name = todo.pop()
+        if name in seen:
+            continue
+        seen.add(name)
+        text = re.sub(r"import\(\s*[`\"'][^`\"']+[`\"']\s*\)", "", (out_dir / name).read_text(encoding="utf-8"))
+        todo += [m[2:] for m in re.findall(r"(?:from\s*|import\s*)\"(\./[^\"]+\.js)\"", text)]
+    return seen
+
+
+def test_mermaid_page_bundle_defers_the_renderer_and_preloads_from_static_js():
+    """产物层面：mermaid-page.js 首屏只下载它自己（几 KiB），Mermaid 本体在动态 import 的分块里。
+
+    动态 import 由 Vite 包一层预加载，地址 = base + 文件名。base 原是默认的 "/"，预加载请求的是
+    /mermaid.core.js 这类 404；现在必须是 /static/js/（FastAPI 挂载产物的位置）。
+    """
+    out_dir = ROOT / "app/static/js"
+    first_load = _static_closure("mermaid-page.js")
+    size = sum((out_dir / f).stat().st_size for f in first_load)
+    assert size < 20 * 1024, f"Mermaid 页首屏下载 {size} 字节（{sorted(first_load)}）—— Mermaid 又被静态打进来了？"
+    page = (out_dir / "mermaid-page.js").read_text(encoding="utf-8")
+    assert re.search(r"import\(\s*[`\"']\./mermaid\.core\.js[`\"']\s*\)", page), "Mermaid 应在动态 import 的分块里"
+    # 预加载助手只有一份（其余分块从它所在的文件导入）；按「插 modulepreload 链接」认出它
+    helpers = [f for f in out_dir.glob("*.js") if "modulepreload" in f.read_text(encoding="utf-8")]
+    assert helpers, "找不到 Vite 预加载助手——动态 import 的构建方式变了，需要重新核对预加载地址"
+    for f in helpers:
+        prefixes = set(re.findall(r"return`([^`]*)`\+e", f.read_text(encoding="utf-8")))
+        assert prefixes == {"/static/js/"}, f"{f.name} 的预加载地址前缀是 {prefixes}，应为 /static/js/"

@@ -228,6 +228,111 @@ def test_expired_session_reopens_login_and_clears_the_user_everywhere(tmp_path):
     assert "/support/messages" in result["fetches"]
 
 
+# ---------------------------------------------------------------- V-06 / TD-280：修改密码浮层
+
+_PASSWORD_HARNESS = r"""
+const path = process.argv[2];
+const els = {}; const posts = []; let active = null; let reply = null;
+const mkEl = (id) => {
+  const el = { id, value: "", textContent: "", hidden: false, disabled: false, ariaLabel: "", classes: new Set(), children: new Set(),
+    classList: { add(c) { el.classes.add(c); }, remove(c) { el.classes.delete(c); }, contains(c) { return el.classes.has(c); } },
+    focus() { active = el; }, contains(o) { return el.children.has(o); }, addEventListener() {}, appendChild() {}, click() {} };
+  return el;
+};
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t),
+  get activeElement() { return active; }, body: mkEl("body") };
+global.window = global; global.addEventListener = () => {};
+global.fetch = async (url, opts = {}) => {
+  if (url === "/auth/me") return { ok: true, status: 200, json: async () => ({ username: "alice", role: 0 }) };
+  if (url === "/auth/logout") return { ok: true, status: 204, json: async () => null };
+  posts.push({ url, method: opts.method, credentials: opts.credentials, body: JSON.parse(opts.body) });
+  return { ok: reply.status === 200, status: reply.status, json: async () => reply.body };
+};
+require(path);
+const byId = (id) => global.document.getElementById(id);
+const tick = () => new Promise((r) => setImmediate(r));
+const isOpen = () => byId("pw-mask").classes.has("open");
+const fill = (o, n, a) => { byId("pw-old").value = o; byId("pw-new").value = n; byId("pw-again").value = a; };
+const submit = async () => { await byId("pw-form").onsubmit({ preventDefault() {} }); await tick(); };
+const snap = () => ({ open: isOpen(), err: byId("pw-error").textContent, done: byId("pw-done").textContent, posts: posts.length,
+  fields: ["pw-old", "pw-new", "pw-again"].map((id) => byId(id).value) });
+(async () => {
+  await tick();
+  const who = byId("auth-who"), out = {};
+  byId("pw-mask").children.add(byId("pw-old"));
+  out.label = who.ariaLabel;
+  active = who; who.onclick();
+  out.opened = { open: isOpen(), focusOld: active === byId("pw-old"), user: byId("pw-user").value, account: byId("pw-account").textContent };
+  fill("secret123", "newpass1", "newpass2"); await submit(); out.mismatch = snap();
+  fill("secret123", "secret123", "secret123"); await submit(); out.same = snap();
+  reply = { status: 400, body: { detail: "原密码不正确" } };
+  fill("wrong", "newpass1", "newpass1"); await submit(); out.wrongOld = snap();
+  reply = { status: 200, body: { access_token: "T" } };
+  fill("secret123", "newpass1", "newpass1"); await submit();
+  out.ok = { ...snap(), sent: posts[posts.length - 1], user: global.CodeMaxAuth.user && global.CodeMaxAuth.user.username,
+             cancel: byId("pw-cancel").textContent, focusCancel: active === byId("pw-cancel") };
+  byId("pw-mask").children.add(byId("pw-cancel"));
+  byId("pw-mask").onkeydown({ key: "Escape", stopPropagation() {} });
+  out.esc = { open: isOpen(), focusWho: active === who };
+  // 重新打开：上一次的成功提示与输入不能残留
+  who.onclick(); out.reopen = snap();
+  reply = { status: 401, body: { detail: "未登录" } };
+  fill("secret123", "newpass2", "newpass2"); await submit();
+  out.expired = { open: isOpen(), loginOpen: byId("auth-mask").classes.has("open"), err: byId("auth-error").textContent,
+                  user: global.CodeMaxAuth.user, fields: snap().fields };
+  console.log(JSON.stringify(out));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/auth.js", "app/static/js/auth.js"])
+def test_password_dialog_changes_password_and_handles_every_outcome(tmp_path, path):
+    """后端 `POST /auth/password`（TD-70）早就有，但整站没有任何入口：用户怀疑密码泄露时只能找管理员。
+
+    顶栏用户名即入口。前端先挡「两次不一致」「与原密码相同」（不消耗改密限流额度）；原密码错显示服务端
+    文案；成功后清空三个密码框并说明其他设备会掉线；401 交给统一的会话到期处理。源码与产物都跑。
+    """
+    harness = tmp_path / "password.cjs"
+    harness.write_text(_PASSWORD_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"{path} 执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    r = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert r["label"] == "alice（修改密码）", "用户名按钮的可访问名称要说明用途，且包含可见文字"
+    assert r["opened"] == {"open": True, "focusOld": True, "user": "alice", "account": "当前账号：alice"}, r["opened"]
+    assert r["mismatch"]["err"] == "两次输入的新密码不一致" and r["mismatch"]["posts"] == 0, r["mismatch"]
+    assert r["same"]["err"] == "新密码不能与原密码相同" and r["same"]["posts"] == 0, r["same"]
+    assert r["wrongOld"]["err"] == "原密码不正确" and r["wrongOld"]["open"] and r["wrongOld"]["posts"] == 1, r["wrongOld"]
+    ok = r["ok"]
+    assert ok["sent"] == {"url": "/auth/password", "method": "POST", "credentials": "same-origin",
+                          "body": {"old_password": "secret123", "new_password": "newpass1"}}, ok["sent"]
+    assert ok["err"] == "" and "其他设备" in ok["done"] and ok["fields"] == ["", "", ""], ok
+    assert ok["user"] == "alice" and ok["open"], "改密成功后当前会话保持登录（服务端已换新 cookie）"
+    assert ok["cancel"] == "关闭" and ok["focusCancel"], ok
+    assert r["esc"] == {"open": False, "focusWho": True}, r["esc"]
+    assert r["reopen"]["done"] == "" and r["reopen"]["err"] == "" and r["reopen"]["fields"] == ["", "", ""], r["reopen"]
+    exp = r["expired"]
+    assert exp["open"] is False and exp["loginOpen"] is True and "登录已过期" in exp["err"], exp
+    assert exp["user"] is None and exp["fields"] == ["", "", ""], exp
+
+
+def test_password_dialog_markup_matches_the_backend_contract():
+    """浮层字段约束与 PasswordChangeIn 一致；autocomplete 让密码管理器把新密码存到正确的账号下。"""
+    html = BASE.read_text(encoding="utf-8")
+    header = html.split("<header>")[1].split("</header>")[0]
+    assert re.search(r'<button type="button" class="ghost who" id="auth-who" aria-haspopup="dialog"[^>]*hidden>', header)
+    dialog = html.split('id="pw-mask"')[1].split("<script")[0]
+    assert 'role="dialog" aria-modal="true" aria-labelledby="pw-title"' in dialog
+    assert 'id="pw-user" autocomplete="username"' in dialog
+    assert 'id="pw-old" autocomplete="current-password" required maxlength="64"' in dialog
+    for field in ("pw-new", "pw-again"):
+        assert f'id="{field}" autocomplete="new-password" required minlength="6" maxlength="64"' in dialog
+    assert 'id="pw-error" role="alert"' in dialog and 'id="pw-done" role="status"' in dialog
+    assert html.index('id="pw-mask"') < html.index('<script src="/static/js/auth.js">'), "浮层必须在 auth.js 之前"
+
+
 # ---------------------------------------------------------------- TD-272：真实浏览器复核暴露的排版与导航问题
 #
 # 这一节的对应用例都来自 2026-09-23 的第二次接手复核（真实 Chromium + axe-core 实测），

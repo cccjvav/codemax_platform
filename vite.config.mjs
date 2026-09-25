@@ -22,6 +22,11 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  // 产物由 FastAPI 挂在 /static/js/ 下。动态 import（Mermaid 按需加载、Mermaid 内部按图类型加载）
+  // 会被 Vite 包一层预加载：给依赖分块插 <link rel="modulepreload" href="{base}{文件名}">。
+  // 原来 base 是默认的 "/"，预加载地址成了 /mermaid.core.js 这类 404（JS 预加载失败不报错，
+  // 所以功能正常、只是白白多出一串 404 且预加载无效）。模块之间的 import 仍是相对路径，不受影响。
+  base: "/static/js/",
   build: {
     outDir: "app/static/js",
     emptyOutDir: true,
