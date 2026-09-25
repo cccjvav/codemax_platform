@@ -85,7 +85,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
-| [`tests/test_er_page.py`](test_er_page.py) | `2309623905f8` | L1–L181 |
+| [`tests/test_er_page.py`](test_er_page.py) | `f9f85feeeb34` | L1–L310 |
 | [`tests/test_extract.py`](test_extract.py) | `550c6f7a3db7` | L1–L240 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
@@ -315,4 +315,11 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_second_frontend_regressions.py`：`support-scroll` 场景验证新消息的自动滚动与不打断阅读。
 
 所有新增/改写断言都在改前的模板或脚本上失败（先红后绿），没有删除或放宽既有断言：被替换的两条字符串断言由更强的层叠/结构断言接替。
+
+## 2026-09-25 ER 布局几何契约（TD-279）
+
+- `test_er_page.py::test_layout_consumes_backend_payload`：原来钉死「x1 = 子表右边、y1 = 子表竖直中点、x2 = 父表左边」与「每行 3 张」—— 那正是被修掉的缺陷。改为 `_assert_geometry`：端点在外键列/被引用列那一行、折线只有水平/竖直段且每段都不进入任何表、最后一段水平进入父表、`path` 与 `points` 一致、表两两不重叠、宽度 160–340、截断文字以「…」结尾且是原文前缀、画布装得下；另断言父表在子表左边。节点顺序、连线集合与关键外键来源这几条原断言保留。
+- 新增 `test_layout_edge_cases_keep_the_geometry_contract`（超长名字截断、自引用、a↔b 环、14 叶子星型图拆列并走车道）与 `test_initial_view_is_readable_instead_of_squeezing_the_whole_diagram`。
+
+前两条在旧 `er-layout.js` 上失败（先红后绿）；被替换的坐标断言由更强的几何断言接替，没有跳过或删除用例。
 

@@ -27,7 +27,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | --- | --- | --- |
 | [`app/templates/base.html`](base.html) | `3104c491e94b` | L1–L187 |
 | [`app/templates/drawio.html`](drawio.html) | `1f33348a0b0f` | L1–L50 |
-| [`app/templates/er.html`](er.html) | `d48d4e3001c0` | L1–L26 |
+| [`app/templates/er.html`](er.html) | `2ba44cf7c2c1` | L1–L38 |
 | [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
 | [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `dd6aaa5ba764` | L1–L30 |
@@ -115,4 +115,8 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 - `drawio.html`：「云端保存需登录：[登录 / 注册]」包进 `#drawio-login-prompt`，登录后由脚本整段隐藏（此前与「已登录，可保存到云端」同时出现）。
 - `payments-admin.html`：列表空结果写进列表外的 `#finance-list-empty`（`role="status"`）——往 `<ul>` 里直接写字命中 axe `list`（serious）；选单前只显示 `#finance-detail-hint`，合同/凭证/操作全部包在默认 `hidden` 的 `#finance-detail` 里；`.finance pre:empty` 不画空框。
 - `mock_pay.html`：页内标题 `h1` → `h2.mock-title`，恢复整站每页一个 h1（单 h1 测试现在也覆盖这页）。
+
+## 2026-09-25 ER 画布工具栏（TD-279）
+
+- `er.html`：SVG 包进 `section.er-view`，前面是生成后才显示的 `#er-tools`（「查看全图」按钮 `#er-fit` + 操作说明）；SVG 加 `role="img"`，`aria-label` 由脚本写成表数与关系数。页内 `<style>` 只排这一块，不给输入控件写字体（TD-278 的 16px 层叠约束不受影响）。`ddl-input`/`er-word`/脚本路径等测试钉住的 ID 不变。
 

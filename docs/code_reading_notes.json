@@ -487,55 +487,95 @@
     },
     {
       "path": "app/frontend/er-layout.js",
-      "sha256": "d9049d416c84a5f731a5c748a3c533516d1de1530b5d41e5b44e5b47b6b34836",
+      "sha256": "68703a77b32fb6d1f56b51c93b60cabe80ac32a378b9d8580b383662b65ebe4f",
       "method": "manual",
       "blocks": [
         {
-          "end": 22,
-          "title": "纯布局参数 / nodeHeight",
-          "explanation": "此文件不 import D3、不碰 DOM，Node 可直接测试。节点固定宽230、标题30、每列字段24、底部8；nodeHeight 用字段数量决定表高，不依赖屏幕字体真实测量。"
+          "end": 35,
+          "title": "纯布局边界与参数",
+          "explanation": "此文件不 import D3、不碰 DOM，Node 可直接执行（CI 没有 node_modules，契约测试靠这一点跑得动）。文件头写明 TD-279 的三步：按外键深度分列、按文字估算宽度、正交折线只走通道和顶部车道。常量分三组：节点尺寸（表头30、每列24、底8、左右内边距10、宽度夹在160–340）；分列（同列间距28、单列超过900px拆子列）；路由（通道最小56、竖线间距8、车道起点/间距/离表格的余量）。字号14/12 与渲染层一致，估算宽度用的就是它们。"
         },
         {
-          "end": 80,
-          "title": "layoutEr：分行、命名映射与连线",
-          "explanation": "每3表一行，行高取最高表加 GAP_Y，x 是列号乘宽度+间距；byName 用表名找端点，所以 SQL 解析器必须先解决 schema 同名。外键目标缺失返回 null 再 filter，不让悬空 FK 崩图。返回 nodes/links/画布尺寸及字段排版参数；空输入宽高为0，显示页再给最小画布。最后 export 纯函数供渲染/测试复用。"
+          "end": 58,
+          "title": "textWidth / fitText：估算而不是测量",
+          "explanation": "纯布局拿不到浏览器字体，只能估算：CJK 与全角按 1em，大写/宽字母放大，窄字母与标点缩小，粗体再乘 1.08。目标是「不低估」——真实 Noto Sans SC 下项目 16 张表实测零溢出，估算宽一点只会早截断。fitText 放得下原样返回，否则逐字删到「剩余+省略号」放得下为止；Array.from 按码点切，不会把代理对切成乱码。"
+        },
+        {
+          "end": 77,
+          "title": "节点高度、标题与行文字、列中线",
+          "explanation": "nodeHeight 仍只由列数决定（旧导出保留）。headerText 把注释放进全角括号；rowText 给主键加 PK、外键加 FK 前缀，外键列来自本图的 edges。rowCenter 返回某列那一行的中线 y（相对节点顶部），线的起点/终点就钉在这里；列名找不到时退回表头中线，而不是抛错。"
+        },
+        {
+          "end": 100,
+          "title": "layoutEr 入口：过滤悬空外键、收集父子关系",
+          "explanation": "按表名建下标；目标表或源表不在 DDL 里的外键 return null 后 filter 掉——只丢这条线，不让整图崩。parents 记每张表引用的父表（自引用不算，不影响分列），related 标记参与任何关系的表，fkCols 记每张表的外键列（自引用也标 FK）。"
+        },
+        {
+          "end": 114,
+          "title": "① 外键深度：环也有限",
+          "explanation": "depth = 0（不引用别人）或 1 + 父表最大深度，记忆化 DFS。onStack 是当前递归路径：a→b→a 这种环里回到栈上的父表被忽略，所以一定终止；环两端会落在相邻两列，线仍按通道规则路由，不会穿表。"
+        },
+        {
+          "end": 141,
+          "title": "② 节点尺寸与截断后的文字",
+          "explanation": "宽度 = 标题与各行估算宽度的最大值 + 两侧内边距，夹在 [160, 340] 并取整。header/rows[].text 是截断后要画的文字，headerFull/rows[].full 是原文，渲染层据此决定是否挂悬停提示；pk/fk 决定颜色。name/comment/columns/x/y/w/h 保持原字段名，契约测试与旧调用者照常读取。"
+        },
+        {
+          "end": 189,
+          "title": "③ 分列：按深度、按父表位置排序、过高拆子列",
+          "explanation": "逐层处理 depth 0..max：同层按已放置父表的平均中线 y 排序（根层保持 DDL 顺序），减少相邻两列之间的线交叉。pushColumns 累加高度，超过 MAX_COL_H 就开新子列（单表更高时以单表为准）；stack 在列内从上往下排。没有任何关系的表最后单独成列放最右，不挤进关系区。col[i] 记录每张表所在列号，路由要用。"
+        },
+        {
+          "end": 249,
+          "title": "④ 路由准备：通道、总线竖线与顶部车道",
+          "explanation": "gap g 是第 g-1 列与第 g 列之间的空白，0 与末尾是外边距。父表在左：子表从左边出、进父表右边；父表在右（环）反之；同列（含自引用）两端都走右侧通道。两端通道相同就是 direct（一段竖线），否则走顶部车道。竖线 slot：指向同一父列（target）的线在同一通道共用一条，形成总线；车道也按 target 共用。通道宽度随竖线数增长，列宽取列内最宽的表，据此从左到右累加出每列 x；最后按车道数把所有节点整体下移，给车道留出表格上方的空间。"
+        },
+        {
+          "end": 287,
+          "title": "折线坐标与返回值",
+          "explanation": "x1 在子表朝向父表的那条边，y1 是外键列中线；x2/y2 同理落在父表被引用列那一行。direct：出→竖线→进，4 点；车道：出→子侧竖线上到车道→沿车道→父侧总线下来→进，6 点。竖线只在通道里、车道在所有表之上，所以任何线段都不进入表格（tests/test_er_page.py 逐段核对）。points 给测试，path 字符串给渲染；label 保持「列 → 列」原格式。width 为 0 时返回 0（空输入不出负宽度），height 取最低节点底边。"
+        },
+        {
+          "end": 305,
+          "title": "initialView：可读比例优先",
+          "explanation": "纯函数：整图按比例放进画布（留 12px 边距、不放大超过 1）若仍 ≥ 0.75 就居中显示全图；否则以 0.75 从左上角开始，由用户拖动平移，渲染层的「查看全图」按钮再用 mode='fit'/'readable' 切换。原来 viewBox 永远等于整图，本项目 16 张表被压到约 40%，12px 列名缩成 5px。最后导出供渲染与测试复用。"
         }
       ]
     },
     {
       "path": "app/frontend/er-page.js",
-      "sha256": "5fbfafa54c86e7458edb177d5cdb5dc6827fbd4e161a8b408bcb58c67d032052",
+      "sha256": "642a63a8fdc57fcdea12a98b9062c108c428aa4d5ccaa03c5ad67681e9ff6430",
       "method": "manual",
       "blocks": [
         {
-          "end": 20,
-          "title": "本地依赖与 renderEr：SVG 场景",
-          "explanation": "D3 和 layoutEr 从 npm/本地源码打包。renderEr 清旧 SVG、设至少320×200 viewBox，创建 root 组让 zoom 仅变 transform；缩放0.2–3不是重排表格。节点先由纯布局决定，浏览器不再猜后端字段。"
+          "end": 38,
+          "title": "本地依赖与 renderEr：画布、箭头与视口",
+          "explanation": "D3 从 npm 打包，layoutEr/initialView 来自纯布局（坐标、折线、截断文字都在那边算，可在 Node 里测）。viewBox 设为画布自身像素尺寸，缩放全部交给 d3.zoom 的变换，这样「可读比例 0.75」有确定含义。aria-label 写明表数与关系数，读屏用户至少知道生成了什么。defs 里的箭头 marker 用 userSpaceOnUse 随图缩放、context-stroke 跟随线色，指向被引用的父表。 TD-279 重写：原来 viewBox 等于整图、线是右中点到左中点的曲线。"
         },
         {
-          "end": 44,
-          "title": "外键曲线与文本",
-          "explanation": "先画 links path，两个控制点用 x 中点构成三次贝塞尔；标签放端点中间偏上。文本用 .text，不执行表名或字段名中的 HTML；fill=none 避免曲线区域被填成黑块。"
+          "end": 76,
+          "title": "缩放起点、全图切换与关系线",
+          "explanation": "initialView 决定初始变换并通过 zoom.transform 应用（之后的拖动/滚轮仍由 d3.zoom 管）；缩放下限取 min(0.2, 全图比例)。#er-tools 在首次渲染后显示，「查看全图」只在全图放不下可读比例时出现，点击在全图与可读尺寸间切换。关系线直接用布局的 path（正交折线）加箭头；关系名不再画在线中间（折线中点常落在通道里与别的线重叠），改为 <title> 悬停提示「子表.列 → 父表.列」，表内外键列标 FK。"
         },
         {
-          "end": 97,
-          "title": "表节点：矩形、标题和字段行",
-          "explanation": "join 为每张表生成 g，translate 到坐标；白底矩形与蓝标题，评论作为括注。字段 y 由 headH/rowH 算，主键不同颜色并加 PK；CSS/字体影响显示，不改变解析图。返回布局供调用者/测试检查。 TD-270：表头填充与边框由 #3b82f6 改为 #2563eb——表头上是白色 14px 文字，3.68:1 不达 AA，5.17:1 达标；连线描边仍是 #94a3b8（图形，不受文字对比度约束）。"
+          "end": 129,
+          "title": "表节点、截断提示与悬停高亮",
+          "explanation": "每张表一个 g，translate 到布局坐标；白底矩形、#2563eb 表头（白字 5.17:1，TD-270）。标题与各行画截断后的文字，只有被截断时才挂 <title> 显示原文。颜色：PK 琥珀 #b45309、FK 蓝 #1d4ed8、普通列 #334155，白底都 ≥ 4.5:1。鼠标进入一张表时它的关系线加深加粗、其余线变淡，离开恢复；text 一律用 .text()，不执行表名/字段名里的 HTML。返回布局供调用者检查。"
         },
         {
-          "end": 127,
+          "end": 171,
           "title": "输入示例和 post/fail",
           "explanation": "SAMPLE 只是按钮填入的 SQL，不会自动执行服务器操作。post 发 JSON，fail 显示文本错误；元素 ID 必须与 er.html 同步。"
         },
         {
-          "end": 150,
+          "end": 195,
           "title": "示例 / Word 下载",
-          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。"
+          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。"
         },
         {
-          "end": 165,
+          "end": 211,
           "title": "提交 ER：避免默认跳页和重复点击",
-          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。"
+          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。"
         }
       ]
     },
@@ -1811,16 +1851,16 @@
     },
     {
       "path": "app/templates/er.html",
-      "sha256": "d48d4e3001c0b4508dd5233000ae2a7c10d253d66eb04b040b7e0ba15590f1bf",
+      "sha256": "2ba44cf7c2c144f6365e00cd2a20350a3952d6a69563fc7d009ecd8272741db0",
       "method": "manual",
       "blocks": [
         {
-          "end": 18,
+          "end": 30,
           "title": "DDL 输入和 SVG 输出",
-          "explanation": "继承 base 的 split 布局。form 的 submit 生成 ER，Word/示例 type=button 避免误提交；error role=alert 是错误播报区域，SVG仅容器。元素 ID 是 er-page 的契约。 TD-272：内容块顶部按 page_heading 渲染可见的 h2（值来自 Tool.title，首页为空），工具页不再只有顶栏站点名一个标题。"
+          "explanation": "继承 base 的 split 布局。form 的 submit 生成 ER，Word/示例 type=button 避免误提交；error role=alert 是错误播报区域，SVG仅容器。元素 ID 是 er-page 的契约。 TD-272：内容块顶部按 page_heading 渲染可见的 h2（值来自 Tool.title，首页为空），工具页不再只有顶栏站点名一个标题。 TD-279：SVG 外包 section.er-view，前面是生成后才显示的 #er-tools（「查看全图」按钮 + 操作说明：拖动平移、滚轮/双指缩放、悬停高亮关系）；SVG 带 role=img，aria-label 由脚本改写为表数与关系数。页内 <style> 只管这一块的排版，不碰输入框字体。"
         },
         {
-          "end": 26,
+          "end": 38,
           "title": "按页加载本地 D3 bundle",
           "explanation": "module 脚本 defer 执行；打包入口已包含所需 D3，不请求 npm CDN。锁文件和产物漂移测试保证构建可追溯，不意味着第三方库永无漏洞。"
         }
@@ -5456,43 +5496,78 @@
     },
     {
       "path": "tests/test_er_page.py",
-      "sha256": "2309623905f8a837954a70367972fdf398dcaf16058b49175391598159f5e4f1",
+      "sha256": "f9f85feeeb34524c4802c8f1f38dc73b4ba1e2920e7a481afd42aa14cb2bafb2",
       "method": "guided",
       "blocks": [
         {
-          "end": 57,
+          "end": 59,
           "title": "模块装配",
-          "explanation": "模块协作与边界：把真实/tools/er-diagram返回值送Node运行纯layoutEr，逐字段核nodes/links和空图/悬空FK；页面引用也检查。没有实际D3像素渲染或交互截图。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL8 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from main import app；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL21 计算右侧并赋给 `ER_JS`：ROOT / 'app' / 'frontend' / 'er-layout.js'。\nL22 计算右侧并赋给 `FULL_INIT_SQL`：ROOT / 'database init' / 'full_init.sql'。\nL25 计算右侧并赋给 `FRONTEND_READS`：['name', 'columns', 'comment', 'type', 'primary_key', 'from_table', 'from_column', 'to_table', 'to_column']。\nL42 计算右侧并赋给 `_NODE_HARNESS`：'\\nimport { readFileSync } from \"node:fs\";\\nimport { pathToFileURL } from \"node:url\";\\nconst { layoutEr } = await import(pathToFileURL(process.argv[2]).href);\\nconst graph = JSON.parse(readFileSync(process.argv[1], \"utf8\"));\\nconsole.log(JSON.stringify(layoutEr(graph)));\\n'。\nL55 计算右侧并赋给 `_NODE_ARGS`：['--input-type=module', '-e']。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：把真实/tools/er-diagram返回值送Node运行纯layoutEr，逐字段核nodes/links和空图/悬空FK；页面引用也检查。没有实际D3像素渲染或交互截图。 TD-279：新增 pytest 导入（skipif）与 _VIEW_HARNESS；布局契约集中在 _assert_geometry。 TD-279：新增 pytest 导入（skipif）与 _VIEW_HARNESS；布局契约集中在 _assert_geometry。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL8 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from main import app；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL23 计算右侧并赋给 `ER_JS`：ROOT / 'app' / 'frontend' / 'er-layout.js'。\nL24 计算右侧并赋给 `FULL_INIT_SQL`：ROOT / 'database init' / 'full_init.sql'。\nL27 计算右侧并赋给 `FRONTEND_READS`：['name', 'columns', 'comment', 'type', 'primary_key', 'from_table', 'from_column', 'to_table', 'to_column']。\nL44 把测试JavaScript多行字面量存入 `_NODE_HARNESS`（266字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL57 计算右侧并赋给 `_NODE_ARGS`：['--input-type=module', '-e']。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 69,
           "title": "_graph_from_project_sql",
-          "explanation": "实际ER POST使用共享project_ddl_for_api全表投影，图须与原始full_init解析完全相同；完整结构接原Node布局断言。避免维护函数膨胀突破公共20000字符预算，不提高生产限制。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。实际ER POST使用共享project_ddl_for_api全表投影，图须与原始full_init解析完全相同；完整结构接原Node布局断言。避免维护函数膨胀突破公共20000字符预算，不提高生产限制。\n\n输入签名：client；异步调用需await才推进。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL62 导入 from app.tools.sql_ddl import parse_ddl；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL63 计算右侧并赋给 `raw`：调用 FULL_INIT_SQL.read_text(encoding='utf-8')。\nL64 导入 from tests.conftest import project_ddl_for_api；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL65 计算右侧并赋给 `ddl`：调用 project_ddl_for_api()。\nL66 计算右侧并赋给 `r`：await 调用 client.post('/tools/er-diagram', json={'ddl': ddl})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL67 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL68 核对 `r.json() == parse_ddl(raw)`：此条件为假即测试失败；不是生产输入校验。\nL69 结束当前函数，返回 调用 r.json()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 78,
           "title": "test_er_page_served",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/er。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL66 计算右侧并赋给 `r`：await 调用 client.get('/tools/er')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL67 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL68 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL69 核对 `'id=\"ddl-input\"' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL70 核对 `'/static/js/er-page.js' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL71 核对 `'d3' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/er。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL73 计算右侧并赋给 `r`：await 调用 client.get('/tools/er')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL74 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL75 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL76 核对 `'id=\"ddl-input\"' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL77 核对 `'/static/js/er-page.js' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL78 核对 `'d3' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 88,
           "title": "test_er_page_calls_a_registered_route",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/er。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL76 计算右侧并赋给 `html`：(await client.get('/tools/er')).text。\nL77 核对 `'id=\"er-word\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL78 计算右侧并赋给 `urls`：调用 re.findall('\"(/tools/[\\\\w-]+)\"', html)。\nL79 核对 `urls`：此条件为假即测试失败；不是生产输入校验。\nL80 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL81 核对 `set(urls) <= registered`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/er。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 计算右侧并赋给 `html`：(await client.get('/tools/er')).text。\nL84 核对 `'id=\"er-word\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL85 计算右侧并赋给 `urls`：调用 re.findall('\"(/tools/[\\\\w-]+)\"', html)。\nL86 核对 `urls`：此条件为假即测试失败；不是生产输入校验。\nL87 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL88 核对 `set(urls) <= registered`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 139,
+          "end": 127,
           "title": "test_layout_consumes_backend_payload",
-          "explanation": "本用例的准备条件：client, tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL85 计算右侧并赋给 `graph`：await 调用 _graph_from_project_sql(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL86 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL87 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL89 计算右侧并赋给 `blob`：调用 json.dumps(graph, ensure_ascii=False)：序列化成JSON字符串，不自动发送HTTP或写文件。\nL90 计算右侧并赋给 `missing`：[k for k in FRONTEND_READS if k not in blob]。\nL91 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\nL92 结束当前函数，返回 None；不会自动commit未提交事务。\nL94 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL95 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL96 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL102 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL105 核对 `[n['name'] for n in layout['nodes']] == [t['name'] for t in graph['tables']]`：此条件为假即测试失败；不是生产输入校验。\nL106 核对 `'sys_diagram' in [n['name'] for n in layout['nodes']]`：此条件为假即测试失败；不是生产输入校验。\nL107 核对 `all((n['columns'] for n in layout['nodes']))`：此条件为假即测试失败；不是生产输入校验。\nL108 核对 `any((c['primary_key'] for n in layout['nodes'] for c in n['columns']))`：此条件为假即测试失败；不是生产输入校验。\nL111 核对 `{(link['from'], link['label'], link['to']) for link in layout['links']} == {(e['from_table'], f\"{e['from_column']} → {e['to_column']}\", e['to_table']) for e in graph['edges']}`：此条件为假即测试失败；不是生产输入校验。\nL114 核对 `{'sys_order', 'oauth_code', 'sys_diagram'} <= {link['from'] for link in layout['links']}`：此条件为假即测试失败；不是生产输入校验。\nL115 计算右侧并赋给 `by_name`：{n['name']: n for n in layout['nodes']}。\nL116 逐项遍历 `layout['links']`，绑定 `link`；循环体按缩进执行，break可提前结束。\nL117 计算右侧并赋给 `(src, dst)`：(by_name[link['from']], by_name[link['to']])。\nL118 核对 `link['x1'] == src['x'] + src['w']`：此条件为假即测试失败；不是生产输入校验。\nL119 核对 `link['y1'] == src['y'] + src['h'] / 2`：此条件为假即测试失败；不是生产输入校验。\nL120 核对 `link['x2'] == dst['x']`：此条件为假即测试失败；不是生产输入校验。\nL121 核对 `link['y2'] == dst['y'] + dst['h'] / 2`：此条件为假即测试失败；不是生产输入校验。\nL122 核对 `'→' in link['label']`：此条件为假即测试失败；不是生产输入校验。\nL125 计算右侧并赋给 `rows`：{}。\nL126 逐项遍历 `layout['nodes']`，绑定 `n`；循环体按缩进执行，break可提前结束。\nL127 调用 rows.setdefault(n['y'], []).append(n)。\nL128 逐项遍历 `rows.values()`，绑定 `row`；循环体按缩进执行，break可提前结束。\nL129 计算右侧并赋给 `xs`：调用 sorted((n['x'] for n in row))。\nL130 核对 `all((b - a >= by_name[row[0]['name']]['w'] for a, b in zip(xs, xs[1:], strict=False)))`：此条件为假即测试失败；不是生产输入校验。\nL131 核对 `layout['width'] >= max((n['x'] + n['w'] for n in layout['nodes']))`：此条件为假即测试失败；不是生产输入校验。\nL132 核对 `layout['height'] >= max((n['y'] + n['h'] for n in layout['nodes']))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-279：原来逐条钉死「x1 = 子表右边、y1 = 子表竖直中点、x2 = 父表左边、y2 = 父表中点」和「每行 3 张」——那正是被修掉的缺陷（线横穿中间的表、看不出是哪一列）。现改为调用 _assert_geometry（起点/终点落在外键列/被引用列那一行、线段不穿任何表、表不重叠、截断保留原文、画布装得下）并加一条分列断言：每条非自引用的线父表都在子表左边（项目 schema 无环）。旧 er-layout.js 上失败。 TD-279：原来逐条钉死「x1 = 子表右边、y1 = 子表竖直中点、x2 = 父表左边、y2 = 父表中点」和「每行 3 张」——那正是被修掉的缺陷（线横穿中间的表、看不出是哪一列）。现改为调用 _assert_geometry（起点/终点落在外键列/被引用列那一行、线段不穿任何表、表不重叠、截断保留原文、画布装得下）并加一条分列断言：每条非自引用的线父表都在子表左边（项目 schema 无环）。旧 er-layout.js 上失败。\n\n输入签名：client, tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL92 计算右侧并赋给 `graph`：await 调用 _graph_from_project_sql(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL93 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL94 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL96 计算右侧并赋给 `blob`：调用 json.dumps(graph, ensure_ascii=False)。\nL97 计算右侧并赋给 `missing`：[k for k in FRONTEND_READS if k not in blob]。\nL98 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\nL99 结束当前函数，返回 None；不会自动commit未提交事务。\nL101 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL102 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL103 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL109 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL112 核对 `[n['name'] for n in layout['nodes']] == [t['name'] for t in graph['tables']]`：此条件为假即测试失败；不是生产输入校验。\nL113 核对 `'sys_diagram' in [n['name'] for n in layout['nodes']]`：此条件为假即测试失败；不是生产输入校验。\nL114 核对 `all((n['columns'] for n in layout['nodes']))`：此条件为假即测试失败；不是生产输入校验。\nL115 核对 `any((c['primary_key'] for n in layout['nodes'] for c in n['columns']))`：此条件为假即测试失败；不是生产输入校验。\nL118 核对 `{(link['from'], link['label'], link['to']) for link in layout['links']} == {(e['from_table'], f\"{e['from_column']} → {e['to_column']}\", e['to_table']) for e in graph['edges']}`：此条件为假即测试失败；不是生产输入校验。\nL121 核对 `{'sys_order', 'oauth_code', 'sys_diagram'} <= {link['from'] for link in layout['links']}`：此条件为假即测试失败；不是生产输入校验。\nL122 调用 _assert_geometry(layout)。\nL124 计算右侧并赋给 `by_name`：{n['name']: n for n in layout['nodes']}。\nL125 逐项遍历 `layout['links']`，绑定 `link`；循环体按缩进执行，break可提前结束。\nL126 判断 `link['from'] != link['to']`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL127 核对 `by_name[link['to']]['x'] < by_name[link['from']]['x']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 159,
+          "end": 134,
+          "title": "_row_y",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 计算某列那一行中线的期望 y：列名存在时 = 节点 y + 表头高 + (序号+0.5)×行高，不存在时落在表头中线；与 er-layout.js 的 rowCenter 独立实现，用来交叉核对。 计算某列那一行中线的期望 y：列名存在时 = 节点 y + 表头高 + (序号+0.5)×行高，不存在时落在表头中线；与 er-layout.js 的 rowCenter 独立实现，用来交叉核对。\n\n输入签名：node: dict, column: str, layout: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL131 计算右侧并赋给 `names`：[c['name'] for c in node['columns']]。\nL132 判断 `column not in names`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL133 结束当前函数，返回 node['y'] + layout['headH'] / 2；不会自动commit未提交事务。\nL134 结束当前函数，返回 node['y'] + layout['headH'] + (names.index(column) + 0.5) * layout['rowH']；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 184,
+          "title": "_assert_geometry",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 TD-279 布局契约的集中实现：逐条线核对端点、折线水平/竖直、每段不进入任何表格内部（端点落在边框上允许）、最后一段水平进入父表、path 与 points 一致、线在画布内；逐张表核对宽度范围、截断文字以省略号结尾且是原文前缀、两两不重叠；画布装得下全部节点。 TD-279 布局契约的集中实现：逐条线核对端点、折线水平/竖直、每段不进入任何表格内部（端点落在边框上允许）、最后一段水平进入父表、path 与 points 一致、线在画布内；逐张表核对宽度范围、截断文字以省略号结尾且是原文前缀、两两不重叠；画布装得下全部节点。\n\n输入签名：layout: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL148 计算右侧并赋给 `nodes`：layout['nodes']。\nL149 计算右侧并赋给 `by_name`：{n['name']: n for n in nodes}。\nL150 逐项遍历 `layout['links']`，绑定 `link`；循环体按缩进执行，break可提前结束。\nL151 计算右侧并赋给 `(src, dst)`：(by_name[link['from']], by_name[link['to']])。\nL152 核对 `link['x1'] in (src['x'], src['x'] + src['w'])`：此条件为假即测试失败；不是生产输入校验。\nL153 核对 `link['y1'] == _row_y(src, link['fromColumn'], layout)`：此条件为假即测试失败；不是生产输入校验。\nL154 核对 `link['x2'] in (dst['x'], dst['x'] + dst['w'])`：此条件为假即测试失败；不是生产输入校验。\nL155 核对 `link['y2'] == _row_y(dst, link['toColumn'], layout)`：此条件为假即测试失败；不是生产输入校验。\nL156 计算右侧并赋给 `pts`：link['points']。\nL157 核对 `pts[0] == [link['x1'], link['y1']] and pts[-1] == [link['x2'], link['y2']]`：此条件为假即测试失败；不是生产输入校验。\nL158 核对 `pts[-2][1] == link['y2']`：此条件为假即测试失败；不是生产输入校验。\nL159 核对 `link['path'] == 'M' + ' L'.join((f'{x:g},{y:g}' for x, y in pts))`：此条件为假即测试失败；不是生产输入校验。\nL160 核对 `'→' in link['label']`：此条件为假即测试失败；不是生产输入校验。\nL161 逐项遍历 `zip(pts, pts[1:], strict=False)`，绑定 `((ax, ay), (bx, by))`；循环体按缩进执行，break可提前结束。\nL162 核对 `ax == bx or ay == by`：此条件为假即测试失败；不是生产输入校验。\nL163 逐项遍历 `nodes`，绑定 `n`；循环体按缩进执行，break可提前结束。\nL164 计算右侧并赋给 `inside_x`：max(ax, bx) > n['x'] and min(ax, bx) < n['x'] + n['w']。\nL165 计算右侧并赋给 `inside_y`：max(ay, by) > n['y'] and min(ay, by) < n['y'] + n['h']。\nL166 判断 `ax == bx`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL167 计算右侧并赋给 `inside_x`：n['x'] < ax < n['x'] + n['w']。\nL168 判断 `ay == by`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL169 计算右侧并赋给 `inside_y`：n['y'] < ay < n['y'] + n['h']。\nL170 核对 `not (inside_x and inside_y)`：此条件为假即测试失败；不是生产输入校验。\nL171 核对 `min(ax, bx) >= 0 and max(ax, bx) <= layout['width']`：此条件为假即测试失败；不是生产输入校验。\nL172 核对 `min(ay, by) >= 0 and max(ay, by) <= layout['height']`：此条件为假即测试失败；不是生产输入校验。\nL173 逐项遍历 `enumerate(nodes)`，绑定 `(i, a)`；循环体按缩进执行，break可提前结束。\nL174 核对 `160 <= a['w'] <= 340`：此条件为假即测试失败；不是生产输入校验。\nL175 计算右侧并赋给 `texts`：[(a['header'], a['headerFull'])] + [(r['text'], r['full']) for r in a['rows']]。\nL176 逐项遍历 `texts`，绑定 `(shown, full)`；循环体按缩进执行，break可提前结束。\nL177 核对 `shown == full or (shown.endswith('…') and full.startswith(shown[:-1]))`：此条件为假即测试失败；不是生产输入校验。\nL178 逐项遍历 `nodes[i + 1:]`，绑定 `b`；循环体按缩进执行，break可提前结束。\nL179 计算右侧并赋给 `apart`：a['x'] + a['w'] <= b['x'] or b['x'] + b['w'] <= a['x'] or a['y'] + a['h'] <= b['y'] or (b['y'] + b['h'] <= a['y'])。\nL181 核对 `apart`：此条件为假即测试失败；不是生产输入校验。\nL182 判断 `nodes`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL183 核对 `layout['width'] >= max((n['x'] + n['w'] for n in nodes))`：此条件为假即测试失败；不是生产输入校验。\nL184 核对 `layout['height'] >= max((n['y'] + n['h'] for n in nodes))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 194,
+          "title": "_layout",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 把任意 graph 写入临时 JSON，用 node 执行 er-layout.js 的 layoutEr 并解析输出；与契约用例共用 _NODE_HARNESS/_NODE_ARGS。 把任意 graph 写入临时 JSON，用 node 执行 er-layout.js 的 layoutEr 并解析输出；与契约用例共用 _NODE_HARNESS/_NODE_ARGS。\n\n输入签名：graph: dict, tmp_path；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL188 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL189 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL190 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL194 结束当前函数，返回 调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 199,
+          "title": "_table",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 构造只含 INT 列的测试表，名为 id 的列是主键。 构造只含 INT 列的测试表，名为 id 的列是主键。\n\n输入签名：name, *cols, comment=None；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL198 结束当前函数，返回 {'name': name, 'comment': comment, 'columns': [{'name': c, 'type': 'INT', 'primary_key': c == 'id'} for c in cols]}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 203,
+          "title": "_edge",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 构造一条外键边（默认指向父表 id）。 构造一条外键边（默认指向父表 id）。\n\n输入签名：a, col, b, to='id'；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL203 结束当前函数，返回 {'from_table': a, 'from_column': col, 'to_table': b, 'to_column': to}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 238,
+          "title": "test_layout_edge_cases_keep_the_geometry_contract",
+          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-279：四种构造图都必须满足 _assert_geometry，且节点顺序与表顺序一致、每条边都画出：超长表名/列名/注释被截断到 340 宽；自引用成环线；a↔b 互相引用（深度计算不死循环）；14 张叶子表的星型图拆成多列、不相邻的列走顶部车道（6 点折线）、无关系的表在最右、外键列标 FK。旧布局上失败。 TD-279：四种构造图都必须满足 _assert_geometry，且节点顺序与表顺序一致、每条边都画出：超长表名/列名/注释被截断到 340 宽；自引用成环线；a↔b 互相引用（深度计算不死循环）；14 张叶子表的星型图拆成多列、不相邻的列走顶部车道（6 点折线）、无关系的表在最右、外键列标 FK。旧布局上失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实布局代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL209 计算右侧并赋给 `long_name`：'t_' + 'very_long_table_name_' * 4。\nL210 计算右侧并赋给 `star`：[_table('hub', 'id')] + [_table(f'leaf{i}', 'id', 'hub_id', 'a', 'b', 'c', 'd', 'e', 'f') for i in range(14)]。\nL212 计算右侧并赋给 `graphs`：{'truncate': {'tables': [_table(long_name, 'id', 'x' * 90, comment='一个非常非常长的中文注释' * 3)], 'edges': []}, 'self_ref': {'tables': [_table('node', 'id', 'parent_id')], 'edges': [_edge('node', 'parent_id', 'node')]}, 'cycle': {'tables': [_table('a', 'id', 'b_id'), _table('b', 'id', 'a_id')], 'edges': [_edge('a', 'b_id', 'b'), _edge('b', 'a_id', 'a')]}, 'star': {'tables': star + [_table('grand', 'id', 'leaf13_id'), _table('alone', 'id')], 'edges': [_edge(f'leaf{i}', 'hub_id', 'hub') for i in range(14)] + [_edge('grand', 'leaf13_id', 'leaf13')]}}。\nL222 逐项遍历 `graphs.items()`，绑定 `(name, graph)`；循环体按缩进执行，break可提前结束。\nL223 计算右侧并赋给 `layout`：调用 _layout(graph, tmp_path)。\nL224 核对 `[n['name'] for n in layout['nodes']] == [t['name'] for t in graph['tables']]`：此条件为假即测试失败；不是生产输入校验。\nL225 核对 `len(layout['links']) == len(graph['edges'])`：此条件为假即测试失败；不是生产输入校验。\nL226 调用 _assert_geometry(layout)。\nL227 判断 `name == 'truncate'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL228 计算右侧并赋给 `node`：layout['nodes'][0]。\nL229 核对 `node['w'] == 340 and node['header'].endswith('…') and node['rows'][1]['text'].endswith('…')`：此条件为假即测试失败；不是生产输入校验。\nL230 判断 `name == 'star'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL231 计算右侧并赋给 `xs`：{n['x'] for n in layout['nodes'] if n['name'].startswith('leaf')}。\nL232 核对 `len(xs) >= 2`：此条件为假即测试失败；不是生产输入校验。\nL233 计算右侧并赋给 `lanes`：[lk for lk in layout['links'] if len(lk['points']) == 6]。\nL234 核对 `lanes`：此条件为假即测试失败；不是生产输入校验。\nL235 计算右侧并赋给 `by`：{n['name']: n for n in layout['nodes']}。\nL236 核对 `by['alone']['x'] == max((n['x'] for n in layout['nodes']))`：此条件为假即测试失败；不是生产输入校验。\nL237 计算右侧并赋给 `fk`：[r for r in by['leaf0']['rows'] if r['fk']]。\nL238 核对 `[r['full'] for r in fk] == ['FK hub_id: INT']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 258,
           "title": "test_layout_handles_empty_graph",
-          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL137 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL138 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL139 核对 `'widest ?' in ER_JS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL140 结束当前函数，返回 None；不会自动commit未提交事务。\nL142 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL143 调用 payload.write_text(json.dumps({'tables': [], 'edges': []}), encoding='utf-8')。\nL144 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL150 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL151 核对 `layout['nodes'] == [] and layout['links'] == []`：此条件为假即测试失败；不是生产输入校验。\nL152 核对 `layout['width'] == 0 and layout['height'] == 0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL243 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL244 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL245 核对 `'widest ?' in ER_JS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL246 结束当前函数，返回 None；不会自动commit未提交事务。\nL248 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL249 调用 payload.write_text(json.dumps({'tables': [], 'edges': []}), encoding='utf-8')。\nL250 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL256 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL257 核对 `layout['nodes'] == [] and layout['links'] == []`：此条件为假即测试失败；不是生产输入校验。\nL258 核对 `layout['width'] == 0 and layout['height'] == 0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 181,
+          "end": 282,
           "title": "test_layout_skips_dangling_fk",
-          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL157 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL158 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL159 核对 `'return null' in ER_JS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL160 结束当前函数，返回 None；不会自动commit未提交事务。\nL162 计算右侧并赋给 `graph`：{'tables': [{'name': 'a', 'comment': None, 'columns': [{'name': 'id', 'type': 'INT', 'primary_key': True}]}], 'edges': [{'from_table': 'a', 'from_column': 'b_id', 'to_table': 'b', 'to_column': 'id'}]}。\nL166 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL167 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL168 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL174 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL175 核对 `len(layout['nodes']) == 1`：此条件为假即测试失败；不是生产输入校验。\nL176 核对 `layout['links'] == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL263 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL264 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL265 核对 `'return null' in ER_JS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL266 结束当前函数，返回 None；不会自动commit未提交事务。\nL268 计算右侧并赋给 `graph`：{'tables': [{'name': 'a', 'comment': None, 'columns': [{'name': 'id', 'type': 'INT', 'primary_key': True}]}], 'edges': [{'from_table': 'a', 'from_column': 'b_id', 'to_table': 'b', 'to_column': 'id'}]}。\nL272 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL273 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL274 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL280 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL281 核对 `len(layout['nodes']) == 1`：此条件为假即测试失败；不是生产输入校验。\nL282 核对 `layout['links'] == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 310,
+          "title": "test_initial_view_is_readable_instead_of_squeezing_the_whole_diagram",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实布局代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL285 把测试JavaScript多行字面量存入 `_VIEW_HARNESS`（424字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL302 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _VIEW_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL304 计算右侧并赋给 `v`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL305 计算右侧并赋给 `(small, big, big_fit)`：(v['small'], v['big'], v['bigFit'])。\nL306 核对 `small['fits'] and small['k'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL307 核对 `small['x'] == (900 - 500) / 2 and small['y'] == (620 - 300) / 2`：此条件为假即测试失败；不是生产输入校验。\nL308 核对 `not big['fits'] and big['k'] == v['READABLE'] == 0.75 and ((big['x'], big['y']) == (12, 12))`：此条件为假即测试失败；不是生产输入校验。\nL309 核对 `big_fit['k'] == big['fitK'] < 0.75 and big_fit['k'] * 2400 <= 900 - 24`：此条件为假即测试失败；不是生产输入校验。\nL310 核对 `v['smallReadable']['k'] == 0.75`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

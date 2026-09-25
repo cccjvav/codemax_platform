@@ -13,8 +13,20 @@
     </form>
     <p id="er-error" class="error" role="alert" hidden></p>
   </section>
-  <svg id="er-canvas"></svg>
+  <section class="er-view">
+    {# 生成后才显示：大图默认以可读比例打开（看不全时可切换全图），操作方式写在这里而不是让用户猜 #}
+    <p id="er-tools" class="er-tools" hidden>
+      <button type="button" class="ghost" id="er-fit" hidden>查看全图</button>
+      <span>拖动平移，滚轮或双指缩放；鼠标停在表上会高亮它的全部关系。</span>
+    </p>
+    <svg id="er-canvas" role="img" aria-label="ER 图（生成后显示）"></svg>
+  </section>
 </div>
+<style>
+  .er-view { min-width: 0; }
+  .er-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; color: #475569; font-size: 13px; }
+  #er-canvas { cursor: grab; }
+</style>
 
 <!-- d3 **不再走 CDN**（TD-222）：它由 npm 打进 /static/js/er-page.js。
      比原来的「钉版本 + SRI」更强 —— 原来再钉死，代码仍是**运行时**从 jsdelivr 取的，

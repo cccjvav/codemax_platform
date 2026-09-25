@@ -11,6 +11,8 @@ import shutil
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from main import app
 from tests.conftest import iter_app_routes
 
@@ -117,24 +119,123 @@ async def test_layout_consumes_backend_payload(client, tmp_path):
         (e["from_table"], f"{e['from_column']} → {e['to_column']}", e["to_table"]) for e in graph["edges"]
     }
     assert {"sys_order", "oauth_code", "sys_diagram"} <= {link["from"] for link in layout["links"]}
+    _assert_geometry(layout)
+    # 分列：父表（被引用）在子表左边 —— 项目 schema 没有环，每条非自引用的线都应从右往左指
     by_name = {n["name"]: n for n in layout["nodes"]}
     for link in layout["links"]:
-        src, dst = by_name[link["from"]], by_name[link["to"]]
-        assert link["x1"] == src["x"] + src["w"]
-        assert link["y1"] == src["y"] + src["h"] / 2
-        assert link["x2"] == dst["x"]
-        assert link["y2"] == dst["y"] + dst["h"] / 2
-        assert "→" in link["label"]
+        if link["from"] != link["to"]:
+            assert by_name[link["to"]]["x"] < by_name[link["from"]]["x"], link["label"]
 
-    # 网格排布：同一行的表不重叠，画布尺寸能装下所有节点
-    rows: dict[float, list[dict]] = {}
-    for n in layout["nodes"]:
-        rows.setdefault(n["y"], []).append(n)
-    for row in rows.values():
-        xs = sorted(n["x"] for n in row)
-        assert all(b - a >= by_name[row[0]["name"]]["w"] for a, b in zip(xs, xs[1:], strict=False))
-    assert layout["width"] >= max(n["x"] + n["w"] for n in layout["nodes"])
-    assert layout["height"] >= max(n["y"] + n["h"] for n in layout["nodes"])
+
+def _row_y(node: dict, column: str, layout: dict) -> float:
+    names = [c["name"] for c in node["columns"]]
+    if column not in names:
+        return node["y"] + layout["headH"] / 2
+    return node["y"] + layout["headH"] + (names.index(column) + 0.5) * layout["rowH"]
+
+
+def _assert_geometry(layout: dict) -> None:
+    """TD-279 布局契约（替换原来钉死「子表右中点 → 父表左中点」的四条坐标断言）。
+
+    原断言描述的正是被修掉的缺陷：固定从右中点连到左中点，线常横穿中间的表，也看不出是哪一列。
+    现在钉住更强、与具体坐标算法无关的性质：
+    ① 起点在子表朝向父表的那条边上、y 等于**外键列那一行**的中线；终点同理落在父表被引用列那一行；
+    ② 折线每段水平或竖直，且**没有任何一段进入任何表格内部**（含两端的表）；
+    ③ 最后一段水平进入父表（箭头方向可读）；path 字符串与 points 一致；
+    ④ 表格两两不重叠，宽度在 [160, 340]，被截断的文字以省略号结尾并保留完整原文；
+    ⑤ 画布能装下所有节点和线。
+    """
+    nodes = layout["nodes"]
+    by_name = {n["name"]: n for n in nodes}
+    for link in layout["links"]:
+        src, dst = by_name[link["from"]], by_name[link["to"]]
+        assert link["x1"] in (src["x"], src["x"] + src["w"])
+        assert link["y1"] == _row_y(src, link["fromColumn"], layout)
+        assert link["x2"] in (dst["x"], dst["x"] + dst["w"])
+        assert link["y2"] == _row_y(dst, link["toColumn"], layout)
+        pts = link["points"]
+        assert pts[0] == [link["x1"], link["y1"]] and pts[-1] == [link["x2"], link["y2"]]
+        assert pts[-2][1] == link["y2"], "最后一段必须水平进入父表"
+        assert link["path"] == "M" + " L".join(f"{x:g},{y:g}" for x, y in pts)
+        assert "→" in link["label"]
+        for (ax, ay), (bx, by) in zip(pts, pts[1:], strict=False):
+            assert ax == bx or ay == by, f"{link['label']} 有斜线段"
+            for n in nodes:
+                inside_x = max(ax, bx) > n["x"] and min(ax, bx) < n["x"] + n["w"]
+                inside_y = max(ay, by) > n["y"] and min(ay, by) < n["y"] + n["h"]
+                if ax == bx:
+                    inside_x = n["x"] < ax < n["x"] + n["w"]
+                if ay == by:
+                    inside_y = n["y"] < ay < n["y"] + n["h"]
+                assert not (inside_x and inside_y), f"{link['from']}→{link['to']} 的线段穿过表 {n['name']}"
+            assert min(ax, bx) >= 0 and max(ax, bx) <= layout["width"]
+            assert min(ay, by) >= 0 and max(ay, by) <= layout["height"]
+    for i, a in enumerate(nodes):
+        assert 160 <= a["w"] <= 340
+        texts = [(a["header"], a["headerFull"])] + [(r["text"], r["full"]) for r in a["rows"]]
+        for shown, full in texts:
+            assert shown == full or (shown.endswith("…") and full.startswith(shown[:-1]))
+        for b in nodes[i + 1:]:
+            apart = (a["x"] + a["w"] <= b["x"] or b["x"] + b["w"] <= a["x"]
+                     or a["y"] + a["h"] <= b["y"] or b["y"] + b["h"] <= a["y"])
+            assert apart, f"{a['name']} 与 {b['name']} 重叠"
+    if nodes:
+        assert layout["width"] >= max(n["x"] + n["w"] for n in nodes)
+        assert layout["height"] >= max(n["y"] + n["h"] for n in nodes)
+
+
+def _layout(graph: dict, tmp_path) -> dict:
+    payload = tmp_path / "graph.json"
+    payload.write_text(json.dumps(graph), encoding="utf-8")
+    out = subprocess.run(
+        [shutil.which("node"), *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)],
+        capture_output=True, text=True, check=True,
+    )
+    return json.loads(out.stdout)
+
+
+def _table(name, *cols, comment=None):
+    return {"name": name, "comment": comment,
+            "columns": [{"name": c, "type": "INT", "primary_key": c == "id"} for c in cols]}
+
+
+def _edge(a, col, b, to="id"):
+    return {"from_table": a, "from_column": col, "to_table": b, "to_column": to}
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实布局代码")
+def test_layout_edge_cases_keep_the_geometry_contract(tmp_path):
+    """长名截断、自引用、环、星型大表（拆子列、走顶部车道）都不许有线穿表或表重叠（TD-279）。"""
+    long_name = "t_" + "very_long_table_name_" * 4
+    star = [_table("hub", "id")] + [_table(f"leaf{i}", "id", "hub_id", "a", "b", "c", "d", "e", "f")
+                                    for i in range(14)]
+    graphs = {
+        "truncate": {"tables": [_table(long_name, "id", "x" * 90, comment="一个非常非常长的中文注释" * 3)],
+                     "edges": []},
+        "self_ref": {"tables": [_table("node", "id", "parent_id")], "edges": [_edge("node", "parent_id", "node")]},
+        "cycle": {"tables": [_table("a", "id", "b_id"), _table("b", "id", "a_id")],
+                  "edges": [_edge("a", "b_id", "b"), _edge("b", "a_id", "a")]},
+        "star": {"tables": star + [_table("grand", "id", "leaf13_id"), _table("alone", "id")],
+                 "edges": [_edge(f"leaf{i}", "hub_id", "hub") for i in range(14)]
+                          + [_edge("grand", "leaf13_id", "leaf13")]},
+    }
+    for name, graph in graphs.items():
+        layout = _layout(graph, tmp_path)
+        assert [n["name"] for n in layout["nodes"]] == [t["name"] for t in graph["tables"]], name
+        assert len(layout["links"]) == len(graph["edges"]), name
+        _assert_geometry(layout)
+        if name == "truncate":
+            node = layout["nodes"][0]
+            assert node["w"] == 340 and node["header"].endswith("…") and node["rows"][1]["text"].endswith("…")
+        if name == "star":
+            xs = {n["x"] for n in layout["nodes"] if n["name"].startswith("leaf")}
+            assert len(xs) >= 2, "14 张叶子表应拆成多列，而不是一根 5000px 的长柱"
+            lanes = [lk for lk in layout["links"] if len(lk["points"]) == 6]
+            assert lanes, "不相邻的列之间应走顶部车道"
+            by = {n["name"]: n for n in layout["nodes"]}
+            assert by["alone"]["x"] == max(n["x"] for n in layout["nodes"]), "无关系的表放最右"
+            fk = [r for r in by["leaf0"]["rows"] if r["fk"]]
+            assert [r["full"] for r in fk] == ["FK hub_id: INT"]
 
 
 async def test_layout_handles_empty_graph(tmp_path):
@@ -179,3 +280,31 @@ async def test_layout_skips_dangling_fk(tmp_path):
     layout = json.loads(out.stdout)
     assert len(layout["nodes"]) == 1
     assert layout["links"] == []
+
+
+_VIEW_HARNESS = """
+import { pathToFileURL } from "node:url";
+const { initialView, READABLE } = await import(pathToFileURL(process.argv[1]).href);
+const small = { width: 500, height: 300 }, big = { width: 2400, height: 850 };
+console.log(JSON.stringify({ READABLE,
+  small: initialView(small, 900, 620), big: initialView(big, 900, 620),
+  bigFit: initialView(big, 900, 620, "fit"), smallReadable: initialView(small, 900, 620, "readable") }));
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实布局代码")
+def test_initial_view_is_readable_instead_of_squeezing_the_whole_diagram():
+    """TD-279：原来 viewBox 永远等于整图，本项目 16 张表被压到约 40%，12px 列名缩成 5px。
+
+    整图按比例放进画布后仍 ≥ 可读比例才显示全图（居中、不放大超过 1）；否则以可读比例从左上角开始，
+    「查看全图」再切到全图比例。
+    """
+    out = subprocess.run([shutil.which("node"), *_NODE_ARGS, _VIEW_HARNESS, str(ER_JS)],
+                         capture_output=True, text=True, check=True)
+    v = json.loads(out.stdout)
+    small, big, big_fit = v["small"], v["big"], v["bigFit"]
+    assert small["fits"] and small["k"] == 1, "小图按原尺寸显示，不放大"
+    assert small["x"] == (900 - 500) / 2 and small["y"] == (620 - 300) / 2
+    assert not big["fits"] and big["k"] == v["READABLE"] == 0.75 and (big["x"], big["y"]) == (12, 12)
+    assert big_fit["k"] == big["fitK"] < 0.75 and big_fit["k"] * 2400 <= 900 - 24
+    assert v["smallReadable"]["k"] == 0.75

@@ -5,8 +5,8 @@
 | 文件 | 输入 / 输出与关键边界 |
 | --- | --- |
 | `auth.js` | `/auth/me` 与登录/退出表单；维护共享用户快照、顺序号与可退订监听器；初始网络错误有兜底，失败退出不假装成功。浮层打开时记住触发元素、Esc 关闭、关闭后焦点只在仍留在浮层内时归还（TD-263） |
-| `er-layout.js` | 图数据到布局，纯函数；Node 测试无需安装 d3 |
-| `er-page.js` | DDL 表单、D3 图与 Word 文件；第三方代码来自本地构建 |
+| `er-layout.js` | 图数据到布局，纯函数；Node 测试无需安装 d3。按外键深度分列、按文字估算宽度（超长截断）、正交折线只走列间通道和顶部车道，另给出初始视图（TD-279） |
+| `er-page.js` | DDL 表单、D3 图与 Word 文件；第三方代码来自本地构建。只画布局算好的东西，负责箭头、悬停提示/高亮、缩放与「查看全图」 |
 | `mermaid-page.js` | 自然语言表单到 Mermaid 展示；strict 模式，不允许模型放宽为 loose；503（模型并发闸门满）按 `Retry-After`（1–30 秒，默认 5）自动重试一次，再次繁忙原样显示服务端文案，502 等上游错误不重试 |
 | `drawio-page.js` | 检查消息 origin/source，以关联的 export 请求读取实时 XML；文档或账号切换替换 iframe 上下文、拒绝旧响应；串行保存并保留 ETag 冲突 |
 | `shop-page.js` | 主动下单、无重叠状态轮询、历史订单、短时链接重领；取消/账号切换清理状态，不自动再次下单 |
@@ -29,7 +29,7 @@
 | support.endpoint、onUser、reset | 由当前用户和管理员选择决定会话 endpoint；账号/会话切换递增 epoch、abort 请求、清除列表和输入，不靠 DOM 隐藏保护数据 |
 | support.render、poll、inbox | 使用 textContent 渲染，按消息 ID 去重；维护 oldest/newest，轮询在上次完成后再排 4 秒定时；inbox 游标与消息游标分开，并用请求序号拒绝乱序结果 |
 | support 表单提交 | 管理员未选客户不能发送；UUID 优先 crypto，HTTP旧环境降级仅用于幂等而非凭据；一次发送保留 client_nonce，响应丢失可重试；成功也不直接把读取游标跳到 POST ID，否则会漏掉中间管理员回复 |
-| er-layout.nodeHeight、layoutEr | 图数据 → 排版位置；无 DOM/网络。页面脚本负责 D3 渲染、错误提示和 Word 附件请求 |
+| er-layout.nodeHeight、layoutEr、initialView | 图数据 → 节点坐标/宽度/截断文字与折线 points/path；initialView 给出初始缩放（能读清就全图，否则 0.75 从左上角开始）。无 DOM/网络。页面脚本负责 D3 渲染、错误提示和 Word 附件请求 |
 | mermaid-page / mock-pay-page 事件处理 | 前者调用同源生成 API 并捕获渲染错误；后者只是开发模拟付款确认，不证明真实收款 |
 
 以上函数多在模块闭包内，并非公共 window API。事件绑定、DOM ID 与模板需要共同修改；JS 当前只提供文件级自动索引，这些解释是人工核对内容。
@@ -48,8 +48,8 @@
 | --- | --- | --- |
 | [`app/frontend/auth.js`](auth.js) | `e390f2c40994` | L1–L203 |
 | [`app/frontend/drawio-page.js`](drawio-page.js) | `240ada1a59cf` | L1–L201 |
-| [`app/frontend/er-layout.js`](er-layout.js) | `d9049d416c84` | L1–L80 |
-| [`app/frontend/er-page.js`](er-page.js) | `5fbfafa54c86` | L1–L165 |
+| [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
+| [`app/frontend/er-page.js`](er-page.js) | `642a63a8fdc5` | L1–L211 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `14cc54fcc3c9` | L1–L87 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
@@ -166,4 +166,15 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - `support-page.js`：追加新消息时，如果用户停在底部（或首屏）就滚到最新一条；正往上翻旧消息时不打断。
 
 验证：`tests/test_auth_cookie.py`、`test_drawio_auth_state.py`、`test_payments_frontend.py`（empty-list / detail-visibility）、`test_second_frontend_regressions.py`（support-scroll）对源码与 `app/static/js` 产物各跑一遍，改前均失败。
+
+## 2026-09-25：ER 图布局重写（TD-279，复核 N-04 / V-04）
+
+原布局每行固定 3 张表、节点固定 230 宽，连线是「子表右边中点 → 父表左边中点」的三次贝塞尔曲线，viewBox 永远等于整图。真实浏览器量本项目 16 张表 / 24 个外键：**20 条线穿过别的表**，长列名/注释压出方框，整图被缩到约 40%（12px 字成了 5px）。
+
+- `er-layout.js::layoutEr`：按外键深度分列（父表在左，环用递归栈截断），同层按父表位置排序，单列超过 900px 拆子列，无关系的表单独放最右；节点宽度按文字估算（`textWidth`，CJK 按 1em，只求不低估）夹在 160–340，放不下用 `fitText` 截断并保留原文；连线是正交折线，起点/终点钉在外键列与被引用列那一行（`rowCenter`），竖线只走列间通道（指向同一父列的线共用一条，形成总线），跨列的线走表格上方的车道。返回的 `nodes`/`links` 保留原字段，另加 `points`/`path`/`header`/`rows`。
+- `er-layout.js::initialView`：整图按比例放下后仍 ≥ 0.75 就居中显示全图，否则 0.75 从左上角开始。
+- `er-page.js::renderEr`：viewBox = 画布像素尺寸，缩放全交给 d3.zoom；线加箭头（指向父表），关系名改为悬停提示，截断文字悬停看原文；PK 琥珀、FK 蓝；鼠标停在表上高亮它的全部关系线；`#er-fit` 在全图与可读尺寸之间切换（整图本来就放得下时不显示）；aria-label 写明表数与关系数。
+- `er-page.js` 生成与 Word 两处失败分支的 `res.json()` 加 `.catch(() => null)`，同 TD-278 的商城修正。
+
+实测（同一 16 表 DDL，Chromium + Noto Sans SC）：穿表 20/24 → 0/24，文字溢出 0，axe 无违规，手机 390px 无横向溢出。
 

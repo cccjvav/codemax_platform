@@ -7,40 +7,72 @@
 // 代价是产物变大，但 d3 被 tree-shaking 到只剩用到的部分（实测约 49 kB）。
 import * as d3 from "d3";
 
-import { layoutEr } from "./er-layout.js";
+import { initialView, layoutEr } from "./er-layout.js";
 
+// 渲染只画 layoutEr 算好的东西：坐标、折线、截断后的文字都来自纯布局（可在 node 里测试）。
+// 这里负责 SVG 细节：箭头、悬停提示（截断时给出完整文字）、悬停时高亮一张表的全部关系。
 function renderEr(selector, graph) {
   const L = layoutEr(graph);
-  const svg = d3
-    .select(selector)
-    .attr("viewBox", [0, 0, Math.max(L.width, 320), Math.max(L.height, 200)])
-    .html("");
+  const el = document.querySelector(selector);
+  // viewBox 等于画布自身像素尺寸（1 单位 = 1 CSS px），缩放全交给 d3.zoom 的变换 ——
+  // 这样「可读比例」有确定含义，也能在全图与原尺寸之间切换（initialView 决定起点）。
+  const vw = el.clientWidth || 800;
+  const vh = el.clientHeight || 600;
+  const svg = d3.select(el).attr("viewBox", [0, 0, vw, vh]).html("");
+  // 读屏用户拿不到图形内容，至少告诉他生成了什么（表与关系的数量）
+  svg.attr("aria-label", `ER 图：${L.nodes.length} 张表、${L.links.length} 条外键关系`);
+  // 箭头指向被引用的父表（外键 → 主键）。markerUnits=userSpaceOnUse：缩放时箭头随图一起缩放。
+  svg
+    .append("defs")
+    .append("marker")
+    .attr("id", "er-arrow")
+    .attr("viewBox", "0 0 10 10")
+    .attr("refX", 10)
+    .attr("refY", 5)
+    .attr("markerWidth", 9)
+    .attr("markerHeight", 9)
+    .attr("markerUnits", "userSpaceOnUse")
+    .attr("orient", "auto")
+    .append("path")
+    .attr("d", "M0,0 L10,5 L0,10 z")
+    .attr("fill", "context-stroke");
   const root = svg.append("g");
-  svg.call(d3.zoom().scaleExtent([0.2, 3]).on("zoom", (ev) => root.attr("transform", ev.transform)));
+  const auto = initialView(L, vw, vh);
+  const zoom = d3
+    .zoom()
+    .scaleExtent([Math.min(0.2, auto.fitK), 3])
+    .on("zoom", (ev) => root.attr("transform", ev.transform));
+  const show = (view) => svg.call(zoom.transform, d3.zoomIdentity.translate(view.x, view.y).scale(view.k));
+  svg.call(zoom);
+  show(auto);
+  // 「查看全图 / 回到可读尺寸」只在整图放不下可读比例时出现；全图本来就可读就没必要切换
+  const tools = document.getElementById("er-tools");
+  const fitBtn = document.getElementById("er-fit");
+  if (tools && fitBtn) {
+    tools.hidden = false;
+    fitBtn.hidden = auto.fits;
+    let fitted = false;
+    fitBtn.textContent = "查看全图";
+    fitBtn.onclick = () => {
+      fitted = !fitted;
+      show(initialView(L, vw, vh, fitted ? "fit" : "readable"));
+      fitBtn.textContent = fitted ? "回到可读尺寸" : "查看全图";
+    };
+  }
 
-  root
+  const links = root
     .append("g")
     .attr("fill", "none")
     .attr("stroke", "#94a3b8")
+    .attr("stroke-width", 1.5)
     .selectAll("path")
     .data(L.links)
     .join("path")
-    .attr("d", (l) => {
-      const mx = (l.x1 + l.x2) / 2;
-      return `M${l.x1},${l.y1} C${mx},${l.y1} ${mx},${l.y2} ${l.x2},${l.y2}`;
-    });
-
-  root
-    .append("g")
-    .attr("font-size", 11)
-    .attr("fill", "#64748b")
-    .selectAll("text")
-    .data(L.links)
-    .join("text")
-    .attr("x", (l) => (l.x1 + l.x2) / 2)
-    .attr("y", (l) => (l.y1 + l.y2) / 2 - 4)
-    .attr("text-anchor", "middle")
-    .text((l) => l.label);
+    .attr("d", (l) => l.path)
+    .attr("marker-end", "url(#er-arrow)");
+  // 关系名不再画在线中间（折线的中点常落在通道里、与别的线重叠）：外键列在表内标 FK，
+  // 完整的「子表.列 → 父表.列」放在悬停提示里。
+  links.append("title").text((l) => `${l.from}.${l.fromColumn} → ${l.to}.${l.toColumn}`);
 
   const node = root
     .append("g")
@@ -62,24 +94,36 @@ function renderEr(selector, graph) {
     .attr("rx", 6)
     // 表头是白色 14px 文字：#3b82f6 只有 3.68:1，换成站内统一的 #2563eb（5.17:1，TD-263 同款）
     .attr("fill", "#2563eb");
-  node
+  const head = node
     .append("text")
     .attr("x", 10)
     .attr("y", 20)
     .attr("fill", "#fff")
     .attr("font-size", 14)
     .attr("font-weight", 600)
-    .text((n) => (n.comment ? `${n.name}（${n.comment}）` : n.name));
-  node
+    .text((n) => n.header);
+  head.filter((n) => n.header !== n.headerFull).append("title").text((n) => n.headerFull);
+  const rows = node
     .append("g")
     .attr("font-size", 12)
     .selectAll("text")
-    .data((n) => n.columns)
+    .data((n) => n.rows)
     .join("text")
     .attr("x", 10)
-    .attr("y", (c, i) => L.headH + (i + 0.75) * L.rowH)
-    .attr("fill", (c) => (c.primary_key ? "#b45309" : "#334155"))
-    .text((c) => `${c.primary_key ? "PK " : ""}${c.name}: ${c.type}`);
+    .attr("y", (r, i) => L.headH + (i + 0.72) * L.rowH)
+    // PK 琥珀色、FK 蓝色、普通列深灰；三色对白底都 ≥ 4.5:1
+    .attr("fill", (r) => (r.pk ? "#b45309" : r.fk ? "#1d4ed8" : "#334155"))
+    .text((r) => r.text);
+  rows.filter((r) => r.text !== r.full).append("title").text((r) => r.full);
+
+  // 悬停一张表：它的所有关系线加深，其余线变淡 —— 表多时能看清「谁引用了谁」
+  node
+    .on("mouseenter", (ev, n) => {
+      links
+        .attr("stroke", (l) => (l.from === n.name || l.to === n.name ? "#1d4ed8" : "#cbd5e1"))
+        .attr("stroke-width", (l) => (l.from === n.name || l.to === n.name ? 2.5 : 1.2));
+    })
+    .on("mouseleave", () => links.attr("stroke", null).attr("stroke-width", null));
 
   return L;
 }
@@ -134,7 +178,8 @@ document.getElementById("er-word").onclick = async () => {
   try {
     const res = await post("/tools/word-export", { ddl: input.value });
     if (!res.ok) {
-      const data = await res.json();
+      // 非 JSON 应答（代理 502/504 的 HTML 页）按 null 交给 errorText，显示「请求失败（状态码）」
+      const data = await res.json().catch(() => null);
       return fail(window.CodeMaxAuth.errorText(data, res.status));
     }
     const url = URL.createObjectURL(await res.blob());
@@ -154,8 +199,9 @@ form.onsubmit = async (ev) => {
   submit.disabled = true;
   try {
     const res = await post("/tools/er-diagram", { ddl: input.value });
-    const data = await res.json();
+    const data = await res.json().catch(() => null);
     if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
+    if (!data) return fail("渲染失败：服务器返回的不是 JSON");
     renderEr("#er-canvas", data);
   } catch (e) {
     fail(`渲染失败：${e.message}`);
