@@ -774,3 +774,21 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 未配置模型的站点，第一次点「生成」仍会下载渲染器（与请求并行，结果不需要时白下载一次）；换成「先等回复再下载」会让每次成功生成多等一个下载时间，不划算。
 - `test_mermaid_is_local_and_locked` 的静态 import 字面量改为 `import("mermaid")`（约束同样是「锁定的本地包」），并新增「不得动态 import 远程地址」；`test_ops.py` 的 gzip 用例从固定的 mermaid-page.js 改为产物中最大的文件。
 - 根 `package.json` 的 `//` 说明改为现行理由：实测在 Node 22 上加 type:module 前端用例仍全绿，但那只是因为 22 默认允许 require(esm)；CI 测试 job 用 runner 自带的 Node，版本不受仓库控制，所以维持不加。
+
+## TD-281：商城关闭页订单号、历史列表二维码与下载 404 文案（第 3b 批复核）
+
+2026-09-26。基线 `c308054`（TD-280）。复核 `app/routers/shop.py` 全文与 `shop-page.js` / `shop.html` 时发现的三处问题；预支付单飞、锁序、退款复查与回调校验复核后未发现问题。
+
+**问题**：
+- **关闭页没有订单号**：`render()` 对 closed 订单写 `#x-no`，但 `#x-no` 在 `#st-downloaded` 里，而这个区段从不显示——`ST.downloaded` 没有任何分支会 `show("downloaded")`，downloaded 订单一直按设计走 paid 区重领。结果「订单已关闭 · 如已付款，请通过站内客服核对」页面上没有用户要报给客服的那个号。
+- **历史列表给每张单画二维码**：`GET /shop/orders` 对每行调 `_payload()`，凡是 `weixin://` 的 code_url 都同步画 SVG——关闭单保留 code_url，所以一页最多 50 个。实测 50 个约 160 ms，全在事件循环上阻塞所有请求；还把早已失效的收款码发给了浏览器。前端只在 pending 分支用 `qr_svg`。
+- **下载 404 泄露存储内部路径**：交付对象缺失时返回「商品文件不存在（对象 key：product/…）」。
+
+**决定**：
+- 订单号移进 `#st-closed`；删除死区 `#st-downloaded` 与 `ST.downloaded`（`render` 的 paid/downloaded 合并分支不变）。
+- `_payload` 加仅关键字参数 `qr=True`；`order_history` 只对 pending 行传 True（每人至多一张 pending，唯一索引保证）。单查 `GET /shop/orders/{no}` 与下单响应不变。
+- 404 文案改为「商品文件暂不可用，请联系站内客服；购买权益未删除」；key 与 order_no 写入新 logger `codemax.shop`（运维告警，与 `codemax.audit` 分开），`docs/DEPLOY.md` 告警表加一行处理办法。
+
+**证据**：三条新/加强用例在改前均失败——`test_missing_product_file_404`（detail 不含 key、日志含 key）、`test_order_history_draws_qr_only_for_pending_rows`（只画 pending 一张）、`test_closed_order_page_shows_its_order_number`。真实 Chromium 390px：从「我的订单」点开一张关闭单，页面显示「订单 CM…」，axe 零违规、无横向溢出；该行历史响应 `qr_svg` 为 null。
+
+**代价与边界**：历史列表里非 pending 行的 `qr_svg` 恒为 null（字段保留，前端不读）；过期但仍是 pending 的单照旧返回码，与单查接口一致。无依赖/schema/接口路径变化。

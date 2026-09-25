@@ -327,6 +327,7 @@ async def mock_pay_confirm(
 
 # Structured operational logs supplement the transactional receipt; they are not the ledger.
 _audit_logger = logging.getLogger("codemax.audit")
+_shop_logger = logging.getLogger("codemax.shop")   # 运维告警（非审计），TD-281
 
 
 # ---------------------------------------------------------------- 人工确认收款（S5-04）
@@ -411,7 +412,11 @@ async def order_history(before: int | None = Query(None, gt=0), user: User = Dep
         stmt = stmt.where(Order.id < before)
     rows = list((await db.scalars(stmt.order_by(Order.id.desc()).limit(50))).all())
     refunded = set((await db.scalars(select(RefundReceipt.order_id).where(RefundReceipt.order_id.in_([r.id for r in rows])))).all())
-    return {"orders": [{**_payload(r, reused=True), "refunded": r.id in refunded} for r in rows],
+    # 只给 pending 行画二维码（每人至多一张）：关闭/已付单的码不会被展示，
+    # 旧做法一页 50 张单要同步画 50 个 SVG（实测约 160 ms 阻塞事件循环），
+    # 还把早已失效的收款码发给了浏览器（TD-281）。
+    return {"orders": [{**_payload(r, reused=True, qr=r.status == PENDING), "refunded": r.id in refunded}
+                       for r in rows],
             "next_cursor": rows[-1].id if len(rows) == 50 else None}
 
 
@@ -437,7 +442,9 @@ async def download_url(
     if not key or not order.delivery_digest or order.delivery_size is None:
         raise HTTPException(409, "历史交付对象未核准，请联系站内客服；购买权益未删除")
     if not storage.exists(key):
-        raise HTTPException(404, f"商品文件不存在（对象 key：{key}）")
+        # 对象 key 是存储内部路径，只写日志给运维，不回给用户（TD-281）。
+        _shop_logger.warning("delivery object missing order=%s key=%s", order.order_no, key)
+        raise HTTPException(404, "商品文件暂不可用，请联系站内客服；购买权益未删除")
     if not await run_in_threadpool(verify_snapshot, storage, key, order.delivery_digest, order.delivery_size):
         raise HTTPException(409, "交付快照损坏，需从备份恢复；购买权益未删除")
     await lock_order(db, order)
@@ -516,14 +523,14 @@ def _fail(status: int, message: str) -> JSONResponse:
     return JSONResponse({"code": "FAIL", "message": message}, status_code=status)
 
 
-def _payload(order: Order, *, reused: bool) -> dict:
+def _payload(order: Order, *, reused: bool, qr: bool = True) -> dict:
     # 只有微信 Native 支付的 `weixin://` 串需要画二维码。
     # mock 模式（TD-124）的 code_url 是本站的 http 链接，前端直接给个按钮点开就行，
     # 画成二维码反而多一步扫码 —— 所以这里按前缀区分，不给 http 链接生成码。
     # 渠道只看订单自己冻结的 payment_mode（NULL 显示 legacy），不看当前 SHOP_PAY_MODE：
     # 历史单不能随配置切换而变成另一种渠道。原先的 pay_mode 形参正因此从未被读取，已删（O-09）。
     pay_mode = order.payment_mode or 'legacy'
-    needs_qr = bool(order.code_url) and not order.code_url.startswith(("http://", "https://"))
+    needs_qr = qr and bool(order.code_url) and not order.code_url.startswith(("http://", "https://"))
     return {
         "order_no": order.order_no,
         "code_url": order.code_url,

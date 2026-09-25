@@ -81,7 +81,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_diagrams.py`](test_diagrams.py) | `d0e3630e1695` | L1–L119 |
 | [`tests/test_docs_contract.py`](test_docs_contract.py) | `8e1372f4d8f5` | L1–L98 |
 | [`tests/test_docs_site.py`](test_docs_site.py) | `08d17b62423a` | L1–L473 |
-| [`tests/test_download.py`](test_download.py) | `cc47c2756885` | L1–L346 |
+| [`tests/test_download.py`](test_download.py) | `a5c1ccc3b304` | L1–L374 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
@@ -126,7 +126,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `800cc9a7fe0d` | L1–L104 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `956df70a0124` | L1–L341 |
-| [`tests/test_shop_page.py`](test_shop_page.py) | `c5a8fc0ef6a2` | L1–L737 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `7989136535c4` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
@@ -135,7 +135,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `eceec8f1679b` | L1–L536 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `5eb4ea5bc607` | L1–L550 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `e26999e14490` | L1–L224 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `2209bd1c14bd` | L1–L539 |
@@ -330,3 +330,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_llm_concurrency.py` 执行器把 `import("mermaid")` 换成桩；`test_ops.py` 的 gzip 用例改取产物里最大的文件（mermaid-page.js 已只剩几 KiB）。
 
 新增用例均在改前的源码/产物上失败；替换的两处断言保持同等或更强的约束，没有跳过或删除用例。
+
+## 2026-09-26 商城关闭页、历史二维码与下载 404（TD-281）
+
+- `test_download.py::test_missing_product_file_404` 加强：404 detail 不得含对象 key、须含「购买权益未删除」，`codemax.shop` 日志里必须有 key。
+- 新增 `test_download.py::test_order_history_draws_qr_only_for_pending_rows`：closed/paid/pending 三张单都带 weixin:// 码，历史接口只画 pending 那张，单查接口照旧有码。
+- 新增 `test_ui_accessibility.py::test_closed_order_page_shows_its_order_number`；`test_shop_order_history_comes_after_every_status_section` 与 `test_shop_page.py` 的 Node 桩随模板去掉 `st-downloaded`（区段已删，不是放宽断言）。

@@ -497,7 +497,7 @@ global.clearInterval = (id) => { if (id === __timer) __timer = null; };
 els["btn-buy"] = mkEl(); els["btn-buy"].textContent = "立即购买（¥199.00）";
 els["buy-note"] = mkEl(); els["buy-note"].hidden = true;
 els["st-landing"] = mkEl();
-["st-pending", "st-paid", "st-refunded", "st-closed", "st-downloaded"].forEach((id) => {
+["st-pending", "st-paid", "st-refunded", "st-closed"].forEach((id) => {
   els[id] = mkEl(); els[id].hidden = true;
 });
 
@@ -551,7 +551,7 @@ global.__state = () => {
   // 元素是惰性创建的（只有脚本真的取过的 id 才存在），所以这里也要走 getElementById。
   const text = (id) => document.getElementById(id).textContent;
   const visible = [["landing", "st-landing"], ["pending", "st-pending"], ["paid", "st-paid"],
-                   ["refunded", "st-refunded"], ["closed", "st-closed"], ["downloaded", "st-downloaded"]]
+                   ["refunded", "st-refunded"], ["closed", "st-closed"]]
     .filter(([, id]) => document.getElementById(id).hidden === false).map(([k]) => k);
   return {
     buyText: text("btn-buy"),

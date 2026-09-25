@@ -108,7 +108,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/rough.esm.js`](js/rough.esm.js) | `ef405c5eaa33` | 生成物，见模块构建说明 |
 | [`app/static/js/sankeyDiagram-P5KCCOFB.js`](js/sankeyDiagram-P5KCCOFB.js) | `94031b0096e6` | 生成物，见模块构建说明 |
 | [`app/static/js/sequenceDiagram-WJ2MYXX4.js`](js/sequenceDiagram-WJ2MYXX4.js) | `7253da3935a3` | 生成物，见模块构建说明 |
-| [`app/static/js/shop-page.js`](js/shop-page.js) | `47c3cb169975` | 生成物，见模块构建说明 |
+| [`app/static/js/shop-page.js`](js/shop-page.js) | `5e63bc4a8d00` | 生成物，见模块构建说明 |
 | [`app/static/js/sizeCapture-INFHLROL.js`](js/sizeCapture-INFHLROL.js) | `1686f2a8163c` | 生成物，见模块构建说明 |
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
@@ -178,3 +178,7 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 - `js/mermaid-page.js` 从约 163 KiB（首屏连同静态依赖 16 个文件、约 669 KiB）降到约 3.5 KiB；Mermaid 本体进了新分块 `js/mermaid.core.js`，点「生成类图」时才下载。随之新增/改名的分块（`graphlib.js`、`chunk-*.js` 等）与 Mermaid 各图类型分块的压缩名重排都是这次拆分的结果。
 - 预加载助手（在 `js/mermaid-page.js` 里）拼接的地址前缀由 `/` 改为 `/static/js/`（`vite.config.mjs` 的 `base`）。
 - `js/auth.js` 随修改密码浮层重建。
+
+## 2026-09-26 shop-page.js 重建（TD-281）
+
+- 源码 `app/frontend/shop-page.js` 去掉 `ST.downloaded` 后重新 `npm run build`，只有 `js/shop-page.js` 变化。

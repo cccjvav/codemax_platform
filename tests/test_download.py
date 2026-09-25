@@ -110,15 +110,43 @@ async def test_other_users_order_not_found(client, product):
     assert await status_of(order_no) == "paid", "别人的订单不能被我领走"
 
 
-async def test_missing_product_file_404(client, product):
+async def test_missing_product_file_404(client, product, caplog):
     h = await auth_headers(client)
     order_no = await make_order("paid", "buyer")
     async with TestSession() as db:
         order = await db.scalar(select(Order).where(Order.order_no == order_no))
         product.joinpath(order.delivery_key).unlink()
-    r = await client.post(f"/shop/download/{order_no}", headers=h)
+    with caplog.at_level("WARNING", logger="codemax.shop"):
+        r = await client.post(f"/shop/download/{order_no}", headers=h)
     assert r.status_code == 404
     assert await status_of(order_no) == "paid", "文件不在就不该把订单标记为已下载"
+    # TD-281：对象 key 是存储内部路径，只进运维日志，不能回给用户
+    assert order.delivery_key not in r.json()["detail"] and "对象 key" not in r.json()["detail"]
+    assert "购买权益未删除" in r.json()["detail"]
+    assert any(order.delivery_key in rec.getMessage() for rec in caplog.records)
+
+
+async def test_order_history_draws_qr_only_for_pending_rows(client, product, monkeypatch):
+    """TD-281：历史列表一页最多 50 张单，旧实现给每张带 weixin:// 的单都同步画 SVG
+    （含早已关闭、永远不会展示的码）。只有 pending 行会被 render() 用到二维码。"""
+    import app.routers.shop as shop_router
+
+    h = await auth_headers(client)
+    numbers = {status: await make_order(status, "buyer") for status in ("closed", "paid", "pending")}
+    async with TestSession() as db:
+        for order in (await db.scalars(select(Order).where(Order.order_no.in_(numbers.values())))).all():
+            order.code_url = f"weixin://wxpay/bizpayurl?pr={order.order_no}"
+        await db.commit()
+    drawn = []
+    real = shop_router._qr_svg
+    monkeypatch.setattr(shop_router, "_qr_svg", lambda text: drawn.append(text) or real(text))
+    rows = {o["order_no"]: o for o in (await client.get("/shop/orders", headers=h)).json()["orders"]}
+    assert drawn == [f"weixin://wxpay/bizpayurl?pr={numbers['pending']}"]
+    assert rows[numbers["pending"]]["qr_svg"].startswith("<svg")
+    assert rows[numbers["closed"]]["qr_svg"] is None and rows[numbers["paid"]]["qr_svg"] is None
+    # 单查接口不受影响：轮询 pending 单照样拿到二维码
+    single = (await client.get(f"/shop/orders/{numbers['pending']}", headers=h)).json()
+    assert single["qr_svg"].startswith("<svg")
 
 
 # ---------------------------------------------------------------- 第二重：预签名 URL

@@ -33,7 +33,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mock_pay.html`](mock_pay.html) | `dd6aaa5ba764` | L1–L30 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `503e7d3cdec3` | L1–L165 |
-| [`app/templates/shop.html`](shop.html) | `1561b62290e7` | L1–L120 |
+| [`app/templates/shop.html`](shop.html) | `92516b5942de` | L1–L115 |
 | [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -124,3 +124,7 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 - `base.html`：`#auth-who` 从 span 改为 ghost 按钮（`aria-haspopup="dialog"`，可访问名称由 auth.js 写成「用户名（修改密码）」），点它打开 `#pw-mask`。浮层字段：隐藏只读的 `pw-user`（autocomplete=username，供密码管理器认账号）、`pw-old`（current-password）、`pw-new`/`pw-again`（new-password，minlength 6 / maxlength 64，与 `PasswordChangeIn` 一致）；`#pw-error` role=alert、`#pw-done` role=status。与登录浮层一样在 auth.js 之前、`auth_ui` 为假时不输出。
 - 不另加顶栏按钮：窄屏第一行只放得下站点名 + 两个控件（390px 实测顶栏仍 88px、站点名不截断）。`.actions .who` 去掉灰字（按钮灰字像禁用），新增 `.modal .ok` / `.modal .account`；16px 规则仍是样式表最后一条。
+
+## 2026-09-26 商城关闭页显示订单号（TD-281）
+
+- `shop.html`：`#x-no` 从从不显示的 `#st-downloaded` 移到 `#st-closed`（关闭页让用户找客服核对，却没有订单号可报）；`#st-downloaded` 整段删除——downloaded 订单一直按设计渲染 paid 区、可重新领取短时链接，③ 注释已注明。

@@ -104,7 +104,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `e4a48ff24b12` | L1–L740 |
+| [`app/routers/shop.py`](shop.py) | `df794def24ae` | L1–L747 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
@@ -203,3 +203,8 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 ## 2026-09-23：页面级标题由清单注入（TD-272）
 
 `routers/site.py` 在渲染工具页时多传一个 `page_heading`（值就是 `Tool.title`，首页为空字符串），模板据此渲染可见的 `<h2 class="page-heading">`：此前工具页只有顶栏的站点名 `<h1>`，读屏用户按标题导航时看不到「这一页是做什么的」。名称仍只有 `Tool.title` 一处来源，模板不重复写死；首页不渲染，避免与卡片标题重复。可见标题不是权限或路由声明，页面仍由 `PAGES` 清单注册。
+
+## 2026-09-26：商城历史列表只画 pending 码、下载 404 不回显 key（TD-281）
+
+- `_payload(order, *, reused, qr=True)`：新增仅关键字参数 `qr`。`order_history` 只对 pending 行传 True——关闭单保留 code_url，旧实现一页最多同步画 50 个 SVG（约 160 ms 阻塞事件循环），前端又只在 pending 分支用 `qr_svg`。
+- `download_url`：交付对象缺失的 404 改为「商品文件暂不可用，请联系站内客服；购买权益未删除」；对象 key 与 order_no 写入 `codemax.shop` warning（新 logger，运维告警，与 `codemax.audit` 分开）。

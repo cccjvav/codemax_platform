@@ -13,7 +13,7 @@ const ST = {
   paid: document.getElementById("st-paid"),
   refunded: document.getElementById("st-refunded"),
   closed: document.getElementById("st-closed"),
-  downloaded: document.getElementById("st-downloaded"),
+  // 没有单独的 downloaded 区：downloaded 只表示发过链接，照样走 paid 区重新领取（TD-281 删掉了从不显示的 st-downloaded）。
 };
 let timer = null;
 let currentNo = null;

@@ -72,7 +72,9 @@
   </section>
 
   <section id="st-refunded" hidden><h2>订单已全额退款</h2><p>此订单不能再下载。原收款和退款记录分别保留；如有疑问，请联系<a href="/support/center">站内客服</a>。</p></section>
-  <section id="st-closed" hidden><h2>订单已关闭</h2><p>该订单尚未确认付款，不能下载。如已付款，请通过站内客服核对。</p></section>
+  <!-- 订单号放在关闭态里：用户找客服核对时要报这个号。它原先在从未显示的 st-downloaded 里，
+       关闭页因此一直看不到订单号（TD-281）。 -->
+  <section id="st-closed" hidden><h2>订单已关闭</h2><p class="muted">订单 <span id="x-no"></span></p><p>该订单尚未确认付款，不能下载。如已付款，请通过站内客服核对。</p></section>
   <!-- ② 待支付态 -->
   <section id="st-pending" class="pay" hidden>
     <h2>订单 <span id="p-no"></span></h2>
@@ -86,7 +88,7 @@
     <p><button type="button" class="ghost" id="btn-cancel">返回商品页</button></p>
   </section>
 
-  <!-- ③ 已支付 / 已下载态 -->
+  <!-- ③ 已支付 / 已下载态（downloaded 同样渲染这里，可重新领取短时链接） -->
   <section id="st-paid" class="pay" hidden>
     <h2>✅ 支付成功</h2>
     <p class="muted">订单 <span id="d-no"></span></p>
@@ -95,13 +97,6 @@
       下载链接短时有效。中断或过期后可重新领取，已购权益不会因领取一次而消失。
     </div>
     <p class="error" id="d-error"></p>
-  </section>
-
-  <section id="st-downloaded" class="pay" hidden>
-    <h2>该订单已领取过链接</h2>
-    <p class="muted">
-      订单 <span id="x-no"></span> 的下载权益仍可恢复，请从我的订单重新领取链接。
-    </p>
   </section>
 
   <!-- ④ 我的订单：固定放在**所有状态区之后**。它曾夹在落地区与状态区之间，于是切到

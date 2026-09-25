@@ -54,7 +54,7 @@
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `e170a861138c` | L1–L370 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `8299e4b12efc` | L1–L370 |
 | [`app/frontend/support-page.js`](support-page.js) | `ffb34cd74bbd` | L1–L146 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -182,3 +182,7 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 
 - `auth.js::openPassword / closePassword / #pw-form.onsubmit`：顶栏用户名（`#auth-who`，现为按钮）打开修改密码浮层。两次新密码不一致、新旧相同在前端拦下，不白白消耗改密限流额度；原密码错（400）显示服务端文案；401 只可能是会话本身到期，先关浮层再交给 `sessionExpired`。成功后服务端已吊销旧 token、给本会话换了新 cookie，所以不 refresh；三个密码框在打开、关闭、成功时都清空。退出/到期时 `paint()` 顺手关掉浮层。焦点归还抽成 `returnFocus(box, from)`，两个浮层共用。
 - `mermaid-page.js::loadMermaid`：`import("mermaid")` 按需加载并缓存 promise，`initialize`（strict）在加载完成时调用；下载失败清缓存，下一次点击重新下载。提交时与模型请求同时开始下载；渲染器下载失败时仍显示生成的源码。
+
+## 2026-09-26：商城状态视图去掉死区（TD-281）
+
+- `shop-page.js`：`ST` 去掉 `downloaded`（从无分支显示它，模板区段已删）；`render()` 的 paid/downloaded 合并分支不变，closed 分支写的 `#x-no` 现在就在关闭区里。

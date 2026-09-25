@@ -524,8 +524,22 @@ def test_shop_order_history_comes_after_every_status_section():
     「支付成功 / 下载」在下（top 218 vs 268），而且 h3 先于状态区的 h2（axe `heading-order`）。"""
     html = (ROOT / "app" / "templates" / "shop.html").read_text(encoding="utf-8")
     history = html.index('id="btn-history"')
-    for status in ("st-pending", "st-paid", "st-downloaded", "st-refunded", "st-closed"):
+    for status in ("st-pending", "st-paid", "st-refunded", "st-closed"):
         assert html.index(f'id="{status}"') < history, f"{status} 应排在「我的订单」之前"
+
+
+def test_closed_order_page_shows_its_order_number():
+    """TD-281：render() 把关闭单的订单号写进 #x-no，但 #x-no 原本在从不显示的 st-downloaded 里，
+    关闭页因此没有订单号 —— 而页面恰恰让用户「通过站内客服核对」。downloaded 走 paid 区重领，
+    st-downloaded 是死区，已删除。"""
+    html = (ROOT / "app" / "templates" / "shop.html").read_text(encoding="utf-8")
+    closed = html.split('<section id="st-closed"')[1].split("</section>")[0]
+    assert 'id="x-no"' in closed
+    assert html.count('id="x-no"') == 1
+    assert 'id="st-downloaded"' not in html
+    js = (ROOT / "app" / "frontend" / "shop-page.js").read_text(encoding="utf-8")
+    assert 'getElementById("st-downloaded")' not in js
+    assert 'o.status === "paid" || o.status === "downloaded"' in js, "downloaded 仍须渲染成可重新领取的 paid 区"
 
 
 def test_drawio_login_prompt_is_one_toggleable_element():
