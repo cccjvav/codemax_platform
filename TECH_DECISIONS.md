@@ -816,3 +816,18 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **证据**：同一脚本改后最长停顿 **2 ms**，总耗时基本不变（约 3.1–3.2 s）。`test_parse_page_runs_both_soup_passes_outside_the_event_loop_process` 用模块级探针记录两次解析的 PID，要求都不是测试进程（改前失败）；`test_cpu_parse_slot_busy_maps_to_503_and_writes_nothing` 改前失败；`test_parse_page_propagates_extract_errors_from_the_worker` 保证错误传递。
 
 **代价与边界**：页面解析与 Word 导出共用 2 个任务槽，两者同时繁忙时后到者得 503；`CPUQueueFull` 自带的「导出任务繁忙」文案只在内部出现，两个路由各自给出面向用户的说明。HTML 与骨架需在进程间序列化（2 MB 级别，毫秒量级）。进程池退化为线程池时解析仍在本进程、受 GIL 影响，届时停顿问题会部分回来——与 Word 导出相同，已有日志告警。无依赖/schema/接口路径变化。
+
+## TD-284：代码导读 L 行号与现行源码重新对齐（第 3b 批复核）
+
+2026-09-26。基线 `cd610dd`（TD-282/283）。只改 `docs/code_reading_notes.json`，不动任何源码。
+
+**问题**：导读的 `sha256` 每次随源码更新，但很多条目里的 `Lnn` 没有跟着改——正文描述的语句是对的，行号却指向别处，读者按行号去右侧源码找会找错。以「行号不是语句起始，或落在本块范围之外」计，87 个带 AST 导读的文件里有 765 处；行号偏移更广（`test_ops` 约 180 处、`test_docs_site` / `test_ratelimit` / `test_wechat_notify` / `test_wechat_pay` 各一百余处，`cpu_pool` 甚至有一条「L61 导入 import asyncio」指向不存在的语句）。另有少量正文本身已过时：`rate_limit.dependency` 仍写 `limiter.admit(...)`（现为 `(bucket or limiter).admit(..., window=...)` 且有 `quota_detail`），`mock_pay_page` 缺了 `ENV != "development"` 条件，`test_manual_pay` 的确认请求缺 `json=` 凭证体、`transaction_id` 仍写 `MANUAL-{no}`，`test_docs_site` 仍断言限流路由数 25（现为 27）等。
+
+**决定**：
+- 行号：每个标题对应 AST 单元的块，把原有 L 行文本按顺序与该单元当前语句的生成导读做序列对齐（兼容旧生成器的几种写法），对上的改成现行行号；标题不是单元的手写块只在块内做唯一文本匹配。块边界沿用各文件原约定（有的把函数后空行归下一块，有的把类后的模块常量留在类块），只有 `diagrams.py` 因边界本身漂移、按 AST 重算了 13 个块尾。
+- 过时正文：行号对齐后仍与该行语句的生成文本不一致的块，按块内原范围的语句重写「AST语句导读」段（首段契约、签名、阅读边界不动）；`test_wechat_pay.py` 边界整体错位，按 AST 整文件重建（保留全部原契约段）。`rate_limit.dependency` 与 `mock_pay_page` 的契约句同步改正；`limiter 与 register_daily_limiter` 手写块补上三条模块语句的导读，原先误挂在 `Limiter.reset` 下的那一条移走。
+- 生成规则与旧导读一致：try 只有 finally 时写「未配置except，异常向上传播；finally无论成功失败都会清理」，多行字符串以 `<` 开头或不像 JS 的写「HTML模板/测试输入」，`db.flush` 附约束错误说明。
+
+**证据**：全部 87 个文件约 8000 条 L 行里，「非语句起始或越出本块」从 765 降到 0；与该行语句生成文本不一致的只剩 1 条（`_luminance` 内联描述嵌套函数 `channel` 的 L26，描述准确，故意保留）。`check_docs_contract.py` 0 错误，文档站构建通过。
+
+**代价与边界**：被重写的块里有些措辞从旧生成器写法换成了现行写法（如「不保证网络完成顺序」、状态码断言的 STATUS 文案），属于同一模板的不同版本。仓库里仍没有导读生成器（`scripts/code_reading.py` 只校验），以后改源码仍需手工同步行号——这是本次漂移的根因，是否把生成器收进仓库需要单独决定。

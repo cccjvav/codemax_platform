@@ -26,6 +26,8 @@
 
 **接手状态（2026-09-26，TD-282 / TD-283 / 第 3b 批复核之二）**：oauth / payments_admin / refunds_admin / admin / refund_notify 与 crawler / browser / extract 复核完毕。修两处：① SSRF 公网判定原来只看 `is_global`，Python 把 NAT64 前缀 `64:ff9b::/96` 与 IPv4 兼容 `::a.b.c.d` 视为全球可达，IPv6-only + NAT64 出网时可借 AAAA 记录打到内网/元数据，现连内嵌 IPv4 一起判（`crawler._is_public`）；② 文章入库的两次 BeautifulSoup 解析原在事件循环上（1.5 MB 页面卡全站约 3 秒），改走 `run_cpu_bound`，槽满/超时 503。`docs/code_reading_notes.json` 里这 6 个文件的导读按当前 AST 重新生成，顺带修正了原有的行号漂移。其余 tools（llm / support / faq / sql_ddl / politeness / intent / word）与 models 继续复核。
 
+**接手状态（2026-09-26，TD-284 / 导读行号对齐）**：`docs/code_reading_notes.json` 大量 `Lnn` 与现行源码错位（87 个带 AST 导读的文件里 765 处行号不是语句起始或越出所在块），另有十几块正文描述的是旧代码（限流依赖、模拟收银台条件、人工确认请求体、限流路由数等）。已全部对齐：越界 0 处，过时块按当前 AST 重写导读段，契约句同步。仓库没有导读生成器，改源码后仍要手工同步行号，见 TD-284 代价一节。
+
 ## 本次交接范围
 
 - **当前（2026-09-24）**：复核基线 `3e408a1`（TD-270），已落地 TD-272/TD-273/TD-274（UI 与可访问性、测试成本、会话到期保内容、V-05 已购与返回恢复）；这些批次不改依赖、schema 或历史 SQL，完整迁移仍为 **0017**。
