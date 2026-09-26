@@ -28,8 +28,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from ..models import Article
-from .faq import FaqHit, search, semantic_search, semantic_threshold, tokenize
-from .faq import _Index as RetrievalIndex  # 复用 BM25+余弦，别再写一遍
+from .faq import (
+    FaqHit,
+    RetrievalIndex,
+    fused_scores,
+    search,
+    semantic_search,
+    semantic_threshold,
+    tokenize,
+)
 from .intent import Intent, IntentResult, default_router, llm_classify
 from .llm import LLMClient, LLMError, default_llm
 
@@ -169,50 +176,49 @@ async def _retrieve_articles(
     只有真起服务连真库才会暴露。
 
     索引按实际语料 SHA-256 指纹缓存复用，且分词/建索引整体在线程池里跑
-    —— 见 `_ARTICLE_CACHE` 与 `_build_index` 的注释（TD-214）。
-    ⚠️ 旧版这里写的是「每次都现建索引……记在 TD-151」，两处都不对：
-    行为已改，而 TD-151 讲的是 FAQ 阈值标定，与索引重建无关。
+    —— 见 `_ARTICLE_CACHE` 与 `_article_index` 的注释（TD-214）。
     """
-    global _ARTICLE_CACHE
-
     try:
         rows = list((await db.scalars(select(Article).order_by(Article.id))).all())
     except SQLAlchemyError:
         return None
     if not rows:
         return []
+    index, rows = await _article_index(rows)
+    return _rank_articles(index, rows, question)
+
+
+async def _article_index(rows: list) -> tuple[RetrievalIndex, list]:
+    """按语料指纹取缓存的索引；语料变了（含 UPDATE）才在线程池里重建。返回 (索引, 与之对应的行)。"""
+    global _ARTICLE_CACHE
+
     fp = hashlib.sha256(json.dumps(
         [(a.id, a.title, a.content) for a in rows], ensure_ascii=False
     ).encode()).hexdigest()
     if _ARTICLE_CACHE is not None and _ARTICLE_CACHE[0] == fp:
-        index, rows = _ARTICLE_CACHE[1], _ARTICLE_CACHE[2]
-    else:
-        # ⚠️ 分词与建索引必须**整体**丢到线程池：jieba 是同步 CPU 活，
-        # 200 篇实测要吃 200 ms 量级。留在事件循环里的话，那 0.2 秒内
-        # **全站所有请求**都排不上队 —— 而 /support/ask 是不鉴权的，
-        # 匿名用户反复提问就能让整站周期性卡顿（实测漂移 232.3 ms）。
-        # 与 A-1（bcrypt 堵事件循环）、TD-159/183/186 是同一条原则。
-        #
-        # 注意必须包成一个函数再丢进去：写成
-        # `run_in_threadpool(RetrievalIndex, [tokenize(...) for a in rows])`
-        # 是**没用的** —— 那个列表推导式在传参时就已在事件循环里算完了，
-        # 只有便宜的建索引进了线程。第一版就是这么写错的，漂移纹丝不动。
-        index = await run_in_threadpool(_build_index, rows)
-        _ARTICLE_CACHE = (fp, index, rows)
+        return _ARTICLE_CACHE[1], _ARTICLE_CACHE[2]
+    # ⚠️ 分词与建索引必须**整体**丢到线程池：jieba 是同步 CPU 活，
+    # 200 篇实测要吃 200 ms 量级。留在事件循环里的话，那 0.2 秒内
+    # **全站所有请求**都排不上队 —— 而 /support/ask 是不鉴权的，
+    # 匿名用户反复提问就能让整站周期性卡顿（实测漂移 232.3 ms）。
+    # 与 A-1（bcrypt 堵事件循环）、TD-159/183/186 是同一条原则。
+    #
+    # 注意必须包成一个函数再丢进去：写成
+    # `run_in_threadpool(RetrievalIndex, [tokenize(...) for a in rows])`
+    # 是**没用的** —— 那个列表推导式在传参时就已在事件循环里算完了，
+    # 只有便宜的建索引进了线程。第一版就是这么写错的，漂移纹丝不动。
+    index = await run_in_threadpool(_build_index, rows)
+    _ARTICLE_CACHE = (fp, index, rows)
+    return index, rows
 
+
+def _rank_articles(index: RetrievalIndex, rows: list, question: str) -> list[tuple[str, str]]:
+    """与 FAQ 同一个融合公式（`faq.fused_scores`）排序，取前 RAG_TOP_K 篇、分数为正的片段。"""
     # 单次问题的分词很轻（实测约 0.02 ms），不值得为它再起一次线程。
     q = tokenize(question)
     if not q:
         return []
-    # 与 FAQ 一样两路融合；这里直接复用索引的两个分量
-    bm = index.bm25(q)
-    cos = index.cosine(q)
-    peak_b = max(bm) if bm else 0.0
-    peak_c = max(cos) if cos else 0.0
-    fused = [
-        0.6 * (b / peak_b if peak_b else 0.0) + 0.4 * (c / peak_c if peak_c else 0.0)
-        for b, c in zip(bm, cos, strict=True)
-    ]
+    fused = fused_scores(index, q)
     ranked = sorted(range(len(rows)), key=lambda i: fused[i], reverse=True)
     return [
         (rows[i].title, rows[i].content[:RAG_SNIPPET_CHARS])
@@ -227,7 +233,11 @@ async def answer(
     llm: LLMClient = default_llm,
     router=default_router,
 ) -> SupportReply:
-    """三层客服的总入口。任何一层出问题都退到「转人工」，不抛异常给用户。"""
+    """三层客服的总入口。任何一层出问题都退到「转人工」，不抛异常给用户。
+
+    顺序：空提问 / 明确要人工 → 意图判定（规则，没把握再级联）→ 仍没把握转人工
+    → 按意图分给 `_answer_faq` / `_answer_chitchat` / `_answer_professional`。
+    """
     text = (question or "").strip()
     if not text:
         return _escalate(question, "空提问", Intent.CHITCHAT, 0.0)
@@ -237,17 +247,7 @@ async def answer(
     if hit:
         return _escalate(question, f"用户明确要求人工（命中 {hit}）", Intent.CHITCHAT, 1.0)
 
-    # ---- 第二层：意图路由（同步、零成本、确定性）----
-    rule_result: IntentResult = router.classify(text)
-    result = rule_result
-    semantic_hit: FaqHit | None = None
-
-    # ---- 第二层半：级联（S4-02-5）----
-    # 改动前这一桶直接转人工；现在先做两次更贵的尝试（语义检索 → LLM 分类），
-    # 都不行才转人工。级联判定同时记一条标注样本，那是将来训 BERT 的训练集。
-    if result.confidence < LOW_CONFIDENCE:
-        result, semantic_hit = await _second_opinion(text, rule_result, llm)
-        _log_labeling_sample(question, rule_result, result)
+    result, semantic_hit = await _classify(question, text, llm, router)
 
     # ---- 兜底 2：级联之后仍然没把握 ----
     if result.confidence < LOW_CONFIDENCE:
@@ -260,36 +260,62 @@ async def answer(
 
     # ---- 第三层：分支处理 ----
     if result.intent is Intent.FAQ:
-        # 级联里语义命中的那条直接就是答案，不必再查一遍；
-        # 否则走词袋（`search` 已是模块级导入 —— 本模块早就从 .faq 引了
-        # `_Index` 和 `tokenize`，不存在循环，原先那句局部导入的理由已不成立）。
-        hit = semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)
-        if hit is not None:
-            return SupportReply(
-                answer=hit.faq.a,
-                intent=Intent.FAQ,
-                confidence=result.confidence,
-                source="faq-semantic" if hit.semantic else "faq",
-                reason=result.reason,
-                references=(hit.faq.q,),
-            )
-        return _escalate(question, "路由判为 FAQ 但检索已无命中", Intent.FAQ, result.confidence)
-
+        return _answer_faq(question, text, result, semantic_hit)
     if result.intent is Intent.CHITCHAT:
-        try:
-            reply = await llm.chat(CHITCHAT_SYSTEM, text)
-        except LLMError as e:
-            # LLM 挂了不该让用户看到 502，退到人工
-            return _escalate(question, f"闲聊应答失败：{e}", Intent.CHITCHAT, result.confidence)
-        return SupportReply(
-            answer=reply,
-            intent=Intent.CHITCHAT,
-            confidence=result.confidence,
-            source="llm",
-            reason=result.reason,
-        )
+        return await _answer_chitchat(question, text, result, llm)
+    return await _answer_professional(question, text, result, db, llm)
 
-    # 专业问题 → RAG
+
+async def _classify(
+    question: str, text: str, llm: LLMClient, router
+) -> tuple[IntentResult, FaqHit | None]:
+    """第二层意图路由；规则没把握时级联。返回 (判定, 级联中语义命中的 FAQ 或 None)。"""
+    # ---- 第二层：意图路由（同步、零成本、确定性）----
+    rule_result: IntentResult = router.classify(text)
+    if rule_result.confidence >= LOW_CONFIDENCE:
+        return rule_result, None
+    # ---- 第二层半：级联（S4-02-5）----
+    # 改动前这一桶直接转人工；现在先做两次更贵的尝试（语义检索 → LLM 分类），
+    # 都不行才转人工。级联判定同时记一条标注样本，那是将来训 BERT 的训练集。
+    result, semantic_hit = await _second_opinion(text, rule_result, llm)
+    _log_labeling_sample(question, rule_result, result)
+    return result, semantic_hit
+
+
+def _answer_faq(question: str, text: str, result: IntentResult, semantic_hit: FaqHit | None) -> SupportReply:
+    # 级联里语义命中的那条直接就是答案，不必再查一遍；否则走词袋检索。
+    hit = semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)
+    if hit is None:
+        return _escalate(question, "路由判为 FAQ 但检索已无命中", Intent.FAQ, result.confidence)
+    return SupportReply(
+        answer=hit.faq.a,
+        intent=Intent.FAQ,
+        confidence=result.confidence,
+        source="faq-semantic" if hit.semantic else "faq",
+        reason=result.reason,
+        references=(hit.faq.q,),
+    )
+
+
+async def _answer_chitchat(question: str, text: str, result: IntentResult, llm: LLMClient) -> SupportReply:
+    try:
+        reply = await llm.chat(CHITCHAT_SYSTEM, text)
+    except LLMError as e:
+        # LLM 挂了不该让用户看到 502，退到人工
+        return _escalate(question, f"闲聊应答失败：{e}", Intent.CHITCHAT, result.confidence)
+    return SupportReply(
+        answer=reply,
+        intent=Intent.CHITCHAT,
+        confidence=result.confidence,
+        source="llm",
+        reason=result.reason,
+    )
+
+
+async def _answer_professional(
+    question: str, text: str, result: IntentResult, db: AsyncSession, llm: LLMClient
+) -> SupportReply:
+    """专业问题 → RAG：只依据检索到的文章作答；知识库不可用、无相关内容、生成失败都转人工。"""
     refs = await _retrieve_articles(db, text)
     if refs is None:
         return _escalate(

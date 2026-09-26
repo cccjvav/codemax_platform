@@ -133,6 +133,9 @@ def _corpus_tokens() -> list[list[str]]:
 
 _INDEX = _Index(_corpus_tokens())
 
+# 供其他模块（客服 RAG）使用的公开名字；`_Index` 保留给本模块与既有测试。
+RetrievalIndex = _Index
+
 
 @dataclass(frozen=True)
 class FaqHit:
@@ -162,6 +165,21 @@ def _normalize(scores: list[float]) -> list[float]:
     return [s / peak for s in scores]
 
 
+def fuse(bm: list[float], cos: list[float]) -> list[float]:
+    """两路**已按最大值归一化**的分数按 BM25_WEIGHT 加权相加。"""
+    return [BM25_WEIGHT * b + (1 - BM25_WEIGHT) * c for b, c in zip(bm, cos, strict=True)]
+
+
+def fused_scores(index: _Index, query_tokens: list[str]) -> list[float]:
+    """对任一语料索引打融合分：BM25 与余弦各自按最大值归一化后加权（TD-289）。
+
+    FAQ 检索（`search`）与客服 RAG（`support._rank_articles`）共用这一个公式；
+    原来 RAG 那边手抄了一份，权重写死成 0.6 / 0.4，改 BM25_WEIGHT 时两处会悄悄分叉。
+    分数只表示本次结果集内的相对强弱，不能跨查询比较。
+    """
+    return fuse(_normalize(index.bm25(query_tokens)), _normalize(index.cosine(query_tokens)))
+
+
 def search(query: str, k: int = 3) -> list[FaqHit]:
     """融合召回 top-k，按分数降序。查不到相关内容时返回空列表（由上层决定兜底）。"""
     q = tokenize(query)
@@ -174,7 +192,7 @@ def search(query: str, k: int = 3) -> list[FaqHit]:
     # 那会让「python 部署 nginx 报错」也判成 FAQ 命中。绝对判断请用 confidence。
     bm = _normalize(raw_bm)
     cos = _normalize(raw_cos)
-    fused = [BM25_WEIGHT * b + (1 - BM25_WEIGHT) * c for b, c in zip(bm, cos, strict=True)]
+    fused = fuse(bm, cos)
     ranked = sorted(range(len(FAQS)), key=lambda i: fused[i], reverse=True)
     return [
         FaqHit(

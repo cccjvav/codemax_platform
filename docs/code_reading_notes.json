@@ -2252,7 +2252,7 @@
     },
     {
       "path": "app/tools/faq.py",
-      "sha256": "a5636315eb4d9bffd57b50ad994dd2b00fc7a6baf730de8c259ce664f785a787",
+      "sha256": "eb7189c6d3ff75ef8a5794c49ffceb0896ecf8a1c2c47507e51a679c4c41da25",
       "method": "guided",
       "blocks": [
         {
@@ -2296,67 +2296,77 @@
           "explanation": "功能契约：查询 TF-IDF 只保留语料出现词，与文档向量做点积/范数比；全零范数用 1 避免除零。\n\n输入签名：self, query: list[str]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL115 计算右侧并赋给 `q_counts`：{}。\nL116 逐项遍历 `query`，绑定 `t`；循环体按缩进执行，break可提前结束。\nL117 计算右侧并赋给 `q_counts[t]`：q_counts.get(t, 0) + 1。\nL120 计算右侧并赋给 `q_vec`：{t: qf * self._idf(t) for t, qf in q_counts.items() if self.df.get(t)}。\nL121 计算右侧并赋给 `q_norm`：math.sqrt(sum((v * v for v in q_vec.values()))) or 1.0。\nL122 计算右侧并赋给 `out`：[]。\nL123 逐项遍历 `enumerate(self.vec)`，绑定 `(i, vec)`；循环体按缩进执行，break可提前结束。\nL124 计算右侧并赋给 `dot`：调用 sum((w * vec[t] for t, w in q_vec.items() if t in vec))。\nL125 调用 out.append(dot / (self.norm[i] * q_norm))。\nL126 结束当前函数，返回 out；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 136,
+          "end": 139,
           "title": "_corpus_tokens",
-          "explanation": "功能契约：FAQ 问题、关键词、答案一起分词建词袋；语义预热则只嵌入问题，两者语料口径不同。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：list[list[str]]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL131 结束当前函数，返回 [tokenize(' '.join((f.q, *f.keywords, f.a))) for f in FAQS]；不会自动commit未提交事务。\nL134 计算右侧并赋给 `_INDEX`：调用 _Index(_corpus_tokens())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：FAQ 问题、关键词、答案一起分词建词袋；语义预热则只嵌入问题，两者语料口径不同。 TD-289：模块末尾给 _Index 一个公开别名 RetrievalIndex 供客服 RAG 导入，不再跨模块引用私有名。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：list[list[str]]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL131 结束当前函数，返回 [tokenize(' '.join((f.q, *f.keywords, f.a))) for f in FAQS]；不会自动commit未提交事务。\nL134 计算右侧并赋给 `_INDEX`：调用 _Index(_corpus_tokens())。\nL137 计算右侧并赋给 `RetrievalIndex`：_Index。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 154,
           "title": "FaqHit",
-          "explanation": "功能契约：一次命中包含FAQ对象、相对排序分、BM25/余弦与绝对confidence、semantic标记；score和confidence用途不能互换。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 FaqHit，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL139 声明字段 `faq` 的类型 Faq；仅类型标注，不执行数据库写入。\nL140 声明字段 `score` 的类型 float；仅类型标注，不执行数据库写入。\nL141 声明字段 `bm25` 的类型 float；仅类型标注，不执行数据库写入。\nL142 声明字段 `cosine` 的类型 float；仅类型标注，不执行数据库写入。\nL143 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL144 计算右侧并赋给 `semantic`：False。\nL149 计算右侧并赋给 `_BM25_SATURATION`：3.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：一次命中包含FAQ对象、相对排序分、BM25/余弦与绝对confidence、semantic标记；score和confidence用途不能互换。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 FaqHit，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL142 声明字段 `faq` 的类型 Faq；仅类型标注，不执行数据库写入。\nL143 声明字段 `score` 的类型 float；仅类型标注，不执行数据库写入。\nL144 声明字段 `bm25` 的类型 float；仅类型标注，不执行数据库写入。\nL145 声明字段 `cosine` 的类型 float；仅类型标注，不执行数据库写入。\nL146 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL147 计算右侧并赋给 `semantic`：False。\nL152 计算右侧并赋给 `_BM25_SATURATION`：3.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 156,
+          "end": 159,
           "title": "_saturate",
-          "explanation": "功能契约：x/(x+常数) 压缩绝对 BM25，不让单次结果里的最差命中也必得最高置信度。\n\n输入签名：x: float；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL154 结束当前函数，返回 x / (x + _BM25_SATURATION) if x > 0 else 0.0；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：x/(x+常数) 压缩绝对 BM25，不让单次结果里的最差命中也必得最高置信度。\n\n输入签名：x: float；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL157 结束当前函数，返回 x / (x + _BM25_SATURATION) if x > 0 else 0.0；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 164,
+          "end": 167,
           "title": "_normalize",
-          "explanation": "功能契约：除以当前结果最大分，只用于相对排序；全零保持零。\n\n输入签名：scores: list[float]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL159 计算右侧并赋给 `peak`：max(scores) if scores else 0.0。\nL160 判断 `peak <= 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL161 结束当前函数，返回 [0.0] * len(scores)；不会自动commit未提交事务。\nL162 结束当前函数，返回 [s / peak for s in scores]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：除以当前结果最大分，只用于相对排序；全零保持零。\n\n输入签名：scores: list[float]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL162 计算右侧并赋给 `peak`：max(scores) if scores else 0.0。\nL163 判断 `peak <= 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL164 结束当前函数，返回 [0.0] * len(scores)；不会自动commit未提交事务。\nL165 结束当前函数，返回 [s / peak for s in scores]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 210,
+          "end": 172,
+          "title": "fuse",
+          "explanation": "功能契约：两路已按最大值归一化的分数按 BM25_WEIGHT 与 1−BM25_WEIGHT 加权相加，长度必须一致（zip strict）。FAQ 检索用它合成 score（TD-289）。\n\n输入签名：bm: list[float], cos: list[float]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL170 结束当前函数，返回 [BM25_WEIGHT * b + (1 - BM25_WEIGHT) * c for b, c in zip(bm, cos, strict=True)]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 182,
+          "title": "fused_scores",
+          "explanation": "功能契约：对任一 _Index 语料打融合分：BM25 与余弦各自按最大值归一化后交给 fuse。FAQ 检索与客服 RAG 共用这一个公式与权重（TD-289，原来 RAG 手抄一份、权重写死 0.6/0.4）；分数只在本次结果集内可比。\n\n输入签名：index: _Index, query_tokens: list[str]；定义函数不等于此处立刻执行函数体。 返回类型标注：list[float]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL180 结束当前函数，返回 调用 fuse(_normalize(index.bm25(query_tokens)), _normalize(index.cosine(query_tokens)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 228,
           "title": "search",
-          "explanation": "功能契约：融合归一 BM25 与余弦用于排序，confidence 另用原始饱和 BM25 和原始余弦；只返回正得分的前 k 条。\n\n输入签名：query: str, k: int=3；定义函数不等于此处立刻执行函数体。 返回类型标注：list[FaqHit]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL167 计算右侧并赋给 `q`：调用 tokenize(query)。\nL168 判断 `not q`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL169 结束当前函数，返回 []；不会自动commit未提交事务。\nL170 计算右侧并赋给 `raw_bm`：调用 _INDEX.bm25(q)。\nL171 计算右侧并赋给 `raw_cos`：调用 _INDEX.cosine(q)。\nL175 计算右侧并赋给 `bm`：调用 _normalize(raw_bm)。\nL176 计算右侧并赋给 `cos`：调用 _normalize(raw_cos)。\nL177 计算右侧并赋给 `fused`：[BM25_WEIGHT * b + (1 - BM25_WEIGHT) * c for b, c in zip(bm, cos, strict=True)]。\nL178 计算右侧并赋给 `ranked`：调用 sorted(range(len(FAQS)), key=lambda i: fused[i], reverse=True)。\nL179 结束当前函数，返回 [FaqHit(faq=FAQS[i], score=fused[i], bm25=bm[i], cosine=cos[i], confidence=BM25_WEIGHT * _saturate(raw_bm[i]) + (1 - BM25_WEIGHT) * raw_cos[i]) for i in ranked[:k] if fused[i] > 0]；不会自动commit未提交事务。\nL207 计算右侧并赋给 `_SEMANTIC`：None。\nL208 计算右侧并赋给 `_SEMANTIC_NORM`：[]。\nL209 计算右侧并赋给 `_semantic_logger`：调用 logging.getLogger('codemax.faq')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：融合归一 BM25 与余弦用于排序，confidence 另用原始饱和 BM25 和原始余弦；只返回正得分的前 k 条。 TD-289：融合一步改用 fuse(bm, cos)，与客服 RAG 的 fused_scores 共用同一个加权公式。\n\n输入签名：query: str, k: int=3；定义函数不等于此处立刻执行函数体。 返回类型标注：list[FaqHit]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL185 计算右侧并赋给 `q`：调用 tokenize(query)。\nL186 判断 `not q`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL187 结束当前函数，返回 []；不会自动commit未提交事务。\nL188 计算右侧并赋给 `raw_bm`：调用 _INDEX.bm25(q)。\nL189 计算右侧并赋给 `raw_cos`：调用 _INDEX.cosine(q)。\nL193 计算右侧并赋给 `bm`：调用 _normalize(raw_bm)。\nL194 计算右侧并赋给 `cos`：调用 _normalize(raw_cos)。\nL195 计算右侧并赋给 `fused`：调用 fuse(bm, cos)。\nL196 计算右侧并赋给 `ranked`：调用 sorted(range(len(FAQS)), key=lambda i: fused[i], reverse=True)。\nL197 结束当前函数，返回 [FaqHit(faq=FAQS[i], score=fused[i], bm25=bm[i], cosine=cos[i], confidence=BM25_WEIGHT * _saturate(raw_bm[i]) + (1 - BM25_WEIGHT) * raw_cos[i]) for i in ranked[:k] if fused[i] > 0]；不会自动commit未提交事务。\nL225 计算右侧并赋给 `_SEMANTIC`：None。\nL226 计算右侧并赋给 `_SEMANTIC_NORM`：[]。\nL227 计算右侧并赋给 `_semantic_logger`：调用 logging.getLogger('codemax.faq')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 223,
+          "end": 241,
           "title": "semantic_threshold",
           "explanation": "每次读取settings.LLM_SEMANTIC_THRESHOLD，方便测试与重启后配置。0.55只是未标定的保留值，不推广其他embedding模型的分数分布；更换模型/维度/查询预处理需重新用正负样本标定，Agnes增强默认关闭。"
         },
         {
-          "end": 276,
+          "end": 294,
           "title": "calibrate_threshold",
-          "explanation": "功能契约：要求正负两组非空且有足够安全间隙，取间隙中点；分布重叠不靠调小阈值凑通过。\n\n输入签名：positive_scores: Sequence[float], negative_scores: Sequence[float], *, margin: float=0.02；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL247 判断 `not positive_scores or not negative_scores`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL248 抛出 ValueError('两组分数都不能为空，否则算出来的阈值没有依据')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL252 计算右侧并赋给 `floor`：调用 min(positive_scores)。\nL253 计算右侧并赋给 `ceil_`：调用 max(negative_scores)。\nL254 判断 `floor < ceil_`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL255 抛出 ValueError(f'两组分数重叠（真命中最低 {floor:.3f} < 无关问句最高 {ceil_:.3f}）：该 embedding 模型下这两类分不开，任何阈值都不对。请换 embedding 模型或补充 FAQ 语料，而不是挑一个数糊过去。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL260 计算右侧并赋给 `threshold`：(ceil_ + floor) / 2。\nL261 判断 `floor - margin < ceil_ + margin`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL262 抛出 ValueError(f'间隙只有 {floor - ceil_:.3f}，不足以留出 ±{margin} 的安全边距。阈值 {threshold:.3f} 会贴边抖动，请补语料把两个分布拉开。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL266 结束当前函数，返回 调用 round(threshold, 3)；不会自动commit未提交事务。\nL274 计算右侧并赋给 `WARM_UP_TIMEOUT`：5.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：要求正负两组非空且有足够安全间隙，取间隙中点；分布重叠不靠调小阈值凑通过。\n\n输入签名：positive_scores: Sequence[float], negative_scores: Sequence[float], *, margin: float=0.02；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL265 判断 `not positive_scores or not negative_scores`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 抛出 ValueError('两组分数都不能为空，否则算出来的阈值没有依据')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL270 计算右侧并赋给 `floor`：调用 min(positive_scores)。\nL271 计算右侧并赋给 `ceil_`：调用 max(negative_scores)。\nL272 判断 `floor < ceil_`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL273 抛出 ValueError(f'两组分数重叠（真命中最低 {floor:.3f} < 无关问句最高 {ceil_:.3f}）：该 embedding 模型下这两类分不开，任何阈值都不对。请换 embedding 模型或补充 FAQ 语料，而不是挑一个数糊过去。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL278 计算右侧并赋给 `threshold`：(ceil_ + floor) / 2。\nL279 判断 `floor - margin < ceil_ + margin`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL280 抛出 ValueError(f'间隙只有 {floor - ceil_:.3f}，不足以留出 ±{margin} 的安全边距。阈值 {threshold:.3f} 会贴边抖动，请补语料把两个分布拉开。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL284 结束当前函数，返回 调用 round(threshold, 3)；不会自动commit未提交事务。\nL292 计算右侧并赋给 `WARM_UP_TIMEOUT`：5.0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 299,
+          "end": 317,
           "title": "_with_warm_up_timeout",
-          "explanation": "功能契约：仅对 dataclass 客户端用 replace 缩短预热 timeout，保留其他配置；不原地改默认客户端。\n\n输入签名：client: LLMClient；定义函数不等于此处立刻执行函数体。 返回类型标注：LLMClient。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL289 判断 `not dataclasses.is_dataclass(client)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL290 结束当前函数，返回 client；不会自动commit未提交事务。\nL291 计算右侧并赋给 `current`：调用 getattr(client, 'timeout', None)。\nL292 判断 `not isinstance(current, (int, float)) or current <= WARM_UP_TIMEOUT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL293 结束当前函数，返回 client；不会自动commit未提交事务。\nL294 结束当前函数，返回 调用 replace(client, timeout=WARM_UP_TIMEOUT)；不会自动commit未提交事务。\nL297 计算右侧并赋给 `_SEMANTIC_KEY`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：仅对 dataclass 客户端用 replace 缩短预热 timeout，保留其他配置；不原地改默认客户端。\n\n输入签名：client: LLMClient；定义函数不等于此处立刻执行函数体。 返回类型标注：LLMClient。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL307 判断 `not dataclasses.is_dataclass(client)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL308 结束当前函数，返回 client；不会自动commit未提交事务。\nL309 计算右侧并赋给 `current`：调用 getattr(client, 'timeout', None)。\nL310 判断 `not isinstance(current, (int, float)) or current <= WARM_UP_TIMEOUT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL311 结束当前函数，返回 client；不会自动commit未提交事务。\nL312 结束当前函数，返回 调用 replace(client, timeout=WARM_UP_TIMEOUT)；不会自动commit未提交事务。\nL315 计算右侧并赋给 `_SEMANTIC_KEY`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 304,
+          "end": 322,
           "title": "_semantic_key",
-          "explanation": "功能契约：类型、密钥摘要、地址/模型、transport 身份、FAQ 问答组成缓存身份，摘要不用于公开展示密钥。\n\n输入签名：client；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL301 结束当前函数，返回 (type(client), hashlib.sha256(str(getattr(client, 'api_key', '')).encode()).digest(), getattr(client, 'base_url', None), getattr(client, 'embed_model', None), id(getattr(client, 'transport', client)), tuple(((f.q, f.a) for f in FAQS)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：类型、密钥摘要、地址/模型、transport 身份、FAQ 问答组成缓存身份，摘要不用于公开展示密钥。\n\n输入签名：client；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL319 结束当前函数，返回 (type(client), hashlib.sha256(str(getattr(client, 'api_key', '')).encode()).digest(), getattr(client, 'base_url', None), getattr(client, 'embed_model', None), id(getattr(client, 'transport', client)), tuple(((f.q, f.a) for f in FAQS)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 341,
+          "end": 359,
           "title": "warm_semantic_index",
           "explanation": "预热先检查显式开关：关闭时调用 reset_semantic_index 清缓存并返回 False，不构造网络预热。开启后用副本压短超时，按客户端/凭据/模型/语料指纹复用已有索引，否则先清旧状态再调用 embeddings。LLMError 只记录安全摘要并回退词袋；条数、维度、有限数值与范数全部合格才写全局向量和指纹。返回成功仅代表本进程索引可用，不证明阈值合适；开关不负责取消已发出的请求。"
         },
         {
-          "end": 346,
+          "end": 364,
           "title": "semantic_ready",
           "explanation": "必须显式开启增强且 _SEMANTIC 非 None 才返回 True；即使运行时关闭开关后旧缓存还在，也不能对调用方报告语义已就绪。此纯判断不触网。"
         },
         {
-          "end": 354,
+          "end": 372,
           "title": "reset_semantic_index",
-          "explanation": "功能契约：清向量/范数/身份，供测试隔离或明确失效使用。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL349 global 指定后续赋值修改模块状态：_SEMANTIC, _SEMANTIC_NORM, _SEMANTIC_KEY；多请求共享，需按模块并发规则使用。\nL350 计算右侧并赋给 `_SEMANTIC`：None。\nL351 计算右侧并赋给 `_SEMANTIC_NORM`：[]。\nL352 计算右侧并赋给 `_SEMANTIC_KEY`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：清向量/范数/身份，供测试隔离或明确失效使用。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL367 global 指定后续赋值修改模块状态：_SEMANTIC, _SEMANTIC_NORM, _SEMANTIC_KEY；多请求共享，需按模块并发规则使用。\nL368 计算右侧并赋给 `_SEMANTIC`：None。\nL369 计算右侧并赋给 `_SEMANTIC_NORM`：[]。\nL370 计算右侧并赋给 `_SEMANTIC_KEY`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 395,
+          "end": 413,
           "title": "semantic_search",
           "explanation": "入口检查增强开关、缓存存在/指纹相符和非空查询；不满足返回 None，告诉上层回落词袋而非零命中。快照缓存后调用查询向量，失败回落；等待结束再次检查开关和指纹，拒绝已经关闭或并发替换的结果。验证维度/范数后计算归一化点积，将负相似度截断为零，生成 semantic=True 的 FaqHit，按 confidence 降序取 k；这里不保证语义身份正确，标定还要核对 FAQ 身份。"
         }
@@ -2707,53 +2717,83 @@
     },
     {
       "path": "app/tools/support.py",
-      "sha256": "f60ce5802d2fe043594df217d12ee8a969a57030c93ce87de21e232217ff5afa",
+      "sha256": "d08aa3323cb6ab19312d4ac5e2f2e120d386f24b5ce21131b58a0e69bb4ab7f9",
       "method": "guided",
       "blocks": [
         {
-          "end": 56,
+          "end": 63,
           "title": "模块装配",
-          "explanation": "模块协作与边界：智能问答编排：人工关键词→规则→低置信度复核→FAQ/闲聊/RAG。返回人工入口不写持久留言；只有站内消息 API 保存对话。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL18 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import hashlib；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 from dataclasses import dataclass, field；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 导入 from sqlalchemy.exc import SQLAlchemyError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 导入 from sqlalchemy.ext.asyncio import AsyncSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL28 导入 from starlette.concurrency import run_in_threadpool；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL30 导入 from ..models import Article；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL31 导入 from .faq import FaqHit, search, semantic_search, semantic_threshold, tokenize；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL32 导入 from .faq import _Index as RetrievalIndex；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL33 导入 from .intent import Intent, IntentResult, default_router, llm_classify；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL34 导入 from .llm import LLMClient, LLMError, default_llm；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL38 计算右侧并赋给 `_label_logger`：调用 logging.getLogger('codemax.intent.labels')。\nL41 计算右侧并赋给 `LOW_CONFIDENCE`：0.35。\nL44 计算右侧并赋给 `ESCALATE_KEYWORDS`：('人工', '转人工', '投诉', '举报', '客服在吗')。\nL54 计算右侧并赋给 `_ARTICLE_CACHE`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：智能问答编排：人工关键词→规则→低置信度复核→FAQ/闲聊/RAG。返回人工入口不写持久留言；只有站内消息 API 保存对话。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL18 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import hashlib；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 from dataclasses import dataclass, field；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 导入 from sqlalchemy.exc import SQLAlchemyError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 导入 from sqlalchemy.ext.asyncio import AsyncSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL28 导入 from starlette.concurrency import run_in_threadpool；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL30 导入 from ..models import Article；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL31 导入 from .faq import FaqHit, RetrievalIndex, fused_scores, search, semantic_search, semantic_threshold, tokenize；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL40 导入 from .intent import Intent, IntentResult, default_router, llm_classify；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL41 导入 from .llm import LLMClient, LLMError, default_llm；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL45 计算右侧并赋给 `_label_logger`：调用 logging.getLogger('codemax.intent.labels')。\nL48 计算右侧并赋给 `LOW_CONFIDENCE`：0.35。\nL51 计算右侧并赋给 `ESCALATE_KEYWORDS`：('人工', '转人工', '投诉', '举报', '客服在吗')。\nL61 计算右侧并赋给 `_ARTICLE_CACHE`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 61,
+          "end": 68,
           "title": "_build_index",
-          "explanation": "功能契约：对文章标题和正文分词建 RetrievalIndex；交由线程池运行，避免长语料阻塞事件循环。\n\n输入签名：rows: list；定义函数不等于此处立刻执行函数体。 返回类型标注：RetrievalIndex。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL59 结束当前函数，返回 调用 RetrievalIndex([tokenize(f'{a.title} {a.content}') for a in rows])；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：对文章标题和正文分词建 RetrievalIndex；交由线程池运行，避免长语料阻塞事件循环。\n\n输入签名：rows: list；定义函数不等于此处立刻执行函数体。 返回类型标注：RetrievalIndex。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL66 结束当前函数，返回 调用 RetrievalIndex([tokenize(f'{a.title} {a.content}') for a in rows])；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 83,
+          "end": 90,
           "title": "reset_article_index",
-          "explanation": "功能契约：清进程内文章索引缓存，数据库文章不删除。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL64 global 指定后续赋值修改模块状态：_ARTICLE_CACHE；多请求共享，需按模块并发规则使用。\nL65 计算右侧并赋给 `_ARTICLE_CACHE`：None。\nL68 计算右侧并赋给 `RAG_TOP_K`：3。\nL69 计算右侧并赋给 `RAG_SNIPPET_CHARS`：600。\nL71 计算右侧并赋给 `CHITCHAT_SYSTEM`：'你是毕业设计服务平台的在线客服，语气友好简短。只回答与平台使用、服务流程相关的闲聊；涉及具体技术问题请引导用户描述清楚。不要编造平台没有的服务。'。\nL77 计算右侧并赋给 `RAG_SYSTEM`：'你是毕业设计服务平台的技术顾问。**只依据下面提供的材料作答**，材料里没有的内容要明确说「资料中没有提到」，不要凭记忆补充。回答用中文，简洁分点。'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：清进程内文章索引缓存，数据库文章不删除。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL71 global 指定后续赋值修改模块状态：_ARTICLE_CACHE；多请求共享，需按模块并发规则使用。\nL72 计算右侧并赋给 `_ARTICLE_CACHE`：None。\nL75 计算右侧并赋给 `RAG_TOP_K`：3。\nL76 计算右侧并赋给 `RAG_SNIPPET_CHARS`：600。\nL78 计算右侧并赋给 `CHITCHAT_SYSTEM`：'你是毕业设计服务平台的在线客服，语气友好简短。只回答与平台使用、服务流程相关的闲聊；涉及具体技术问题请引导用户描述清楚。不要编造平台没有的服务。'。\nL84 计算右侧并赋给 `RAG_SYSTEM`：'你是毕业设计服务平台的技术顾问。**只依据下面提供的材料作答**，材料里没有的内容要明确说「资料中没有提到」，不要凭记忆补充。回答用中文，简洁分点。'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 94,
+          "end": 101,
           "title": "SupportReply",
-          "explanation": "功能契约：编排结果封装意图、回答、来源、置信度、原因、引用与escalated；没有在构造时保存站内消息或通知管理员。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 SupportReply，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL86 声明字段 `answer` 的类型 str；仅类型标注，不执行数据库写入。\nL87 声明字段 `intent` 的类型 Intent；仅类型标注，不执行数据库写入。\nL88 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL89 声明字段 `source` 的类型 str；仅类型标注，不执行数据库写入。\nL90 计算右侧并赋给 `escalated`：False。\nL91 计算右侧并赋给 `reason`：''。\nL92 计算右侧并赋给 `references`：调用 field(default=())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：编排结果封装意图、回答、来源、置信度、原因、引用与escalated；没有在构造时保存站内消息或通知管理员。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 SupportReply，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL93 声明字段 `answer` 的类型 str；仅类型标注，不执行数据库写入。\nL94 声明字段 `intent` 的类型 Intent；仅类型标注，不执行数据库写入。\nL95 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL96 声明字段 `source` 的类型 str；仅类型标注，不执行数据库写入。\nL97 计算右侧并赋给 `escalated`：False。\nL98 计算右侧并赋给 `reason`：''。\nL99 计算右侧并赋给 `references`：调用 field(default=())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 114,
+          "end": 121,
           "title": "_log_labeling_sample",
-          "explanation": "功能契约：记录问题及规则/最终标签供标注；原提问进入日志，运营需按隐私要求限制保留/访问，不应鼓励用户发送密钥。\n\n输入签名：question: str, rule: IntentResult, final: IntentResult；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL106 调用 _label_logger.info(json.dumps({'q': question, 'rule': rule.intent.value, 'label': final.intent.value, 'rule_conf': round(rule.confidence, 3), 'label_conf': round(final.confidence, 3)}, ensure_ascii=False))。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：记录问题及规则/最终标签供标注；原提问进入日志，运营需按隐私要求限制保留/访问，不应鼓励用户发送密钥。\n\n输入签名：question: str, rule: IntentResult, final: IntentResult；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL113 调用 _label_logger.info(json.dumps({'q': question, 'rule': rule.intent.value, 'label': final.intent.value, 'rule_conf': round(rule.confidence, 3), 'label_conf': round(final.confidence, 3)}, ensure_ascii=False))。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 145,
+          "end": 152,
           "title": "_second_opinion",
-          "explanation": "功能契约：优先语义 FAQ 达阈值则直接返回命中；否则让 LLM 分类。不是每条消息都先跑两次模型。\n\n输入签名：text: str, rule: IntentResult, llm: LLMClient；异步调用需await才推进。 返回类型标注：tuple[IntentResult, FaqHit | None]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL126 计算右侧并赋给 `hits`：await 调用 semantic_search(text, k=1, client=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL128 计算右侧并赋给 `threshold`：调用 semantic_threshold()。\nL129 判断 `hits and hits[0].confidence >= threshold`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL130 计算右侧并赋给 `h`：hits[0]。\nL131 结束当前函数，返回 (IntentResult(Intent.FAQ, h.confidence, f'语义检索命中「{h.faq.q}」，余弦 {h.confidence:.2f} ≥ {threshold}（词袋只给到 {rule.confidence:.2f}）'), h)；不会自动commit未提交事务。\nL141 计算右侧并赋给 `verdict`：await 调用 llm_classify(text, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL142 计算右侧并赋给 `reason`：f'规则无把握（{rule.reason}）→ {verdict.reason}'。\nL143 结束当前函数，返回 (IntentResult(verdict.intent, verdict.confidence, reason), None)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：优先语义 FAQ 达阈值则直接返回命中；否则让 LLM 分类。不是每条消息都先跑两次模型。\n\n输入签名：text: str, rule: IntentResult, llm: LLMClient；异步调用需await才推进。 返回类型标注：tuple[IntentResult, FaqHit | None]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL133 计算右侧并赋给 `hits`：await 调用 semantic_search(text, k=1, client=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL135 计算右侧并赋给 `threshold`：调用 semantic_threshold()。\nL136 判断 `hits and hits[0].confidence >= threshold`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL137 计算右侧并赋给 `h`：hits[0]。\nL138 结束当前函数，返回 (IntentResult(Intent.FAQ, h.confidence, f'语义检索命中「{h.faq.q}」，余弦 {h.confidence:.2f} ≥ {threshold}（词袋只给到 {rule.confidence:.2f}）'), h)；不会自动commit未提交事务。\nL148 计算右侧并赋给 `verdict`：await 调用 llm_classify(text, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL149 计算右侧并赋给 `reason`：f'规则无把握（{rule.reason}）→ {verdict.reason}'。\nL150 结束当前函数，返回 (IntentResult(verdict.intent, verdict.confidence, reason), None)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 156,
+          "end": 163,
           "title": "_escalate",
-          "explanation": "功能契约：构造 source=human 的说明和入口意图，不发消息、不通知管理员。\n\n输入签名：question: str, reason: str, intent: Intent, confidence: float；定义函数不等于此处立刻执行函数体。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL147 结束当前函数，返回 调用 SupportReply(answer='这个问题需要管理员协助。请登录站内客服页发送留言；提交成功后管理员可查看并回复。', intent=intent, confidence=confidence, source='human', escalated=True, reason=reason)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：构造 source=human 的说明和入口意图，不发消息、不通知管理员。\n\n输入签名：question: str, reason: str, intent: Intent, confidence: float；定义函数不等于此处立刻执行函数体。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL154 结束当前函数，返回 调用 SupportReply(answer='这个问题需要管理员协助。请登录站内客服页发送留言；提交成功后管理员可查看并回复。', intent=intent, confidence=confidence, source='human', escalated=True, reason=reason)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 223,
+          "end": 190,
           "title": "_retrieve_articles",
-          "explanation": "功能契约：每次读取当前文章并对 id/title/content 做摘要，变化才在线程重建词袋索引。数据库错误 None、空库/无命中 []；前 3 条每条截 600 字进入模型材料。\n\n输入签名：db: AsyncSession, question: str；异步调用需await才推进。 返回类型标注：list[tuple[str, str]] | None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL176 global 指定后续赋值修改模块状态：_ARTICLE_CACHE；多请求共享，需按模块并发规则使用。\nL178 执行try体；捕获 SQLAlchemyError。\nL179 计算右侧并赋给 `rows`：调用 list((await db.scalars(select(Article).order_by(Article.id))).all())。\nL181 结束当前函数，返回 None；不会自动commit未提交事务。\nL182 判断 `not rows`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL183 结束当前函数，返回 []；不会自动commit未提交事务。\nL184 计算右侧并赋给 `fp`：调用 hashlib.sha256(json.dumps([(a.id, a.title, a.content) for a in rows], ensure_ascii=False).encode()).hexdigest()。\nL187 判断 `_ARTICLE_CACHE is not None and _ARTICLE_CACHE[0] == fp`，为真进入当前缩进分支，为假进入else/elif。\nL188 计算右侧并赋给 `(index, rows)`：(_ARTICLE_CACHE[1], _ARTICLE_CACHE[2])。\nL200 计算右侧并赋给 `index`：await 调用 run_in_threadpool(_build_index, rows)：把同步工作转入线程池，不占事件循环执行长计算；等待期间可让出事件循环，恢复后才执行下一句。\nL201 计算右侧并赋给 `_ARTICLE_CACHE`：(fp, index, rows)。\nL204 计算右侧并赋给 `q`：调用 tokenize(question)。\nL205 判断 `not q`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL206 结束当前函数，返回 []；不会自动commit未提交事务。\nL208 计算右侧并赋给 `bm`：调用 index.bm25(q)。\nL209 计算右侧并赋给 `cos`：调用 index.cosine(q)。\nL210 计算右侧并赋给 `peak_b`：max(bm) if bm else 0.0。\nL211 计算右侧并赋给 `peak_c`：max(cos) if cos else 0.0。\nL212 计算右侧并赋给 `fused`：[0.6 * (b / peak_b if peak_b else 0.0) + 0.4 * (c / peak_c if peak_c else 0.0) for b, c in zip(bm, cos, strict=True)]。\nL216 计算右侧并赋给 `ranked`：调用 sorted(range(len(rows)), key=lambda i: fused[i], reverse=True)。\nL217 结束当前函数，返回 [(rows[i].title, rows[i].content[:RAG_SNIPPET_CHARS]) for i in ranked[:RAG_TOP_K] if fused[i] > 0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：每次读取当前文章并对 id/title/content 做摘要，变化才在线程重建词袋索引。数据库错误 None、空库/无命中 []；前 3 条每条截 600 字进入模型材料。 TD-289：本函数只负责读库与空库判断，索引缓存交给 _article_index、排序交给 _rank_articles。\n\n输入签名：db: AsyncSession, question: str；异步调用需await才推进。 返回类型标注：list[tuple[str, str]] | None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL181 执行try体；捕获 SQLAlchemyError。\nL182 计算右侧并赋给 `rows`：调用 list((await db.scalars(select(Article).order_by(Article.id))).all())。\nL184 结束当前函数，返回 None；不会自动commit未提交事务。\nL185 判断 `not rows`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL186 结束当前函数，返回 []；不会自动commit未提交事务。\nL187 计算右侧并赋给 `(index, rows)`：await 调用 _article_index(rows)；等待期间可让出事件循环，恢复后才执行下一句。\nL188 结束当前函数，返回 调用 _rank_articles(index, rows, question)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 319,
+          "end": 214,
+          "title": "_article_index",
+          "explanation": "功能契约：对当前文章行的 id/title/content 做 SHA-256 指纹；与缓存指纹相同直接返回缓存的索引和行，否则在线程池里分词建索引并替换 _ARTICLE_CACHE。从 _retrieve_articles 抽出（TD-289），缓存语义不变：UPDATE 也会改变指纹，不依赖本进程清缓存。\n\n输入签名：rows: list；异步调用需await才推进。 返回类型标注：tuple[RetrievalIndex, list]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL193 global 指定后续赋值修改模块状态：_ARTICLE_CACHE；多请求共享，需按模块并发规则使用。\nL195 计算右侧并赋给 `fp`：调用 hashlib.sha256(json.dumps([(a.id, a.title, a.content) for a in rows], ensure_ascii=False).encode()).hexdigest()。\nL198 判断 `_ARTICLE_CACHE is not None and _ARTICLE_CACHE[0] == fp`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL199 结束当前函数，返回 (_ARTICLE_CACHE[1], _ARTICLE_CACHE[2])；不会自动commit未提交事务。\nL210 计算右侧并赋给 `index`：await 调用 run_in_threadpool(_build_index, rows)：把同步工作转入线程池，不占事件循环执行长计算；等待期间可让出事件循环，恢复后才执行下一句。\nL211 计算右侧并赋给 `_ARTICLE_CACHE`：(fp, index, rows)。\nL212 结束当前函数，返回 (index, rows)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 229,
+          "title": "_rank_articles",
+          "explanation": "功能契约：问题分词为空返回 []；否则用 faq.fused_scores（与 FAQ 检索同一个融合公式与 BM25_WEIGHT）打分，按分数降序取前 RAG_TOP_K 篇、只留分数为正的，每篇正文截 RAG_SNIPPET_CHARS 字。TD-289 前这里手抄了一份公式、权重写死 0.6/0.4；默认权重下分数与原来逐位相同。\n\n输入签名：index: RetrievalIndex, rows: list, question: str；定义函数不等于此处立刻执行函数体。 返回类型标注：list[tuple[str, str]]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL218 计算右侧并赋给 `q`：调用 tokenize(question)。\nL219 判断 `not q`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL220 结束当前函数，返回 []；不会自动commit未提交事务。\nL221 计算右侧并赋给 `fused`：调用 fused_scores(index, q)。\nL222 计算右侧并赋给 `ranked`：调用 sorted(range(len(rows)), key=lambda i: fused[i], reverse=True)。\nL223 结束当前函数，返回 [(rows[i].title, rows[i].content[:RAG_SNIPPET_CHARS]) for i in ranked[:RAG_TOP_K] if fused[i] > 0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 268,
           "title": "answer",
-          "explanation": "功能契约：显式人工/空问题先回退；低置信度才复核并记录标签。FAQ 回确定答案，闲聊调模型，专业问题检索资料后 RAG；不可用或无资料分别回人工，references 是引用标题而非充分事实证据。\n\n输入签名：question: str, db: AsyncSession, llm: LLMClient=default_llm, router=default_router；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL231 计算右侧并赋给 `text`：调用 (question or '').strip()。\nL232 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL233 结束当前函数，返回 调用 _escalate(question, '空提问', Intent.CHITCHAT, 0.0)；不会自动commit未提交事务。\nL236 计算右侧并赋给 `hit`：[w for w in ESCALATE_KEYWORDS if w in text]。\nL237 判断 `hit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL238 结束当前函数，返回 调用 _escalate(question, f'用户明确要求人工（命中 {hit}）', Intent.CHITCHAT, 1.0)；不会自动commit未提交事务。\nL241 计算右侧并赋给 `rule_result`：调用 router.classify(text)。\nL242 计算右侧并赋给 `result`：rule_result。\nL243 计算右侧并赋给 `semantic_hit`：None。\nL248 判断 `result.confidence < LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL249 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _second_opinion(text, rule_result, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL250 调用 _log_labeling_sample(question, rule_result, result)。\nL253 判断 `result.confidence < LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL254 结束当前函数，返回 调用 _escalate(question, f'置信度 {result.confidence:.2f} < {LOW_CONFIDENCE}（{result.reason}）', result.intent, result.confidence)；不会自动commit未提交事务。\nL262 判断 `result.intent is Intent.FAQ`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 计算右侧并赋给 `hit`：semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)。\nL267 判断 `hit is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL268 结束当前函数，返回 调用 SupportReply(answer=hit.faq.a, intent=Intent.FAQ, confidence=result.confidence, source='faq-semantic' if hit.semantic else 'faq', reason=result.reason, references=(hit.faq.q,))；不会自动commit未提交事务。\nL276 结束当前函数，返回 调用 _escalate(question, '路由判为 FAQ 但检索已无命中', Intent.FAQ, result.confidence)；不会自动commit未提交事务。\nL278 判断 `result.intent is Intent.CHITCHAT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL279 执行try体；捕获 LLMError。\nL280 计算右侧并赋给 `reply`：await 调用 llm.chat(CHITCHAT_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL283 结束当前函数，返回 调用 _escalate(question, f'闲聊应答失败：{e}', Intent.CHITCHAT, result.confidence)；不会自动commit未提交事务。\nL284 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.CHITCHAT, confidence=result.confidence, source='llm', reason=result.reason)；不会自动commit未提交事务。\nL293 计算右侧并赋给 `refs`：await 调用 _retrieve_articles(db, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL294 判断 `refs is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL295 结束当前函数，返回 调用 _escalate(question, f'知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL301 判断 `not refs`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL302 结束当前函数，返回 调用 _escalate(question, f'知识库（sys_article）无相关内容，RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL307 计算右侧并赋给 `context`：调用 '\\n\\n'.join((f'【{title}】\\n{body}' for title, body in refs))。\nL308 执行try体；捕获 LLMError。\nL309 计算右侧并赋给 `reply`：await 调用 llm.chat(RAG_SYSTEM, f'材料：\\n{context}\\n\\n用户问题：{text}')；等待期间可让出事件循环，恢复后才执行下一句。\nL311 结束当前函数，返回 调用 _escalate(question, f'RAG 生成失败：{e}', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL312 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.PROFESSIONAL, confidence=result.confidence, source='rag', reason=result.reason, references=tuple((title for title, _ in refs)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：显式人工/空问题先回退；低置信度才复核并记录标签。FAQ 回确定答案，闲聊调模型，专业问题检索资料后 RAG；不可用或无资料分别回人工，references 是引用标题而非充分事实证据。 TD-289：意图判定抽成 _classify，三个分支抽成 _answer_faq / _answer_chitchat / _answer_professional，本函数只剩顺序编排；每条转人工的条件与文案不变。\n\n输入签名：question: str, db: AsyncSession, llm: LLMClient=default_llm, router=default_router；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL241 计算右侧并赋给 `text`：调用 (question or '').strip()。\nL242 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL243 结束当前函数，返回 调用 _escalate(question, '空提问', Intent.CHITCHAT, 0.0)；不会自动commit未提交事务。\nL246 计算右侧并赋给 `hit`：[w for w in ESCALATE_KEYWORDS if w in text]。\nL247 判断 `hit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL248 结束当前函数，返回 调用 _escalate(question, f'用户明确要求人工（命中 {hit}）', Intent.CHITCHAT, 1.0)；不会自动commit未提交事务。\nL250 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _classify(question, text, llm, router)；等待期间可让出事件循环，恢复后才执行下一句。\nL253 判断 `result.confidence < LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL254 结束当前函数，返回 调用 _escalate(question, f'置信度 {result.confidence:.2f} < {LOW_CONFIDENCE}（{result.reason}）', result.intent, result.confidence)；不会自动commit未提交事务。\nL262 判断 `result.intent is Intent.FAQ`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL263 结束当前函数，返回 调用 _answer_faq(question, text, result, semantic_hit)；不会自动commit未提交事务。\nL264 判断 `result.intent is Intent.CHITCHAT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL265 结束当前函数，返回 await 调用 _answer_chitchat(question, text, result, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\nL266 结束当前函数，返回 await 调用 _answer_professional(question, text, result, db, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 284,
+          "title": "_classify",
+          "explanation": "功能契约：规则路由置信度达到 LOW_CONFIDENCE 直接返回 (规则判定, None)；否则走 _second_opinion 级联（语义检索 → LLM 分类）并记一条标注样本，返回 (级联判定, 语义命中的 FAQ 或 None)。从 answer 抽出（TD-289），级联触发条件与标注日志时机不变。\n\n输入签名：question: str, text: str, llm: LLMClient, router；异步调用需await才推进。 返回类型标注：tuple[IntentResult, FaqHit | None]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL274 计算右侧并赋给 `rule_result`：调用 router.classify(text)。\nL275 判断 `rule_result.confidence >= LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL276 结束当前函数，返回 (rule_result, None)；不会自动commit未提交事务。\nL280 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _second_opinion(text, rule_result, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL281 调用 _log_labeling_sample(question, rule_result, result)。\nL282 结束当前函数，返回 (result, semantic_hit)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 299,
+          "title": "_answer_faq",
+          "explanation": "功能契约：级联中语义命中的 FAQ 优先，否则词袋 search 取第一条；有命中回 FAQ 答案（source 为 faq-semantic 或 faq，references 是标准问法），无命中转人工。不调用 LLM。从 answer 抽出（TD-289）。\n\n输入签名：question: str, text: str, result: IntentResult, semantic_hit: FaqHit | None；定义函数不等于此处立刻执行函数体。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL287 计算右侧并赋给 `hit`：semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)。\nL288 判断 `hit is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL289 结束当前函数，返回 调用 _escalate(question, '路由判为 FAQ 但检索已无命中', Intent.FAQ, result.confidence)；不会自动commit未提交事务。\nL290 结束当前函数，返回 调用 SupportReply(answer=hit.faq.a, intent=Intent.FAQ, confidence=result.confidence, source='faq-semantic' if hit.semantic else 'faq', reason=result.reason, references=(hit.faq.q,))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 314,
+          "title": "_answer_chitchat",
+          "explanation": "功能契约：闲聊交给 LLM（CHITCHAT_SYSTEM）；LLMError 转人工而不是 502。从 answer 抽出（TD-289）。\n\n输入签名：question: str, text: str, result: IntentResult, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL301 执行try体；捕获 LLMError。\nL302 计算右侧并赋给 `reply`：await 调用 llm.chat(CHITCHAT_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL305 结束当前函数，返回 调用 _escalate(question, f'闲聊应答失败：{e}', Intent.CHITCHAT, result.confidence)；不会自动commit未提交事务。\nL306 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.CHITCHAT, confidence=result.confidence, source='llm', reason=result.reason)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 345,
+          "title": "_answer_professional",
+          "explanation": "功能契约：专业问题走 RAG。知识库不可用（None）与无相关内容（[]）分别转人工并写明原因；有材料时把标题与片段拼进 RAG_SYSTEM 提示，LLMError 转人工；成功时 references 是所引文章标题，不是事实充分性的证明。从 answer 抽出（TD-289）。\n\n输入签名：question: str, text: str, result: IntentResult, db: AsyncSession, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL319 计算右侧并赋给 `refs`：await 调用 _retrieve_articles(db, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL320 判断 `refs is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL321 结束当前函数，返回 调用 _escalate(question, f'知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL327 判断 `not refs`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL328 结束当前函数，返回 调用 _escalate(question, f'知识库（sys_article）无相关内容，RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL333 计算右侧并赋给 `context`：调用 '\\n\\n'.join((f'【{title}】\\n{body}' for title, body in refs))。\nL334 执行try体；捕获 LLMError。\nL335 计算右侧并赋给 `reply`：await 调用 llm.chat(RAG_SYSTEM, f'材料：\\n{context}\\n\\n用户问题：{text}')；等待期间可让出事件循环，恢复后才执行下一句。\nL337 结束当前函数，返回 调用 _escalate(question, f'RAG 生成失败：{e}', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL338 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.PROFESSIONAL, confidence=result.confidence, source='rag', reason=result.reason, references=tuple((title for title, _ in refs)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         }
       ]
     },
@@ -8657,7 +8697,7 @@
     },
     {
       "path": "tests/test_support.py",
-      "sha256": "9cd0e6ef02c418921d833ff14d6cb0718aad029bed9f59b4eea6655f06a6c8e8",
+      "sha256": "fa78fafeb731a33220353c959006fde33cd3b7c7f94e7cc290c06147fa46516a",
       "method": "guided",
       "blocks": [
         {
@@ -8806,9 +8846,14 @@
           "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL225 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL226 核对 `len((await db.execute(select(Article))).scalars().all()) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 240,
+          "end": 242,
           "title": "test_missing_article_table_degrades_to_human_not_500",
           "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL234 导入 from sqlalchemy import text；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL236 await 调用 db.execute(text('DROP TABLE IF EXISTS sys_article'))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL237 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL238 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL239 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL240 核对 `'不可用' in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 260,
+          "title": "test_rag_ranking_follows_the_faq_fusion_weight",
+          "explanation": "本用例的准备条件：monkeypatch, weight, first。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-289：三篇语料在纯 BM25（权重 1.0）与纯余弦（0.0）下第一名分别是 T2 与 T1；把 faq.BM25_WEIGHT 换成这两个值，客服 RAG 的 _rank_articles 第一名必须跟着变。写死 0.6/0.4 的旧实现两种设置下都是 T2，0.0 那一组失败。\n\n登记/装饰：pytest.mark.parametrize(('weight', 'first'), [(1.0, 'T2'), (0.0, 'T1')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch, weight, first；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL248 导入 from types import SimpleNamespace；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL250 导入 from app.tools import support as support_module；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL252 计算右侧并赋给 `rows`：[SimpleNamespace(id=0, title='T0', content='压缩 缓存 超时 监控 续期'), SimpleNamespace(id=1, title='T1', content='日志 监控 续期 续期 重试'), SimpleNamespace(id=2, title='T2', content='负载 负载 监控 负载 缓存 日志 证书 负载 监控')]。\nL257 计算右侧并赋给 `index`：调用 support_module._build_index(rows)。\nL258 调用 monkeypatch.setattr(faq_mod, 'BM25_WEIGHT', weight)：仅在本测试替换属性，fixture结束恢复。\nL259 计算右侧并赋给 `ranked`：调用 support_module._rank_articles(index, rows, '证书 续期')。\nL260 核对 `[title for title, _ in ranked][0] == first`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         }
       ]
     },

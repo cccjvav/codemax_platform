@@ -238,3 +238,23 @@ async def test_missing_article_table_degrades_to_human_not_500(db):
     r = await answer("python 部署 nginx 报错怎么排查", db, llm=FakeLLM())
     assert r.escalated and r.source == "human"
     assert "不可用" in r.reason
+
+
+@pytest.mark.parametrize(("weight", "first"), [(1.0, "T2"), (0.0, "T1")])
+def test_rag_ranking_follows_the_faq_fusion_weight(monkeypatch, weight, first):
+    """TD-289：客服 RAG 原来手抄了一份融合公式（权重写死 0.6/0.4），改 `faq.BM25_WEIGHT` 只影响 FAQ。
+    现在两边共用 `faq.fused_scores`。这组三篇语料在纯 BM25 与纯余弦下的第一名不同（实测 T2 / T1），
+    所以权重改了，RAG 的排序必须跟着变；写死权重的旧实现两种设置下排序相同，本用例失败。"""
+    from types import SimpleNamespace
+
+    from app.tools import support as support_module
+
+    rows = [
+        SimpleNamespace(id=0, title="T0", content="压缩 缓存 超时 监控 续期"),
+        SimpleNamespace(id=1, title="T1", content="日志 监控 续期 续期 重试"),
+        SimpleNamespace(id=2, title="T2", content="负载 负载 监控 负载 缓存 日志 证书 负载 监控"),
+    ]
+    index = support_module._build_index(rows)
+    monkeypatch.setattr(faq_mod, "BM25_WEIGHT", weight)
+    ranked = support_module._rank_articles(index, rows, "证书 续期")
+    assert [title for title, _ in ranked][0] == first

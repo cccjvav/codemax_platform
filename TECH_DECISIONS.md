@@ -935,3 +935,31 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **代价与边界**：
 - 文件从 747 行变为 831 行：新函数各带说明，职责边界写在代码里而不是散在一个长函数的注释中。
 - 纯重构，不改任何响应、状态码、消息或数据库写入顺序。`download_url` 与 `serve_download` 的权益检查看起来相似，但两者的状态码和文案不同，且各有测试钉住，这次没有合并。
+
+## TD-289：客服 RAG 与 FAQ 共用一个融合公式；`support.answer` 按层拆分
+
+2026-09-26。基线 `cb819b4`（TD-288）。优化阶段第三项。按函数长度排查时 `tools/support.py` 的 `answer`（96 行）排第三。
+
+**问题**：
+- `support._retrieve_articles` 手抄了一份 FAQ 的融合排序：在函数内部就地归一化，权重写死成 `0.6` / `0.4`。`faq.py` 里同一公式用的是 `BM25_WEIGHT` 常量。改 `BM25_WEIGHT` 只会改 FAQ，RAG 悄悄保持旧权重，没有任何测试会发现。
+- `support.py` 通过 `from .faq import _Index as RetrievalIndex` 跨模块引用私有类。
+- `_retrieve_articles` 一个函数里做了读库、指纹缓存、线程池建索引、分词和排序五件事。
+- `answer` 把意图判定、级联和三个分支的作答写在同一个函数里，靠注释分段。
+
+**决定**：
+- `faq.py` 新增 `fuse(bm, cos)`（两路已归一化分数按 `BM25_WEIGHT` 加权）和 `fused_scores(index, tokens)`（归一化后交给 `fuse`）。`search` 改用 `fuse`，RAG 改用 `fused_scores`。`faq.py` 同时给 `_Index` 一个公开名 `RetrievalIndex`。
+- `_retrieve_articles` 只保留读库与空库判断，缓存交给 `_article_index`，排序交给 `_rank_articles`。
+- `answer` 只做编排：`_classify`（规则，没把握时级联并记标注样本）以及 `_answer_faq` / `_answer_chitchat` / `_answer_professional`。
+- 测试引用的 `_retrieve_articles`、`_ARTICLE_CACHE`、`faq._Index` 名字不变。
+
+**等价性**：
+- 两边的归一化写法不同：旧 RAG 是「峰值非零才除」，`_normalize` 是「峰值 ≤0 全置零」。BM25 的 IDF 是恒正的 Robertson 形式，余弦分量非负，两种写法结果相同。Python 里 `1 - 0.6 == 0.4` 成立，所以默认权重下新旧融合分逐位相同（实测比对 `fused_scores(...) == 旧公式` 为真）。
+- 每条转人工的条件、文案与标注日志的时机都没变。
+
+**证据**：
+- 客服、FAQ、意图、语义检索相关测试 140 项（4 项跳过）改前改后都通过。
+- 新增 `test_rag_ranking_follows_the_faq_fusion_weight`。这组三篇语料在纯 BM25 与纯余弦下第一名不同（T2 / T1）；把 `BM25_WEIGHT` 设成 1.0 或 0.0，RAG 的第一名必须跟着变。按旧公式实算，排序固定为 T2、T1、T0，与权重无关，所以 0.0 那一组在旧实现上失败。
+
+**代价与边界**：
+- `support.py` 函数变多、行数略增，每个函数只做一件事。
+- RAG 现在会跟随 `BM25_WEIGHT` 变化，这是有意的：今后调这个权重，FAQ 和 RAG 两边都会变，需要一起复核。

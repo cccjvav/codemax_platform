@@ -70,15 +70,16 @@
 | `_Index.bm25` / `cosine` | 原始 BM25／TF-IDF 余弦分量 | BM25 无固定上界；余弦使用相同加权空间的模长；不能把排序分当概率 |
 | `search(query, k)` | Top-k FaqHit，含 score 和 confidence | score 是当前候选集的融合排序分，不可跨查询比较；confidence 是绝对启发式置信分，也不是统计校准概率 |
 | `_normalize` / `_saturate` | 相对归一化／有界饱和值 | 分别服务排序与置信度，不能混用阈值 |
+| `fuse` / `fused_scores` / `RetrievalIndex` | 按 `BM25_WEIGHT` 加权的融合排序分；`RetrievalIndex` 是 `_Index` 的公开名 | FAQ 检索与客服 RAG 共用同一公式与权重（TD-289）；分数只在本次结果集内可比 |
 | `semantic_threshold` / `calibrate_threshold` | 当前配置阈值／正负样本分数的分隔值 | 空样本、分布重叠或安全间隔不足拒绝计算；默认经验值未代替真实模型标定 |
 | `_semantic_key` / `warm_semantic_index` | 提供方、凭据摘要、模型、transport、语料绑定的向量缓存；成功 bool | LLM_EMBED_ENABLED 默认 false，关闭时预热不请求并清缓存、查询不使用语义结果；开启后预热超时最多 5 秒，模型失败回退词袋；先验证完整向量再发布，不把半个索引提供给查询 |
 | `semantic_ready` / `semantic_search` | 是否有索引／语义 Top-k；不可用 None | ready 不证明任意客户端/语料都兼容；查询持有一致快照，等待期间缓存换代则回退；None 与“有结果但不相关”不同 |
 | `reset_semantic_index` | 清空语义向量、模长、键 | 用于测试/显式失效，不负责重建词袋索引 |
 | `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答 |
 | `_second_opinion` / `_log_labeling_sample` | 低置信规则的语义/模型复核，及标定样本日志 | 只在需要时调用模型；样本日志不是人工客服会话，运营应控制访问与保留期限 |
-| `_retrieve_articles` / `_build_index` | 相关标题与正文片段；无相关内容 []，查询失败 None | 读取文章内容并计算指纹，跨进程修改可见；不是增量向量数据库，全文读取/哈希仍有成本 |
+| `_retrieve_articles` / `_article_index` / `_rank_articles` / `_build_index` | 相关标题与正文片段；无相关内容 []，查询失败 None；`_article_index` 管指纹缓存，`_rank_articles` 用 `fused_scores` 排序 | 读取文章内容并计算指纹，跨进程修改可见；不是增量向量数据库，全文读取/哈希仍有成本 |
 | `reset_article_index` | 清除进程内文章检索缓存 | 测试隔离；文章持久数据不删除 |
-| `answer` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见 → FAQ/LLM/RAG；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员 |
+| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员 |
 
 <!-- doc-contract:files:start -->
 
@@ -88,12 +89,12 @@
 | [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
 | [`app/tools/crawler.py`](crawler.py) | `e0f12d34f889` | L1–L326 |
 | [`app/tools/extract.py`](extract.py) | `8ab4fbdb9855` | L1–L179 |
-| [`app/tools/faq.py`](faq.py) | `a5636315eb4d` | L1–L395 |
+| [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
 | [`app/tools/politeness.py`](politeness.py) | `8b4e20d1f086` | L1–L237 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `205c84d4261f` | L1–L489 |
-| [`app/tools/support.py`](support.py) | `f60ce5802d2f` | L1–L319 |
+| [`app/tools/support.py`](support.py) | `d08aa3323cb6` | L1–L345 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
