@@ -323,6 +323,44 @@ def test_parse_ddl_scales_linearly_not_quadratically():
     )
 
 
+@pytest.mark.parametrize(
+    ("shape", "make"),
+    [
+        # 每张表一条对不上的外键：原先每条引用都把全部表的有效名重算一遍（O(表数×引用数)）
+        ("unresolved_fk", lambda n: "".join(f"CREATE TABLE t{i}(a INT REFERENCES Missing{i});" for i in range(n))),
+        # 未闭合的表头：原先每个表头都从自己的 '(' 扫到输入末尾（O(表头数×长度)）
+        ("unclosed_heads", lambda n: "CREATE TABLE a(" * n),
+        # 表名里带 `$x$`：全局扫描判在字符串里，只能逐段重扫；超过上限不再重扫
+        ("dollar_in_name", lambda n: "CREATE TABLE a$b$(" * n),
+    ],
+)
+def test_parse_ddl_adversarial_shapes_stay_linear(shape, make):
+    """TD-285：`/tools/er-diagram` 与 `/tools/word-export` 匿名可用，20000 字符的恶意 DDL 原先能让
+    一次解析吃掉数秒 CPU（`CREATE TABLE a(` 重复串 4.3 s，线程池让出事件循环却让不出 GIL）。
+    与上一条同样只看比值：规模 ×4，线性≈4，平方≈16。"""
+    def best_of(n: int, rounds: int = 3) -> float:
+        ddl = make(n)
+        parse_ddl(ddl)
+        ts = []
+        for _ in range(rounds):
+            t = time.perf_counter()
+            parse_ddl(ddl)
+            ts.append((time.perf_counter() - t) * 1000)
+        return min(ts)
+
+    small, big = best_of(250), best_of(1000)
+    growth = big / small
+    assert growth < 8.0, f"{shape}：规模 ×4 而耗时 ×{growth:.2f}（{small:.1f} ms → {big:.1f} ms），解析器退化成了 O(n²)"
+
+
+def test_parse_ddl_fallback_still_parses_dollar_sign_table_names():
+    """表名 `a$b$` 在 PostgreSQL 里是合法标识符；全局扫描把 `$b$` 当成 dollar 引号开头，
+    这张表只能走逐段重扫。限次数（TD-285）不能把正常的这种表也丢掉。"""
+    graph = parse_ddl("CREATE TABLE a$b$(id INT PRIMARY KEY, name VARCHAR(20));")
+    assert [t["name"] for t in graph["tables"]] == ["a$b$"]
+    assert [c["name"] for c in graph["tables"][0]["columns"]] == ["id", "name"]
+
+
 def test_parse_ddl_handles_max_size_input():
     """接口允许的最大输入必须能正确解析完，不能截断或漏表。"""
     graph = parse_ddl(BIG_DDL)

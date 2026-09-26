@@ -831,3 +831,30 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **证据**：全部 87 个文件约 8000 条 L 行里，「非语句起始或越出本块」从 765 降到 0；与该行语句生成文本不一致的只剩 1 条（`_luminance` 内联描述嵌套函数 `channel` 的 L26，描述准确，故意保留）。`check_docs_contract.py` 0 错误，文档站构建通过。
 
 **代价与边界**：被重写的块里有些措辞从旧生成器写法换成了现行写法（如「不保证网络完成顺序」、状态码断言的 STATUS 文案），属于同一模板的不同版本。仓库里仍没有导读生成器（`scripts/code_reading.py` 只校验），以后改源码仍需手工同步行号——这是本次漂移的根因，是否把生成器收进仓库需要单独决定。
+
+## TD-285：DDL 解析的两处平方级路径改成线性（匿名接口 CPU 放大）
+
+2026-09-26。基线 `f66fd02`（TD-284）。第 3b 批复核读完 `app/tools/sql_ddl.py` 后的压测结论。
+
+**问题**：`/tools/er-diagram` 与 `/tools/word-export` 匿名可用，DDL 上限 20000 字符，解析放在线程池里（TD-283 前后都是），能让出事件循环，却让不出 GIL 和 CPU。用 20000 字符的对抗输入实测：
+- `"CREATE TABLE a(" * 1400` 耗时 **4269 ms**，`"CREATE TABLE a(b INT," * 1000` 耗时 3182 ms。`_iter_tables` 对每个表头都从自己的 `(` 往后 `_read_balanced`，未闭合时一路扫到输入末尾，复杂度是 O(表头数 × 长度)；每次还要把 `sql[m.end():]` 切片复制一份。
+- 529 张表各带一条对不上的 `REFERENCES X`：412 ms。`_resolve` 精确匹配不中后，每条引用遍历全部表并重算每张表的有效名，复杂度是 O(引用数 × 表数)。
+- 同短名计数用 `list.count`，也是 O(表数²)，只是常数小。
+
+复核报告 `review/FULL_REPOSITORY_REVIEW_2026-09-23.md` 里「11 组对抗输入均 ≤ 72 ms」没有覆盖未闭合表头和悬空外键这两种形状，属于漏报。
+
+**决定**：
+- `_paren_index`：一次 `_scan` 同时产出字符串内下标、字符串外所有 `(` 的下标和栈配对表。`parse_ddl` 建一次，交给 `_iter_tables` 与 `_apply_comments` 复用（原先 `_scan` 要跑三遍）。
+- `_iter_tables`：表头的 `(` 在 opens 里就直接查配对表取表体，未闭合则跳过；表头正则预编译为 `_TABLE_HEAD`，按位置匹配，不再切片。栈配对与「从这个 `(` 起重新数深度」等价：两者在该位置都处于字符串外，之后的扫描完全相同。
+- 退路：表名后的 `(` 被全局扫描判在字符串里时（表名写成 `a$b$`，全局扫描把 `$b$` 当 dollar 引号开头；或双引号名里带反斜杠），只能照旧从它起逐段重扫。这条路同样能被重复串放大（`"CREATE TABLE a$b$(" * 1200` 为 1.2 s），所以每次解析最多重扫 `_MAX_FALLBACK_SCANS = 16` 次，超出的这类表不再解析。
+- `_folded_index`：有效名 → 标签的字典只建一次，`_resolve` 每个候选一次查找。同一有效名多张表时用 `setdefault` 保留 mapping 里的第一张，与旧写法逐个比对时先命中者胜出一致。计数改用 `Counter`。
+- 旧的调用形状不变：`_iter_tables(sql)`（`tests/conftest.py` 在用）、`_resolve` 的五参数调用、`_apply_comments(sql, tables, mapping)` 都照常工作。
+
+**证据**：
+- 同样的 20000 字符输入：未闭合表头 4269 → 14.5 ms，`CREATE TABLE a(b INT,` 重复串 3182 → 13.4 ms，悬空外键 412 → 40 ms，`a$b$(` 重复串 1192 → 72 ms；其余形状不变或更快。
+- 等价性：新旧 `parse_ddl` 在 30095 份输入上逐一比对输出，差异为 0。输入包括测试与 `full_init.sql` 里所有含 CREATE/REFERENCES 的字符串，以及 30000 份用引号、dollar 引号、注释、括号、schema 前缀、大小写变体、COMMENT ON、ALTER FK 等片段随机拼成的 DDL。随机输入里走到退路的只有 28 份，每份最多 1 次，上限 16 次不影响任何现实输入。
+- `tests/test_perf.py` 新增 `test_parse_ddl_adversarial_shapes_stay_linear`，三种形状参数化。与原有线性测试同样只看比值：规模 ×4 时耗时增长必须 < 8（实测约 4，旧代码下三种形状都失败）。另有 `test_parse_ddl_fallback_still_parses_dollar_sign_table_names`，确保合法的 `a$b$` 表名仍经退路解析出来。
+
+**代价与边界**：
+- 退路上限是有意的行为边界：一份 DDL 里超过 16 张「表名后的括号被判在字符串里」的表，第 17 张起不再出现在图里。正常 DDL 不会走到这里。
+- 全局扫描把标识符中间的 `$x$` 当 dollar 引号开头，这点与 PostgreSQL 词法不同（PG 里标识符内的 `$` 不起引号作用）。修正它会改变 ALTER/COMMENT 的字符串判定，超出本次「只提速、不改结果」的范围，没有动。

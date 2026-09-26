@@ -29,6 +29,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 
 _QUOTES = "'\"`"
 _IDENT_PART = r'(?:"(?:[^"\n]|"")*"|`(?:[^`\n]|``)*`|[\w$]+)'
@@ -48,6 +49,8 @@ _QUOTED = r"'(?:\\.|''|[^'\\])*'"
 _CONSTRAINT_HEADS = {"PRIMARY", "FOREIGN", "UNIQUE", "KEY", "INDEX", "CONSTRAINT", "CHECK", "EXCLUDE"}
 # `REFERENCES parent` 省略列表时，后面只能是子句结束或这些关键字；其他残留（如 `t-1(id)` 里的 `-1`）不算合法引用
 _AFTER_REFERENCES = r"(?=\s*$|\s*[,)]|\s+(?:ON|MATCH|DEFERRABLE|NOT|INITIALLY|CONSTRAINT|DEFAULT|NULL|CHECK|UNIQUE|PRIMARY|COMMENT|COLLATE|GENERATED|ENABLE|DISABLE|USING)\b)"
+_MAX_FALLBACK_SCANS = 16  # 见 _iter_tables：表名后的 '(' 被全局扫描判在字符串里时的逐段重扫次数上限
+_TABLE_HEAD = re.compile(rf"\s*({_IDENT})\s*\(")
 _ESCAPED = {"n": "\n", "t": "\t", "r": "\r", "b": "\b", "0": "\0", "Z": "\x1a"}
 
 
@@ -56,13 +59,16 @@ def parse_ddl(sql: str) -> dict:
     sql = _strip_comments(sql)
     tables: list[dict] = []
     edges: list[dict] = []
-    definitions = list(_iter_tables(sql))
-    short_names = [_unquote(_short(raw)) for raw, _ in definitions]
-    mapping = {tuple(_identifier_parts(raw)): (_qualified(raw) if short_names.count(_unquote(_short(raw))) > 1 else _unquote(_short(raw)))
+    # 一次扫描同时得到「字符串内下标」与括号配对表，后面各步复用（TD-285）
+    index = _paren_index(sql)
+    in_string = index[2]
+    definitions = list(_iter_tables(sql, index))
+    short_counts = Counter(_unquote(_short(raw)) for raw, _ in definitions)
+    mapping = {tuple(_identifier_parts(raw)): (_qualified(raw) if short_counts[_unquote(_short(raw))] > 1 else _unquote(_short(raw)))
                for raw, _ in definitions}
-    labels = list(mapping.values())
+    label_counts = Counter(mapping.values())
     for parts, label in list(mapping.items()):
-        if labels.count(label) > 1:
+        if label_counts[label] > 1:
             mapping[parts] = ".".join('"' + part.replace('"', '""') + '"' if '.' in part else part for part in parts)
     origins = {}
     quoted = {tuple(_identifier_parts(raw)): _quoted_parts(raw) for raw, _ in definitions}
@@ -73,24 +79,24 @@ def parse_ddl(sql: str) -> dict:
         table, table_edges = _parse_table(name, body)
         tables.append(table)
         edges.extend(table_edges)
-    in_string = _in_string_positions(sql)
+    folded = _folded_index(mapping, quoted)
     for m in _ALTER_FK.finditer(sql):
         if m.start() in in_string:
             continue
-        owner = _resolve(tuple(_identifier_parts(m.group(1))), _quoted_parts(m.group(1)), mapping, quoted, ())
+        owner = _resolve(tuple(_identifier_parts(m.group(1))), _quoted_parts(m.group(1)), mapping, quoted, (), folded)
         if owner is None:
             continue  # ALTER 的表不在这份 DDL 里：无处挂边
         _fk_edges(owner, m.group(2), m.group(3), m.group(4), edges)
     pk_by_table = {t["name"]: [c["name"] for c in t["columns"] if c["primary_key"]] for t in tables}
     for edge in edges:
         target = edge["to_table"]
-        resolved = _resolve(target, edge.pop("to_quoted", (False,) * len(target)), mapping, quoted, origins[edge["from_table"]])
+        resolved = _resolve(target, edge.pop("to_quoted", (False,) * len(target)), mapping, quoted, origins[edge["from_table"]], folded)
         edge["to_table"] = resolved if resolved is not None else ".".join(target)
         if edge["to_column"] == "":
             # `REFERENCES parent` 不写列 = 父表主键（SQL 标准）；只有单列主键才能无歧义补全（TD-269）
             pk = pk_by_table.get(edge["to_table"], [])
             edge["to_column"] = pk[0] if len(pk) == 1 else ""
-    _apply_comments(sql, tables, mapping)
+    _apply_comments(sql, tables, mapping, in_string)
     return {"tables": tables, "edges": edges}
 
 
@@ -104,13 +110,28 @@ def _effective(parts: tuple[str, ...], quoted: tuple[bool, ...]) -> tuple[str, .
     return tuple(p if q else p.lower() for p, q in zip(parts, quoted, strict=True))
 
 
-def _resolve(target: tuple[str, ...], target_quoted: tuple[bool, ...], mapping: dict, quoted: dict, origin: tuple | list) -> str | None:
+def _folded_index(mapping: dict, quoted: dict) -> dict[tuple[str, ...], str]:
+    """有效名 → 表标签；同一有效名有多张表时保留 mapping 里的第一张（与逐个比对的旧写法一致）。
+
+    预先建一次，`_resolve` 每条引用就是一次字典查找。原先每条引用都把全部表的有效名
+    重算一遍，500 张表各带一条对不上的外键就要 0.4 s（TD-285）。
+    """
+    folded: dict[tuple[str, ...], str] = {}
+    for full, label in mapping.items():
+        folded.setdefault(_effective(full, quoted.get(full, (False,) * len(full))), label)
+    return folded
+
+
+def _resolve(target: tuple[str, ...], target_quoted: tuple[bool, ...], mapping: dict, quoted: dict, origin: tuple | list,
+             folded: dict | None = None) -> str | None:
     """把 REFERENCES 里写的表名对到 DDL 里实际定义的表。
 
     先按写法精确匹配（含补 schema 前缀、去 schema 前缀两种候选），再按有效名匹配：
     `Users` 定义 / `USERS` 引用 → 都折叠成 users，匹配；`"Mixed"` 定义 / `mixed` 引用 → Mixed ≠ mixed，
     不匹配（PostgreSQL 也会报表不存在，作图不替用户"修正"）。
     """
+    if folded is None:
+        folded = _folded_index(mapping, quoted)
     if len(target_quoted) != len(target):
         target_quoted = (False,) * len(target)
     candidates: list[tuple[tuple[str, ...], tuple[bool, ...]]] = [(target, target_quoted)]
@@ -122,10 +143,9 @@ def _resolve(target: tuple[str, ...], target_quoted: tuple[bool, ...], mapping: 
         if cand in mapping:
             return mapping[cand]
     for cand, cand_quoted in candidates:
-        wanted = _effective(cand, cand_quoted)
-        for full, label in mapping.items():
-            if len(full) == len(cand) and _effective(full, quoted.get(full, (False,) * len(full))) == wanted:
-                return label
+        label = folded.get(_effective(cand, cand_quoted))
+        if label is not None:
+            return label
     return None
 
 
@@ -220,17 +240,53 @@ def _in_string_positions(sql: str) -> set[int]:
     return {i for i, _, in_str in _scan(sql) if in_str}
 
 
-def _iter_tables(sql: str):
-    """逐个取出 (表名, 括号内的列定义体)。"""
-    in_string = _in_string_positions(sql)
+def _paren_index(sql: str) -> tuple[dict[int, int], set[int], set[int]]:
+    """一次扫描：(字符串外每个 '(' → 配对 ')' 的下标, 字符串外 '(' 的下标集合, 字符串内字符的下标集合)。
+
+    用栈配对与「从这个 '(' 起重新数深度」结果相同：两者在该位置都处于字符串外，之后的扫描
+    完全一样。未闭合的 '(' 不在配对表里。
+    """
+    match: dict[int, int] = {}
+    opens: set[int] = set()
+    in_string: set[int] = set()
+    stack: list[int] = []
+    for i, ch, in_str in _scan(sql):
+        if in_str:
+            in_string.add(i)
+        elif ch == "(":
+            stack.append(i)
+            opens.add(i)
+        elif ch == ")" and stack:
+            match[stack.pop()] = i
+    return match, opens, in_string
+
+
+def _iter_tables(sql: str, index: tuple[dict[int, int], set[int], set[int]] | None = None):
+    """逐个取出 (表名, 括号内的列定义体)。
+
+    括号配对查一次扫描建好的表（TD-285）。原先每张表都从自己的 '(' 往后重新扫到配对为止，
+    未闭合时一路扫到输入末尾：20000 字符的 `CREATE TABLE a(` 重复串要 4 秒多 CPU。
+    """
+    match, opens, in_string = index if index is not None else _paren_index(sql)
+    fallbacks = 0
     for m in _CREATE_TABLE.finditer(sql):
         if m.start() in in_string:
             continue  # 字符串里的 CREATE TABLE 不算（例如 COMMENT '别写 CREATE TABLE'）
-        rest = sql[m.end() :]
-        head = re.match(rf"\s*({_IDENT})\s*\(", rest)
+        head = _TABLE_HEAD.match(sql, m.end())
         if not head:
             continue
-        balanced = _read_balanced(rest[head.end() - 1 :])
+        start = head.end() - 1
+        if start in opens:
+            if start in match:
+                yield head.group(1), sql[start + 1 : match[start]]
+            continue
+        # 全局扫描认为这个 '(' 在字符串里（表名里带 `$x$`、双引号名里带反斜杠这类怪写法），
+        # 只能从它起重新扫描。每次最坏扫到输入末尾，所以限定次数：正常 DDL 不会走到这里，
+        # 超过上限的这类表不再解析，防止用重复串把单次解析拖成秒级（TD-285）。
+        fallbacks += 1
+        if fallbacks > _MAX_FALLBACK_SCANS:
+            continue
+        balanced = _read_balanced(sql[start:])
         if balanced:
             yield head.group(1), balanced[0]
 
@@ -357,11 +413,12 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
     _fk_edges(table, fk.group(1), fk.group(2), fk.group(3), edges)
 
 
-def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None) -> None:
+def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None, in_string: set[int] | None = None) -> None:
     """应用 PostgreSQL 风格的 COMMENT ON TABLE / COMMENT ON COLUMN。"""
     by_name = {t["name"]: t for t in tables}
     mapping = mapping or {}
-    in_string = _in_string_positions(sql)
+    if in_string is None:
+        in_string = _in_string_positions(sql)
     pattern = re.compile(
         rf"COMMENT\s+ON\s+(TABLE|COLUMN)\s+({_IDENT})\s+IS\s+({_QUOTED})", re.IGNORECASE
     )
