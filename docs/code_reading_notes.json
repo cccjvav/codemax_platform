@@ -694,7 +694,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "0a193d5f2e78c6f6ca8a734f42967e3b05d3fee54af2d6eb8405ad4601fc4736",
+      "sha256": "3c39b1af84b686accf0c5f885cd1a06c1b514d8ebb9d5b664defd7a6bc7a6d06",
       "blocks": [
         {
           "end": 19,
@@ -734,12 +734,12 @@
         {
           "end": 178,
           "title": "先问智能助手：公开 /support/ask，独立于会话代次",
-          "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 且当前不是管理员时显示转人工按钮。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
+          "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 记入 lastEscalated，且当前不是管理员时显示转人工按钮。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
         },
         {
-          "end": 197,
+          "end": 199,
           "title": "onUser 与离开页面",
-          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。"
+          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。"
         }
       ]
     },
@@ -8160,18 +8160,18 @@
     },
     {
       "path": "tests/test_second_frontend_regressions.py",
-      "sha256": "e064971840ab398c84782356cfcbdd8085c302e23c71a05ab4119be7d0bd600e",
+      "sha256": "2ab981b4c575351e0e78b5c12ffe8fb7100627a17e4941a4fb53d03b465b5f7e",
       "method": "guided",
       "blocks": [
         {
-          "end": 102,
+          "end": 104,
           "title": "模块装配",
-          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（6693字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（6842字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 130,
+          "end": 132,
           "title": "test_browser_lifecycle",
-          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL107 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL108 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL110 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL111 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL112 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL113 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL114 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL115 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL116 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL118 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL119 判断 `scenario == 'support-ask'`，为真进入当前缩进分支，为假进入else/elif。\nL120 核对 `output == {'payload': {'text': '退款多久到账？'}, 'method': 'POST', 'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'], 'result': True, 'busy': True, 'handoff': True, 'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员', 'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？'}`：此条件为假即测试失败；不是生产输入校验。\nL127 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL128 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL129 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL130 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL109 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL110 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL112 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL113 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL114 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL115 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL116 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL117 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL118 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL120 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL121 判断 `scenario == 'support-ask'`，为真进入当前缩进分支，为假进入else/elif。\nL122 核对 `output == {'payload': {'text': '退款多久到账？'}, 'method': 'POST', 'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'], 'result': True, 'busy': True, 'handoff': True, 'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员', 'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？', 'adminHandoff': False}`：此条件为假即测试失败；不是生产输入校验。\nL129 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL130 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL131 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL132 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -8797,7 +8797,7 @@
     },
     {
       "path": "tests/test_support.py",
-      "sha256": "2b71f1a1a0ca91a27ca78b983fdaf916614e3d194658b503a92e4db6765bc318",
+      "sha256": "36e7fc0e530a9d7d0e1b948ba07699995f16552bab33019f852cb06861bc048e",
       "method": "guided",
       "blocks": [
         {
@@ -8966,24 +8966,24 @@
           "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=http、status_code=503 的 LLMError，文本为 DETAIL。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL271 抛出 LLMError(self.DETAIL, category='http', status_code=503)；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 300,
+          "end": 303,
           "title": "test_llm_failure_detail_goes_to_logs_not_to_the_public_reason",
-          "explanation": "本用例的准备条件：db, client, caplog, monkeypatch, question, stage, seed。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：闲聊、RAG（先写入文章）、意图路由三种输入各走一次：reason 含对应阶段且不含地址、配置名、状态码；caplog 里有带 category=http 的原文；再经 /support/ask（替换路由模块的 answer 注入替身）确认 HTTP 返回的 reason 同样不含原文。\n\n登记/装饰：pytest.mark.parametrize('question,stage,seed', [('你好', '闲聊应答失败', False), ('python 部署 nginx 报错怎么排查', 'RAG 生成失败', True), ('asdfghjkl 嗯嗯', 'LLM 路由调用失败', False)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, client, caplog, monkeypatch, question, stage, seed；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL283 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL285 导入 from app.routers import support as support_router；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL287 判断 `seed`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL288 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL289 调用 caplog.set_level(logging.WARNING)。\nL290 计算右侧并赋给 `r`：await 调用 answer(question, db, llm=_LeakyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL291 核对 `r.escalated and stage in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL292 核对 `'10.0.0.5' not in r.reason and 'LLM_API_KEY' not in r.reason and ('503' not in r.reason)`：此条件为假即测试失败；不是生产输入校验。\nL293 核对 `any((_LeakyLLM.DETAIL in rec.getMessage() and 'category=http' in rec.getMessage() for rec in caplog.records))`：此条件为假即测试失败；不是生产输入校验。\nL295 计算右侧并赋给 `real_answer`：support_router.answer。\nL296 调用 monkeypatch.setattr(support_router, 'answer', lambda text, session: real_answer(text, session, llm=_LeakyLLM()))：仅在本测试替换属性，fixture结束恢复。\nL297 计算右侧并赋给 `body`：调用 (await client.post('/support/ask', json={'text': question})).json()。\nL298 核对 `body['escalated'] and '10.0.0.5' not in body['reason'] and ('LLM_API_KEY' not in body['reason'])`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db, client, caplog, monkeypatch, question, stage, seed。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：闲聊、RAG（先写入文章）、意图路由三种输入各走一次：reason 含对应阶段且不含地址、配置名、状态码；caplog 里有带 category=http 的原文；再经 /support/ask（替换路由模块的 answer 注入替身）确认 HTTP 返回的 reason 同样不含原文。\n\n登记/装饰：pytest.mark.parametrize('question,stage,seed', [('你好', '闲聊应答失败', False), ('python 部署 nginx 报错怎么排查', 'RAG 生成失败', True), ('asdfghjkl 嗯嗯', 'LLM 路由调用失败', False)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, client, caplog, monkeypatch, question, stage, seed；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL283 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL285 导入 from app.routers import support as support_router；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL287 判断 `seed`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL288 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL289 调用 caplog.set_level(logging.WARNING)。\nL290 计算右侧并赋给 `r`：await 调用 answer(question, db, llm=_LeakyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL291 核对 `r.escalated and stage in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL292 核对 `'10.0.0.5' not in r.reason and 'LLM_API_KEY' not in r.reason and ('503' not in r.reason)`：此条件为假即测试失败；不是生产输入校验。\nL293 核对 `any((_LeakyLLM.DETAIL in rec.getMessage() and 'category=http' in rec.getMessage() for rec in caplog.records))`：此条件为假即测试失败；不是生产输入校验。\nL296 await 调用 db.rollback()；等待期间可让出事件循环，恢复后才执行下一句。\nL298 计算右侧并赋给 `real_answer`：support_router.answer。\nL299 调用 monkeypatch.setattr(support_router, 'answer', lambda text, session: real_answer(text, session, llm=_LeakyLLM()))：仅在本测试替换属性，fixture结束恢复。\nL300 计算右侧并赋给 `body`：调用 (await client.post('/support/ask', json={'text': question})).json()。\nL301 核对 `body['escalated'] and '10.0.0.5' not in body['reason'] and ('LLM_API_KEY' not in body['reason'])`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 303,
+          "end": 306,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason",
           "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：category=busy 时 reason 保留「模型繁忙，请稍后再试」，但不带在途上限数字。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 304,
+          "end": 307,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason.BusyLLM",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。 模拟本进程模型闸门已满。\n\n结构事实：定义类 BusyLLM，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 310,
+          "end": 313,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason.BusyLLM.chat",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=busy 的 LLMError。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL306 抛出 LLMError('客服繁忙：本站同时处理的模型请求已达 4 个，请 5 秒后再试', category='busy')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL308 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=BusyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL309 核对 `r.escalated and '闲聊应答失败（模型繁忙，请稍后再试）' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL310 核对 `'4 个' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=busy 的 LLMError。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL309 抛出 LLMError('客服繁忙：本站同时处理的模型请求已达 4 个，请 5 秒后再试', category='busy')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL311 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=BusyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL312 核对 `r.escalated and '闲聊应答失败（模型繁忙，请稍后再试）' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL313 核对 `'4 个' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

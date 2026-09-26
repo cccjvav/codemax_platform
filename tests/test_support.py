@@ -291,6 +291,9 @@ async def test_llm_failure_detail_goes_to_logs_not_to_the_public_reason(
     assert r.escalated and stage in r.reason
     assert "10.0.0.5" not in r.reason and "LLM_API_KEY" not in r.reason and "503" not in r.reason
     assert any(_LeakyLLM.DETAIL in rec.getMessage() and "category=http" in rec.getMessage() for rec in caplog.records)
+    # 结束 db 会话的事务再走 HTTP：本用例同时用了 db 与 client 两个夹具，PostgreSQL 上 answer() 的查询会让
+    # 事务一直持有表锁；client 先拆除时的 drop_all 要排他锁，会一直等这个会话（db 夹具更晚拆除），整轮测试挂死。
+    await db.rollback()
     # HTTP 出口同样不带原文：/support/ask 把 reason 原样返回
     real_answer = support_router.answer
     monkeypatch.setattr(support_router, "answer", lambda text, session: real_answer(text, session, llm=_LeakyLLM()))

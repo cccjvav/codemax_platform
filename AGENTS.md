@@ -21,6 +21,7 @@
 6. 新取舍在 TECH_DECISIONS 追加有编号的决定、代价与回看条件；更新 HANDOVER/ROADMAP 当前入口，不改写历史测试证据来凑新数字。
 7. 审查 git diff 与状态后选择性提交；用 `git commit -F`。随即推送本固定分支并用 git ls-remote 核对 tip；认证失败在 Arena 重连，不索要密码/令牌。
 8. 查询最终 SHA 的每个 CI job。上一提交的成功、运行中或 cancelled 都不是本次通过；日志取不到应明确说明并另行获取证据。
+9. 每轮任务收尾做一次复审（用户 2026-09-27 要求）：复看本轮 diff、在真 PostgreSQL 上跑受影响测试、等最终 SHA 全部 CI 完成后再汇报。结论写进 [review/ROUND_REVIEWS.md](review/ROUND_REVIEWS.md)；当轮不处理的发现不丢，登记到 ROADMAP 的 R 组，之后统一处理。
 
 ## 常用验证
 

@@ -55,7 +55,7 @@
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `8299e4b12efc` | L1–L370 |
-| [`app/frontend/support-page.js`](support-page.js) | `0a193d5f2e78` | L1–L197 |
+| [`app/frontend/support-page.js`](support-page.js) | `3c39b1af84b6` | L1–L199 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

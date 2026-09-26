@@ -1130,3 +1130,15 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
   - 未登录点按钮会弹一次登录，登录前留言框为空，登录后填入问题。
 - `tests/test_support_messages.py::test_guest_page_offers_the_assistant_before_the_private_messages`：访客页面有表单且位于登录提示之前，上限 2000，打包脚本调用 `/support/ask`，真实接口对「转人工」返回 `escalated` 与人工页 URL。
 - 用无头 Chromium 在 1280px 与 390px 宽度下截图核对了布局（预览环境无模型与 FAQ 数据，走的是转人工分支）。
+
+## TD-296：首轮每轮复审（TD-291～295）的修复与流程
+
+**状态**：已实施（2026-09-27）。用户要求此后每轮任务后做复审，不处理的发现登记下来最后统一处理。复审记录见 `review/ROUND_REVIEWS.md`，搁置项在 ROADMAP R 组。
+
+**发现并修复**：
+- **CI 真 PostgreSQL job 挂死**（RR-01）。TD-292 的 `test_llm_failure_detail_goes_to_logs_not_to_the_public_reason` 同时用 `db` 与 `client` 夹具。第 3 组参数中 `answer()` 经 `db` 会话查询后事务未结束，PG 上持有表锁；`client` 夹具先拆除，其 `drop_all` 需要排他锁，一直等待，直到 job 35 分钟超时。SQLite 无表级锁，所以本地全量与 SQLite job 都通过。修复是在直接调用之后 `await db.rollback()` 再发 HTTP 请求，断言不变。本机 pgserver（PG 16）全量 1955 passed。
+- **转人工按钮在切换为管理员后仍显示**（RR-03）。`support-page.js` 记住 `lastEscalated`，`onUser` 按新角色重算显隐。Node 场景 `support-ask` 增加管理员登录后按钮隐藏的断言，修复前源码与产物都失败。产物已重建。
+
+**流程**（RR-02）：TD-291～294 的中间提交 CI 都被后续推送取消，TD-295 汇报时最终 SHA 的 PG job 还在运行，所以挂死没被当场发现。AGENTS 工作循环新增第 9 步：每轮收尾复看 diff、在真 PG 上跑受影响测试，等最终 SHA 的全部 CI 完成后再汇报。
+
+**记录不改**：TD-294 令牌端点参数在 OpenAPI 中显示为可选（RR-04，RFC 语义优先）。**搁置**：R-03 转人工文案、R-04 既有导读不一致、R-05 早先的复核小问题；R-02 全仓重点审查排在当前重构批次之后。

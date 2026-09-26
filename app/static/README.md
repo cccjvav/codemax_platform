@@ -113,7 +113,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `a53c367355a3` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `6839670f0e72` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `02c344c2a23d` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `24b062312da4` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `99cd3de777d0` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `6f2a01973e9c` | 生成物，见模块构建说明 |

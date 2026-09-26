@@ -1,6 +1,6 @@
 # 当前工作队列与阶段目标
 
-更新：2026-09-25。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)、[接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)与[第二次接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md)。
+更新：2026-09-27。本页替代已完成的 S1–S5/R-01 等旧执行计划；历史可从 Git 和 [阶段索引](manager/stages/README.md)追溯。恢复入口仅 [HANDOVER](HANDOVER.md)，证据见[全仓审计](review/FULL_REPOSITORY_HANDOFF_2026-09-19.md)、[接手独立复核](review/FULL_REPOSITORY_REVIEW_2026-09-20.md)与[第二次接手复核](review/FULL_REPOSITORY_REVIEW_2026-09-23.md)。
 
 ## 优先级与范围
 
@@ -48,6 +48,18 @@
 | V-06 / P3——**完成（首屏重复重建 TD-272；改密入口与 Mermaid 按需加载 2026-09-25，TD-280）**：顶栏用户名即「修改密码」入口（前端先挡两次不一致/与原密码相同，401 走会话到期；真实浏览器实测其他会话 200 → 401、本页保持登录）；Mermaid 点「生成类图」才下载，页面首屏 669 KiB → 3.5 KiB，并修正 Vite 预加载地址（原先请求 /mermaid.core.js 这类 404） | Drawio 首屏重复重建 iframe（外部编辑器下载 2～3 次）；无网页改密码入口（生产关闭 /docs 后无法改密）；Mermaid 首屏 626 KiB 可按需加载 | 桩断言首次加载 ≤1 次创建；改密浮层回归；Mermaid 点生成时才加载 | 前端 + 产物 |
 | V-07 / P3 ——**已完成（2026-09-24，TD-276）**：`TRUST_PROXY_HEADERS` 保留硬拦但文案改成「必须开启」并指向 `TRUSTED_PROXY_CIDRS`（O-15，用户委托助手决定）；gzip level 9→6（本机 647 KiB 分块 23.3→16.4 ms，体积不变）；`/static/*.md` 一律 404（文件保留，文档契约要求每个目录有 README）；DEPLOY/WINDOWS_LOCAL_RUN 补 N-07 的 https 代理说明；favicon 已在 TD-272 补上 | 开发模式经 https 代理访问时登录/财务操作 403（N-07，文档）；gzip level 9→6；`/static/README.md` 公开与缺 favicon；生产检查 `TRUST_PROXY_HEADERS` 硬拒绝但文案称“可忽略” | `tests/test_ops.py` 新增 3 条（旧代码上先红）：静态 Markdown 404 且 favicon/脚本仍 200、gzip 恰一层且 `compresslevel == 6`、自检文案不含“可忽略”且含 `TRUSTED_PROXY_CIDRS` | 不改运行语义；直连公网时不引入新开关（安全性由 `TRUSTED_PROXY_CIDRS` 决定）；代理 CIDR 正确性仍归部署签收 |
 | V-08 / P3（文档/工作流）——**已完成（2026-09-24，TD-277）**：分支名只在 HANDOVER 首段维护一处，AGENTS/指南都指向它；finish-subitem Skill 用 `$(git branch --show-current)`；Windows 指南用 `set "BRANCH=..."` + `%BRANCH%`；Agnes 工作流 push 触发从写死的上一会话分支改为 `arena/*`（用户 2026-09-24 同意；paths 过滤与 `[agnes-live-test]` 门槛不变） | 分支名硬编码在指南/Skill/Agnes 工作流，每个会话都要改 7 处（TD-270 与本轮各改一次） | `grep -rn "01a0"` 在现行文档/Skill/工作流里只剩 HANDOVER 首段一处（其余为历史记录）；`tests/test_agnes_integration.py` 断言模式匹配且不含会话 ID | 工作流触发条件确有变化（分支前缀），已在 TD-277 记录；若将来出现非 `arena/*` 的会话分支需要重新评估。遗留待确认：live-chat 的判定是整条提交说明的子串匹配，引用标记即触发（`fee88eb` 已实测误触发）；是否收紧为只匹配首行待用户确认 |
+
+## R：每轮复审与搁置项（2026-09-27 起）
+
+用户 2026-09-27 要求：每轮任务之后做复审；当轮不处理的发现、以及暂缓的全仓复审都登记在这里，最后统一回头处理。复审证据见 [review/ROUND_REVIEWS.md](review/ROUND_REVIEWS.md)。
+
+| 编号 | 事项 | 完成标准 | 备注 |
+| --- | --- | --- | --- |
+| R-01 | 每轮复审（常设流程） | 每轮收尾：复看 diff、真 PG 跑受影响测试、最终 SHA 六项 CI 全部完成后再汇报；结论写入 ROUND_REVIEWS | 2026-09-27 首轮（TD-291～295）已做，修复见 TD-296 |
+| R-02 | 仓库先前实现的重点审查 | 当前重构批次（payments_admin `reconcile`、bill_reconcile 等）结束后进行；挑资金/鉴权/并发/对外接口等重要部分，结论写入 ROUND_REVIEWS，问题分批修复或登记 | 用户 2026-09-27 提出，可暂缓但不能丢 |
+| R-03 | 转人工固定答案的措辞 | 「请登录站内客服页发送留言」在客服页内读来多余；决定是否按调用场景区分文案（API 调用方仍需要指向客服页） | 来自 RR-05；纯文案 |
+| R-04 | 导读笔记中既有的生成结果不一致 | shop.py 6 块、test_manual_pay 1 块、test_second_review_regressions 1 块、llm.py `LLMClient._call`：逐块核对后 regen 或确认保留手写 | 来自 RR-06；不影响门禁 |
+| R-05 | 早先记下未修的复核小问题 | word.py 结尾句点；intent.py 关键词子串匹配（可能误命中）；politeness `_origin` 未统一主机名大小写 | 接手以来的审查笔记，逐项复现后决定修或关闭 |
 
 ## G2：有边界的发布验收（和代码修复分开签收）
 

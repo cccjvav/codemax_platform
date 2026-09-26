@@ -133,14 +133,14 @@
     faq: "来自常见问题", "faq-semantic": "来自常见问题（相近问法）", llm: "智能助手回答",
     rag: "根据站内文章整理", human: "需要管理员协助",
   };
-  let asking = false, lastQuestion = "", handoffDraft = null;
+  let asking = false, lastQuestion = "", lastEscalated = false, handoffDraft = null;
   const askController = new AbortController();
   function fillDraft(text) {
     const box = el("body");
     box.value = text; box.focus?.(); box.scrollIntoView?.({ block: "center" });
   }
   function showAnswer(data, question) {
-    lastQuestion = question;
+    lastQuestion = question; lastEscalated = !!data?.escalated;
     el("ask-source").textContent = SOURCE_LABELS[data?.source] || "";
     el("ask-answer").textContent = typeof data?.answer === "string" ? data.answer : "";
     el("ask-busy").hidden = !(typeof data?.reason === "string" && data.reason.includes("模型繁忙"));
@@ -150,7 +150,7 @@
     }));
     el("ask-refs-panel").hidden = !refs.length;
     // 管理员自己是回复方，不需要「转给管理员」
-    el("ask-handoff").hidden = !data?.escalated || currentUser?.role === 1;
+    el("ask-handoff").hidden = !lastEscalated || currentUser?.role === 1;
     el("ask-result").hidden = false;
   }
   el("ask-form").onsubmit = async (e) => {
@@ -182,6 +182,8 @@
     reset(); currentUser = user; target = null; inboxCursor = null;
     if (draft) el("body").value = draft;
     if (user && user.role !== 1 && handoffDraft) { fillDraft(handoffDraft); handoffDraft = null; }
+    // 回答显示之后换了账号：管理员是回复方，隐藏「留言给管理员」；换回普通用户或退出后按原回答恢复
+    el("ask-handoff").hidden = !lastEscalated || user?.role === 1;
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;

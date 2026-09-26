@@ -82,7 +82,9 @@ if(scenario==='support-privacy'){
   const kept=get('support-ask-answer').textContent;get('support-body').value='';
   get('support-ask-to-human').onclick();const draftBeforeLogin=get('support-body').value;
   await auth.listener({username:'carol',role:0});await tick();
-  console.log(JSON.stringify({...shown,filled,kept,opened,draftBeforeLogin,afterLogin:get('support-body').value}));
+  const afterLogin=get('support-body').value;
+  await auth.listener({username:'root',role:1});await tick();const adminHandoff=!get('support-ask-handoff').hidden;
+  console.log(JSON.stringify({...shown,filled,kept,opened,draftBeforeLogin,afterLogin,adminHandoff}));
 }else if(scenario==='drawio-export'){
   fetchImpl=async(url,opt)=>opt.method==='POST'?{id:10}:[];start();await tick();
   event({event:'init'});event({event:'load'});event({event:'autosave',xml:'<mxfile>STALE</mxfile>'});
@@ -122,7 +124,7 @@ def test_browser_lifecycle(folder, scenario):
             'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'],
             'result': True, 'busy': True, 'handoff': True,
             'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员',
-            'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？'}
+            'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？', 'adminHandoff': False}
     else:
         assert output['before'] == 0
         assert output['body']['content'] == '<mxfile>FRESH</mxfile>'
