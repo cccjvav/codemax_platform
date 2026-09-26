@@ -17,12 +17,16 @@
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
 
 from .faq import search
-from .llm import LLMClient, LLMError, default_llm
+from .llm import LLMClient, LLMError, default_llm, public_failure_note
+
+# 路由失败详情只进服务日志：IntentResult.reason 会经客服回复返回给匿名用户（TD-292）。
+_intent_logger = logging.getLogger("codemax.intent")
 
 
 class Intent(str, Enum):
@@ -160,7 +164,10 @@ async def llm_classify(text: str, llm: LLMClient = default_llm) -> IntentResult:
     try:
         reply = await llm.chat(LLM_ROUTER_SYSTEM, text)
     except LLMError as exc:
-        return IntentResult(Intent.CHITCHAT, 0.0, f"LLM 路由调用失败：{exc}")
+        _intent_logger.warning(
+            "intent LLM routing failure category=%s status=%s detail=%s", exc.category, exc.status_code, exc
+        )
+        return IntentResult(Intent.CHITCHAT, 0.0, f"LLM 路由调用失败{public_failure_note(exc)}")
 
     label = reply.strip().lower().strip("`。．.！!，, ").strip()
     intent = _LLM_LABEL_MAP.get(label)

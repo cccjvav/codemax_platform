@@ -55,6 +55,15 @@ class LLMError(RuntimeError):
         self.status_code = status_code
 
 
+def public_failure_note(exc: LLMError) -> str:
+    """可以给匿名用户看的失败说明（TD-292）：只区分「繁忙」与其他，原文由调用方写进服务日志。
+
+    繁忙（本进程在途调用已满）对用户有用——稍后重试即可；其余类别的文本含配置状态、
+    上游状态码、超时设置或解析细节，只进日志。
+    """
+    return "（模型繁忙，请稍后再试）" if exc.category == "busy" else "（详情已记入服务日志）"
+
+
 # TD-264：每进程同时最多这么多次 LLM 请求在途（chat 与 embeddings 共用，所有调用方共用）。
 # 超出**立即拒绝**而不是排队：排队会让第 N 个用户干等几十秒，还要替他挂着连接；
 # 单客户端的节奏已由 RATE_LIMIT_LLM 限制，这里封顶的是全站对同一个 key 的并发烧钱速度。

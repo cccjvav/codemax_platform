@@ -140,9 +140,10 @@ server {
 | `/readyz` 非 200 | 连续 3 次 | 数据库或应用异常 |
 | 5xx 比例 | > 1% 持续 5 分钟 | 看日志里的 `rid` 定位 |
 | `/support/ask` 的 `escalated` 比例 | 突增 | 说明 FAQ 语料没覆盖住，或 LLM 挂了 |
-| `/tools/mermaid` 503 数量 / `escalated` 原因含「繁忙」 | 持续出现 | 本进程模型并发闸门（4 个在途，TD-264）满了：要么被刷（配合 429 与限流日志看来源），要么供应商变慢让每次调用占槽更久；闸门不排队，不会拖垮其他页面 |
+| `/tools/mermaid` 503 数量 / `escalated` 原因含「模型繁忙」 | 持续出现 | 本进程模型并发闸门（4 个在途，TD-264）满了：要么被刷（配合 429 与限流日志看来源），要么供应商变慢让每次调用占槽更久；闸门不排队，不会拖垮其他页面 |
 | `/tools/*` 429 数量 | 突增 | 要么被刷，要么限流阈值太紧 |
 | 日志 `codemax.ratelimit` warning「限流器身份容量已满」 | 出现即查 | 键表 16384 个身份全部活跃，新客户端会收到 429「访问来源过多」；每分钟至多一条。通常是来源轮换刷量（TD-261），先看接入层能否封禁来源网段 |
+| 日志 `codemax.support` / `codemax.intent` warning「support LLM failure …」「intent LLM routing failure …」 | 突增时查 | 客服闲聊、RAG 或意图路由调用模型失败，已转人工；日志含 `category`（configuration / network / http / oversize / response / busy）、上游状态码与原文。用户看到的 `reason` 只有阶段和「详情已记入服务日志」或「模型繁忙」，不含这些细节（TD-292） |
 | 日志 `codemax.shop` warning「delivery object missing order=… key=…」 | 出现即查 | 已付用户领取下载时，订单冻结的交付快照对象不在存储里；用户看到的是「商品文件暂不可用，请联系站内客服；购买权益未删除」（不含 key，TD-281）。按日志里的 key 从备份恢复该对象，订单与权益不用改 |
 
 ---

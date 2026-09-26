@@ -85,7 +85,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | `tools.er_diagram` / `word_export` | 公开但限流；DDL 无表 400；Word 超规模 413、CPU 忙/超时 503 + Retry-After。parse 在线程池，DOCX 在有界进程池/故障回退路径 |
 | `tools.mermaid` / `ping` | Mermaid 公开且 LLM 档限流，模型错误 502；本进程模型并发闸门满（LLMError busy，TD-264）→ 503 + `Retry-After: 5`，请求未发往提供方；ping 需登录，不是全部 `/tools/*` 都公开 |
 | `admin.ingest_article` | 仅管理员并限流；静态抓取/模型提取/原子入库；CrawlError/robots/网络失败 400，ExtractError 422，模型原因 502（闸门满则 503 + Retry-After），浏览器停用 503 |
-| `support.ask` | 公开 `/support/ask`，限流；返回答案、来源、置信度、引用和人工页面 URL；异常回退通常是业务回答而非 HTTP 502，不代表派单成功 |
+| `support.ask` | 公开 `/support/ask`，限流；返回答案、来源、置信度、引用和人工页面 URL；异常回退通常是业务回答而非 HTTP 502，不代表派单成功。`reason` 原样返回给匿名调用方，模型失败时只写阶段与「详情已记入服务日志」/「模型繁忙，请稍后再试」，原文进 `codemax.support` / `codemax.intent` 日志（TD-292） |
 | `site._page_view` / `_base` / `sitemap` / `robots` | 根据站点清单注册 SSR、构造规范地址与搜索引擎入口；HTML 外壳不承载私人数据；robots 不是访问控制 |
 | `healthz` | `/healthz` 与 `/health`：不访问数据库，只报告应用可响应 |
 | `readyz` | `/readyz`：对 SELECT 1 设置 3 秒等待；异常 503，仅回异常类名；不检查全部业务表、模型或支付 |

@@ -482,12 +482,15 @@ def cmd_regen(rel: str, titles: list[str], note: str | None) -> int:
 
 
 def compose(head: str, node, lines: list[str]) -> str:
-    """一块完整说明：人写的第一段 + 登记/装饰 + 输入签名 + AST 语句导读 + 阅读边界。"""
+    """一块完整说明：人写的第一段 + 登记/装饰 + 输入签名（函数）/结构事实（类）+ AST 语句导读 + 阅读边界。"""
     parts = [head.strip()]
+    if isinstance(node, FN + (ast.ClassDef,)) and node.decorator_list:
+        parts.append(f"登记/装饰：{ast.unparse(node.decorator_list[0])}。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。")
     if isinstance(node, FN):
-        if node.decorator_list:
-            parts.append(f"登记/装饰：{ast.unparse(node.decorator_list[0])}。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。")
         parts.append(signature(node))
+    elif isinstance(node, ast.ClassDef):
+        bases = ", ".join(ast.unparse(x) for x in node.bases) or "默认object"
+        parts.append(f"结构事实：定义类 {node.name}，基类 {bases}；字段默认值见本段，方法体仅调用时执行。")
     if lines:
         parts.append(AST_HDR + "\n" + "\n".join(lines))
     parts.append(BOUNDARY)

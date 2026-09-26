@@ -80,7 +80,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
-| [`scripts/code_reading_narrate.py`](code_reading_narrate.py) | `b513f2bc2f8c` | L1–L599 |
+| [`scripts/code_reading_narrate.py`](code_reading_narrate.py) | `7c8d9b48289c` | L1–L602 |
 | [`scripts/probe_llm.py`](probe_llm.py) | `0ae5958877a2` | L1–L100 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

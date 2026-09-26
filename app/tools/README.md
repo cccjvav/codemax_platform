@@ -81,7 +81,7 @@
 | `_second_opinion` / `_log_labeling_sample` | 低置信规则的语义/模型复核，及标定样本日志 | 只在需要时调用模型；样本日志不是人工客服会话，运营应控制访问与保留期限 |
 | `_retrieve_articles` / `_article_index` / `_rank_articles` / `_build_index` | 相关标题与正文片段；无相关内容 []，查询失败 None；`_article_index` 管指纹缓存，`_rank_articles` 用 `fused_scores` 排序 | 读取文章内容并计算指纹，跨进程修改可见；不是增量向量数据库，全文读取/哈希仍有成本 |
 | `reset_article_index` | 清除进程内文章检索缓存 | 测试隔离；文章持久数据不删除 |
-| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员 |
+| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员。模型失败的 `reason` 只写阶段加 `llm.public_failure_note`（busy 提示稍后再试，其余「详情已记入服务日志」），异常原文、类别和状态码由 `_log_llm_failure` 写 `codemax.support` warning（TD-292） |
 
 <!-- doc-contract:files:start -->
 
@@ -92,11 +92,11 @@
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8ab4fbdb9855` | L1–L179 |
 | [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
-| [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
-| [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
+| [`app/tools/intent.py`](intent.py) | `a05aa09a1895` | L1–L189 |
+| [`app/tools/llm.py`](llm.py) | `8090e7eb24ae` | L1–L249 |
 | [`app/tools/politeness.py`](politeness.py) | `5f5dc4a210c2` | L1–L254 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `205c84d4261f` | L1–L489 |
-| [`app/tools/support.py`](support.py) | `d08aa3323cb6` | L1–L345 |
+| [`app/tools/support.py`](support.py) | `eac86d7b0595` | L1–L357 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

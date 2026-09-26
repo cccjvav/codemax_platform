@@ -143,7 +143,9 @@ async def test_llm_outage_degrades_to_human_not_500(db):
     """上游挂了是常态，用户不该看到 500/502。"""
     r = await answer("你好", db, llm=FakeLLM(fail=True))
     assert r.escalated and r.source == "human"
-    assert "502" in r.reason
+    # TD-292：reason 会返回给匿名用户，只写阶段，上游异常原文（这里的「模拟上游 502」）只进日志
+    assert "闲聊应答失败" in r.reason
+    assert "502" not in r.reason
 
 
 @pytest.mark.asyncio
@@ -258,3 +260,51 @@ def test_rag_ranking_follows_the_faq_fusion_weight(monkeypatch, weight, first):
     monkeypatch.setattr(faq_mod, "BM25_WEIGHT", weight)
     ranked = support_module._rank_articles(index, rows, "证书 续期")
     assert [title for title, _ in ranked][0] == first
+
+
+class _LeakyLLM:
+    """上游错误文本里带着内部信息：地址、状态码与配置状态。"""
+
+    DETAIL = "上游 http://10.0.0.5:8080 返回 503；未配置 LLM_API_KEY"
+
+    async def chat(self, system: str, text: str) -> str:
+        raise LLMError(self.DETAIL, category="http", status_code=503)
+
+
+@pytest.mark.parametrize("question,stage,seed", [
+    ("你好", "闲聊应答失败", False),
+    ("python 部署 nginx 报错怎么排查", "RAG 生成失败", True),
+    ("asdfghjkl 嗯嗯", "LLM 路由调用失败", False),
+])
+async def test_llm_failure_detail_goes_to_logs_not_to_the_public_reason(
+    db, client, caplog, monkeypatch, question, stage, seed
+):
+    """TD-292：闲聊、RAG、意图路由三处 LLM 失败，reason 只写阶段；异常原文、类别与状态码记入服务日志。"""
+    import logging
+
+    from app.routers import support as support_router
+
+    if seed:
+        await _seed_articles(db)
+    caplog.set_level(logging.WARNING)
+    r = await answer(question, db, llm=_LeakyLLM())
+    assert r.escalated and stage in r.reason
+    assert "10.0.0.5" not in r.reason and "LLM_API_KEY" not in r.reason and "503" not in r.reason
+    assert any(_LeakyLLM.DETAIL in rec.getMessage() and "category=http" in rec.getMessage() for rec in caplog.records)
+    # HTTP 出口同样不带原文：/support/ask 把 reason 原样返回
+    real_answer = support_router.answer
+    monkeypatch.setattr(support_router, "answer", lambda text, session: real_answer(text, session, llm=_LeakyLLM()))
+    body = (await client.post("/support/ask", json={"text": question})).json()
+    assert body["escalated"] and "10.0.0.5" not in body["reason"] and "LLM_API_KEY" not in body["reason"]
+
+
+async def test_busy_llm_keeps_a_retry_hint_in_the_public_reason(db):
+    """TD-292：本进程模型闸门已满（category=busy）不含内部细节，对用户有用：reason 保留「繁忙，请稍后再试」。"""
+
+    class BusyLLM:
+        async def chat(self, system: str, text: str) -> str:
+            raise LLMError("客服繁忙：本站同时处理的模型请求已达 4 个，请 5 秒后再试", category="busy")
+
+    r = await answer("你好", db, llm=BusyLLM())
+    assert r.escalated and "闲聊应答失败（模型繁忙，请稍后再试）" in r.reason
+    assert "4 个" not in r.reason

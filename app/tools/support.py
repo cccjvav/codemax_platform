@@ -38,11 +38,21 @@ from .faq import (
     tokenize,
 )
 from .intent import Intent, IntentResult, default_router, llm_classify
-from .llm import LLMClient, LLMError, default_llm
+from .llm import LLMClient, LLMError, default_llm, public_failure_note
 
 # 级联标注样本的落地日志（S4-02-5）。单独一个 logger 名，方便运维按名字分流到
 # 一个文件里 —— 那就是将来训 BERT 的训练集（见 _log_labeling_sample）。
 _label_logger = logging.getLogger("codemax.intent.labels")
+# 上游模型失败的详情只进服务日志（TD-292）：SupportReply.reason 会原样返回给匿名用户，
+# LLMError 文本里有配置状态、上游状态码、超时设置等内部信息，不能拼进去。
+_support_logger = logging.getLogger("codemax.support")
+
+
+def _log_llm_failure(stage: str, exc: LLMError) -> None:
+    _support_logger.warning(
+        "support LLM failure stage=%s category=%s status=%s detail=%s",
+        stage, exc.category, exc.status_code, exc,
+    )
 
 # 低于这个置信度就不作答，直接转人工（S4-02-4）
 LOW_CONFIDENCE = 0.35
@@ -301,8 +311,9 @@ async def _answer_chitchat(question: str, text: str, result: IntentResult, llm: 
     try:
         reply = await llm.chat(CHITCHAT_SYSTEM, text)
     except LLMError as e:
-        # LLM 挂了不该让用户看到 502，退到人工
-        return _escalate(question, f"闲聊应答失败：{e}", Intent.CHITCHAT, result.confidence)
+        # LLM 挂了不该让用户看到 502，退到人工；异常原文只进日志（TD-292）
+        _log_llm_failure("chitchat", e)
+        return _escalate(question, f"闲聊应答失败{public_failure_note(e)}", Intent.CHITCHAT, result.confidence)
     return SupportReply(
         answer=reply,
         intent=Intent.CHITCHAT,
@@ -334,7 +345,8 @@ async def _answer_professional(
     try:
         reply = await llm.chat(RAG_SYSTEM, f"材料：\n{context}\n\n用户问题：{text}")
     except LLMError as e:
-        return _escalate(question, f"RAG 生成失败：{e}", Intent.PROFESSIONAL, result.confidence)
+        _log_llm_failure("rag", e)
+        return _escalate(question, f"RAG 生成失败{public_failure_note(e)}", Intent.PROFESSIONAL, result.confidence)
     return SupportReply(
         answer=reply,
         intent=Intent.PROFESSIONAL,

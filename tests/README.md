@@ -131,7 +131,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
-| [`tests/test_support.py`](test_support.py) | `fa78fafeb731` | L1–L260 |
+| [`tests/test_support.py`](test_support.py) | `2b71f1a1a0ca` | L1–L310 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `de7599c20fee` | L1–L113 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |

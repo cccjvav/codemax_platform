@@ -1025,3 +1025,33 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 工具生成的是语法导读，不判定中文说明的语义。
 - `check` 的不一致需要逐条判断，不能为了一致覆盖手写说明。
 - 非 Python 文件（JS/HTML/SQL）的导读仍手工维护。
+
+## TD-292：客服 `reason` 不再外泄模型异常原文
+
+2026-09-27。基线 `d4a7f3a`（TD-291）。用户确认（开放事项「support `reason` 泄露」）。
+
+**问题**：`/support/ask` 不需要登录，返回体里的 `reason` 原样来自 `SupportReply.reason`。有三处把 `LLMError` 的文本直接拼了进去：
+- `_answer_chitchat`：`f"闲聊应答失败：{e}"`；
+- `_answer_professional`：`f"RAG 生成失败：{e}"`；
+- `intent.llm_classify`：`f"LLM 路由调用失败：{exc}"`。这个 reason 会再经转人工的「路由依据」带出去。
+
+`LLMError` 的文本里有配置状态（「未配置 LLM_API_KEY」）、上游状态码、超时设置、响应解析异常细节。前端不显示 `reason`，但任何人直接调接口都能看到。
+
+**决定**：
+- `llm.public_failure_note(exc)`：`category == "busy"` 时返回「（模型繁忙，请稍后再试）」，其余一律返回「（详情已记入服务日志）」。
+  - busy 保留下来有两个理由：本进程在途调用已满，对用户是有用的重试提示；DEPLOY 运维表也靠「繁忙」识别闸门满载。
+  - 放在 llm.py，是因为 support 导入 intent，放在两者任一处都会形成循环。
+- 三处改为「阶段 + public_failure_note」。完整的阶段、category、status_code 与原文写进 `codemax.support`（`_log_llm_failure`）或 `codemax.intent` 的 warning。
+- 转人工的条件、其他 reason 文案（空提问、明确要人工、低置信、FAQ 无命中、知识库不可用/无相关内容）不变。它们只含本站自己的判定依据。
+
+**测试契约变更**：原 `test_llm_outage_degrades_to_human_not_500` 断言 `"502" in r.reason`，等于把泄露当成了契约。现改为要求 reason 含「闲聊应答失败」且不含「502」；原文由新用例从日志里核对。这是按用户决定反转契约，不是放宽断言。
+
+**新增用例**：
+- `test_llm_failure_detail_goes_to_logs_not_to_the_public_reason`：闲聊、RAG、意图路由 3 组。替身错误文本里夹带内网地址、配置名和状态码。
+  - reason 含对应阶段，且不含这些内容；
+  - 日志里有带 `category=http` 的原文；
+  - 再经 `/support/ask` 走一遍 HTTP，返回体同样不含原文。
+  - 旧实现下 3 组全部失败，因为原文就在 reason 里。
+- `test_busy_llm_keeps_a_retry_hint_in_the_public_reason`：busy 时保留重试提示，但不带在途上限数字。
+
+**文档**：DEPLOY 运维表把「原因含繁忙」改为「原因含模型繁忙」，并新增 `codemax.support` / `codemax.intent` 日志一行；tools/routers README 已同步。
