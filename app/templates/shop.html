@@ -6,7 +6,7 @@
   .buy { font-size: 16px; padding: 10px 28px; }
   .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 18px 0; }
   .box { border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; }
-  .box h3 { margin: 0 0 8px; font-size: 15px; }
+  .box h3 { margin: 0 0 8px; font-size: 16px; }
   .box ul { margin: 0; padding-left: 20px; color: #475569; }
   .faq { margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 14px; }
   .faq dt { font-weight: 600; margin-top: 10px; }
@@ -28,7 +28,7 @@
 <div class="shop">
   <!-- ① 落地态 -->
   <section id="st-landing">
-    <h2>{{ product_name }}</h2>
+    <h2 class="page-heading">{{ product_name }}</h2>
     <div class="price">¥{{ '%.2f'|format(product_amount / 100) }}</div>
     <p class="muted">固定数字商品 · 付款确认后领取文件 · 定制开发请先通过站内客服协商</p>
 

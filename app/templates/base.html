@@ -16,16 +16,22 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg" />
     <style>
       * { box-sizing: border-box; }
+      /* 字号与版心（TD-287）。此前正文 14px、次级文字 12–13px，各页标题 20/21/24px 不一；手机上同样是 14px。
+         现统一为：正文 15px（手机 16px）、次级 14px、辅助 13px、页面标题 22px。
+         --edge 让顶栏、正文、页脚在宽屏上对齐到同一条 1440px 版心，窄屏退回 --gutter 边距。 */
+      :root { --fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px;
+              --gutter: 24px; --page-max: 1440px;
+              --edge: max(var(--gutter), calc((100% - var(--page-max)) / 2)); }
       /* `hidden` 是 UA 样式里的 display:none，任何作者写的 display 规则都会盖掉它 ——
          实测：给导航链接加 `display: inline-block` 之后，带 hidden 的管理员入口又显示出来了。
          这条 !important 是全局兜底：hidden 就是真的不显示，与页面里其它 display 规则无关。 */
       [hidden] { display: none !important; }
-      body { margin: 0; font: 14px/1.6 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b;
+      body { margin: 0; font: var(--fs-body)/1.65 system-ui, "Microsoft YaHei", sans-serif; color: #1e293b;
              display: flex; flex-direction: column; min-height: 100vh; }
       /* 颜色对比度按 WCAG AA（4.5:1）取值，见 TD-263：蓝 #2563eb 5.17:1、绿 #15803d 5.02:1、灰 #64748b 4.76:1 */
       a { color: #2563eb; text-decoration: none; }
-      header { display: flex; align-items: center; gap: 16px; padding: 12px 24px; border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
-      header h1 { margin: 0; font-size: 18px; white-space: nowrap; }
+      header { display: flex; align-items: center; gap: 16px; padding: 12px var(--edge); border-bottom: 1px solid #e2e8f0; flex-wrap: wrap; }
+      header h1 { margin: 0; font-size: 19px; white-space: nowrap; }
       /* 站点导航：工具在左，「站内客服 / 管理员入口 / 商品」由 .nav-end 推到右侧（桌面视觉与改版前一致）。
          它们与工具链接放在同一个 nav 里，是为了窄屏能把整组收进一行横向滚动（见下方媒体查询）。 */
       nav { display: flex; gap: 14px; flex-wrap: wrap; flex: 1 1 auto; align-items: center; }
@@ -35,10 +41,10 @@
       .actions { display: flex; gap: 8px; align-items: center; }
       /* 用户名是按钮（打开修改密码），沿用 ghost 按钮的颜色 —— 灰字加边框看起来像禁用 */
       .actions .who { max-width: 12em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      main { padding: 16px 24px; flex: 1; }
+      main { padding: 20px var(--edge) 28px; flex: 1; }
       /* 各页可见的页面级标题（TD-272）。此前只有 drawio.html 自己写了这条样式，
          ER / Mermaid 页落回浏览器默认 h2（约 21px + 大外边距），三个工具页标题大小不一。 */
-      .page-heading { margin: 0 0 10px; font-size: 20px; }
+      .page-heading { margin: 0 0 12px; font-size: var(--fs-title); line-height: 1.35; }
       /* 跳过导航（WCAG 2.4.1）：键盘/读屏用户不必每次穿过顶栏与页脚导航。
          视觉上隐藏，聚焦时才出现 —— 用绝对定位而不是 display:none，后者收不到焦点。 */
       .skip { position: absolute; left: -9999px; top: 0; background: #fff; border: 1px solid #2563eb;
@@ -47,12 +53,13 @@
       /* 触控目标：窄屏导航与页脚链接此前只有 21–24px 高，低于 WCAG 2.2 AA 的 24×24，
          更远低于移动端常用的 44px。给内边距而不是放大字号，视觉不变、命中区变大。 */
       @media (max-width: 900px) {
-        main { padding: 12px 14px; }
+        :root { --gutter: 14px; }
+        main { padding: 14px var(--edge) 20px; }
         header nav a, footer .fnav a { display: inline-block; padding: 8px 4px; }
         /* 窄屏顶栏两行：第一行「站点名 + 登录态」，第二行整组导航横向滚动。
            改版前是三～四行（站点名 / 导航 / 客服·商品·登录各占一行），真实 CJK 字体下 390px 宽实测
            189px（管理员 230px 以上），约占首屏四分之一；改为网格后约 100px。 */
-        header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 8px 14px 0; }
+        header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; padding: 8px var(--edge) 0; }
         header h1 { grid-column: 1; grid-row: 1; overflow: hidden; text-overflow: ellipsis; }
         .actions { grid-column: 2; grid-row: 1; }
         header nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto; gap: 6px 12px;
@@ -60,16 +67,16 @@
         header nav a { white-space: nowrap; }
         nav .nav-end { margin-left: 0; }
       }
-      footer { border-top: 1px solid #e2e8f0; padding: 14px 24px; color: #64748b; font-size: 13px; }
+      footer { border-top: 1px solid #e2e8f0; padding: 14px var(--edge); color: #64748b; font-size: var(--fs-small); }
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
       /* details 的折叠标题同样可点：窄屏实测 22px 高，低于 WCAG 2.2 AA 的 24×24。 */
       summary { padding: 6px 0; }
-      .split { display: grid; grid-template-columns: 380px 1fr; gap: 16px; }
+      .split { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 20px; }
       textarea { width: 100%; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; }
       /* 表单控件默认字体是浏览器给的 13.33px Arial：比正文小一号且与全站字体不一致。
-         `font: inherit` 让按钮/输入框跟随所在容器（正文 14px、.modal 13px 等）。 */
+         `font: inherit` 让按钮/输入框跟随所在容器（正文 15px、.modal 14px 等）。 */
       button, input, select, textarea { font: inherit; }
-      textarea { font: 13px/1.5 ui-monospace, Consolas, monospace; }
+      textarea { font: var(--fs-small)/1.55 ui-monospace, Consolas, monospace; }
       button { padding: 6px 14px; border: 1px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
       button.ghost { background: #fff; color: #2563eb; }
       button.cta { background: #15803d; border-color: #15803d; font-weight: 600; }
@@ -82,11 +89,20 @@
       .error { color: #b91c1c; white-space: pre-wrap; }
       .card { display: block; padding: 14px 16px; margin-bottom: 12px; border: 1px solid #e2e8f0; border-radius: 8px; color: inherit; }
       .card:hover { border-color: #2563eb; }
-      .card h2 { margin: 0 0 6px; font-size: 16px; }
+      .card h2 { margin: 0 0 6px; font-size: 17px; }
       .card p { margin: 0; color: #64748b; }
-      pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: 12px; overflow: auto; }
+      /* 首页（TD-287）：此前三张卡片各占满整行（1280px 宽时一行 1232px），说明文字一行拉得很长、下方大片空白。
+         改为自适应网格，卡片底部给出明确的「打开」指示；首页不加页面标题（卡片标题已是 h2），只放一行导语。 */
+      .home-lead { margin: 4px 0 20px; font-size: 17px; color: #475569; max-width: 46em; }
+      .tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+      .tool-grid .card { margin: 0; display: flex; flex-direction: column; padding: 18px 20px; }
+      .tool-grid .card p { flex: 1; }
+      .tool-grid .card .go { margin-top: 12px; color: #2563eb; font-weight: 600; }
+      pre { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 8px; font-size: var(--fs-xs); overflow: auto; }
       #er-canvas { width: 100%; height: 70vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; }
       #mermaid-preview { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 12px; min-height: 300px; overflow: auto; }
+      /* 空状态提示（TD-287）：生成前右侧只是一块空框，看不出该做什么。纯 CSS，结果一写入就自动消失。 */
+      #mermaid-preview:empty::before { content: "描述你的系统（或点「填入示例」）后点「生成类图」，结果显示在这里"; color: #64748b; }
 
       /* ---- 登录/注册浮层 ----
          为什么用浮层而不是独立页面：转化路径上每多一次页面跳转就少一批人。
@@ -95,17 +111,19 @@
       .modal-mask { position: fixed; inset: 0; background: rgba(15, 23, 42, .45);
                     display: none; align-items: center; justify-content: center; z-index: 50; }
       .modal-mask.open { display: flex; }
-      .modal { background: #fff; border-radius: 10px; padding: 20px; width: 320px; max-width: calc(100vw - 32px); }
-      .modal h2 { margin: 0 0 12px; font-size: 17px; }
+      .modal { background: #fff; border-radius: 10px; padding: 22px; width: 360px; max-width: calc(100vw - 32px); }
+      .modal h2 { margin: 0 0 12px; font-size: 19px; }
       .modal .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-      .modal label { display: block; margin-bottom: 10px; color: #475569; font-size: 13px; }
+      .modal label { display: block; margin-bottom: 10px; color: #475569; font-size: var(--fs-small); }
       .modal input { width: 100%; padding: 7px 9px; border: 1px solid #cbd5e1; border-radius: 6px;
                      font: inherit; margin-top: 3px; }
-      .modal .hint { color: #64748b; font-size: 12px; margin: -6px 0 10px; }
+      .modal .hint { color: #64748b; font-size: var(--fs-xs); margin: -6px 0 10px; }
       .modal .row { display: flex; gap: 8px; align-items: center; }
       .modal .ok { color: #15803d; margin: 0 0 10px; }
       .modal .account { color: #475569; margin: -4px 0 12px; }
-      @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
+      @media (max-width: 900px) { .split { grid-template-columns: minmax(0, 1fr); } }
+      /* 手机正文 16px（TD-287）：14px 的中文在 390px 屏上偏小。单独一段，不与下面「最后一条」的输入框规则合并。 */
+      @media (max-width: 700px) { :root { --fs-body: 16px; } }
       /* 手机端输入框字号必须 ≥16px：iOS Safari 在更小的字号上聚焦时会自动放大整页，
          放大后布局错乱且不会自动缩回。桌面端保持原字号。
          ⚠️ 这条必须留在样式表**最后**、并显式点名 `.modal input`：它曾写在中段，结果被后面的

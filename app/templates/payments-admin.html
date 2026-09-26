@@ -2,15 +2,19 @@
 {% block content %}
 <style>
   .finance [hidden] { display:none !important; }
-  .finance { max-width: 1180px; margin: 0 auto; padding: 22px; }
+  /* 与顶栏/页脚同一版心（TD-287）：原来自带 1180px 居中 + 22px 内边距，正文左缘比顶栏缩进约 48px */
+  .finance { padding: 4px 0 0; }
   /* 页面标题是 h2 而不是 h1：整站每页只有一个 h1（顶栏站点名），否则读屏的标题导航里
      会出现两个一级标题（真实浏览器 + axe 复核发现）。字号用 CSS 保持原来的视觉层级。 */
-  .finance .finance-heading { margin: 0 0 10px; font-size: 24px; }
+  .finance .finance-heading { margin: 0 0 12px; font-size: var(--fs-title); }
+  /* 分区标题（查找订单 / 当前订单）低于页面标题一级；默认 1.5em 在 15–16px 正文下会比页面标题还大 */
+  .finance section h2 { margin: 0 0 8px; font-size: 18px; }
   .finance-grid { display:grid; grid-template-columns:minmax(240px,1fr) minmax(320px,2fr); gap:24px; }
   .finance section { border:1px solid #cbd5e1; padding:18px; border-radius:10px; min-width:0; }
   .finance label { display:block; margin:10px 0; }
   .finance input,.finance select,.finance textarea { width:100%; padding:8px; }
-  .finance button { margin:4px; padding:8px 12px; cursor:pointer; }
+  /* 右外边距代替四周 4px（TD-287）：原来每个按钮左侧也缩进 4px，与上方输入框左缘对不齐 */
+  .finance button { margin:4px 8px 4px 0; padding:8px 12px; cursor:pointer; }
   .finance li { margin:10px 0; overflow-wrap:anywhere; }
   .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
   .finance .warning { padding:12px; background:#fffbeb; border-left:4px solid #d97706; }

@@ -548,3 +548,58 @@ def test_drawio_login_prompt_is_one_toggleable_element():
     prompt = html.split('<span id="drawio-login-prompt">')[1].split("</button></span>")[0]
     assert "云端保存需登录" in prompt and 'id="btn-login"' in prompt
     assert 'id="auth-status"' not in prompt, "登录状态文字不能跟着提示一起隐藏"
+
+
+def test_type_scale_is_one_set_of_variables_with_16px_body_on_phones():
+    """TD-287：此前正文 14px、次级 12–13px，真实 Chromium 统计 85–95% 的可见文字是 13–14px，手机上也一样。
+    字号收拢到 :root 变量：正文 15px、手机 16px，次级不低于 13px；页面标题统一 22px（原来 20/21/24px 各不相同）。"""
+    html = BASE.read_text(encoding="utf-8")
+    style = html.split("<style>")[1].split("</style>")[0]
+    assert "--fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px;" in style
+    assert "font: var(--fs-body)/1.65 system-ui" in style
+    assert "@media (max-width: 700px) { :root { --fs-body: 16px; } }" in style
+    sizes = [int(n) for n in re.findall(r"font-size:\s*(\d+)px", style)]
+    assert min(sizes) >= 13, f"base.html 仍有小于 13px 的字号：{sorted(sizes)}"
+    assert ".page-heading { margin: 0 0 12px; font-size: var(--fs-title);" in style
+    shop = SHOP.read_text(encoding="utf-8")
+    support = (ROOT / "app" / "templates" / "support-center.html").read_text(encoding="utf-8")
+    admin = (ROOT / "app" / "templates" / "payments-admin.html").read_text(encoding="utf-8")
+    assert '<h2 class="page-heading">{{ product_name }}</h2>' in shop
+    assert '<h2 class="page-heading">站内客服</h2>' in support
+    assert ".finance .finance-heading { margin: 0 0 12px; font-size: var(--fs-title); }" in admin
+    assert ".finance section h2 { margin: 0 0 8px; font-size: 18px; }" in admin, "分区标题不能比页面标题大"
+
+
+def test_header_main_and_footer_share_one_content_column():
+    """TD-287：顶栏、正文、页脚用同一个 --edge 内边距，宽屏对齐到 1440px 版心，窄屏退回 --gutter。"""
+    style = BASE.read_text(encoding="utf-8").split("<style>")[1].split("</style>")[0]
+    assert "--edge: max(var(--gutter), calc((100% - var(--page-max)) / 2));" in style
+    for rule in ("padding: 12px var(--edge);", "main { padding: 20px var(--edge) 28px;",
+                 "padding: 14px var(--edge);", "padding: 8px var(--edge) 0;"):
+        assert rule in style, rule
+    admin = (ROOT / "app" / "templates" / "payments-admin.html").read_text(encoding="utf-8")
+    assert ".finance { padding: 4px 0 0; }" in admin and "max-width: 1180px" not in admin
+
+
+def test_home_page_is_a_card_grid_with_a_lead_line_but_no_page_heading():
+    """TD-287：首页三张卡片原来各占满整行。改为自适应网格 + 导语；导语取自 HOME.description（同一来源），
+    且不是标题——首页不该再多一个页面标题（见 test_pages_render_one_h1_and_a_page_heading）。"""
+    index = (ROOT / "app" / "templates" / "index.html").read_text(encoding="utf-8")
+    assert '<p class="home-lead">{{ description }}</p>' in index
+    assert '<section class="tool-grid">' in index
+    style = BASE.read_text(encoding="utf-8")
+    assert ".tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));" in style
+
+
+def test_diagram_canvases_explain_themselves_before_the_first_render():
+    """TD-287：生成前 ER 画布与类图预览只是空框。提示用纯 CSS：Mermaid 预览靠 :empty（结果写入后消失），
+    ER 靠「#er-tools 仍 hidden」判断（renderEr 成功后才取消 hidden）。提示色在两种底色上都要达 AA。"""
+    base = BASE.read_text(encoding="utf-8")
+    er = (ROOT / "app" / "templates" / "er.html").read_text(encoding="utf-8")
+    assert "#mermaid-preview:empty::before { content:" in base
+    assert ".er-view:has(> #er-tools[hidden])::after { content:" in er
+    assert "pointer-events: none;" in er.split(".er-view:has(")[1].split("}")[0], "提示不能挡住画布拖动"
+    js = (ROOT / "app" / "frontend" / "er-page.js").read_text(encoding="utf-8")
+    assert "tools.hidden = false;" in js, "ER 提示依赖渲染成功后取消 #er-tools 的 hidden"
+    assert contrast("#64748b", "#f8fafc") >= 4.5  # ER 画布底色
+    assert contrast("#64748b") >= 4.5             # 类图预览白底

@@ -25,16 +25,16 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `c3b67898c439` | L1–L221 |
+| [`app/templates/base.html`](base.html) | `a9b186a8c560` | L1–L239 |
 | [`app/templates/drawio.html`](drawio.html) | `1f33348a0b0f` | L1–L50 |
-| [`app/templates/er.html`](er.html) | `2ba44cf7c2c1` | L1–L38 |
-| [`app/templates/index.html`](index.html) | `992d913b0f43` | L1–L11 |
+| [`app/templates/er.html`](er.html) | `021924e1ee5a` | L1–L45 |
+| [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
-| [`app/templates/mock_pay.html`](mock_pay.html) | `dd6aaa5ba764` | L1–L30 |
-| [`app/templates/oauth_consent.html`](oauth_consent.html) | `2a8858b00ebd` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `503e7d3cdec3` | L1–L165 |
-| [`app/templates/shop.html`](shop.html) | `92516b5942de` | L1–L115 |
-| [`app/templates/support-center.html`](support-center.html) | `19912173fdfb` | L1–L30 |
+| [`app/templates/mock_pay.html`](mock_pay.html) | `88953f7ff9be` | L1–L30 |
+| [`app/templates/oauth_consent.html`](oauth_consent.html) | `820d64cf6c89` | L1–L22 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `6348afa5d6fc` | L1–L169 |
+| [`app/templates/shop.html`](shop.html) | `b8177065729d` | L1–L115 |
+| [`app/templates/support-center.html`](support-center.html) | `1902007bb885` | L1–L30 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -110,7 +110,7 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 - **顶栏**：「站内客服 / 订单管理（管理员）/ 商品」从 `.actions` 移进 `<nav aria-label="站点导航">`；桌面用 `.nav-end { margin-left: auto }` 把它们推到右侧（视觉不变），`.actions` 只剩登录/退出控件。≤900px 时 `header` 改为两列 grid：第一行站点名 + 登录态，第二行整组导航 `nowrap` 横向滚动。手机顶栏高度 189px（管理员更高）→ 88px。
 - **手机 16px 输入框**：TD-272 的规则写在样式表中段，被后面的 `textarea { font: 13px … }` 和特异性更高的 `.modal input { font: inherit }` 盖掉，实测登录框、客服留言框、DDL 框全是 13px。现在它是 `base.html` 样式表的**最后一条**并点名 `.modal input`；页面模板自己的 `<style>` 不许再给输入控件写 `font`/`font-size`（`drawio.html` 工具条的 `font: inherit` 已删，测试钉住）。
-- `.page-heading`（20px）移到 `base.html`，三个工具页标题一致（此前只有 drawio 自己定义，ER/Mermaid 落回浏览器默认 h2）。
+- `.page-heading`（20px；TD-287 起 22px）移到 `base.html`，三个工具页标题一致（此前只有 drawio 自己定义，ER/Mermaid 落回浏览器默认 h2）。
 - `shop.html`：「我的订单」移到所有状态区**之后**。付完款回到 `/shop`，此前「我的订单」排在「支付成功」上面，h3 也先于状态区 h2（axe `heading-order`）。
 - `drawio.html`：「云端保存需登录：[登录 / 注册]」包进 `#drawio-login-prompt`，登录后由脚本整段隐藏（此前与「已登录，可保存到云端」同时出现）。
 - `payments-admin.html`：列表空结果写进列表外的 `#finance-list-empty`（`role="status"`）——往 `<ul>` 里直接写字命中 axe `list`（serious）；选单前只显示 `#finance-detail-hint`，合同/凭证/操作全部包在默认 `hidden` 的 `#finance-detail` 里；`.finance pre:empty` 不画空框。
@@ -128,3 +128,15 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 ## 2026-09-26 商城关闭页显示订单号（TD-281）
 
 - `shop.html`：`#x-no` 从从不显示的 `#st-downloaded` 移到 `#st-closed`（关闭页让用户找客服核对，却没有订单号可报）；`#st-downloaded` 整段删除——downloaded 订单一直按设计渲染 paid 区、可重新领取短时链接，③ 注释已注明。
+
+## 2026-09-26 字号与版心（TD-287）
+
+真实 Chromium（1280 / 390 宽、Noto Sans SC）统计：改前各页 85–95% 的可见文字是 13–14px，手机上也一样；页面标题 20/21/24px 不一；首页三张卡片各占满整行；ER/类图画布生成前是空框。
+
+- **字号**：`base.html` 的 `:root` 定 `--fs-body`（15px，≤700px 另一段改 16px）、`--fs-small` 14px、`--fs-xs` 13px、`--fs-title` 22px。textarea 14px 等宽、`pre` 与浮层提示 13px，样式表里没有小于 13px 的字号。输入框 16px 覆盖仍是样式表最后一条（手机正文 16px 写在它前面单独一段）。
+- **版心**：`--edge = max(--gutter, (100% − 1440px) / 2)`，顶栏、`main`、页脚（含手机顶栏）共用，宽屏左右对齐，窄屏退回 `--gutter`（≤900px 为 14px）。`payments-admin.html` 去掉自带的 1180px 居中与 22px 内边距。商城（720px）与客服（1040px）的阅读宽度保留。
+- **标题**：商城商品名与「站内客服」加 `page-heading`；管理页 `.finance-heading` 用 `--fs-title`，分区 h2 18px。
+- **首页**：`index.html` 加 `<p class="home-lead">{{ description }}</p>`（与 meta 描述同源，不是标题），卡片放进 `.tool-grid`（`auto-fill, minmax(300px, 1fr)`），底部「打开工具 →」只是视觉指示（`aria-hidden`）。
+- **空状态**：`#mermaid-preview:empty::before` 与 `er.html` 的 `.er-view:has(> #er-tools[hidden])::after` 在生成前显示提示；ER 提示 `pointer-events: none`，旧内核不支持 `:has()` 时只是没有提示。≤900px 时 DDL 输入框 13em、ER 画布 60vh（原 16 行 + 70vh）。
+- 管理页按钮外边距只留右侧，左缘与输入框对齐。
+- 回归：`tests/test_ui_accessibility.py` 末尾四条（字号变量与下限、共用版心、首页网格、空状态提示与对比度）。

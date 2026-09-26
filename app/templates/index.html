@@ -1,10 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<section>
+<p class="home-lead">{{ description }}</p>
+<section class="tool-grid">
   {% for t in tools %}
   <a class="card" href="{{ t.path }}">
     <h2>{{ t.title }}</h2>
     <p>{{ t.description }}</p>
+    <span class="go" aria-hidden="true">打开工具 →</span>
   </a>
   {% endfor %}
 </section>

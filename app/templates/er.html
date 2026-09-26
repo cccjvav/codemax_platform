@@ -23,9 +23,16 @@
   </section>
 </div>
 <style>
-  .er-view { min-width: 0; }
-  .er-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; color: #475569; font-size: 13px; }
+  .er-view { min-width: 0; position: relative; }
+  .er-tools { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 0 0 8px; color: #475569; font-size: var(--fs-small); }
   #er-canvas { cursor: grab; }
+  /* 空状态提示（TD-287）：生成前画布是一块空白。#er-tools 在渲染成功后才取消 hidden，借它判断「尚未生成」；
+     不支持 :has() 的旧内核只是看不到提示，功能不受影响。pointer-events:none 不挡拖动。 */
+  .er-view:has(> #er-tools[hidden])::after { content: "粘贴 CREATE TABLE 语句（或点「填入示例」）后点「生成 ER 图」，结果显示在这里";
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px;
+    text-align: center; color: #64748b; pointer-events: none; }
+  /* 手机上输入框与画布上下叠放：原来 16 行输入框 + 70vh 画布，结果要滚很远才看得到 */
+  @media (max-width: 900px) { #ddl-input { height: 13em; } #er-canvas { height: 60vh; } }
 </style>
 
 <!-- d3 **不再走 CDN**（TD-222）：它由 npm 打进 /static/js/er-page.js。
