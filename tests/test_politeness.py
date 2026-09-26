@@ -458,3 +458,59 @@ async def test_robots_fetch_never_passes_on_hop_so_it_cannot_recurse():
     page = await fetch(f"{BASE}/blog/a", transport=httpx.MockTransport(handle))
     assert page.url == f"{BASE}/blog/a"
     assert seen.count(f"{OTHER}/robots.txt") == 1, "robots 的重定向只跟一次，不再递归查 robots"
+
+
+@pytest.mark.asyncio
+async def test_polite_access_refuses_before_taking_a_slot_or_a_throttle_turn(monkeypatch):
+    """TD-290：robots 拒绝时在进入 with 体之前就抛出，既不占并发槽也不登记限速时刻；允许时 with 体内占着槽，退出即释放。"""
+    monkeypatch.setattr(politeness, "MAX_CONCURRENCY", 1)
+    politeness.reset_cache()
+    t, _ = transport(200, "User-agent: *\nDisallow: /private\n")
+    entered = False
+    with pytest.raises(RobotsDisallowed):
+        async with politeness.polite_access(f"{BASE}/private/a", USER_AGENT, _text_via(t)):
+            entered = True
+    assert not entered
+    assert politeness.state_for(f"{BASE}/private/a").last_request == 0.0
+    assert not politeness._get_semaphore().locked()
+    async with politeness.polite_access(f"{BASE}/blog/a", USER_AGENT, _text_via(t)):
+        assert politeness._get_semaphore().locked()
+    assert not politeness._get_semaphore().locked()
+
+
+@pytest.mark.asyncio
+async def test_static_fetch_and_dynamic_render_share_one_gate(monkeypatch):
+    """TD-290：静态抓取与动态渲染走同一个 polite_access，全局并发上限对两者合计生效。"""
+    from app.tools import browser
+    from app.tools.crawler import Page
+
+    monkeypatch.setattr(politeness, "DEFAULT_MIN_INTERVAL", 0.0)
+    monkeypatch.setattr(politeness, "MAX_CONCURRENCY", 1)
+    politeness.reset_cache()
+    inflight = 0
+    peak = 0
+
+    async def busy() -> None:
+        nonlocal inflight, peak
+        inflight += 1
+        peak = max(peak, inflight)
+        await asyncio.sleep(0.02)
+        inflight -= 1
+
+    async def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        await busy()
+        return httpx.Response(200, text=PAGE)
+
+    async def fake_goto(url: str) -> Page:
+        await busy()
+        return Page(url=url, status=200, html=PAGE)
+
+    monkeypatch.setattr(browser, "_goto", fake_goto)
+    t = httpx.MockTransport(handle)
+    await asyncio.gather(
+        *[fetch(f"{BASE}/s/{i}", transport=t) for i in range(3)],
+        *[browser.render(f"{OTHER}/d/{i}", transport=t) for i in range(3)],
+    )
+    assert peak == 1, f"静态与动态合计在飞峰值 {peak}，超过上限 1"

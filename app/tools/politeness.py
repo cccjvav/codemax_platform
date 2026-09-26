@@ -39,6 +39,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import time
 from collections import OrderedDict
 from dataclasses import dataclass, field
@@ -235,3 +236,19 @@ async def throttle(url: str, state: _DomainState) -> None:
 
 def state_for(url: str) -> _DomainState:
     return _state(_origin(url))
+
+
+@contextlib.asynccontextmanager
+async def polite_access(url: str, user_agent: str, fetch_text):
+    """一次对外访问的完整礼貌流程（TD-290）：robots 允许 → 取全局并发槽 → 按域限速，然后才进入 with 体。
+
+    `async with polite_access(url, UA, fetch_text): <发请求 / 渲染>` —— with 体执行期间一直占着并发槽。
+    顺序是**先 robots 再限速**：反过来会为了一个根本不让抓的 URL 白等一个抓取间隔。
+    `fetch_text` 用来取 robots.txt，必须自己做 SSRF 校验且**不再**走本流程（否则递归），
+    见 `crawler.robots_fetcher`。静态抓取与动态渲染共用这一个入口，不各写一遍。
+    """
+    await check_allowed(url, user_agent, fetch_text)
+    state = state_for(url)
+    async with _get_semaphore():  # 全局并发闸
+        await throttle(url, state)
+        yield

@@ -963,3 +963,28 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **代价与边界**：
 - `support.py` 函数变多、行数略增，每个函数只做一件事。
 - RAG 现在会跟随 `BM25_WEIGHT` 变化，这是有意的：今后调这个权重，FAQ 和 RAG 两边都会变，需要一起复核。
+
+## TD-290：抓取礼貌流程收成一个入口 `politeness.polite_access`
+
+2026-09-26。基线 `7444eac`（TD-289）。优化阶段第四项。行级重复扫描几乎没有命中；改查「跨模块调用私有名」时找到这一处。
+
+**问题**：
+- 静态抓取 `crawler.fetch` 与动态渲染 `browser.render` 各写一份同样的礼貌流程：定义 robots 抓取闭包 → `check_allowed` → `state_for` → 取 `politeness._get_semaphore()` → `throttle` → 发请求。
+- 两处都调用 politeness 的私有函数。`browser.py` 为了写那个闭包，还导入 crawler 私有的 `_request`。
+- 「先 robots 再限速」这条顺序约束只靠两处代码各自写对。以后再加一种抓取方式，要照抄第三遍。
+
+**决定**：
+- `politeness.polite_access(url, user_agent, fetch_text)` 是异步上下文管理器，内部依次执行 `check_allowed` → `state_for` → 取全局信号量 → `throttle` → `yield`，与原先两处的顺序完全一致。with 体执行期间一直占着并发槽。
+- `crawler.robots_fetcher(transport)` 是公开函数，返回 robots.txt 抓取回调（经 `_request`，不传 `on_hop`，所以不会递归）。
+- `fetch` 与 `render` 都改为 `async with politeness.polite_access(url, USER_AGENT, robots_fetcher(transport)): ...`。`browser.py` 不再导入 `_request`。
+- `_get_semaphore` 保留：`reset_cache` 和测试直接用它。重定向每一跳的 robots 检查（`robots_for_hop`，TD-268）不变。
+
+**顺带修正**：`app/tools/README.md` 的 `_get_semaphore` 一行写着「域缓存无硬性 LRU 容量上限」，与上一行和代码都矛盾：TD-268 已加了 `MAX_DOMAIN_STATES`=512 与最久未用淘汰。现已改正。
+
+**证据**：
+- 礼貌性、爬虫、动态抓取、入库、提取相关测试 133 项改前改后都通过。
+- 新增两条用例：
+  - `test_polite_access_refuses_before_taking_a_slot_or_a_throttle_turn`：并发上限设为 1。robots 拒绝时 with 体不执行、`last_request` 仍为 0、槽未被占；允许时 with 体内槽被占，退出后释放。
+  - `test_static_fetch_and_dynamic_render_share_one_gate`：上限 1，3 个静态 + 3 个动态并发，合计在飞峰值必须为 1。这条在旧代码上同样成立，作用是防止以后有人把两边拆回各自的闸。
+
+**边界**：并发闸仍是进程内的，多 worker / 多实例部署时各自计数。这一点与之前相同，本次不改。

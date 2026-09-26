@@ -236,31 +236,35 @@ async def _request(
         )
 
 
+def robots_fetcher(transport: httpx.BaseTransport | None):
+    """robots.txt 专用的抓取函数，交给 `politeness.check_allowed` / `polite_access`。
+
+    走 `_request`：同样逐跳 SSRF 校验、体积上限为 ROBOTS_MAX_BYTES，但**不做**礼貌性检查 ——
+    robots 自己的抓取再去查 robots 会无限递归。静态抓取与动态渲染共用（TD-290）。
+    """
+    async def fetch_text(robots_url: str) -> tuple[int, str]:
+        r = await _request(robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES)
+        return r.status_code, r.text
+
+    return fetch_text
+
+
 async def fetch(url: str, *, transport: httpx.BaseTransport | None = None, max_bytes: int = MAX_BYTES) -> Page:
     """抓一个页面，抓之前先守礼貌性约束（TD-133）。
 
     `transport` 只为测试注入 `httpx.MockTransport` 而存在；测试里用字面量公网 IP 当主机名，
     这样 SSRF 校验依然真跑（字面量 IP 的 DNS 解析不需要联网），又不真的出网。
 
-    顺序是有讲究的：**先 robots 再限速**。反过来会为了一个根本不让抓的 URL
-    白等一个抓取间隔。
+    顺序是有讲究的：**先 robots 再限速**（由 `politeness.polite_access` 保证）。反过来会为了
+    一个根本不让抓的 URL 白等一个抓取间隔。
     """
-
-    async def fetch_text(robots_url: str) -> tuple[int, str]:
-        r = await _request(
-            robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES
-        )
-        return r.status_code, r.text
-
-    await politeness.check_allowed(url, USER_AGENT, fetch_text)
+    fetch_text = robots_fetcher(transport)
 
     async def robots_for_hop(target: str) -> None:
         # 重定向目标换了域就要看那个域的 robots；同域也要按其规则核对具体路径（TD-268）
         await politeness.check_allowed(target, USER_AGENT, fetch_text)
 
-    state = politeness.state_for(url)
-    async with politeness._get_semaphore():  # 全局并发闸
-        await politeness.throttle(url, state)
+    async with politeness.polite_access(url, USER_AGENT, fetch_text):
         r = await _request(url, transport=transport, max_bytes=max_bytes, on_hop=robots_for_hop)
     if r.status_code != 200:
         raise CrawlError(f"抓取失败：HTTP {r.status_code} {url}")

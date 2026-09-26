@@ -8,7 +8,7 @@ from __future__ import annotations
 import httpx
 
 from . import politeness
-from .crawler import MAX_BYTES, TIMEOUT, USER_AGENT, CrawlError, Page, _request, assert_public_url
+from .crawler import MAX_BYTES, TIMEOUT, USER_AGENT, CrawlError, Page, assert_public_url, robots_fetcher
 
 # 渲染等待策略：networkidle 对 SPA 最有效，但有些站点会一直有心跳请求导致永不 idle，
 # 所以给一个上限（Playwright 的 timeout），超时就按当前 DOM 取 —— 拿到半页也比拿不到强。
@@ -36,17 +36,9 @@ async def render(url: str, *, transport: httpx.BaseTransport | None = None) -> P
     # 1) SSRF：必须在启动浏览器**之前**。浏览器不会替你做这个判断。
     await assert_public_url(url)
 
-    # 2) robots：动态抓取也是抓取，不能因为换了引擎就绕过站方的意愿（TD-133）。
-    async def fetch_text(robots_url: str) -> tuple[int, str]:
-        r = await _request(robots_url, transport=transport, max_bytes=politeness.ROBOTS_MAX_BYTES)
-        return r.status_code, r.text
-
-    await politeness.check_allowed(url, USER_AGENT, fetch_text)
-
-    # 3) 限速 + 全局并发闸：渲染比 httpx 贵得多，更不能放开刷。
-    state = politeness.state_for(url)
-    async with politeness._get_semaphore():
-        await politeness.throttle(url, state)
+    # 2) robots + 3) 全局并发闸与按域限速：动态抓取也是抓取，不能因为换了引擎就绕过站方的意愿
+    #    （TD-133）；渲染比 httpx 贵得多，更不能放开刷。与静态抓取共用 polite_access（TD-290）。
+    async with politeness.polite_access(url, USER_AGENT, robots_fetcher(transport)):
         # 4) 到这里才碰浏览器。
         page = await _goto(url)
 

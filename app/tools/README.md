@@ -42,13 +42,15 @@
 | `assert_public_url(url)` | URL → 校验通过，无返回值 | 检查 scheme、端口、主机及解析地址；违规抛 CrawlError。一次预检查不能取代实际连接目标控制 |
 | `PublicTransport.handle_async_request` | HTTPX Request → Response | 连接到检查过的数值 IP，保留原 Host 与 TLS SNI；不使用环境代理，不用跨主机 keep-alive；可注入的测试 transport 不代表生产网络实测 |
 | `_request` | URL、transport、字节上限 → HTTPX Response | 手动逐跳验证重定向、按解压后字节限量；重建响应时移除已消费的压缩/长度头，避免二次解码 |
-| `fetch` | URL → Page（最终 URL、HTML 等） | robots → 域节流/进程内并发闸 → 请求；非成功页与不支持的内容拒绝；不执行 JavaScript |
+| `robots_fetcher(transport)` | transport → robots.txt 抓取回调 | 经 `_request` 逐跳 SSRF 校验、上限 `ROBOTS_MAX_BYTES`，不再做礼貌性检查（否则递归）；`fetch` 与 `render` 共用（TD-290） |
+| `fetch` | URL → Page（最终 URL、HTML 等） | 在 `politeness.polite_access` 内发请求（robots → 进程内并发闸 → 域节流）；非成功页与不支持的内容拒绝；不执行 JavaScript |
 | `to_skeleton` | HTML → 有界文本 DOM 骨架 | 迭代遍历；默认最多 1000 节点、深度 32、输出 32,000 字符，并限制单段文本/属性；给模型结构提示，不等于已提取正文 |
 | `check_allowed` / `_load_robots` | URL、UA、注入抓取函数 → 判定或 RobotsDisallowed | 404/410 视为没有 robots 限制；401/403、暂时不可知等保守拒绝；`Crawl-delay` 超过 `MAX_CRAWL_DELAY`（60 秒）的站也拒绝而不是占并发槽久等（TD-268）。确定的结论缓存 `ROBOTS_TTL`（1 小时），规则不可知只缓存 `ROBOTS_UNKNOWN_TTL`（1 分钟），重跑不会被旧的失败结论挡一小时（TD-286）。复用同一受约束请求路径读取 robots；`fetch` 对重定向每一跳的目标域再调用一次 |
 | `state_for` / `min_interval_for` / `throttle` | 域状态 → 最小间隔或等待 | 状态按 scheme/netloc 分组，表上限 `MAX_DOMAIN_STATES`（512）满了淘汰最久未用且未持锁的项（TD-268）；锁内更新上次请求时间；优先站方有效 Crawl-delay，否则默认间隔 |
-| `_get_semaphore` / `reset_cache` | 进程内并发闸／清理测试状态 | 不是跨服务全局限速；域缓存无硬性 LRU 容量上限，不应描述成无限规模抓取系统 |
+| `polite_access(url, UA, fetch_text)` | 异步上下文：robots 允许 → 取并发槽 → 域节流后进入 with 体 | 对外访问的唯一礼貌入口，静态抓取与动态渲染共用、合计受同一并发上限约束；robots 拒绝时不占槽、不登记限速时刻；with 体执行期间一直占槽（TD-290） |
+| `_get_semaphore` / `reset_cache` | 进程内并发闸／清理测试状态 | 不是跨进程、跨服务的全局限速；域状态表有 `MAX_DOMAIN_STATES` 上限，但不应描述成无限规模抓取系统 |
 
-**动态浏览器当前停用。** `browser_available()` 只检查可否 import Playwright，不代表功能可用；`render()` 保留预检查和返回 Page 的接口，但生产 `_goto()` 会抛 BrowserUnavailable。安装浏览器不能解除这一限制。`_abort_non_public` 是保留的防御 helper，不能据此宣称浏览器已有网络隔离。恢复前需要专门的隔离出口设计与真实浏览器验证。
+**动态浏览器当前停用。** `browser_available()` 只检查可否 import Playwright，不代表功能可用；`render()` 保留预检查（与 `fetch` 共用 `polite_access` 与 `robots_fetcher`）和返回 Page 的接口，但生产 `_goto()` 会抛 BrowserUnavailable。安装浏览器不能解除这一限制。`_abort_non_public` 是保留的防御 helper，不能据此宣称浏览器已有网络隔离。恢复前需要专门的隔离出口设计与真实浏览器验证。
 
 ### 文章提取与入库
 
@@ -86,13 +88,13 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/tools/browser.py`](browser.py) | `b669596ec90a` | L1–L97 |
-| [`app/tools/crawler.py`](crawler.py) | `e0f12d34f889` | L1–L326 |
+| [`app/tools/browser.py`](browser.py) | `96e3646fac38` | L1–L89 |
+| [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8ab4fbdb9855` | L1–L179 |
 | [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
 | [`app/tools/intent.py`](intent.py) | `0d9c64c5c6ab` | L1–L182 |
 | [`app/tools/llm.py`](llm.py) | `fc05f5cc7ce8` | L1–L240 |
-| [`app/tools/politeness.py`](politeness.py) | `8b4e20d1f086` | L1–L237 |
+| [`app/tools/politeness.py`](politeness.py) | `5f5dc4a210c2` | L1–L254 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `205c84d4261f` | L1–L489 |
 | [`app/tools/support.py`](support.py) | `d08aa3323cb6` | L1–L345 |
 | [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
