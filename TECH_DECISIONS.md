@@ -1055,3 +1055,25 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - `test_busy_llm_keeps_a_retry_hint_in_the_public_reason`：busy 时保留重试提示，但不带在途上限数字。
 
 **文档**：DEPLOY 运维表把「原因含繁忙」改为「原因含模型繁忙」，并新增 `codemax.support` / `codemax.intent` 日志一行；tools/routers README 已同步。
+
+## TD-293：人工自由文本字段统一拒绝 C0 / DEL / C1 控制字符
+
+**状态**：已实施（2026-09-27，按用户决定：全部改成严格规则，并用共享常量）。
+
+**问题**：同一类「人工填写的核账依据」有两套正则。
+- 只拒 C0 的 `^[^\x00-\x1f]+$`：shop 的 `EvidenceIn` / `ManualReceiptIn` / `LegacyBindingIn`（evidence 与 source_key），payments_admin 的 `ReviewIn`，refunds_admin 的 `RefundIn`。
+- 同时拒 DEL 与 C1 的 `^[^\x00-\x1f\x7f-\x9f]+$`：refunds_admin 的 `RefundPrepareIn` / `VerificationControlIn`，payments_admin 的 `CloseChannelIn`（关闭渠道订单），以及前端 payments-admin.js 的两处表单校验。
+- 结果：同一段带 `\x85`（NEL）的文字，前端会拦，但直接调接口时有的端点收、有的端点拒。
+
+**决定**：
+- 在 `app/routers/shop.py` 定义 `NO_CONTROL_CHARS = r"^[^\x00-\x1f\x7f-\x9f]+$"`，放在 `EvidenceIn` 旁边（payments_admin、refunds_admin 本来就从 shop 导入 `EvidenceIn`，不新增依赖方向）。
+- 上述 9 处字段声明全部改为 `pattern=NO_CONTROL_CHARS`。长度、strip 与「不能只是空白」的校验不变。
+- **不追溯**：`payment_review.decode_review` 解码的是已经存进库的复核事件。它仍只拒 C0，否则历史记录里若有 C1 字符，已完成的复核会被判成无效。收紧只作用于新输入。
+- 服务端其他用 `ord(c)` 手写的检查（refund_requests、refund_submissions、refunds_admin 的 stop reason）本来就是严格范围，不改。交易号、URL、账单字段那些是 ASCII 格式校验，属于另一类规则，不在本条范围。
+- 数据库触发器用 `[[:cntrl:]]`，不改 schema。
+
+**测试**：
+- 新文件 `tests/test_free_text_control_chars.py`：
+  - 自省三个路由模块的请求模型，凡是「排除控制字符」类 pattern 必须等于共享常量，且已知字段都在；以后新增字段写回旧正则会失败。
+  - 每个字段逐一验证 `\x00` `\x1f` `\x7f` `\x85` `\x9f` 被拒，正常中文与 `\xa0`（不间断空格，不是控制字符）通过。
+- `tests/test_manual_pay.py::test_confirm_rejects_control_characters_in_evidence`：经 HTTP 人工确认收款，4 种控制字符都返回 422，订单仍是 pending。旧实现下 `\x7f` / `\x85` / `\x9f` 三组会失败（被接受并确认收款）。

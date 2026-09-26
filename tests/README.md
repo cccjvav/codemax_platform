@@ -90,11 +90,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_extract.py`](test_extract.py) | `acb3766b2ecf` | L1–L294 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
+| [`tests/test_free_text_control_chars.py`](test_free_text_control_chars.py) | `c6b6344a754f` | L1–L46 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `f1379401cba7` | L1–L318 |
 | [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
 | [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `c7c6f8df0def` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
-| [`tests/test_manual_pay.py`](test_manual_pay.py) | `9c5a8cddbb02` | L1–L318 |
+| [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `876fff3193d5` | L1–L176 |
 | [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |

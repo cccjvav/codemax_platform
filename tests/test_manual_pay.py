@@ -202,6 +202,19 @@ async def test_confirm_unknown_order_is_404(client, manual_mode):
     assert r.status_code == 404
 
 
+@pytest.mark.parametrize("control", ["\x1f", "\x7f", "\x85", "\x9f"])
+async def test_confirm_rejects_control_characters_in_evidence(client, manual_mode, control):
+    """TD-293：核账依据里夹带 C0 / DEL / C1 控制字符一律 422，订单保持待支付；此前 DEL 与 C1 能通过。"""
+    buyer = await _login(client)
+    no = (await client.post("/shop/orders", headers=buyer)).json()["order_no"]
+    admin = await _login(client, "boss5")
+    await _promote("boss5")
+    body = {"reference": "TEST-RECEIPT", "amount": settings.SHOP_PRODUCT_AMOUNT, "evidence": f"银行流水{control}已到账"}
+    r = await client.post(f"/shop/orders/{no}/confirm", headers=admin, json=body)
+    assert r.status_code == 422
+    assert await _status(no) == "pending"
+
+
 # ---------------------------------------------------------------- 闭环
 
 

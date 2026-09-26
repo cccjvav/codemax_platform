@@ -22,13 +22,13 @@ from ..refund_requests import prepare_request, request_for, request_view
 from ..refund_verification import control_job
 from ..refunds import original_receipt, record_refund, refund_for
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund, submit_full_refund
-from .shop import EvidenceIn
+from .shop import NO_CONTROL_CHARS, EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
 
 
 class RefundIn(EvidenceIn):
-    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f]+$')
+    evidence: str = Field(min_length=3, max_length=160, pattern=NO_CONTROL_CHARS)
     confirm_order_no: str = Field(min_length=1, max_length=32, pattern=r'^[A-Za-z0-9_-]+$')
 
 
@@ -141,7 +141,7 @@ async def query_refund(order_no: str, proof: RefundQueryIn, response: Response,
 
 class RefundPrepareIn(RefundIn):
     model_config = ConfigDict(extra='forbid')
-    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+    evidence: str = Field(min_length=3, max_length=160, pattern=NO_CONTROL_CHARS)
     request_id: str = Field(min_length=32, max_length=32, pattern=r'^[0-9a-f]{32}$')
     amount: StrictInt = Field(gt=0, le=2147483647)
 
@@ -283,7 +283,7 @@ async def stop_refund_sending(order_no: str, proof: RefundSendIn, response: Resp
 
 class VerificationControlIn(RefundIn):
     model_config = ConfigDict(extra='forbid')
-    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+    evidence: str = Field(min_length=3, max_length=160, pattern=NO_CONTROL_CHARS)
     request_id: str = Field(pattern=r'^[0-9a-f]{32}$')
     job_id: StrictInt = Field(gt=0, le=2147483647)
     action: Literal['hold', 'retry']

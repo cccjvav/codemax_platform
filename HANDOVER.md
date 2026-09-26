@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-293 / 控制字符统一）**：shop、payments_admin、refunds_admin 所有人工自由文本字段改用 `shop.NO_CONTROL_CHARS`，统一拒绝 C0、DEL 与 C1；已存复核事件的解码不追溯收紧。见 TECH_DECISIONS TD-293。
+
 **接手状态（2026-09-27，TD-292 / 客服 reason 不外泄）**：`/support/ask` 的 `reason` 在模型失败时不再拼接 LLMError 原文，只写阶段加「详情已记入服务日志」（busy 时「模型繁忙，请稍后再试」）；原文、类别、状态码进 `codemax.support` / `codemax.intent` warning。原先断言 502 出现在 reason 里的用例按用户决定反转。见 TD-292。
 
 ## 本次交接范围

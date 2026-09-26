@@ -101,10 +101,10 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `ef2ffeccda89` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
-| [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `6b1f968a57b9` | L1–L831 |
+| [`app/routers/refunds_admin.py`](refunds_admin.py) | `370d862a6138` | L1–L309 |
+| [`app/routers/shop.py`](shop.py) | `fecfea5ac8a1` | L1–L837 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
@@ -132,7 +132,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 
 create_order先固定渠道/商户并准备内容寻址文件快照，再持久化订单及prepay_started，才调用微信；ready/unknown结果各留事件。相同pending不能随着当前配置切换渠道。mock仅development且只能确认mock订单；回调只结算wechat订单，精确重复200、冲突409，未接入事件422。
 
-ManualReceiptIn校验实际金额、参考号和有内容的依据；EvidenceIn共享边界。管理员GET `/shop/admin/orders/{order_no}/ledger`禁止缓存、最多50事件，返回原始确认人而不是最后重试者。POST `/shop/orders/{order_no}/legacy-binding`只允许历史未绑定订单，核实后复制指定原文件，写一次合同与审计；不能覆盖新订单、重记旧收入或在生产绑定mock。
+ManualReceiptIn校验实际金额、参考号和有内容的依据；EvidenceIn共享边界。人工填写的自由文本字段（shop / payments_admin / refunds_admin 各请求模型的 evidence 与 LegacyBindingIn.source_key）统一用 `shop.NO_CONTROL_CHARS`，拒绝 C0、DEL 与 C1 控制字符（TD-293）；已存复核事件的解码（payment_review.decode_review）不追溯收紧。管理员GET `/shop/admin/orders/{order_no}/ledger`禁止缓存、最多50事件，返回原始确认人而不是最后重试者。POST `/shop/orders/{order_no}/legacy-binding`只允许历史未绑定订单，核实后复制指定原文件，写一次合同与审计；不能覆盖新订单、重记旧收入或在生产绑定mock。
 
 download_url使用订单key/hash/size，不再查当前STORAGE_PRODUCT_KEY；历史未绑定409，缺失404、损坏409，状态/购买权益保留；serve_download再次校验快照后流式响应。操作人恢复相同字节后可重领。不是运营UI、自动退款或定制服务完整工作流。
 

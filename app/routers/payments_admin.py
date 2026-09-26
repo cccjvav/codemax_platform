@@ -25,7 +25,7 @@ from ..payment_review import ISSUES, REVIEW_KIND, review_candidates, review_payl
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, close_order, pay_config, query_order
-from .shop import EvidenceIn
+from .shop import NO_CONTROL_CHARS, EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
 
@@ -169,7 +169,7 @@ async def reconcile(order_no: str, proof: ReconcileIn, response: Response,
 
 
 class ReviewIn(EvidenceIn):
-    evidence: str = Field(min_length=3, max_length=160, pattern=r"^[^\x00-\x1f]+$")
+    evidence: str = Field(min_length=3, max_length=160, pattern=NO_CONTROL_CHARS)
     action: Literal['followup', 'close', 'reopen']
     snapshot: str = Field(pattern=r'^[0-9a-f]{64}$')
     expected_version: StrictInt = Field(ge=0, le=9223372036854775807)
@@ -231,7 +231,7 @@ class CloseChannelIn(ReconcileIn):
     request_id: str = Field(pattern=r'^[0-9a-f]{32}$')
     query_attempt_id: str = Field(pattern=r'^[0-9a-f]{32}$')
     amount: StrictInt = Field(gt=0, le=2147483647)
-    evidence: str = Field(min_length=3, max_length=160, pattern=r'^[^\x00-\x1f\x7f-\x9f]+$')
+    evidence: str = Field(min_length=3, max_length=160, pattern=NO_CONTROL_CHARS)
 
 
 @router.post('/shop/admin/orders/{order_no}/close-channel',

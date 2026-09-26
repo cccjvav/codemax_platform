@@ -355,8 +355,14 @@ _shop_logger = logging.getLogger("codemax.shop")   # 运维告警（非审计）
 # ---------------------------------------------------------------- 人工确认收款（S5-04）
 
 
+# 人工填写的自由文本（核账依据、备注、来源键、原因）统一拒绝 C0（\x00-\x1f）、DEL 与 C1（\x7f-\x9f）
+# 控制字符（TD-293）。它们在正常文字里几乎不会出现，多半是复制粘贴带进来的，会让日志与页面显示错乱；
+# 前端 payments-admin.js 与退款相关的服务端校验早已按这个范围拒绝，这里统一成一个常量。
+NO_CONTROL_CHARS = r"^[^\x00-\x1f\x7f-\x9f]+$"
+
+
 class EvidenceIn(BaseModel):
-    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+    evidence: str = Field(min_length=3, max_length=500, pattern=NO_CONTROL_CHARS)
 
     @field_validator('evidence')
     @classmethod
@@ -369,7 +375,7 @@ class EvidenceIn(BaseModel):
 class ManualReceiptIn(EvidenceIn):
     amount: StrictInt = Field(gt=0)
     reference: str = Field(min_length=1, max_length=64, pattern=r"^[A-Za-z0-9][A-Za-z0-9._:/-]*$")
-    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+    evidence: str = Field(min_length=3, max_length=500, pattern=NO_CONTROL_CHARS)
 
 
 @router.post("/orders/{order_no}/confirm", dependencies=[Depends(require_finance_origin)])
@@ -727,8 +733,8 @@ def _check_order_channel(order: Order, mode: str, cfg) -> None:
 
 class LegacyBindingIn(EvidenceIn):
     payment_mode: str = Field(pattern=r"^(manual|wechat|mock)$")
-    source_key: str = Field(min_length=1, max_length=400, pattern=r"^[^\x00-\x1f]+$")
-    evidence: str = Field(min_length=3, max_length=500, pattern=r"^[^\x00-\x1f]+$")
+    source_key: str = Field(min_length=1, max_length=400, pattern=NO_CONTROL_CHARS)
+    evidence: str = Field(min_length=3, max_length=500, pattern=NO_CONTROL_CHARS)
 
 
 @router.post('/orders/{order_no}/legacy-binding', dependencies=[Depends(require_finance_origin)])
