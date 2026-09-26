@@ -1077,3 +1077,27 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
   - 自省三个路由模块的请求模型，凡是「排除控制字符」类 pattern 必须等于共享常量，且已知字段都在；以后新增字段写回旧正则会失败。
   - 每个字段逐一验证 `\x00` `\x1f` `\x7f` `\x85` `\x9f` 被拒，正常中文与 `\xa0`（不间断空格，不是控制字符）通过。
 - `tests/test_manual_pay.py::test_confirm_rejects_control_characters_in_evidence`：经 HTTP 人工确认收款，4 种控制字符都返回 422，订单仍是 pending。旧实现下 `\x7f` / `\x85` / `\x9f` 三组会失败（被接受并确认收款）。
+
+## TD-294：`/oauth/token` 错误改为 RFC 6749 顶层格式
+
+**状态**：已实施（2026-09-27，按用户决定：令牌端点错误返回 RFC 6749 顶层 `{"error","error_description"}`，授权页错误不变）。
+
+**问题**：令牌端点的错误由 `HTTPException(400, {...})` 抛出，FastAPI 包成 `{"detail": {"error": ...}}`。按 RFC 6749 §5.2 解析的标准 OAuth 客户端读不到 `error`。缺参数时更是 FastAPI 的 422 `{"detail": [...]}`。
+
+**先查依赖**：按用户要求 grep 了自己的客户端代码。前端、脚本和文档里都没有读 `detail.error` 的地方，只有 5 个测试文件在断言旧格式。
+
+**决定**：
+- 新增 `oauth.TokenError(HTTPException)` 与 `oauth.token_error_handler`，在 main.py 注册。输出顶层 `{"error", "error_description"}`，描述为空时省略该键（RFC 规定它是可选的）。仍是 HTTPException 子类，所以异常照常穿过 `get_db` 依赖，会话清理路径不变。
+- 令牌端点的所有错误都改用 `TokenError`。授权页（GET/POST `/authorize`）继续用 `_oauth_error`，格式不变。
+- 两边共用的客户端策略检查从 `_check_client_policy`（直接抛错）改为 `_client_policy_violation`（返回 None 或授权页用的说明），由调用方按各自格式抛错。
+- **缺参数 / 参数重复**：参数改成空串默认值，端点里逐个检查。缺失或为空、或同名参数出现多次（§3.2），返回 400 `invalid_request`，不再是 422。JSON 请求体因此同样是 `invalid_request`。
+- **描述只用 ASCII 英文**：§5.2 规定 `error_description` 只能含 %x20-21 / %x23-5B / %x5D-7E。它是给客户端开发者看的，不直接展示给最终用户。原中文描述改为英文，例如「授权码已过期」→ `authorization code has expired`。所有 `invalid_client` 统一为 `client authentication failed`，不再区分未知、未受信和密钥错误，少给一点枚举信息。「用户不存在」并入 `authorization is no longer valid; start a new authorization`。
+- **缓存头**：§5.1 要求令牌响应禁止缓存。全局中间件已给非静态响应加 `Cache-Control: no-store`，这里在成功与错误响应上再显式带 `Cache-Control: no-store` 与 `Pragma: no-cache`。
+- 不变：`invalid_client` 仍回 400（客户端凭据在请求体里，不走 Authorization 头，RFC 允许 400）；限流的 429 仍是 `{"detail": ...}`（RFC 未定义该状态）；未知 client_id 仍跑一次假哈希拉平耗时。
+
+**测试**：
+- 12 处断言 `/token` 旧格式的测试改读顶层 `error`。`test_expired_code_rejected` 从检查「过期」改为检查 `expired`，这是契约随格式变化，不是放宽断言。授权页的 4 处 `detail` 断言保持不变。
+- 新增 `test_token_errors_use_the_rfc6749_top_level_shape`，8 组：不支持的授权类型、密钥错误、未知客户端、无效码、含 NUL 的码、缺参数、空参数、重复参数。每组检查状态 400、无 `detail`、键只含两项、描述字符在 RFC 字符集内、两个缓存头。
+- 新增 `test_token_json_body_is_an_invalid_request_not_a_422`。
+- 新增 `test_token_success_is_not_cacheable_and_authorize_errors_keep_their_shape`：成功响应带两个缓存头；授权页错误仍是 `{"detail": {...}}`。
+- 旧实现下这 10 个新用例全部失败。

@@ -1286,13 +1286,13 @@
     },
     {
       "path": "app/routers/oauth.py",
-      "sha256": "1f749cf1956d96a7c9040b6b8ebd9e6bce330b6b305fd0f35e47eee468c0b9b8",
+      "sha256": "937bc98baa3b0e686a9a931dc213663469aa615ecb6a519c06c8517b024f9010",
       "method": "guided",
       "blocks": [
         {
           "end": 27,
           "title": "模块装配",
-          "explanation": "模块协作与边界：用户授权与客户端密钥校验分离；同意页不直接发令牌，一次性 code 还要在 token 端点兑换。回调只能使用预登记的精确 URI。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1 导入 import base64；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL2 导入 import hashlib；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import hmac；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import secrets；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from datetime import datetime, timedelta, timezone；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL6 导入 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from fastapi import APIRouter, Depends, Form, HTTPException, Request；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 from fastapi.responses import RedirectResponse；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from sqlalchemy import delete, or_, select, update；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from sqlalchemy.ext.asyncio import AsyncSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from ..config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from ..database import get_db, lock_user；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from ..deps import get_current_user；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from ..middleware import CONTENT_SECURITY_POLICY；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from ..models import OAuthClient, OAuthCode, User；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 from ..ratelimit import rate_limit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from ..security import adummy_verify, averify_password, create_access_token；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from ..site import page_context, templates；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from ..timeutil import as_utc；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 计算右侧并赋给 `router`：调用 APIRouter(prefix='/oauth', tags=['OAuth2 授权码 SSO'])。\nL25 计算右侧并赋给 `AUTH_CODE_EXPIRE_MINUTES`：10。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：用户授权与客户端密钥校验分离；同意页不直接发令牌，一次性 code 还要在 token 端点兑换。回调只能使用预登记的精确 URI。 TD-294：新增导入 JSONResponse，供令牌端点错误与成功响应使用。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1 导入 import base64；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL2 导入 import hashlib；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import hmac；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import secrets；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from datetime import datetime, timedelta, timezone；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL6 导入 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from fastapi import APIRouter, Depends, Form, HTTPException, Request；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 from fastapi.responses import JSONResponse, RedirectResponse；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from sqlalchemy import delete, or_, select, update；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from sqlalchemy.ext.asyncio import AsyncSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from ..config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from ..database import get_db, lock_user；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from ..deps import get_current_user；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from ..middleware import CONTENT_SECURITY_POLICY；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from ..models import OAuthClient, OAuthCode, User；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 from ..ratelimit import rate_limit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from ..security import adummy_verify, averify_password, create_access_token；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from ..site import page_context, templates；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from ..timeutil import as_utc；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 计算右侧并赋给 `router`：调用 APIRouter(prefix='/oauth', tags=['OAuth2 授权码 SSO'])。\nL25 计算右侧并赋给 `AUTH_CODE_EXPIRE_MINUTES`：10。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 34,
@@ -1300,49 +1300,64 @@
           "explanation": "功能契约：统一带时区 UTC，供授权码到期与清理比较。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：datetime。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL32 结束当前函数，返回 调用 datetime.now(timezone.utc)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 38,
+          "end": 43,
           "title": "_oauth_error",
-          "explanation": "_oauth_error统一400与detail.error/error_description。随后新增_check_client_policy：在查库/签发/兑换前拒绝空、NUL或超过64位client_id，production默认拒绝不在OAUTH_TRUSTED_CLIENT_IDS中的客户端；名单属于完整站点信任，不代替scope。"
+          "explanation": "_oauth_error只服务授权页（GET/POST /authorize），统一400与detail.error/error_description，FastAPI包成{\"detail\": {...}}，TD-294后保持原样。块尾定义_TOKEN_NO_CACHE（Cache-Control: no-store、Pragma: no-cache），供令牌端点的成功与错误响应使用（RFC 6749 §5.1）。"
         },
         {
-          "end": 66,
+          "end": 56,
+          "title": "TokenError",
+          "explanation": "功能契约：/oauth/token 专用错误（TD-294）。仍是 HTTPException 子类，异常照常穿过 get_db 依赖；由 main.py 注册的 token_error_handler 输出 RFC 6749 §5.2 顶层格式，并带 Cache-Control: no-store 与 Pragma: no-cache。描述约定只用 ASCII，面向客户端开发者。\n\n结构事实：定义类 TokenError，基类 HTTPException；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 63,
+          "title": "token_error_handler",
+          "explanation": "功能契约：把 TokenError 转成顶层 {\"error\", \"error_description\"} 的 400 JSON，描述为空时省略该键，沿用异常上的禁止缓存头；授权页的 _oauth_error 不经过它，仍是 {\"detail\": {...}}（TD-294）。\n\n输入签名：_request: Request, exc: TokenError；异步调用需await才推进。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL58 计算右侧并赋给 `body`：{'error': exc.detail['error']}。\nL59 判断 `exc.detail['error_description']`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL60 计算右侧并赋给 `body['error_description']`：exc.detail['error_description']。\nL61 结束当前函数，返回 调用 JSONResponse(body, status_code=exc.status_code, headers=exc.headers)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 73,
+          "title": "_client_policy_violation",
+          "explanation": "功能契约：客户端标识格式与 production 第一方名单检查，由原 _check_client_policy 改成只返回结果不抛错（TD-294）：None 表示通过，否则返回授权页用的中文说明；授权页据此抛 _oauth_error，令牌端点统一抛 TokenError(invalid_client)。\n\n输入签名：client_id: str；定义函数不等于此处立刻执行函数体。 返回类型标注：str | None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL67 判断 `not client_id or len(client_id) > 64 or '\\x00' in client_id`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL68 结束当前函数，返回 ''；不会自动commit未提交事务。\nL69 判断 `settings.ENV == 'production' and client_id not in settings.OAUTH_TRUSTED_CLIENT_IDS`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL70 结束当前函数，返回 '未配置为受信自有站点客户端'；不会自动commit未提交事务。\nL71 结束当前函数，返回 None；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 95,
           "title": "_active_client",
-          "explanation": "先执行客户端格式与production第一方allowlist策略，再查启用状态和精确回调。URL须有效且无userinfo/fragment，production只允许HTTPS；错误按OAuth detail400，不生成授权码。受信客户端拿完整站点JWT，不是scope隔离。"
+          "explanation": "先调用_client_policy_violation执行客户端格式与production第一方allowlist策略（违规时按返回的中文说明抛_oauth_error），再查启用状态和精确回调。URL须有效且无userinfo/fragment，production只允许HTTPS；错误按OAuth detail400，不生成授权码。受信客户端拿完整站点JWT，不是scope隔离。"
         },
         {
-          "end": 81,
+          "end": 110,
           "title": "_sign",
-          "explanation": "功能契约：HMAC 绑定用户 id/凭据版本/客户端/回调/state；防止同意表单被改参数或跨用户沿用。base64url 只编码，不是加密。\n\n输入签名：client_id: str, redirect_uri: str, state: str | None, user: User；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL77 计算右侧并赋给 `payload`：调用 f\"{user.id}\\n{user.credential_version}\\n{client_id}\\n{redirect_uri}\\n{state or ''}\".encode()。\nL78 计算右侧并赋给 `digest`：调用 hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).digest()。\nL79 结束当前函数，返回 调用 base64.urlsafe_b64encode(digest).decode().rstrip('=')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：HMAC 绑定用户 id/凭据版本/客户端/回调/state；防止同意表单被改参数或跨用户沿用。base64url 只编码，不是加密。\n\n输入签名：client_id: str, redirect_uri: str, state: str | None, user: User；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL106 计算右侧并赋给 `payload`：调用 f\"{user.id}\\n{user.credential_version}\\n{client_id}\\n{redirect_uri}\\n{state or ''}\".encode()。\nL107 计算右侧并赋给 `digest`：调用 hmac.new(settings.SECRET_KEY.encode(), payload, hashlib.sha256).digest()。\nL108 结束当前函数，返回 调用 base64.urlsafe_b64encode(digest).decode().rstrip('=')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 87,
+          "end": 116,
           "title": "_callback",
-          "explanation": "功能契约：保留原 query 中非本次输出键，合并 code/error/state 并 URL 编码；不粗暴覆盖全部原查询参数。\n\n输入签名：redirect_uri: str, params: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 计算右侧并赋给 `parts`：调用 urlsplit(redirect_uri)。\nL84 计算右侧并赋给 `query`：[(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k not in params]。\nL85 结束当前函数，返回 调用 urlunsplit(parts._replace(query=urlencode([*query, *params.items()])))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：保留原 query 中非本次输出键，合并 code/error/state 并 URL 编码；不粗暴覆盖全部原查询参数。\n\n输入签名：redirect_uri: str, params: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL112 计算右侧并赋给 `parts`：调用 urlsplit(redirect_uri)。\nL113 计算右侧并赋给 `query`：[(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True) if k not in params]。\nL114 结束当前函数，返回 调用 urlunsplit(parts._replace(query=urlencode([*query, *params.items()])))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 93,
+          "end": 122,
           "title": "_consent_headers",
-          "explanation": "功能契约：只为已验证回调 origin 添加 form-action，不能把任意请求参数直接白名单。\n\n输入签名：redirect_uri: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL89 计算右侧并赋给 `parts`：调用 urlsplit(redirect_uri)。\nL90 计算右侧并赋给 `origin`：f'{parts.scheme}://{parts.netloc}'。\nL91 结束当前函数，返回 {'Content-Security-Policy': CONTENT_SECURITY_POLICY.replace(\"form-action 'self'\", f\"form-action 'self' {origin}\")}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：只为已验证回调 origin 添加 form-action，不能把任意请求参数直接白名单。\n\n输入签名：redirect_uri: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL118 计算右侧并赋给 `parts`：调用 urlsplit(redirect_uri)。\nL119 计算右侧并赋给 `origin`：f'{parts.scheme}://{parts.netloc}'。\nL120 结束当前函数，返回 {'Content-Security-Policy': CONTENT_SECURITY_POLICY.replace(\"form-action 'self'\", f\"form-action 'self' {origin}\")}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 97,
+          "end": 126,
           "title": "_redirect_callback",
-          "explanation": "功能契约：生成 302 回跳并带同意页 CSP 配套头，不保存授权码。\n\n输入签名：redirect_uri: str, params: dict；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 结束当前函数，返回 调用 RedirectResponse(_callback(redirect_uri, params), status_code=302, headers=_consent_headers(redirect_uri))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：生成 302 回跳并带同意页 CSP 配套头，不保存授权码。\n\n输入签名：redirect_uri: str, params: dict；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL124 结束当前函数，返回 调用 RedirectResponse(_callback(redirect_uri, params), status_code=302, headers=_consent_headers(redirect_uri))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 144,
+          "end": 173,
           "title": "authorize",
-          "explanation": "功能契约：仅接受 response_type=code；验证用户/客户端后渲染无登录脚本的同意表单与签名，GET 不写授权码。\n\n登记/装饰：router.get('/authorize')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：request: Request, response_type: str, client_id: str, redirect_uri: str, state: str | None=None, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL120 判断 `response_type != 'code'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL121 抛出 _oauth_error('unsupported_response_type')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL122 计算右侧并赋给 `client`：await 调用 _active_client(db, client_id, redirect_uri)；等待期间可让出事件循环，恢复后才执行下一句。\nL124 结束当前函数，返回 调用 templates.TemplateResponse(request, 'oauth_consent.html', page_context(request, title=f'授权 {client.name}', auth_ui=False, client_name=client.name, client_id=client_id, redirect_uri=redirect_uri, state=state or '', sig=_sign(client_id, redirect_uri, state, user), username=user.username), headers=_consent_headers(redirect_uri))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：仅接受 response_type=code；验证用户/客户端后渲染无登录脚本的同意表单与签名，GET 不写授权码。\n\n登记/装饰：router.get('/authorize')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：request: Request, response_type: str, client_id: str, redirect_uri: str, state: str | None=None, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL149 判断 `response_type != 'code'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL150 抛出 _oauth_error('unsupported_response_type')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL151 计算右侧并赋给 `client`：await 调用 _active_client(db, client_id, redirect_uri)；等待期间可让出事件循环，恢复后才执行下一句。\nL153 结束当前函数，返回 调用 templates.TemplateResponse(request, 'oauth_consent.html', page_context(request, title=f'授权 {client.name}', auth_ui=False, client_name=client.name, client_id=client_id, redirect_uri=redirect_uri, state=state or '', sig=_sign(client_id, redirect_uri, state, user), username=user.username), headers=_consent_headers(redirect_uri))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 206,
+          "end": 235,
           "title": "authorize_submit",
-          "explanation": "功能契约：先比表单签名再查客户端；拒绝直接回 error。批准则锁用户并重新核对版本/状态，清已用/过期码，生成短时 code、提交后回跳。\n\n登记/装饰：router.post('/authorize')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client_id: str=Form(...), redirect_uri: str=Form(...), sig: str=Form(...), state: str | None=Form(None), approve: str=Form('0'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 判断 `not sig.isascii() or not hmac.compare_digest(sig, _sign(client_id, redirect_uri, state, user))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL161 抛出 _oauth_error('invalid_request', '同意页签名无效，请重新发起授权')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL162 计算右侧并赋给 `client`：await 调用 _active_client(db, client_id, redirect_uri)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 判断 `approve != '1'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL165 计算右侧并赋给 `params`：{'error': 'access_denied', 'error_description': '用户拒绝授权'}。\nL166 判断 `state`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL167 计算右侧并赋给 `params['state']`：state。\nL168 结束当前函数，返回 调用 _redirect_callback(redirect_uri, params)；不会自动commit未提交事务。\nL170 计算右侧并赋给 `expected_revision`：user.credential_version。\nL171 计算右侧并赋给 `user`：await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL172 判断 `user.credential_version != expected_revision or user.status != 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL173 抛出 _oauth_error('invalid_grant', '登录状态已变化，请重新授权')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL186 await 调用 db.execute(delete(OAuthCode).where(or_(OAuthCode.used.is_(True), OAuthCode.expires_at < _utcnow())))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL190 计算右侧并赋给 `code`：调用 secrets.token_urlsafe(24)。\nL191 调用 db.add(OAuthCode(code=code, user_id=user.id, credential_version=user.credential_version, client_id=client.id, redirect_uri=redirect_uri, expires_at=_utcnow() + timedelta(minutes=AUTH_CODE_EXPIRE_MINUTES)))：把ORM对象加入会话，尚未完成持久提交。\nL199 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL201 计算右侧并赋给 `params`：{'code': code}。\nL202 判断 `state`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL203 计算右侧并赋给 `params['state']`：state。\nL204 结束当前函数，返回 调用 _redirect_callback(redirect_uri, params)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：先比表单签名再查客户端；拒绝直接回 error。批准则锁用户并重新核对版本/状态，清已用/过期码，生成短时 code、提交后回跳。\n\n登记/装饰：router.post('/authorize')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client_id: str=Form(...), redirect_uri: str=Form(...), sig: str=Form(...), state: str | None=Form(None), approve: str=Form('0'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL189 判断 `not sig.isascii() or not hmac.compare_digest(sig, _sign(client_id, redirect_uri, state, user))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL190 抛出 _oauth_error('invalid_request', '同意页签名无效，请重新发起授权')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL191 计算右侧并赋给 `client`：await 调用 _active_client(db, client_id, redirect_uri)；等待期间可让出事件循环，恢复后才执行下一句。\nL193 判断 `approve != '1'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL194 计算右侧并赋给 `params`：{'error': 'access_denied', 'error_description': '用户拒绝授权'}。\nL195 判断 `state`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL196 计算右侧并赋给 `params['state']`：state。\nL197 结束当前函数，返回 调用 _redirect_callback(redirect_uri, params)；不会自动commit未提交事务。\nL199 计算右侧并赋给 `expected_revision`：user.credential_version。\nL200 计算右侧并赋给 `user`：await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL201 判断 `user.credential_version != expected_revision or user.status != 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL202 抛出 _oauth_error('invalid_grant', '登录状态已变化，请重新授权')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL215 await 调用 db.execute(delete(OAuthCode).where(or_(OAuthCode.used.is_(True), OAuthCode.expires_at < _utcnow())))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL219 计算右侧并赋给 `code`：调用 secrets.token_urlsafe(24)。\nL220 调用 db.add(OAuthCode(code=code, user_id=user.id, credential_version=user.credential_version, client_id=client.id, redirect_uri=redirect_uri, expires_at=_utcnow() + timedelta(minutes=AUTH_CODE_EXPIRE_MINUTES)))：把ORM对象加入会话，尚未完成持久提交。\nL228 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL230 计算右侧并赋给 `params`：{'code': code}。\nL231 判断 `state`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL232 计算右侧并赋给 `params['state']`：state。\nL233 结束当前函数，返回 调用 _redirect_callback(redirect_uri, params)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 268,
+          "end": 309,
           "title": "token",
-          "explanation": "仅authorization_code；先按格式/production名单检查client_id，再读取客户端并校验secret，未知身份保留dummy哈希。授权码长度/NUL在查询前拒绝；其后继续校验归属/回调/过期/用户状态与凭据版本，锁用户、CAS消费并提交后返回JWT。白名单不能代替PKCE/audience或第三方会话治理。"
+          "explanation": "参数用空串默认值，先从request.form()逐个检查五个必需参数：缺失/为空或重复出现都抛TokenError(invalid_request)，不再是FastAPI的422。再要求authorization_code；_client_policy_violation不通过、客户端未知或secret错误一律TokenError(invalid_client, client authentication failed)，未知身份保留dummy哈希拉平耗时。授权码长度/NUL在查询前拒绝；其后继续校验归属/回调/过期/用户状态与凭据版本，锁用户、CAS消费并提交后返回带_TOKEN_NO_CACHE头的JSONResponse。所有错误都是RFC 6749 §5.2顶层格式、ASCII英文描述（TD-294）。白名单不能代替PKCE/audience或第三方会话治理。"
         }
       ]
     },
@@ -3225,7 +3240,7 @@
     },
     {
       "path": "main.py",
-      "sha256": "bd5f1fca3990333aba38f4878ecc84d3c787391ab65c9086f9cbedc41bfecf74",
+      "sha256": "d36d68948827ada12002b346ae469581efe9d3e1414aea114937c7cb99afa5d3",
       "blocks": [
         {
           "end": 35,
@@ -3248,17 +3263,17 @@
           "explanation": "FastAPI 接收生命周期函数和接口文档地址；production 把三个文档地址设成 None。关闭 Swagger 不是关闭业务路由，也不是权限校验。Uvicorn 的 main:app 指向这个变量。"
         },
         {
-          "end": 87,
+          "end": 88,
           "title": "中间件套在路由外面，422 处理器换成脱敏版",
-          "explanation": "后添加的先执行：请求日志在最外层，安全头居中，最先添加的请求体预算中间件（TD-260）最靠近路由——它发出的 413 同样带安全头并进访问日志；请求进入顺序与响应返回顺序相反。add_exception_handler 把 RequestValidationError 交给 validation_error_without_input：422 只保留 type/loc/msg/ctx，不再回显出错字段原值。这些层执行日志、头部、缓存与体积策略，不能替代路由的所有权和角色检查，也不替代反向代理的请求体上限。 TD-270：在请求体预算之外、安全头之内加 GZipMiddleware（starlette 自带，≥1 KiB 且客户端声明 gzip 才压，application/octet-stream 与默认排除表不压，交付 ZIP 保留 Content-Length/Range）；422 的 msg 由 validation_error_without_input 翻成中文。 TD-276（复核 O-13）：GZipMiddleware 显式用 compresslevel=6，取代 starlette 默认的 9 —— 647 KiB 分块 23.3 ms → 16.4 ms，压缩后体积不变。"
+          "explanation": "后添加的先执行：请求日志在最外层，安全头居中，最先添加的请求体预算中间件（TD-260）最靠近路由——它发出的 413 同样带安全头并进访问日志；请求进入顺序与响应返回顺序相反。add_exception_handler 把 RequestValidationError 交给 validation_error_without_input：422 只保留 type/loc/msg/ctx，不再回显出错字段原值。这些层执行日志、头部、缓存与体积策略，不能替代路由的所有权和角色检查，也不替代反向代理的请求体上限。 TD-270：在请求体预算之外、安全头之内加 GZipMiddleware（starlette 自带，≥1 KiB 且客户端声明 gzip 才压，application/octet-stream 与默认排除表不压，交付 ZIP 保留 Content-Length/Range）；422 的 msg 由 validation_error_without_input 翻成中文。 TD-276（复核 O-13）：GZipMiddleware 显式用 compresslevel=6，取代 starlette 默认的 9 —— 647 KiB 分块 23.3 ms → 16.4 ms，压缩后体积不变。 TD-294：再注册 oauth.TokenError → oauth.token_error_handler，只有 /oauth/token 抛这个子类，输出 RFC 6749 顶层 {\"error\", \"error_description\"}；其余 HTTPException（含授权页的 OAuth 错误）仍走 FastAPI 默认的 {\"detail\": ...}。"
         },
         {
-          "end": 101,
+          "end": 102,
           "title": "把子路由接到应用",
           "explanation": "把auth/oauth/shop/payments_admin等子路由挂到同一ASGI应用。payments_admin增加公开无数据登录壳和两个需管理员的数据/核查入口；site循环页仍单独注册。这里include_router是装配，不是当场发网络或查数据库。\n\n第七批复核：新增refund_notify.router公开服务器回调，按原文RSA/AES与原付款认证；refunds_admin的两个受控写入口保持原依赖。"
         },
         {
-          "end": 120,
+          "end": 121,
           "title": "静态资源与模板页面分开",
           "explanation": "/static 映射到仓库 app/static 目录，Path(__file__) 让静态路径不依赖启动目录。HTML 页面主要由 Jinja 路由返回；CSS/构建后的 JS 再由浏览器请求。静态目录不是私有商品目录，商品下载另有鉴权和签名流程。 TD-276（复核 O-14）：/static 改用 MarkdownBlockingStaticFiles，.md/.markdown（不分大小写）一律 404，README 文件保留（文档契约要求每个目录有 README），favicon/脚本等其余资源原样透传。"
         }
@@ -5509,7 +5524,7 @@
     },
     {
       "path": "tests/test_e2e.py",
-      "sha256": "3bd79049adf003c9f67725ef8d3e5c10e542e01e9642e0694cc4dd4368b051e1",
+      "sha256": "3641667e742d2a31a983f3bdd7f51dadc628cbeb90848dcd4c1aa671e9c93509",
       "method": "guided",
       "blocks": [
         {
@@ -5635,7 +5650,7 @@
         {
           "end": 395,
           "title": "test_code_from_one_client_cannot_be_used_by_another",
-          "explanation": "本用例的准备条件：client。涉及接口：/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL378 计算右侧并赋给 `h`：await 调用 signup(client, username='cross_client')；等待期间可让出事件循环，恢复后才执行下一句。\nL379 计算右侧并赋给 `r`：await 调用 sso_authorize(client, h, state='s')；等待期间可让出事件循环，恢复后才执行下一句。\nL380 计算右侧并赋给 `code`：parse_qs(urlsplit(r.headers['location']).query)['code'][0]。\nL382 计算右侧并赋给 `r`：await 调用 client.post('/oauth/token', data={'grant_type': 'authorization_code', 'code': code, 'redirect_uri': 'https://shop.codemax.top/callback', 'client_id': 'shop', 'client_secret': 'codemax-shop-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL392 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL393 核对 `r.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL378 计算右侧并赋给 `h`：await 调用 signup(client, username='cross_client')；等待期间可让出事件循环，恢复后才执行下一句。\nL379 计算右侧并赋给 `r`：await 调用 sso_authorize(client, h, state='s')；等待期间可让出事件循环，恢复后才执行下一句。\nL380 计算右侧并赋给 `code`：parse_qs(urlsplit(r.headers['location']).query)['code'][0]。\nL382 计算右侧并赋给 `r`：await 调用 client.post('/oauth/token', data={'grant_type': 'authorization_code', 'code': code, 'redirect_uri': 'https://shop.codemax.top/callback', 'client_id': 'shop', 'client_secret': 'codemax-shop-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL392 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL393 核对 `r.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 405,
@@ -6861,7 +6876,7 @@
     },
     {
       "path": "tests/test_oauth.py",
-      "sha256": "7100b76e2ec8135915fd2080b49a93d17bb87fa24b40bf385afbb17713b14eb4",
+      "sha256": "8679abf1b095707c4ac06e8aeacac8ab84f2b17e2368b4a9ad10082f0febaf60",
       "method": "guided",
       "blocks": [
         {
@@ -6907,37 +6922,57 @@
         {
           "end": 112,
           "title": "test_code_is_one_time_use",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL104 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL105 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL107 核对 `(await exchange_code(client, code)).status_code == 200`：要求请求成功；不满足即本用例失败。\nL108 计算右侧并赋给 `r`：await 调用 exchange_code(client, code)；等待期间可让出事件循环，恢复后才执行下一句。\nL109 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL110 核对 `r.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL104 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL105 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL107 核对 `(await exchange_code(client, code)).status_code == 200`：要求请求成功；不满足即本用例失败。\nL108 计算右侧并赋给 `r`：await 调用 exchange_code(client, code)；等待期间可让出事件循环，恢复后才执行下一句。\nL109 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL110 核对 `r.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 127,
           "title": "test_token_rejects_wrong_secret_and_uri",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL114 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL115 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL117 计算右侧并赋给 `r`：await 调用 exchange_code(client, code, secret='wrong-secret')；等待期间可让出事件循环，恢复后才执行下一句。\nL118 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL119 核对 `r.json()['detail']['error'] == 'invalid_client'`：此条件为假即测试失败；不是生产输入校验。\nL122 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL123 计算右侧并赋给 `r`：await 调用 exchange_code(client, code, redirect_uri='https://evil.com/cb')；等待期间可让出事件循环，恢复后才执行下一句。\nL124 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL125 核对 `r.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL114 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL115 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL117 计算右侧并赋给 `r`：await 调用 exchange_code(client, code, secret='wrong-secret')；等待期间可让出事件循环，恢复后才执行下一句。\nL118 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL119 核对 `r.json()['error'] == 'invalid_client'`：此条件为假即测试失败；不是生产输入校验。\nL122 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL123 计算右侧并赋给 `r`：await 调用 exchange_code(client, code, redirect_uri='https://evil.com/cb')；等待期间可让出事件循环，恢复后才执行下一句。\nL124 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL125 核对 `r.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 147,
           "title": "test_expired_code_rejected",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL129 await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL130 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL131 计算右侧并赋给 `user_id`：调用 (await s.execute(select(User.id).where(User.username == 'bob'))).scalar_one()。\nL132 计算右侧并赋给 `client_id`：调用 (await s.execute(select(OAuthClient.id).where(OAuthClient.client_id == 'tools'))).scalar_one()。\nL133 调用 s.add(OAuthCode(code='expired-code', user_id=user_id, client_id=client_id, redirect_uri=TOOLS_CB, expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)))。\nL140 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL142 计算右侧并赋给 `r`：await 调用 exchange_code(client, 'expired-code')；等待期间可让出事件循环，恢复后才执行下一句。\nL143 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL144 核对 `r.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\nL145 核对 `'过期' in r.json()['detail']['error_description']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL129 await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL130 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL131 计算右侧并赋给 `user_id`：调用 (await s.execute(select(User.id).where(User.username == 'bob'))).scalar_one()。\nL132 计算右侧并赋给 `client_id`：调用 (await s.execute(select(OAuthClient.id).where(OAuthClient.client_id == 'tools'))).scalar_one()。\nL133 调用 s.add(OAuthCode(code='expired-code', user_id=user_id, client_id=client_id, redirect_uri=TOOLS_CB, expires_at=datetime.now(timezone.utc) - timedelta(minutes=1)))。\nL140 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL142 计算右侧并赋给 `r`：await 调用 exchange_code(client, 'expired-code')；等待期间可让出事件循环，恢复后才执行下一句。\nL143 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL144 核对 `r.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\nL145 核对 `'expired' in r.json()['error_description']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 161,
           "title": "test_unsupported_grant_type",
-          "explanation": "本用例的准备条件：client。涉及接口：/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL149 计算右侧并赋给 `r`：await 调用 client.post('/oauth/token', data={'grant_type': 'password', 'code': 'x', 'redirect_uri': TOOLS_CB, 'client_id': 'tools', 'client_secret': 'codemax-tools-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL159 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL160 核对 `r.json()['detail']['error'] == 'unsupported_grant_type'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL149 计算右侧并赋给 `r`：await 调用 client.post('/oauth/token', data={'grant_type': 'password', 'code': 'x', 'redirect_uri': TOOLS_CB, 'client_id': 'tools', 'client_secret': 'codemax-tools-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL159 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL160 核对 `r.json()['error'] == 'unsupported_grant_type'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 183,
           "title": "test_code_consumption_is_atomic",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL168 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL169 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL171 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL172 计算右侧并赋给 `stmt`：调用 update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)。\nL173 计算右侧并赋给 `first`：await 调用 s.execute(stmt)；等待期间可让出事件循环，恢复后才执行下一句。\nL174 计算右侧并赋给 `second`：await 调用 s.execute(stmt)；等待期间可让出事件循环，恢复后才执行下一句。\nL175 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL176 核对 `(first.rowcount, second.rowcount) == (1, 0)`：此条件为假即测试失败；不是生产输入校验。\nL179 计算右侧并赋给 `r`：await 调用 exchange_code(client, code)；等待期间可让出事件循环，恢复后才执行下一句。\nL180 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL181 核对 `r.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL168 计算右侧并赋给 `headers`：await 调用 register_and_login(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL169 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL171 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL172 计算右侧并赋给 `stmt`：调用 update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)。\nL173 计算右侧并赋给 `first`：await 调用 s.execute(stmt)；等待期间可让出事件循环，恢复后才执行下一句。\nL174 计算右侧并赋给 `second`：await 调用 s.execute(stmt)；等待期间可让出事件循环，恢复后才执行下一句。\nL175 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL176 核对 `(first.rowcount, second.rowcount) == (1, 0)`：此条件为假即测试失败；不是生产输入校验。\nL179 计算右侧并赋给 `r`：await 调用 exchange_code(client, code)；等待期间可让出事件循环，恢复后才执行下一句。\nL180 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL181 核对 `r.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 206,
           "title": "test_code_single_use_under_real_concurrency",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.skipif(TEST_DATABASE_URL.startswith('sqlite'), reason='需要真数据库：SQLite 用 StaticPool 共享单连接，两个请求排不成真正的并发')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL198 计算右侧并赋给 `headers`：await 调用 register_and_login(client, username='racer')；等待期间可让出事件循环，恢复后才执行下一句。\nL199 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL201 计算右侧并赋给 `results`：await 调用 asyncio.gather(exchange_code(client, code), exchange_code(client, code))：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL202 核对 `sorted((r.status_code for r in results)) == [200, 400]`：此条件为假即测试失败；不是生产输入校验。\nL203 计算右侧并赋给 `failed`：调用 next((r for r in results if r.status_code == 400))。\nL204 核对 `failed.json()['detail']['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 本项仍指定PG执行，skip理由已改为当前隔离验收范围；SQLite fixture早已改为文件库/NullPool独立连接，源码对StaticPool的叙述仅说明历史问题，不能当作当前环境。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.skipif(TEST_DATABASE_URL.startswith('sqlite'), reason='需要真数据库：SQLite 用 StaticPool 共享单连接，两个请求排不成真正的并发')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL198 计算右侧并赋给 `headers`：await 调用 register_and_login(client, username='racer')；等待期间可让出事件循环，恢复后才执行下一句。\nL199 计算右侧并赋给 `code`：调用 sso_code(await authorize(client, headers))。\nL201 计算右侧并赋给 `results`：await 调用 asyncio.gather(exchange_code(client, code), exchange_code(client, code))：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL202 核对 `sorted((r.status_code for r in results)) == [200, 400]`：此条件为假即测试失败；不是生产输入校验。\nL203 计算右侧并赋给 `failed`：调用 next((r for r in results if r.status_code == 400))。\nL204 核对 `failed.json()['error'] == 'invalid_grant'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 本项仍指定PG执行，skip理由已改为当前隔离验收范围；SQLite fixture早已改为文件库/NullPool独立连接，源码对StaticPool的叙述仅说明历史问题，不能当作当前环境。"
         },
         {
-          "end": 248,
+          "end": 250,
           "title": "test_oauth_token_still_works_after_password_change",
           "explanation": "本用例的准备条件：client。涉及接口：/auth/password、/tools/ping。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL220 计算右侧并赋给 `headers`：await 调用 register_and_login(client, username='pwduser')；等待期间可让出事件循环，恢复后才执行下一句。\nL223 计算右侧并赋给 `r`：await 调用 client.get('/tools/ping', headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL224 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL226 计算右侧并赋给 `rp`：await 调用 client.post('/auth/password', json={'old_password': 'secret123', 'new_password': 'newsecret456'}, headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL231 核对 `rp.status_code == 200`：要求请求成功；不满足即本用例失败。\nL233 核对 `(await client.get('/tools/ping', headers=headers)).status_code == 401`：要求未通过身份验证；不满足即本用例失败。\nL237 计算右侧并赋给 `new_headers`：{'Authorization': f\"Bearer {rp.json()['access_token']}\"}。\nL238 核对 `(await client.get('/tools/ping', headers=new_headers)).status_code == 200`：要求请求成功；不满足即本用例失败。\nL243 计算右侧并赋给 `oauth_token`：(await exchange_code(client, sso_code(await authorize(client, new_headers)))).json()['access_token']。\nL245 计算右侧并赋给 `r`：await 调用 client.get('/tools/ping', headers={'Authorization': f'Bearer {oauth_token}'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL246 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 266,
+          "title": "_assert_rfc6749_error",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。它集中核对令牌端点错误的 RFC 6749 形状：400、顶层 error、无 detail、只含两个键、描述字符在 §5.2 允许集合内、两个禁止缓存头（TD-294）。\n\n输入签名：r, error: str；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL253 计算右侧并赋给 `_RFC6749_DESCRIPTION_CHARS`：{chr(c) for c in (32, 33, *range(35, 92), *range(93, 127))}。\nL254 计算右侧并赋给 `_VALID_TOKEN_FORM`：{'grant_type': 'authorization_code', 'code': 'x', 'redirect_uri': TOOLS_CB, 'client_id': 'tools', 'client_secret': 'codemax-tools-secret'}。\nL259 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL260 计算右侧并赋给 `body`：调用 r.json()。\nL261 核对 `body['error'] == error and 'detail' not in body`：此条件为假即测试失败；不是生产输入校验。\nL262 核对 `set(body) <= {'error', 'error_description'}`：此条件为假即测试失败；不是生产输入校验。\nL263 核对 `set(body.get('error_description', '')) <= _RFC6749_DESCRIPTION_CHARS`：此条件为假即测试失败；不是生产输入校验。\nL264 核对 `r.headers['cache-control'] == 'no-store' and r.headers['pragma'] == 'no-cache'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 282,
+          "title": "test_token_errors_use_the_rfc6749_top_level_shape",
+          "explanation": "本用例的准备条件：client 夹具；change/error 八组：grant_type=password→unsupported_grant_type，错密钥与未知客户端→invalid_client，无效码与含 NUL 的码→invalid_grant，缺 client_secret、空 grant_type、重复 code→invalid_request。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize(('change', 'error'), [({'grant_type': 'password'}, 'unsupported_grant_type'), ({'client_secret': 'wrong'}, 'invalid_client'), ({'client_id': 'ghost'}, 'invalid_client'), ({'code': 'not-a-real-code'}, 'invalid_grant'), ({'code': 'bad\\x00code'}, 'invalid_grant'), ({'client_secret': None}, 'invalid_request'), ({'grant_type': ''}, 'invalid_request'), ({'code': ['a', 'b']}, 'invalid_request')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, change, error；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL278 计算右侧并赋给 `data`：{**_VALID_TOKEN_FORM, **change}。\nL279 计算右侧并赋给 `data`：{k: v for k, v in data.items() if v is not None}。\nL280 调用 _assert_rfc6749_error(await client.post('/oauth/token', data=data), error)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 286,
+          "title": "test_token_json_body_is_an_invalid_request_not_a_422",
+          "explanation": "本用例的准备条件：client 夹具，用 JSON 而不是表单提交合法参数。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL284 调用 _assert_rfc6749_error(await client.post('/oauth/token', json=_VALID_TOKEN_FORM), 'invalid_request')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 294,
+          "title": "test_token_success_is_not_cacheable_and_authorize_errors_keep_their_shape",
+          "explanation": "本用例的准备条件：client 夹具，注册用户 rfc_user 走完同意流程拿到真实授权码。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL288 计算右侧并赋给 `headers`：await 调用 register_and_login(client, 'rfc_user')；等待期间可让出事件循环，恢复后才执行下一句。\nL289 计算右侧并赋给 `r`：await 调用 exchange_code(client, sso_code(await authorize(client, headers)))；等待期间可让出事件循环，恢复后才执行下一句。\nL290 核对 `r.status_code == 200 and r.json()['token_type'] == 'bearer'`：要求请求成功；不满足即本用例失败。\nL291 核对 `r.headers['cache-control'] == 'no-store' and r.headers['pragma'] == 'no-cache'`：此条件为假即测试失败；不是生产输入校验。\nL293 计算右侧并赋给 `bad`：await 调用 consent_page(client, headers, client_id='ghost')；等待期间可让出事件循环，恢复后才执行下一句。\nL294 核对 `bad.status_code == 400 and bad.json()['detail']['error'] == 'invalid_client'`：要求业务/协议拒绝；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -8122,7 +8157,7 @@
     },
     {
       "path": "tests/test_second_review_regressions.py",
-      "sha256": "956df70a0124987a23cd2a0e7f257e1b06464b1f18ac80b799e9475732440da6",
+      "sha256": "8e3792de046512a94d5a20c486b280f371ae3ba3f5d00371917e57afad3399da",
       "method": "guided",
       "blocks": [
         {
@@ -8153,7 +8188,7 @@
         {
           "end": 66,
           "title": "test_old_oauth_code_cannot_refresh_new_credential_revision",
-          "explanation": "本用例的准备条件：client。涉及接口：/auth/password、/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `(_, headers)`：await 调用 identity(client, 'oauth_revision')；等待期间可让出事件循环，恢复后才执行下一句。\nL57 计算右侧并赋给 `response`：await 调用 sso_authorize(client, headers, client_id='tools', redirect_uri='https://tools.codemax.top/callback')；等待期间可让出事件循环，恢复后才执行下一句。\nL58 导入 from urllib.parse import parse_qs, urlsplit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL59 计算右侧并赋给 `code`：parse_qs(urlsplit(response.headers['location']).query)['code'][0]。\nL60 核对 `(await client.post('/auth/password', headers=headers, json={'old_password': 'secret123', 'new_password': 'newsecret123'})).status_code == 200`：要求请求成功；不满足即本用例失败。\nL61 计算右侧并赋给 `result`：await 调用 client.post('/oauth/token', data={'grant_type': 'authorization_code', 'code': code, 'redirect_uri': 'https://tools.codemax.top/callback', 'client_id': 'tools', 'client_secret': 'codemax-tools-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL64 核对 `result.status_code == 400 and result.json()['detail']['error'] == 'invalid_grant'`：要求业务/协议拒绝；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/auth/password、/oauth/token。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `(_, headers)`：await 调用 identity(client, 'oauth_revision')；等待期间可让出事件循环，恢复后才执行下一句。\nL57 计算右侧并赋给 `response`：await 调用 sso_authorize(client, headers, client_id='tools', redirect_uri='https://tools.codemax.top/callback')；等待期间可让出事件循环，恢复后才执行下一句。\nL58 导入 from urllib.parse import parse_qs, urlsplit；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL59 计算右侧并赋给 `code`：parse_qs(urlsplit(response.headers['location']).query)['code'][0]。\nL60 核对 `(await client.post('/auth/password', headers=headers, json={'old_password': 'secret123', 'new_password': 'newsecret123'})).status_code == 200`：要求请求成功；不满足即本用例失败。\nL61 计算右侧并赋给 `result`：await 调用 client.post('/oauth/token', data={'grant_type': 'authorization_code', 'code': code, 'redirect_uri': 'https://tools.codemax.top/callback', 'client_id': 'tools', 'client_secret': 'codemax-tools-secret'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL64 核对 `result.status_code == 400 and result.json()['error'] == 'invalid_grant'`：要求业务/协议拒绝；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 86,
@@ -10069,7 +10104,7 @@
     },
     {
       "path": "tests/test_release_boundaries.py",
-      "sha256": "b30c4f5dd7aeb496337fbf37c49bccb4153e316f5848f353bae548e2128c9164",
+      "sha256": "821622ea365b1520f3f4fa77c7d6e6e6ed0c80ff983f33a5c8aecc72b629e9cd",
       "method": "manual",
       "blocks": [
         {

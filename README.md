@@ -76,7 +76,7 @@ python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000 --no-proxy-head
 | POST | `/auth/logout` | 退出登录：清掉登录 cookie（204） |
 | GET | `/oauth/authorize` | **授权同意页**：显示申请方与当前账号，由用户点「同意/拒绝」（不再直接签发 code） |
 | POST | `/oauth/authorize` | 用户点同意后签发一次性 code 并 302 跳回调；表单需带同意页给出的签名 |
-| POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token |
+| POST | `/oauth/token` | **令牌端点**：客户端用 code + client_secret 换取 access_token；错误按 RFC 6749 返回顶层 `{"error", "error_description"}` |
 | GET | `/tools/ping` | 工具平台受保护端点（SSO 验证） |
 | GET | `/shop/ping` | 商业平台受保护端点（SSO 验证） |
 | POST | `/admin/articles/ingest` | **仅管理员**（`role=1`）：抓取一个 URL → LLM 指认选择器 → 提取入库。同一 URL 重复抓是更新。`dynamic=true` 当前安全停用并返回 503，安装浏览器不能解除限制。失败分 400（抓不了/robots 不允许/目标站不可达）、422（提不出正文）、502（大模型不可用）、503（服务端浏览器不可用） |
@@ -222,7 +222,7 @@ start docs\site\index.html
 | [`.gitignore`](.gitignore) | `84527fb19303` | L1–L51 |
 | [`Dockerfile`](Dockerfile) | `ee888a210f39` | L1–L42 |
 | [`docker-compose.yml`](docker-compose.yml) | `4198d2b2db19` | L1–L71 |
-| [`main.py`](main.py) | `bd5f1fca3990` | L1–L120 |
+| [`main.py`](main.py) | `d36d68948827` | L1–L121 |
 | [`package-lock.json`](package-lock.json) | `1d584c7adee4` | 生成物，见模块构建说明 |
 | [`package.json`](package.json) | `cd1b05811e56` | L1–L16 |
 | [`pytest.ini`](pytest.ini) | `4950b359cb81` | L1–L4 |

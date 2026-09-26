@@ -107,7 +107,7 @@ async def test_code_is_one_time_use(client):
     assert (await exchange_code(client, code)).status_code == 200
     r = await exchange_code(client, code)  # 复用同一授权码
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_grant"
+    assert r.json()["error"] == "invalid_grant"
 
 
 async def test_token_rejects_wrong_secret_and_uri(client):
@@ -116,13 +116,13 @@ async def test_token_rejects_wrong_secret_and_uri(client):
 
     r = await exchange_code(client, code, secret="wrong-secret")
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_client"
+    assert r.json()["error"] == "invalid_client"
 
     # 重新授权拿新 code（上一个已被错误请求消费失败不影响，但换 URI 校验）
     code = sso_code(await authorize(client, headers))
     r = await exchange_code(client, code, redirect_uri="https://evil.com/cb")
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_grant"
+    assert r.json()["error"] == "invalid_grant"
 
 
 async def test_expired_code_rejected(client):
@@ -141,8 +141,8 @@ async def test_expired_code_rejected(client):
 
     r = await exchange_code(client, "expired-code")
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_grant"
-    assert "过期" in r.json()["detail"]["error_description"]
+    assert r.json()["error"] == "invalid_grant"
+    assert "expired" in r.json()["error_description"]
 
 
 async def test_unsupported_grant_type(client):
@@ -157,7 +157,7 @@ async def test_unsupported_grant_type(client):
         },
     )
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "unsupported_grant_type"
+    assert r.json()["error"] == "unsupported_grant_type"
 
 async def test_code_consumption_is_atomic(client):
     """授权码消费必须是原子的 compare-and-set，不能"先查后改"（否则并发重放能换出两个 token）。
@@ -178,7 +178,7 @@ async def test_code_consumption_is_atomic(client):
     # 接口层面：该 code 已被消费，再用必须是 invalid_grant
     r = await exchange_code(client, code)
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_grant"
+    assert r.json()["error"] == "invalid_grant"
 
 
 @pytest.mark.skipif(
@@ -201,7 +201,7 @@ async def test_code_single_use_under_real_concurrency(client):
     results = await asyncio.gather(exchange_code(client, code), exchange_code(client, code))
     assert sorted(r.status_code for r in results) == [200, 400], "必须恰好一个成功、一个失败"
     failed = next(r for r in results if r.status_code == 400)
-    assert failed.json()["detail"]["error"] == "invalid_grant"
+    assert failed.json()["error"] == "invalid_grant"
 
 
 async def test_oauth_token_still_works_after_password_change(client):
@@ -246,3 +246,49 @@ async def test_oauth_token_still_works_after_password_change(client):
     assert r.status_code == 200, (
         f"❌ 改过密码后新换出的 OAuth token 被判失效：{r.status_code} {r.text[:200]}"
     )
+
+
+# ---------------------------------------------------------------- TD-294：令牌端点错误格式（RFC 6749 §5.2）
+
+_RFC6749_DESCRIPTION_CHARS = {chr(c) for c in (0x20, 0x21, *range(0x23, 0x5C), *range(0x5D, 0x7F))}
+_VALID_TOKEN_FORM = {"grant_type": "authorization_code", "code": "x", "redirect_uri": TOOLS_CB,
+                     "client_id": "tools", "client_secret": "codemax-tools-secret"}
+
+
+def _assert_rfc6749_error(r, error: str) -> None:
+    assert r.status_code == 400
+    body = r.json()
+    assert body["error"] == error and "detail" not in body
+    assert set(body) <= {"error", "error_description"}
+    assert set(body.get("error_description", "")) <= _RFC6749_DESCRIPTION_CHARS, body
+    assert r.headers["cache-control"] == "no-store" and r.headers["pragma"] == "no-cache"
+
+
+@pytest.mark.parametrize(("change", "error"), [
+    ({"grant_type": "password"}, "unsupported_grant_type"),
+    ({"client_secret": "wrong"}, "invalid_client"),
+    ({"client_id": "ghost"}, "invalid_client"),
+    ({"code": "not-a-real-code"}, "invalid_grant"),
+    ({"code": "bad\x00code"}, "invalid_grant"),
+    ({"client_secret": None}, "invalid_request"),     # 缺参数：400 invalid_request，不是 FastAPI 的 422
+    ({"grant_type": ""}, "invalid_request"),
+    ({"code": ["a", "b"]}, "invalid_request"),        # §3.2：参数不得重复
+])
+async def test_token_errors_use_the_rfc6749_top_level_shape(client, change, error):
+    data = {**_VALID_TOKEN_FORM, **change}
+    data = {k: v for k, v in data.items() if v is not None}
+    _assert_rfc6749_error(await client.post("/oauth/token", data=data), error)
+
+
+async def test_token_json_body_is_an_invalid_request_not_a_422(client):
+    _assert_rfc6749_error(await client.post("/oauth/token", json=_VALID_TOKEN_FORM), "invalid_request")
+
+
+async def test_token_success_is_not_cacheable_and_authorize_errors_keep_their_shape(client):
+    headers = await register_and_login(client, "rfc_user")
+    r = await exchange_code(client, sso_code(await authorize(client, headers)))
+    assert r.status_code == 200 and r.json()["token_type"] == "bearer"
+    assert r.headers["cache-control"] == "no-store" and r.headers["pragma"] == "no-cache"
+    # 授权页错误按用户决定保持原样（{"detail": {...}}），只有令牌端点换格式
+    bad = await consent_page(client, headers, client_id="ghost")
+    assert bad.status_code == 400 and bad.json()["detail"]["error"] == "invalid_client"

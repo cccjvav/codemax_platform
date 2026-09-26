@@ -20,13 +20,13 @@
 
 ### oauth.py：受信自有站点授权码流程
 
-production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默认拒绝所有客户端；回跳必须HTTPS。当前JWT是完整站点凭据，不能交给不可信第三方冒充scope授权。_check_client_policy同时拒绝无效客户端标识，兑换前授权码NUL/超长受控失败。
+production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默认拒绝所有客户端；回跳必须HTTPS。当前JWT是完整站点凭据，不能交给不可信第三方冒充scope授权。_client_policy_violation同时拒绝无效客户端标识（授权页与令牌端点各自决定错误格式），兑换前授权码NUL/超长受控失败。
 
 | 入口 | 契约与边界 |
 | --- | --- |
 | `authorize` GET `/oauth/authorize` | 已登录用户查看同意表单；不签发授权码。校验 response_type、启用客户端、精确注册回调 |
 | `authorize_submit` POST 同路径 | 表单 sig 绑定 client/redirect/state/当前用户/凭据版本；拒绝同意回错误参数，批准后写一次性短时 code 再重定向 |
-| `token` POST `/oauth/token` | 客户端凭据与 code 换 JWT；检查过期、已用、回调、用户状态/版本，原子消费，不能重复兑换 |
+| `token` POST `/oauth/token` | 客户端凭据与 code 换 JWT；检查过期、已用、回调、用户状态/版本，原子消费，不能重复兑换。错误是 RFC 6749 §5.2 顶层 `{"error","error_description"}`（`TokenError` + main.py 注册的 `token_error_handler`，TD-294），描述为 ASCII 英文；缺参数/参数重复是 400 `invalid_request` 而不是 422；成功与错误都带 `Cache-Control: no-store` 与 `Pragma: no-cache`。授权页错误仍是 `{"detail": {...}}` |
 | `_active_client` / `_sign` | 客户端与回调检查／同意表单 HMAC；不能只依赖 Referer 或一个未绑定用户的签名 |
 | `_callback` / `_redirect_callback` / `_consent_headers` | 保留已有回调 query、更新本次返回参数；同意页 form-action 仅允许该回调 origin，不放宽全站 CSP |
 | `_oauth_error` / `_utcnow` | 统一 OAuth 错误 detail／UTC 时钟；不等同于已实现完整 OAuth/OIDC、PKCE、刷新令牌或统一单点退出 |
@@ -100,7 +100,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/diagrams.py`](diagrams.py) | `225cdf41a311` | L1–L240 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
-| [`app/routers/oauth.py`](oauth.py) | `1f749cf1956d` | L1–L268 |
+| [`app/routers/oauth.py`](oauth.py) | `937bc98baa3b` | L1–L309 |
 | [`app/routers/payments_admin.py`](payments_admin.py) | `ef2ffeccda89` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `370d862a6138` | L1–L309 |

@@ -84,6 +84,7 @@ app.add_middleware(SecurityHeadersMiddleware, hsts_max_age=settings.HSTS_MAX_AGE
 app.add_middleware(RequestLoggingMiddleware)
 # 422 只回 type/loc/msg/ctx，不把出错字段的原值（可能几十万字符）整个回显（TD-260）。
 app.add_exception_handler(RequestValidationError, validation_error_without_input)
+app.add_exception_handler(oauth.TokenError, oauth.token_error_handler)  # TD-294：/oauth/token 用 RFC 6749 顶层错误格式
 
 app.include_router(health.router)  # S5-03-3：存活/就绪探针
 app.include_router(auth.router)

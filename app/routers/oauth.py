@@ -6,7 +6,7 @@ from datetime import datetime, timedelta, timezone
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -33,21 +33,50 @@ def _utcnow() -> datetime:
 
 
 def _oauth_error(error: str, description: str = "") -> HTTPException:
+    """授权页（GET/POST /authorize）的错误：FastAPI 默认包成 {"detail": {...}}，保持原样。"""
     return HTTPException(400, {"error": error, "error_description": description})
 
 
-def _check_client_policy(client_id: str) -> None:
-    """Production shared-login tokens are full account credentials, only explicit first-party clients."""
+# RFC 6749 §5.1：令牌端点的成功与错误响应都必须禁止缓存。
+_TOKEN_NO_CACHE = {"Cache-Control": "no-store", "Pragma": "no-cache"}
+
+
+class TokenError(HTTPException):
+    """`/oauth/token` 专用错误（TD-294）：由 main.py 注册的 token_error_handler 输出 RFC 6749 §5.2
+    顶层 {"error", "error_description"}，不再套 "detail"。
+
+    描述只用 ASCII 可打印字符：§5.2 规定 error_description 不得含 %x20-21 / %x23-5B / %x5D-7E
+    以外的字符；它是给客户端开发者看的，不直接展示给最终用户。仍是 HTTPException 子类，所以异常照常
+    穿过 get_db 依赖，会话清理路径不变。
+    """
+
+    def __init__(self, error: str, description: str = ""):
+        super().__init__(400, {"error": error, "error_description": description}, headers=dict(_TOKEN_NO_CACHE))
+
+
+async def token_error_handler(_request: Request, exc: TokenError) -> JSONResponse:
+    body = {"error": exc.detail["error"]}
+    if exc.detail["error_description"]:
+        body["error_description"] = exc.detail["error_description"]
+    return JSONResponse(body, status_code=exc.status_code, headers=exc.headers)
+
+
+def _client_policy_violation(client_id: str) -> str | None:
+    """Production shared-login tokens are full account credentials, only explicit first-party clients.
+    返回 None 表示通过；否则返回授权页用的中文说明（令牌端点统一换成自己的 ASCII 描述）。"""
     if not client_id or len(client_id) > 64 or "\x00" in client_id:
-        raise _oauth_error("invalid_client")
+        return ""
     if settings.ENV == "production" and client_id not in settings.OAUTH_TRUSTED_CLIENT_IDS:
-        raise _oauth_error("invalid_client", "未配置为受信自有站点客户端")
+        return "未配置为受信自有站点客户端"
+    return None
 
 
 async def _active_client(db: AsyncSession, client_id: str, redirect_uri: str) -> OAuthClient:
     """取一个启用中、且回调地址与登记值完全一致的客户端。同意页与签发码共用这套校验，
     免得两边校验强度不一致 —— 校验弱的那一边就是漏洞。"""
-    _check_client_policy(client_id)
+    violation = _client_policy_violation(client_id)
+    if violation is not None:
+        raise _oauth_error("invalid_client", violation)
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if not client or client.status != 1:
         raise _oauth_error("invalid_client")
@@ -207,28 +236,40 @@ async def authorize_submit(
 @router.post("/token",
              dependencies=[Depends(rate_limit("token", "RATE_LIMIT_AUTH"))])
 async def token(
-    grant_type: str = Form(...),
-    code: str = Form(...),
-    redirect_uri: str = Form(...),
-    client_id: str = Form(...),
-    client_secret: str = Form(...),
+    request: Request,
+    grant_type: str = Form(""),
+    code: str = Form(""),
+    redirect_uri: str = Form(""),
+    client_id: str = Form(""),
+    client_secret: str = Form(""),
     db: AsyncSession = Depends(get_db),
 ):
-    """令牌端点：客户端用授权码 + 客户端凭证换取 access_token（授权码一次性、短时有效）。"""
+    """令牌端点：客户端用授权码 + 客户端凭证换取 access_token（授权码一次性、短时有效）。
+
+    所有错误都是 TokenError（RFC 6749 §5.2 顶层格式，TD-294）。参数用空串默认值而不是 Form(...)：
+    缺参数时要回 400 invalid_request，而不是 FastAPI 的 422 {"detail": [...]}。
+    """
+    form = await request.form()
+    for name in ("grant_type", "code", "redirect_uri", "client_id", "client_secret"):
+        if len(form.getlist(name)) > 1:
+            raise TokenError("invalid_request", f"parameter repeated: {name}")
+        if not form.get(name):
+            raise TokenError("invalid_request", f"missing parameter: {name}")
     if grant_type != "authorization_code":
-        raise _oauth_error("unsupported_grant_type")
-    _check_client_policy(client_id)
+        raise TokenError("unsupported_grant_type", "grant_type must be authorization_code")
+    if _client_policy_violation(client_id) is not None:
+        raise TokenError("invalid_client", "client authentication failed")
     client = await db.scalar(select(OAuthClient).where(OAuthClient.client_id == client_id))
     if client is None or client.status != 1:
         # 与登录端点同理：不跑 bcrypt 就返回，「未知 client_id」会比「密钥错」快几十倍，
         # 响应时间直接变成 client_id 枚举侧信道。跑一次假哈希把耗时拉平。
         await adummy_verify(client_secret)
-        raise _oauth_error("invalid_client", "客户端凭证无效")
+        raise TokenError("invalid_client", "client authentication failed")
     if not await averify_password(client_secret, client.client_secret_hash):
-        raise _oauth_error("invalid_client", "客户端凭证无效")
+        raise TokenError("invalid_client", "client authentication failed")
 
     if not code or len(code) > 64 or "\x00" in code:
-        raise _oauth_error("invalid_grant")
+        raise TokenError("invalid_grant", "authorization code is invalid")
     oauth_code = await db.scalar(select(OAuthCode).where(OAuthCode.code == code))
     if (
         not oauth_code
@@ -236,13 +277,13 @@ async def token(
         or oauth_code.redirect_uri != redirect_uri
         or oauth_code.used
     ):
-        raise _oauth_error("invalid_grant", "授权码无效或已使用")
+        raise TokenError("invalid_grant", "authorization code is invalid or already used")
     if as_utc(oauth_code.expires_at) < _utcnow():
-        raise _oauth_error("invalid_grant", "授权码已过期")
+        raise TokenError("invalid_grant", "authorization code has expired")
 
     user = await lock_user(db, oauth_code.user_id)
     if user is None or user.status != 1 or oauth_code.credential_version != user.credential_version:
-        raise _oauth_error("invalid_grant", "授权状态已失效，请重新授权")
+        raise TokenError("invalid_grant", "authorization is no longer valid; start a new authorization")
 
     # 原子消费授权码：把"检查未使用 + 标记已使用"合成一条 UPDATE，
     # 并发重放同一个 code 时只有一个请求能拿到 rowcount=1（原先先查后改存在重放窗口）
@@ -250,19 +291,19 @@ async def token(
         update(OAuthCode).where(OAuthCode.code == code, OAuthCode.used.is_(False)).values(used=True)
     )
     if consumed.rowcount != 1:
-        raise _oauth_error("invalid_grant", "授权码无效或已使用")
+        raise TokenError("invalid_grant", "authorization code is invalid or already used")
 
     user = await db.get(User, oauth_code.user_id)
     if user is None:  # 授权码签发后用户被删：不能让它变成 500
-        raise _oauth_error("invalid_grant", "用户不存在")
+        raise TokenError("invalid_grant", "authorization is no longer valid; start a new authorization")
     # 必须在 commit 前取值：`password_changed_at` 要原样进 token，
     # 漏传的话 `get_current_user` 会把这枚**刚签发的** token 判成「密码已修改」（TD-197）。
     subject, pwd_changed_at = user.username, user.password_changed_at
     revision = user.credential_version
     await db.commit()
 
-    return {
+    return JSONResponse({
         "access_token": create_access_token(subject, pwd_changed_at, revision),
         "token_type": "bearer",
         "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
-    }
+    }, headers=dict(_TOKEN_NO_CACHE))

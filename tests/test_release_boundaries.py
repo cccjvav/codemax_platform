@@ -76,7 +76,7 @@ async def test_production_oauth_requires_explicit_first_party_allowlist(client, 
     assert (await client.get('/oauth/authorize', params=params, headers=headers)).status_code == 400
     data = {'grant_type': 'authorization_code', 'client_id': 'tools', 'client_secret': 'codemax-tools-secret',
             'code': 'absent', 'redirect_uri': params['redirect_uri']}
-    assert (await client.post('/oauth/token', data=data)).json()['detail']['error'] == 'invalid_client'
+    assert (await client.post('/oauth/token', data=data)).json()['error'] == 'invalid_client'
     monkeypatch.setattr(settings, 'OAUTH_TRUSTED_CLIENT_IDS', ('tools',))
     assert (await client.get('/oauth/authorize', params=params, headers=headers)).status_code == 200
 
@@ -161,7 +161,7 @@ async def test_oauth_nul_code_is_not_a_database_error(client):
         'grant_type': 'authorization_code', 'client_id': 'tools', 'client_secret': 'codemax-tools-secret',
         'code': 'bad\x00code', 'redirect_uri': 'https://tools.codemax.top/callback',
     })
-    assert response.status_code == 400 and response.json()['detail']['error'] == 'invalid_grant'
+    assert response.status_code == 400 and response.json()['error'] == 'invalid_grant'
 
 
 def test_container_context_and_compose_keep_explicit_initialization():

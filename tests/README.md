@@ -85,7 +85,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_download.py`](test_download.py) | `a5c1ccc3b304` | L1–L374 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
-| [`tests/test_e2e.py`](test_e2e.py) | `3bd79049adf0` | L1–L532 |
+| [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `f9f85feeeb34` | L1–L310 |
 | [`tests/test_extract.py`](test_extract.py) | `acb3766b2ecf` | L1–L294 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
@@ -98,7 +98,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `876fff3193d5` | L1–L176 |
-| [`tests/test_oauth.py`](test_oauth.py) | `7100b76e2ec8` | L1–L248 |
+| [`tests/test_oauth.py`](test_oauth.py) | `8679abf1b095` | L1–L294 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `8176210c71dd` | L1–L646 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `7832a0b2f1c3` | L1–L249 |
@@ -121,13 +121,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `aae264f41e80` | L1–L407 |
 | [`tests/test_refund_verification.py`](test_refund_verification.py) | `ed4ad7569a51` | L1–L306 |
 | [`tests/test_refunds.py`](test_refunds.py) | `8c0b61cd7acd` | L1–L446 |
-| [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `b30c4f5dd7ae` | L1–L194 |
+| [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `821622ea365b` | L1–L194 |
 | [`tests/test_request_body_budget.py`](test_request_body_budget.py) | `077979ed448c` | L1–L210 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_equivalence.py`](test_schema_equivalence.py) | `763478f8979b` | L1–L219 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `800cc9a7fe0d` | L1–L104 |
-| [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `956df70a0124` | L1–L341 |
+| [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `8e3792de0465` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `7989136535c4` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |

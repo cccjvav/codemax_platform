@@ -390,7 +390,7 @@ async def test_code_from_one_client_cannot_be_used_by_another(client):
         },
     )
     assert r.status_code == 400
-    assert r.json()["detail"]["error"] == "invalid_grant"
+    assert r.json()["error"] == "invalid_grant"
 
 
 @pytest.mark.asyncio

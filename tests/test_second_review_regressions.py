@@ -61,7 +61,7 @@ async def test_old_oauth_code_cannot_refresh_new_credential_revision(client):
     result = await client.post('/oauth/token', data={'grant_type': 'authorization_code', 'code': code,
                               'redirect_uri': 'https://tools.codemax.top/callback', 'client_id': 'tools',
                               'client_secret': 'codemax-tools-secret'})
-    assert result.status_code == 400 and result.json()['detail']['error'] == 'invalid_grant'
+    assert result.status_code == 400 and result.json()['error'] == 'invalid_grant'
 
 
 @pytest.mark.asyncio
