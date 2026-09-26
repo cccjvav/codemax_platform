@@ -1,6 +1,6 @@
 # 静态资源与前端产物
 
-`support.css` 是站内客服布局样式：两栏由 `support-page.js` 按管理员角色切 `.with-inbox` class，不再依赖 `:has()`（旧内核不支持，TD-263）；支付码图片是公开素材，不是到账凭证。人工支付必须由管理员实际核验到账。
+`support.css` 是站内客服布局样式：两栏由 `support-page.js` 按管理员角色切 `.with-inbox` class，不再依赖 `:has()`（旧内核不支持，TD-263）；支付码图片是公开素材，不是到账凭证。`.support-assistant` 是「先问智能助手」浅底卡片（TD-295），辅助文字用 #475569 保证浅底对比度。人工支付必须由管理员实际核验到账。
 
 `js/` 全部由 Vite 生成，包括页面入口和 Mermaid/D3 共用分块。不得只提交入口文件而遗漏其相对导入的分块；CI 用干净构建核对漂移。
 修改 `app/frontend/` 后运行 `npm run build`，再检查源码及相关产物。生产后端不需要 Node。
@@ -113,7 +113,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `a53c367355a3` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `4708cfc724cc` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `6839670f0e72` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `24b062312da4` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `99cd3de777d0` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `6f2a01973e9c` | 生成物，见模块构建说明 |
@@ -124,7 +124,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `cba4035cb673` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `6faab4aa11db` | 生成物，见模块构建说明 |
 | [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
-| [`app/static/support.css`](support.css) | `b9404b1b372d` | L1–L15 |
+| [`app/static/support.css`](support.css) | `c609f490af91` | L1–L23 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

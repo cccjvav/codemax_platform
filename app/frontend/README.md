@@ -10,7 +10,7 @@
 | `mermaid-page.js` | 自然语言表单到 Mermaid 展示；Mermaid 点「生成类图」才按需 import（与模型请求并行，失败不缓存）；strict 模式，不允许模型放宽为 loose；503（模型并发闸门满）按 `Retry-After`（1–30 秒，默认 5）自动重试一次，再次繁忙原样显示服务端文案，502 等上游错误不重试 |
 | `drawio-page.js` | 检查消息 origin/source，以关联的 export 请求读取实时 XML；文档或账号切换替换 iframe 上下文、拒绝旧响应；串行保存并保留 ETag 冲突 |
 | `shop-page.js` | 主动下单、无重叠状态轮询、历史订单、短时链接重领；取消/账号切换清理状态，不自动再次下单 |
-| `support-page.js` | 客户自己的消息或管理员选中的会话；分页、轮询、UUID 重试去重、账号/会话 epoch、纯文本渲染；按角色切 `.with-inbox` 两栏 class 替代 CSS `:has()` |
+| `support-page.js` | 客户自己的消息或管理员选中的会话；分页、轮询、UUID 重试去重、账号/会话 epoch、纯文本渲染；按角色切 `.with-inbox` 两栏 class 替代 CSS `:has()`；顶部「先问智能助手」调用公开 `/support/ask`（TD-295），不走会话 epoch，登录变化不清回答；需要人工时把问题填进留言框，未登录先弹登录、登录后再填 |
 | `mock-pay-page.js` | 开发模拟支付按钮，不代表真实商户联调 |
 
 公开 HTML 外壳不代表私人 API 公开。权限判断始终在服务端；用户 role 只决定显示管理控件，不能授权请求。
@@ -55,7 +55,7 @@
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `8299e4b12efc` | L1–L370 |
-| [`app/frontend/support-page.js`](support-page.js) | `ffb34cd74bbd` | L1–L146 |
+| [`app/frontend/support-page.js`](support-page.js) | `0a193d5f2e78` | L1–L197 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

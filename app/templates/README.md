@@ -7,7 +7,7 @@ Jinja 只负责 HTML 外壳、表单、语义结构与站点上下文；真实�
 - `drawio.html`：第三方编辑器、云端文件与回收站管理、本地导入/下载。保存前通过 export 协议请求新 XML。
 - `shop.html`：固定数字商品、支付状态、历史订单和链接重领。定制需求引导至站内客服，不混作数字商品下单。
 - `payments-admin.html`：管理员订单登录壳、筛选、合同/凭证/事件、人工确认/主动查单/历史绑定表单；hidden强制隐藏避免grid样式覆盖，所有数据另经鉴权API。
-- `support-center.html`：公开的登录提示外壳；私人消息、会话列表及管理员操作都由鉴权 API 提供。
+- `support-center.html`：公开的登录提示外壳；私人消息、会话列表及管理员操作都由鉴权 API 提供。登录提示之前是对访客开放的「先问智能助手」表单（TD-295，调用 `/support/ask`，最多 2000 字，与 `SupportIn` 一致）。
 - `oauth_consent.html`：无脚本同意表单；签名绑定用户与凭证版本，回调 query 保留。
 - `mock_pay.html`：开发用模拟支付，生产启动检查禁止启用。
 
@@ -34,7 +34,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `820d64cf6c89` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `6348afa5d6fc` | L1–L169 |
 | [`app/templates/shop.html`](shop.html) | `b8177065729d` | L1–L115 |
-| [`app/templates/support-center.html`](support-center.html) | `1902007bb885` | L1–L30 |
+| [`app/templates/support-center.html`](support-center.html) | `6bc150af595a` | L1–L53 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

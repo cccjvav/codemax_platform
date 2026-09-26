@@ -694,7 +694,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "ffb34cd74bbdd739a586341d59fa7bb1af152887392f51fea4f773a61a5bb1d3",
+      "sha256": "0a193d5f2e78c6f6ca8a734f42967e3b05d3fee54af2d6eb8405ad4601fc4736",
       "blocks": [
         {
           "end": 19,
@@ -732,9 +732,14 @@
           "explanation": "未登录唤起登录；sending阻止重叠，管理员target为空时明确拒绝并提示。正文非空后在try内创建/复用pending.body与client_nonce，网络不确认时保留同nonce重试，防重复写入。成功不跳读游标到POST id，避免漏管理员回复；epoch变更丢弃旧回包，finally只恢复本上下文按钮。"
         },
         {
-          "end": 146,
+          "end": 178,
+          "title": "先问智能助手：公开 /support/ask，独立于会话代次",
+          "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 且当前不是管理员时显示转人工按钮。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
+        },
+        {
+          "end": 197,
           "title": "onUser 与离开页面",
-          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。"
+          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。"
         }
       ]
     },
@@ -1829,7 +1834,7 @@
     },
     {
       "path": "app/static/support.css",
-      "sha256": "b9404b1b372d52a7d32826c1cb7e49af406fd3537ee84dc4c711ad0756dc5e36",
+      "sha256": "c609f490af917d7ebaf8c1b9bc1e78766d7b9c343e2d4312a356f674dbccd685",
       "blocks": [
         {
           "end": 5,
@@ -1840,6 +1845,11 @@
           "end": 15,
           "title": "列表可读性",
           "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。 TD-272：消息时间色 #64748b → #475569：11.7px 小字落在 #f1f5f9 气泡上只有 4.34:1（axe-core 实测），#475569 为 6.92/6.96:1。 TD-278：#support-body 改用正文字体族（base 给 textarea 的等宽字体是为 DDL 准备的）；只改 font-family，不改字号，手机 16px 规则照常生效。"
+        },
+        {
+          "end": 23,
+          "title": "助手卡片",
+          "explanation": "TD-295：.support-assistant 浅底 #f8fafc、细边框、圆角卡片，与下方私人留言区分开；辅助文字 .support-assistant-note 用 #475569 与 var(--fs-small)（#64748b 在浅底上只有约 4.5:1）。问题框用正文字体族；答案 pre-wrap 保留换行并允许长词折行；参考列表只调缩进。"
         }
       ]
     },
@@ -2053,25 +2063,35 @@
     },
     {
       "path": "app/templates/support-center.html",
-      "sha256": "1902007bb885c62e3c4466b961f012efacfab6fc39932cd493d9e2260969a375",
+      "sha256": "6bc150af595ad5d87da0feccceefa78f2be5ce15cb835b9cb5542ebe691ab1d3",
       "blocks": [
         {
-          "end": 8,
+          "end": 6,
           "title": "模板继承与公开文案",
-          "explanation": "extends 复用 base.html；content 块填入主区域；link 引入客服 CSS。文案声明需要本人管理员回复、非实时在线，并提醒不发送密钥。support-error 的 role=alert 用于辅助技术获知错误，不是服务器错误处理逻辑。 TD-287：「站内客服」h2 加 page-heading class，与其他页标题同级同字号。"
+          "explanation": "extends 复用 base.html；content 块填入主区域；link 引入客服 CSS。文案声明需要本人管理员回复、非实时在线，并提醒不发送密钥。 TD-287：「站内客服」h2 加 page-heading class，与其他页标题同级同字号。"
         },
         {
-          "end": 15,
+          "end": 29,
+          "title": "先问智能助手卡片",
+          "explanation": "TD-295（N-08）：对访客开放的助手区块，位于登录提示之前。说明文字写明无需登录、答案仅供参考、订单/付款/退款找管理员；问题框 maxlength=2000 与 SupportIn.text 一致；support-ask-error 是 role=alert；结果区 aria-live=polite，默认 hidden，内含来源、答案、繁忙提示、参考内容列表和「把这个问题留言给管理员」按钮，显隐都由 support-page.js 控制。模板只提供结构，回答内容全部由脚本以文本写入。"
+        },
+        {
+          "end": 31,
+          "title": "登录提示与错误行",
+          "explanation": "support-login 是未登录时的私人留言提示，登录后由脚本隐藏；support-error 的 role=alert 用于辅助技术获知错误，不是服务器错误处理逻辑。"
+        },
+        {
+          "end": 38,
           "title": "管理员会话区先隐藏",
           "explanation": "workspace 和 inbox-panel 默认 hidden，JS 得知登录/角色后再显示。各个 support-* ID 是 support-page.js 的定位契约，改名要同步脚本；隐藏本身不能保护 API 数据。"
         },
         {
-          "end": 28,
+          "end": 51,
           "title": "消息列表与表单",
           "explanation": "ol 的 aria-live=polite 用于适度提示新增内容；textarea 的 required/maxlength 是浏览器校验，后端 MessageIn 仍要再验。form submit 由 JS 拦截为 fetch；页面里没有把客户历史直接渲染成公开 HTML。"
         },
         {
-          "end": 30,
+          "end": 53,
           "title": "加载的是构建产物",
           "explanation": "script 请求 /static/js/support-page.js，不直接访问 app/frontend 源码。它依赖 base.html 先提供的 window.CodeMaxAuth；修改源文件后需 npm run build，否则浏览器仍可能拿旧产物。"
         }
@@ -8140,18 +8160,18 @@
     },
     {
       "path": "tests/test_second_frontend_regressions.py",
-      "sha256": "800cc9a7fe0dfa49499ab1ccc5d6089812f18ec6f6dbfa90fbc0abd935354cee",
+      "sha256": "e064971840ab398c84782356cfcbdd8085c302e23c71a05ab4119be7d0bd600e",
       "method": "guided",
       "blocks": [
         {
-          "end": 83,
+          "end": 102,
           "title": "模块装配",
-          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（5333字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（6693字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 104,
+          "end": 130,
           "title": "test_browser_lifecycle",
-          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL88 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL89 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL91 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL92 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL93 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL94 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL95 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL96 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL97 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL99 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL101 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL102 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL103 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL104 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL107 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL108 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL110 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL111 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL112 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL113 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL114 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL115 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL116 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL118 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL119 判断 `scenario == 'support-ask'`，为真进入当前缩进分支，为假进入else/elif。\nL120 核对 `output == {'payload': {'text': '退款多久到账？'}, 'method': 'POST', 'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'], 'result': True, 'busy': True, 'handoff': True, 'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员', 'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？'}`：此条件为假即测试失败；不是生产输入校验。\nL127 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL128 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL129 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL130 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -8969,7 +8989,7 @@
     },
     {
       "path": "tests/test_support_messages.py",
-      "sha256": "de7599c20fee7528ef3cc26fd216e36e8e342214d91b224ad749cf1d210bd976",
+      "sha256": "55ec9da6258133a8baadf08258192f1d8c16c006707cac41cce270e6a663790d",
       "blocks": [
         {
           "end": 10,
@@ -8997,27 +9017,32 @@
           "explanation": "未登录访问消息接口要 401，但公开 center 页面要 200 且包含需要的脚本/登录控件。返回 HTML 文本存在不证明 CSS 布局已在真实浏览器验证。"
         },
         {
-          "end": 74,
+          "end": 75,
+          "title": "访客页面先给出智能助手",
+          "explanation": "TD-295：访客打开 center 页面能看到 support-ask-form 与「先问智能助手」，maxlength=2000，表单位于 support-login 之前；打包脚本里含 /support/ask；真实 POST「转人工」返回 escalated 与 human_support_url。它证明结构与接口连通，前端交互细节由 Node 夹具的 support-ask 场景覆盖，布局靠截图人工核对。"
+        },
+        {
+          "end": 87,
           "title": "同 nonce 重试与冲突",
           "explanation": "重复提交同对象应返回相同 id；改正文但保持 nonce 应 409；最后历史仅有一条，证明没有悄悄重复入库。用新的 UUID 再发相同正文属于另一次发送，不在这个幂等断言内。"
         },
         {
-          "end": 89,
+          "end": 102,
           "title": "游标方向与数量边界",
           "explanation": "直接批量写 70 条用于加快造数；默认页应是后 50 条，before 页应是前 20 条。还检查 before/after 互斥和非法负游标。它验证读取语义，不是在压测大量生产消息。"
         },
         {
-          "end": 98,
+          "end": 111,
           "title": "输入验证与禁止客户端自报角色",
           "explanation": "全空白/NUL/4001 字符要 422。额外传 sender_role=1 不能把客户消息变管理员消息；返回仍为 0。带 HTML 标签的正文在此只检验 API 接受纯文本，浏览器不执行 HTML 的证据另看前端测试和人工验收。"
         },
         {
-          "end": 107,
+          "end": 120,
           "title": "降权后旧 token 不保留管理员权限",
           "explanation": "在测试库把 role 改成 0 后继续用旧 Bearer 请求，应 403；这证明管理员角色实时查库，而不是永久信任 token 自带角色。"
         },
         {
-          "end": 113,
+          "end": 126,
           "title": "人工入口不假称已经转接",
           "explanation": "智能问答返回站内入口，但答复不能声称已为你转接。该测试没有据此断言管理员已经收到持久消息；真正写入是在站内留言 POST。"
         }

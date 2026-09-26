@@ -60,6 +60,19 @@ async def test_guest_apis_require_login_but_shell_has_login_controls(client):
     assert r.status_code == 200 and 'support-page.js' in r.text and 'auth-form' in r.text
 
 
+
+@pytest.mark.asyncio
+async def test_guest_page_offers_the_assistant_before_the_private_messages(client):
+    """TD-295（N-08）：客服页对访客就有「先问智能助手」，它调用公开的 /support/ask，位置在登录提示之前。"""
+    html = (await client.get('/support/center')).text
+    assert 'id="support-ask-form"' in html and '先问智能助手' in html
+    assert 'maxlength="2000"' in html                       # 与 SupportIn.text 上限一致
+    assert html.index('support-ask-form') < html.index('id="support-login"')
+    bundle = (await client.get('/static/js/support-page.js')).text
+    assert '/support/ask' in bundle
+    r = await client.post('/support/ask', json={'text': '转人工'})
+    assert r.status_code == 200 and r.json()['escalated'] is True and r.json()['human_support_url'] == '/support/center'
+
 @pytest.mark.asyncio
 async def test_retry_deduplicates_and_cannot_change_content(client):
     _, headers = await identity(client, 'retry_user')

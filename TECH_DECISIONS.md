@@ -1101,3 +1101,32 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 新增 `test_token_json_body_is_an_invalid_request_not_a_422`。
 - 新增 `test_token_success_is_not_cacheable_and_authorize_errors_keep_their_shape`：成功响应带两个缓存头；授权页错误仍是 `{"detail": {...}}`。
 - 旧实现下这 10 个新用例全部失败。
+
+## TD-295：客服页加「先问智能助手」入口（N-08）
+
+**状态**：已实施（2026-09-27，按用户决定：保留 `/support/ask`，在客服页加入口调用它；不选配置开关方案）。
+
+**问题**：复核 N-08。`/support/ask`（FAQ / 闲聊 / RAG 三层客服）只有 API，站内没有任何前端调用它；访客在客服页只能登录后留言。
+
+**决定**：
+- `support-center.html` 在登录提示之前加「先问智能助手」卡片：说明、问题框（`maxlength=2000`，与 `SupportIn.text` 一致）、提问按钮、结果区（来源、答案、繁忙提示、参考内容、转人工按钮）。对访客开放，不需要登录。
+- `support-page.js` 新增一段独立逻辑：
+  - 直接 `fetch("/support/ask")`，有自己的 AbortController（`pagehide` 时中止），不走带会话代次的 `request()`。所以登录、退出或会话到期都不会清掉助手的回答。
+  - 答案、来源、引用都用 `textContent` 渲染（模型输出不可信）。引用只保留非空字符串。来源映射成中文标签（常见问题 / 相近问法 / 智能助手 / 站内文章 / 需要管理员协助）。
+  - `reason` 是运维字段，不展示。只在其中含「模型繁忙」时显示「稍后再问一次」（TD-292 特意保留了这个提示）。
+  - `escalated` 为真时显示「把这个问题留言给管理员」：已登录的普通用户直接把问题填进留言框并聚焦；未登录先记住问题并弹出登录，登录成功后由 `onUser` 填入。管理员是回复方，不显示该按钮。填入后仍需用户自己点「发送留言」，不会自动建会话。
+  - 提问中禁用按钮，防止重复提交。
+- `support.css` 新增 `.support-assistant` 浅底卡片。辅助文字用 `#475569`：`#64748b` 在 `#f8fafc` 上只有约 4.5:1，贴着 WCAG AA 边线。
+- `app/static/js/support-page.js` 已按 `npm run build` 重建。
+
+**测试**：
+- `tests/test_second_frontend_regressions.py` 的 Node 夹具新增 `support-ask` 场景，源码与打包产物各跑一遍：
+  - 提交的是去掉首尾空白的 `{text}`，方法 POST；
+  - `<b>RAW</b>` 按字面文本显示；
+  - 来源标签正确，非字符串 / 空引用被过滤；
+  - 繁忙提示、转人工按钮出现；
+  - 点按钮后问题进入留言框；
+  - 退出登录后回答仍在；
+  - 未登录点按钮会弹一次登录，登录前留言框为空，登录后填入问题。
+- `tests/test_support_messages.py::test_guest_page_offers_the_assistant_before_the_private_messages`：访客页面有表单且位于登录提示之前，上限 2000，打包脚本调用 `/support/ask`，真实接口对「转人工」返回 `escalated` 与人工页 URL。
+- 用无头 Chromium 在 1280px 与 390px 宽度下截图核对了布局（预览环境无模型与 FAQ 数据，走的是转人工分支）。

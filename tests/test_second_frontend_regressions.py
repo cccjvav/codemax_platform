@@ -64,6 +64,25 @@ if(scenario==='support-privacy'){
   const reading=box.scrollTop;
   box.scrollTop=box.scrollHeight-box.clientHeight; batch=[row()]; await send();   // 停在底部：跟随
   console.log(JSON.stringify({first,reading,following:box.scrollTop,height:box.scrollHeight}));
+}else if(scenario==='support-ask'){
+  // TD-295：先问智能助手。回答按文本渲染；需要人工时把问题带到留言框；退出登录不清掉回答；
+  // 未登录点「留言给管理员」先弹登录，登录后再填入。
+  let opened=0;auth.open=()=>{opened++};
+  fetchImpl=async(url)=>url==='/support/ask'?{answer:'<b>RAW</b> 请联系管理员',source:'rag',escalated:true,
+    reason:'RAG 生成失败（模型繁忙，请稍后再试）',references:['退款说明',42,'']}:[];
+  start();await tick();
+  get('support-ask-text').value='  退款多久到账？ ';
+  await get('support-ask-form').onsubmit({preventDefault(){}});await tick();
+  const ask=requests.find(r=>r.url==='/support/ask');
+  const shown={payload:JSON.parse(ask.options.body),method:ask.options.method,answer:get('support-ask-answer').textContent,
+    source:get('support-ask-source').textContent,refs:get('support-ask-refs').children.map(n=>n.textContent),
+    result:!get('support-ask-result').hidden,busy:!get('support-ask-busy').hidden,handoff:!get('support-ask-handoff').hidden};
+  get('support-ask-to-human').onclick();const filled=get('support-body').value;
+  await auth.listener(null);await tick();
+  const kept=get('support-ask-answer').textContent;get('support-body').value='';
+  get('support-ask-to-human').onclick();const draftBeforeLogin=get('support-body').value;
+  await auth.listener({username:'carol',role:0});await tick();
+  console.log(JSON.stringify({...shown,filled,kept,opened,draftBeforeLogin,afterLogin:get('support-body').value}));
 }else if(scenario==='drawio-export'){
   fetchImpl=async(url,opt)=>opt.method==='POST'?{id:10}:[];start();await tick();
   event({event:'init'});event({event:'load'});event({event:'autosave',xml:'<mxfile>STALE</mxfile>'});
@@ -83,7 +102,7 @@ if(scenario==='support-privacy'){
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
-@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])
+@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'support-ask', 'drawio-export'])
 def test_browser_lifecycle(folder, scenario):
     filename = 'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario],
@@ -97,6 +116,13 @@ def test_browser_lifecycle(folder, scenario):
     elif scenario == 'support-scroll':
         # TD-278：新消息到达时，停在底部（或首屏）就带到最新一条；正在往上翻旧消息时不打断。
         assert output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}
+    elif scenario == 'support-ask':
+        assert output == {
+            'payload': {'text': '退款多久到账？'}, 'method': 'POST',
+            'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'],
+            'result': True, 'busy': True, 'handoff': True,
+            'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员',
+            'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？'}
     else:
         assert output['before'] == 0
         assert output['body']['content'] == '<mxfile>FRESH</mxfile>'

@@ -4,6 +4,29 @@
 <section class="support-center">
   <h2 class="page-heading">站内客服</h2>
   <p>咨询数字产品、定制开发或售后问题。留言成功后，平台管理员可在这里回复；不保证即时在线。请勿发送密码、支付密钥等敏感信息。</p>
+  {# 先问智能助手（N-08 / TD-295）：公开的 /support/ask，无需登录；答不了或需要人工时，把问题带到下方留言框。 #}
+  <section class="support-assistant" aria-labelledby="support-ask-title">
+    <h3 id="support-ask-title">先问智能助手</h3>
+    <p class="support-assistant-note">无需登录。常见问题会立即由站内 FAQ 与文章自动回答，仅供参考；订单、付款、退款等具体情况请留言给管理员。</p>
+    <form id="support-ask-form">
+      <label for="support-ask-text">你的问题（最多 2000 字）</label>
+      <textarea id="support-ask-text" required maxlength="2000" rows="3"></textarea>
+      <button id="support-ask-send" type="submit">提问</button>
+    </form>
+    <p id="support-ask-error" class="error" role="alert"></p>
+    <div id="support-ask-result" aria-live="polite" hidden>
+      <p id="support-ask-source" class="support-assistant-note"></p>
+      <p id="support-ask-answer"></p>
+      <p id="support-ask-busy" class="support-assistant-note" hidden>智能助手当前繁忙，可以稍后再问一次。</p>
+      <div id="support-ask-refs-panel" hidden>
+        <p class="support-assistant-note">参考内容：</p>
+        <ul id="support-ask-refs"></ul>
+      </div>
+      <p id="support-ask-handoff" hidden>
+        <button type="button" id="support-ask-to-human">把这个问题留言给管理员</button>
+      </p>
+    </div>
+  </section>
   <p id="support-login">请先登录，再查看或发送私人留言。</p>
   <p id="support-error" class="error" role="alert"></p>
   <div class="support-layout" id="support-workspace" hidden>

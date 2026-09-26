@@ -13,3 +13,11 @@
 /* 留言框用正文字体：base.html 给 textarea 的等宽字体是为 DDL/代码输入准备的，写中文留言不合适。
    只改字体族、不改字号 —— 手机 16px 规则（base.html 末尾）照常生效。 */
 #support-body { font-family: inherit; line-height: 1.6; }
+/* 先问智能助手（TD-295）：浅底卡片与下方私人留言区分开。辅助文字用 #475569（浅底上 7.2:1），
+   不用 #64748b —— 它在 #f8fafc 上只剩约 4.5:1，贴着 WCAG AA 边线。 */
+.support-assistant { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; }
+.support-assistant h3 { margin: 0 0 4px; }
+.support-assistant-note { color: #475569; font-size: var(--fs-small); margin: 4px 0; }
+#support-ask-text { font-family: inherit; line-height: 1.6; }
+#support-ask-answer { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
+#support-ask-refs { margin: 4px 0; padding-left: 20px; }

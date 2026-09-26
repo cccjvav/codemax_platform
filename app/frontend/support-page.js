@@ -126,11 +126,62 @@
       if (stamp === epoch && err.name !== "AbortError") el("error").textContent = `发送未确认，可重试（不会重复入库）：${err.message}`;
     } finally { if (stamp === epoch) { sending = false; el("send").disabled = false; } }
   };
+  // ---------------------------------------------------------------- 先问智能助手（N-08 / TD-295）
+  // 公开的 /support/ask，不需要登录，也不走上面带会话代次的 request()：登录状态变化不会清掉助手的回答。
+  // 回答只用 textContent 渲染（模型输出不可信）；reason 是运维字段，只识别「模型繁忙」给出重试提示。
+  const SOURCE_LABELS = {
+    faq: "来自常见问题", "faq-semantic": "来自常见问题（相近问法）", llm: "智能助手回答",
+    rag: "根据站内文章整理", human: "需要管理员协助",
+  };
+  let asking = false, lastQuestion = "", handoffDraft = null;
+  const askController = new AbortController();
+  function fillDraft(text) {
+    const box = el("body");
+    box.value = text; box.focus?.(); box.scrollIntoView?.({ block: "center" });
+  }
+  function showAnswer(data, question) {
+    lastQuestion = question;
+    el("ask-source").textContent = SOURCE_LABELS[data?.source] || "";
+    el("ask-answer").textContent = typeof data?.answer === "string" ? data.answer : "";
+    el("ask-busy").hidden = !(typeof data?.reason === "string" && data.reason.includes("模型繁忙"));
+    const refs = Array.isArray(data?.references) ? data.references.filter((x) => typeof x === "string" && x) : [];
+    el("ask-refs").replaceChildren(...refs.map((title) => {
+      const li = document.createElement("li"); li.textContent = title; return li;
+    }));
+    el("ask-refs-panel").hidden = !refs.length;
+    // 管理员自己是回复方，不需要「转给管理员」
+    el("ask-handoff").hidden = !data?.escalated || currentUser?.role === 1;
+    el("ask-result").hidden = false;
+  }
+  el("ask-form").onsubmit = async (e) => {
+    e.preventDefault();
+    const text = el("ask-text").value.trim();
+    if (!text || asking) return;
+    asking = true; el("ask-send").disabled = true; el("ask-error").textContent = "";
+    try {
+      const res = await fetch("/support/ask", {
+        method: "POST", credentials: "same-origin", signal: askController.signal,
+        headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(errorText(data, res.status));
+      showAnswer(data, text);
+    } catch (err) {
+      if (err.name !== "AbortError") el("ask-error").textContent = `暂时无法回答：${err.message}`;
+    } finally { asking = false; el("ask-send").disabled = false; }
+  };
+  el("ask-to-human").onclick = () => {
+    if (!lastQuestion) return;
+    // 未登录：先记住问题，登录成功后由 onUser 填进留言框
+    if (!currentUser) { handoffDraft = lastQuestion; auth.open(); return; }
+    if (currentUser.role !== 1) fillDraft(lastQuestion);
+  };
   function onUser(user, reason) {
     // 会话到期不是主动退出：留言草稿还在用户手上，先留住再重置视图（TD-271 复核的 N-01）。
     const draft = reason === "expired" ? el("body").value : "";
     reset(); currentUser = user; target = null; inboxCursor = null;
     if (draft) el("body").value = draft;
+    if (user && user.role !== 1 && handoffDraft) { fillDraft(handoffDraft); handoffDraft = null; }
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;
@@ -142,5 +193,5 @@
     if (user) { poll(); inbox(); }
   }
   auth.onChange(onUser); onUser(auth.user);
-  window.addEventListener("pagehide", () => { epoch += 1; clearTimeout(timer); controller.abort(); });
+  window.addEventListener("pagehide", () => { epoch += 1; clearTimeout(timer); controller.abort(); askController.abort(); });
 })();

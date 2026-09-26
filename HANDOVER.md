@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-295 / 客服页「先问智能助手」，N-08 关闭）**：站内客服页顶部新增对访客开放的助手卡片，调用 `/support/ask`，文本渲染答案/来源/引用；需要人工时把问题填进留言框（未登录先登录）。至此用户 2026-09-26 批准的五项跟进（TD-291～295）全部完成，下一步回到重构候选。见 TECH_DECISIONS TD-295。
+
 **接手状态（2026-09-27，TD-294 / OAuth 令牌端点错误格式）**：`/oauth/token` 的错误改为 RFC 6749 顶层 `{"error","error_description"}`（`TokenError` + `token_error_handler`），描述为 ASCII 英文，缺参数/重复参数是 400 `invalid_request`，并带 `Pragma: no-cache`；授权页错误不变。对接方若读过 `detail.error` 需要改读顶层 `error`（仓库内没有这样的代码）。见 TECH_DECISIONS TD-294。
 
 **接手状态（2026-09-27，TD-293 / 控制字符统一）**：shop、payments_admin、refunds_admin 所有人工自由文本字段改用 `shop.NO_CONTROL_CHARS`，统一拒绝 C0、DEL 与 C1；已存复核事件的解码不追溯收紧。见 TECH_DECISIONS TD-293。
