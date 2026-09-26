@@ -104,7 +104,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `c710e978990d` | L1–L269 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `6fec9d04d631` | L1–L309 |
-| [`app/routers/shop.py`](shop.py) | `df794def24ae` | L1–L747 |
+| [`app/routers/shop.py`](shop.py) | `6b1f968a57b9` | L1–L831 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
@@ -208,3 +208,11 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 
 - `_payload(order, *, reused, qr=True)`：新增仅关键字参数 `qr`。`order_history` 只对 pending 行传 True——关闭单保留 code_url，旧实现一页最多同步画 50 个 SVG（约 160 ms 阻塞事件循环），前端又只在 pending 分支用 `qr_svg`。
 - `download_url`：交付对象缺失的 404 改为「商品文件暂不可用，请联系站内客服；购买权益未删除」；对象 key 与 order_no 写入 `codemax.shop` warning（新 logger，运维告警，与 `codemax.audit` 分开）。
+
+## 2026-09-26：`shop.py` 下单与回调拆段（TD-288，行为不变）
+
+- 下单：`create_order` 只做编排。配置闸门 `_checkout_channel`（不碰数据库）、最新 pending 查询 `_latest_pending`、复用判断 `_reusable`（先核冻结渠道，不一致 409；再看 code_url 或 manual）、微信预支付 `_prepay_wechat`（单飞锁内重读 → started → 调微信 → unknown/ready）。`user.id` 在任何数据库操作前取成局部变量。
+- 收款方：`_channel(mode, cfg)` 是 (merchant_id, app_id) 的唯一来源，建单、`_check_order_channel`、`bind_legacy_order` 共用。
+- 回调：`pay_notify` 依次调用 `_read_notify_body`（64 KiB、严格 UTF-8）、`_verify_notify_headers`（头长度 → 新鲜度 → 序列号 → 签名，401）、`_parse_paid_notice`（结构、解密、事件、渠道、标识、金额结构，不碰数据库）、查订单（404）、核金额（400）、`_provider_paid_at`（400），再 `settle`。各段抛内部的 `_NotifyReject`，由 `pay_notify` 统一转成 `_fail`。拒绝优先级与拆分前逐项相同，由 `test_notify_rejection_precedence_and_paid_time` 在新旧代码上验证。
+- 账本：`payment_ledger` 的退款/收款/订单合同三段与「能否准备退款」抽成 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed`，响应键与顺序不变。
+- 测试替身的挂点不变：`native_prepay`、`pay_config`、`assert_notify_*`、`verify_notify_signature`、`decrypt_resource`、`run_in_threadpool`、`_qr_svg` 仍是 `app.routers.shop` 的模块属性。

@@ -911,3 +911,27 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 这是视觉层面的静态断言加沙箱截图，不是真实设备或读屏测试；Windows 指南第 10～12 步的视觉签收仍以人工为准。
 - 顶栏窄屏横向滚动的导航（TD-278 设计）不变。
 
+## TD-288：`routers/shop.py` 下单、回调、账本视图拆段（行为不变）
+
+2026-09-26。基线 `3256e6e`（TD-287）。优化阶段第二项：重构设计欠佳的模块。先按函数长度排查全仓，`routers/shop.py` 的 `create_order`（133 行）与 `pay_notify`（100 行）是全仓最长的两个函数。
+
+**问题**：
+- `create_order` 一个函数里做四件事：配置闸门、查找/复用 pending、建单与唯一冲突回退、按渠道取付款方式。「查最新 pending」的查询写了两遍；「先核渠道、再看 code_url 或 manual」的复用判断写了两遍；`cfg.mchid if mode == 'wechat' else None` 这类收款方表达式在文件里出现四次。
+- 微信分支在可能发生过 rollback 之后又读了一次 `user.id`。同一函数的注释写明回滚后读 ORM 属性会触发懒加载（真 PG 上出现过 MissingGreenlet）。目前的执行路径上它恰好没出事，但这类前提要靠读者自己记住。
+- `pay_notify` 把约 60 行纯报文校验（不碰数据库）与读流、验签、查库、结算交织在一起，每处都是 `return _fail(...)`，无法单独阅读或测试某一段。
+- `payment_ledger` 返回一个 30 行的字典字面量，退款、收款、订单合同三种视图和「能否准备退款」的条件都内联在里面。
+
+**决定**：
+- 在同一模块内抽函数，不拆文件。测试通过 `monkeypatch.setattr(shop, ...)` 替换 `native_prepay`、`pay_config`、`decrypt_resource` 等十几个模块属性，拆文件要改十来个测试文件的挂点，而收益只是行数分散。
+- 下单拆成 `_checkout_channel` / `_latest_pending` / `_reusable` / `_prepay_wechat`，收款方统一由 `_channel(mode, cfg)` 给出；`user_id` 在函数开头取一次、全程使用。
+- 回调拆成 `_read_notify_body` / `_verify_notify_headers` / `_parse_paid_notice` / `_provider_paid_at`。各段抛内部异常 `_NotifyReject(status, message)`，`pay_notify` 用一个 `try` 统一转成微信格式的 FAIL 应答。`success_time` 仍在查到订单、核完金额之后才解析，拒绝优先级不变。
+- 账本视图抽成 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed`，键与顺序不变。
+
+**证据**：
+- 商城、支付、回调、下载、退款相关 13 个测试文件原有 342 项改前改后都通过（加上新用例共 347 项）。
+- 新增 `test_notify_rejection_precedence_and_paid_time`：用真实加密签名的回调验证「订单不存在 404 → 金额不符 400 → 时间无效 400」的优先级，以及支付时间无时区、缺失、超长三种拒绝，被拒的单仍是 pending。它在拆分前的代码上同样通过，证明优先级没变。这也补上了一个缺口：支付回调此前没有任何用例覆盖 `success_time` 校验。
+- 拆分后 `create_order` 82 行（其中约一半是原有注释），`pay_notify` 32 行；其余新函数都不超过 45 行。
+
+**代价与边界**：
+- 文件从 747 行变为 831 行：新函数各带说明，职责边界写在代码里而不是散在一个长函数的注释中。
+- 纯重构，不改任何响应、状态码、消息或数据库写入顺序。`download_url` 与 `serve_download` 的权益检查看起来相似，但两者的状态码和文案不同，且各有测试钉住，这次没有合并。

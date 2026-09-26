@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import NamedTuple
 
 import segno
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
@@ -120,20 +121,8 @@ async def ping(_: User = Depends(get_current_user)):
     return {"platform": "shop", "message": "pong"}
 
 
-@router.post("/orders", dependencies=[Depends(rate_limit("order", "RATE_LIMIT_AUTH"))])
-async def create_order(
-    request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
-):
-    """下单（S3-01-1）：建订单 → 取 code_url → 前端画二维码。
-
-    已有未支付订单时复用同一单（S3-01-1-4），避免连点几下刷出一堆待支付单。
-    微信预支付前先 commit 本地订单；提交失败不调用提供方，失败重试复用持久订单号。
-    尝试开始/结果另存事件；未知结果不是失败，自动查单对账仍是发布阻断项。
-    同一用户的预支付在本进程内单飞（TD-262）：并发的第二个请求等第一个结束后复用其 code_url，
-    不再对同一单号发第二次预支付；入口按客户端限流（`order` 桶，`RATE_LIMIT_AUTH`）。
-
-    `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
-    """
+def _checkout_channel():
+    """下单前的配置闸门：返回 (mode, cfg)，不满足即 HTTPException，此时不碰数据库。"""
     mode = settings.SHOP_PAY_MODE
     if type(settings.SHOP_PRODUCT_AMOUNT) is not int or not 0 < settings.SHOP_PRODUCT_AMOUNT <= 2147483647:
         raise HTTPException(503, "商品分金额必须为正整数且在数据库范围内")
@@ -149,47 +138,108 @@ async def create_order(
             assert_notify_configuration(cfg)
         except WeChatPayError:
             raise HTTPException(503, "支付未配置：请核对 WX_* 商户下单及平台回调凭据、证书有效期") from None
+    return mode, cfg
 
-    # Serialize same-user checkout before copying: concurrent retries reuse one snapshot/order,
-    # rather than competing for the bounded global copy slots. Commit before provider I/O releases it.
-    await lock_user(db, user.id)
-    pending = await db.scalar(
+
+async def _latest_pending(db: AsyncSession, user_id: int) -> Order | None:
+    return await db.scalar(
         select(Order)
-        .where(Order.user_id == user.id, Order.status == PENDING)
+        .where(Order.user_id == user_id, Order.status == PENDING)
         .order_by(Order.id.desc())
         .limit(1)
     )
+
+
+def _reusable(order: Order, mode: str, cfg) -> bool:
+    """未过期的 pending 单能否直接返回给客户端。
+
+    先核对它冻结的渠道/商户与当前配置一致（不一致 409，不能换渠道确认）。
+    manual 模式**没有** code_url（收款码是全站共用的一张静态图，不是每单一串），
+    所以「能不能直接用」不能只看 code_url，否则每次下单都会新建一张。
+    """
+    _check_order_channel(order, mode, cfg)
+    return bool(order.code_url) or mode == "manual"
+
+
+async def _prepay_wechat(db: AsyncSession, order_id: int, user_id: int, cfg) -> tuple[Order, bool]:
+    """对已提交的本地订单调微信预支付，返回 (订单, 是否复用了别人的结果)。
+
+    调用方必须已 commit：订单行先持久化、lock_user 也随之释放，等待单飞锁时不持数据库锁跨网络。
+    """
+    async with _prepay_flight(user_id):
+        # Another request of this user may have finished prepay while we waited: reuse its result.
+        order = await db.scalar(select(Order).where(Order.id == order_id).execution_options(populate_existing=True))
+        if order is None or order.status != PENDING:
+            raise HTTPException(409, "订单状态已变化，请刷新后重试")
+        if order.code_url:
+            return order, True
+        # A flush is not durable. Persist the attempt before crossing the external payment boundary.
+        attempt_id = uuid.uuid4().hex
+        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
+        await db.commit()
+        try:
+            order.code_url = await native_prepay(
+                cfg,
+                out_trade_no=order.order_no,
+                description=order.product_name,
+                total=order.amount,
+            )
+        except WeChatPayError as e:
+            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_unknown'))
+            await db.commit()  # unknown means reconcile; never assert that no money moved
+            raise HTTPException(502, str(e)) from e
+        db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_ready'))
+        await db.commit()
+        return order, False
+
+
+@router.post("/orders", dependencies=[Depends(rate_limit("order", "RATE_LIMIT_AUTH"))])
+async def create_order(
+    request: Request, db: AsyncSession = Depends(get_db), user: User = Depends(get_current_user)
+):
+    """下单（S3-01-1）：建订单 → 取 code_url → 前端画二维码。
+
+    已有未支付订单时复用同一单（S3-01-1-4），避免连点几下刷出一堆待支付单。
+    微信预支付前先 commit 本地订单；提交失败不调用提供方，失败重试复用持久订单号。
+    尝试开始/结果另存事件；未知结果不是失败，自动查单对账仍是发布阻断项。
+    同一用户的预支付在本进程内单飞（TD-262）：并发的第二个请求等第一个结束后复用其 code_url，
+    不再对同一单号发第二次预支付；入口按客户端限流（`order` 桶，`RATE_LIMIT_AUTH`）。
+
+    `SHOP_PAY_MODE=mock` 时不调微信，code_url 指向本站的模拟收银台（TD-124）。
+    """
+    mode, cfg = _checkout_channel()
+    # `user.id` 在任何数据库操作**之前**取成局部变量：下面的 rollback 会无条件过期
+    # 所有 ORM 对象（`expire_on_commit=False` 管不到 rollback），回滚后再碰
+    # `user.id` 会触发同步懒加载，在 async 上下文里就是 MissingGreenlet
+    # （真 PostgreSQL 上实测炸过，SQLite 单连接下反而看不出来）。
+    user_id = user.id
+
+    # Serialize same-user checkout before copying: concurrent retries reuse one snapshot/order,
+    # rather than competing for the bounded global copy slots. Commit before provider I/O releases it.
+    await lock_user(db, user_id)
+    pending = await _latest_pending(db, user_id)
     # 超时未支付（S5-01-1）：旧单关掉、另起一单。不这么做的话，二维码过期后
     # 这个单会被无限复用，用户扫了必然失败，且没有任何出路（TD-109）。
     if pending is not None and is_expired(pending, settings.ORDER_EXPIRE_MINUTES):
         await mark_closed(db, pending)
         pending = None
-    # manual 模式**没有** code_url（收款码是全站共用的一张静态图，不是每单一串），
-    # 所以「这张单能不能直接用」不能只看 code_url，否则每次下单都会新建一张。
-    if pending is not None:
-        _check_order_channel(pending, mode, cfg)
-    if pending is not None and (pending.code_url or mode == "manual"):
+    if pending is not None and _reusable(pending, mode, cfg):
         return _payload(pending, reused=True)
 
     order = pending
     if order is None:
         snapshot = await _snapshot(request, settings.STORAGE_PRODUCT_KEY)
+        merchant_id, app_id = _channel(mode, cfg)
         order = Order(
             order_no=new_order_no(),
-            user_id=user.id,
+            user_id=user_id,
             product_name=settings.SHOP_PRODUCT_NAME,
             amount=settings.SHOP_PRODUCT_AMOUNT,
-            payment_mode=mode, merchant_id=cfg.mchid if mode == 'wechat' else None,
-            app_id=cfg.appid if mode == 'wechat' else None, currency='CNY',
+            payment_mode=mode, merchant_id=merchant_id, app_id=app_id, currency='CNY',
             delivery_key=snapshot.key, delivery_digest=snapshot.digest, delivery_size=snapshot.size,
             status=PENDING,
         )
         db.add(order)
-        # `user.id` 必须在 flush **之前**取成局部变量：下面的 rollback 会无条件过期
-        # 所有 ORM 对象（`expire_on_commit=False` 管不到 rollback），回滚后再碰
-        # `user.id` 会触发同步懒加载，在 async 上下文里就是 MissingGreenlet
-        # （真 PostgreSQL 上实测炸过，SQLite 单连接下反而看不出来）。
-        user_id = user.id
         try:
             await db.flush()  # 仅取 id；事务失败仍会回滚，不能当作已经持久化
         except IntegrityError:
@@ -199,16 +249,10 @@ async def create_order(
             # 这里必须由数据库兜底：应用层「先查后建」在 asyncio 交错下必然漏，
             # 而进程内锁在多实例部署时各算各的（与限流 TD-141 同一个道理）。
             await db.rollback()
-            order = await db.scalar(
-                select(Order)
-                .where(Order.user_id == user_id, Order.status == PENDING)
-                .order_by(Order.id.desc())
-                .limit(1)
-            )
+            order = await _latest_pending(db, user_id)
             if order is None:  # 极端情况：对方在我们回滚期间把单关掉了
                 raise HTTPException(409, "下单冲突，请重试") from None
-            _check_order_channel(order, mode, cfg)
-            if order.code_url or mode == "manual":
+            if _reusable(order, mode, cfg):
                 return _payload(order, reused=True)
 
     if mode == "manual":
@@ -224,33 +268,11 @@ async def create_order(
         order.code_url = f"{base}{MOCK_PAY_PATH}?order_no={order.order_no}"
     else:
         # The order row is durable before any provider call; commit also releases lock_user so the
-        # wait below never holds a database lock across the network.
+        # wait inside _prepay_wechat never holds a database lock across the network.
         await db.commit()
-        order_id, user_id = order.id, user.id
-        async with _prepay_flight(user_id):
-            # Another request of this user may have finished prepay while we waited: reuse its result.
-            order = await db.scalar(select(Order).where(Order.id == order_id).execution_options(populate_existing=True))
-            if order is None or order.status != PENDING:
-                raise HTTPException(409, "订单状态已变化，请刷新后重试")
-            if order.code_url:
-                return _payload(order, reused=True)
-            # A flush is not durable. Persist the attempt before crossing the external payment boundary.
-            attempt_id = uuid.uuid4().hex
-            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_started'))
-            await db.commit()
-            try:
-                order.code_url = await native_prepay(
-                    cfg,
-                    out_trade_no=order.order_no,
-                    description=order.product_name,
-                    total=order.amount,
-                )
-            except WeChatPayError as e:
-                db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_unknown'))
-                await db.commit()  # unknown means reconcile; never assert that no money moved
-                raise HTTPException(502, str(e)) from e
-            db.add(PaymentEvent(order_id=order.id, attempt_id=attempt_id, kind='prepay_ready'))
-            await db.commit()
+        order, reused = await _prepay_wechat(db, order.id, user_id, cfg)
+        if reused:
+            return _payload(order, reused=True)
     await db.commit()
     await db.refresh(order)  # A callback may have changed status while prepay was in flight.
     return _payload(order, reused=False)
@@ -546,6 +568,111 @@ def _payload(order: Order, *, reused: bool, qr: bool = True) -> dict:
     }
 
 
+class _NotifyReject(Exception):
+    """回调处理中的拒绝：由 pay_notify 统一转成微信规定的 FAIL 应答（见 `_fail`）。"""
+
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status, self.message = status, message
+
+
+class _PaidNotice(NamedTuple):
+    """验签、解密、结构校验都通过的支付成功通知；`success_time` 仍是原始值，查到订单后再解析。"""
+
+    order_no: str
+    transaction_id: str
+    total: int
+    merchant_id: str
+    app_id: str
+    success_time: object
+
+
+async def _read_notify_body(request: Request) -> str:
+    """按 64 KiB 上限读完请求体并严格按 UTF-8 解码 —— 验签要用原样文本，不能替换非法字节。"""
+    raw = bytearray()
+    async for chunk in request.stream():
+        if len(raw) + len(chunk) > 65536:
+            raise _NotifyReject(413, "回调报文过大")
+        raw.extend(chunk)
+    try:
+        return raw.decode("utf-8")  # Preserve exact signed text; never decode with replacement.
+    except UnicodeDecodeError:
+        raise _NotifyReject(400, "回调报文必须为 UTF-8") from None
+
+
+def _verify_notify_headers(cfg, headers, body: str) -> None:
+    try:
+        # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
+        # 只有时间戳能暴露它 —— 放在验签之前还能省掉一次 RSA 运算。
+        if len(headers.get("Wechatpay-Nonce", "")) > 128 or len(headers.get("Wechatpay-Signature", "")) > 1024:
+            raise WeChatPayError("回调签名头过长")
+        assert_notify_fresh(headers.get("Wechatpay-Timestamp", ""))
+        assert_notify_identity(cfg, headers.get("Wechatpay-Serial", ""))
+        verify_notify_signature(
+            cfg.platform_cert,
+            timestamp=headers.get("Wechatpay-Timestamp", ""),
+            nonce=headers.get("Wechatpay-Nonce", ""),
+            body=body,
+            signature=headers.get("Wechatpay-Signature", ""),
+        )
+    except WeChatPayError as e:
+        raise _NotifyReject(401, str(e)) from e
+
+
+def _parse_paid_notice(cfg, body: str) -> _PaidNotice:
+    """已验签的报文 → 支付成功通知。不碰数据库；任何形状、渠道或事件类型不符都拒绝。"""
+    try:
+        notify = json.loads(body)
+    except (ValueError, RecursionError):
+        raise _NotifyReject(400, "回调报文不是合法有界JSON") from None
+
+    if not isinstance(notify, dict) or not isinstance(notify.get("resource"), dict):
+        raise _NotifyReject(400, "回调结构无效")
+    resource = notify["resource"]
+    if any(not isinstance(resource.get(k), str) for k in ("ciphertext", "nonce")) or not isinstance(resource.get("associated_data", ""), str):
+        raise _NotifyReject(400, "回调加密字段无效")
+    try:
+        data = decrypt_resource(
+            cfg.api_v3_key,
+            ciphertext=resource.get("ciphertext", ""),
+            nonce=resource.get("nonce", ""),
+            associated_data=resource.get("associated_data") or "",
+        )
+    except WeChatPayError as e:
+        raise _NotifyReject(400, str(e)) from e
+
+    if not isinstance(data, dict):
+        raise _NotifyReject(400, "回调业务数据必须为对象")
+    if notify.get("event_type") != "TRANSACTION.SUCCESS" or data.get("trade_state") != "SUCCESS":
+        raise _NotifyReject(422, "此入口仅处理支付成功；退款及其他事件尚未接入，不能当作已处理")
+
+    if (data.get("appid") != cfg.appid or data.get("mchid") != cfg.mchid
+            or data.get("trade_type") != "NATIVE" or resource.get("algorithm") != "AEAD_AES_256_GCM"
+            or resource.get("original_type") != "transaction" or notify.get("resource_type") != "encrypt-resource"):
+        raise _NotifyReject(400, "回调商户、应用或交易类型不匹配")
+    order_no, transaction_id = data.get("out_trade_no"), data.get("transaction_id")
+    if any(not isinstance(value, str) or not value or "\x00" in value or len(value) > size
+           for value, size in ((order_no, 32), (transaction_id, 64))):
+        raise _NotifyReject(400, "回调订单标识无效")
+    amount = data.get("amount")
+    if not isinstance(amount, dict) or type(amount.get("total")) is not int or amount.get("currency") != "CNY":
+        raise _NotifyReject(400, "回调金额结构无效")
+    return _PaidNotice(order_no, transaction_id, amount["total"], data["mchid"], data["appid"],
+                       data.get("success_time"))
+
+
+def _provider_paid_at(success_time: object) -> datetime:
+    try:
+        if not isinstance(success_time, str) or len(success_time) > 40:
+            raise ValueError('missing time')
+        paid_at = datetime.fromisoformat(success_time)
+        if paid_at.tzinfo is None:
+            raise ValueError('missing timezone')
+    except ValueError:
+        raise _NotifyReject(400, '支付成功时间必须为带时区的有效时间') from None
+    return paid_at
+
+
 @router.post("/pay/notify")
 async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     """微信支付结果回调（S3-01-3）。
@@ -555,95 +682,27 @@ async def pay_notify(request: Request, db: AsyncSession = Depends(get_db)):
     应答格式是微信规定的，不能用 `HTTPException`（那会返回 `{"detail": ...}`）：
     已验证且处理/忽略成功 → 200 SUCCESS JSON；失败 → 4XX/5XX + `{"code": "FAIL", "message": "..."}`。
     精确重复成功通知200；冲突和未接入事件不伪装成功，退款须另行接入与运维告警。
+
+    检查顺序即拒绝优先级：配置 → 报文大小/编码 → 签名头 → 结构/解密/渠道 → 订单存在 → 金额 → 支付时间。
     """
     cfg = pay_config()
-    if not cfg.notify_ready:
-        return _fail(503, "回调商户、应用或平台验签配置不完整")
-
-    raw = bytearray()
-    async for chunk in request.stream():
-        if len(raw) + len(chunk) > 65536:
-            return _fail(413, "回调报文过大")
-        raw.extend(chunk)
     try:
-        body = raw.decode("utf-8")  # Preserve exact signed text; never decode with replacement.
-    except UnicodeDecodeError:
-        return _fail(400, "回调报文必须为 UTF-8")
-    h = request.headers
-    try:
-        # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
-        # 只有时间戳能暴露它 —— 放在验签之前还能省掉一次 RSA 运算。
-        if len(h.get("Wechatpay-Nonce", "")) > 128 or len(h.get("Wechatpay-Signature", "")) > 1024:
-            raise WeChatPayError("回调签名头过长")
-        assert_notify_fresh(h.get("Wechatpay-Timestamp", ""))
-        assert_notify_identity(cfg, h.get("Wechatpay-Serial", ""))
-        verify_notify_signature(
-            cfg.platform_cert,
-            timestamp=h.get("Wechatpay-Timestamp", ""),
-            nonce=h.get("Wechatpay-Nonce", ""),
-            body=body,
-            signature=h.get("Wechatpay-Signature", ""),
-        )
-    except WeChatPayError as e:
-        return _fail(401, str(e))
-
-    try:
-        notify = json.loads(body)
-    except (ValueError, RecursionError):
-        return _fail(400, "回调报文不是合法有界JSON")
-
-    if not isinstance(notify, dict) or not isinstance(notify.get("resource"), dict):
-        return _fail(400, "回调结构无效")
-    resource = notify["resource"]
-    if any(not isinstance(resource.get(k), str) for k in ("ciphertext", "nonce")) or not isinstance(resource.get("associated_data", ""), str):
-        return _fail(400, "回调加密字段无效")
-    try:
-        data = decrypt_resource(
-            cfg.api_v3_key,
-            ciphertext=resource.get("ciphertext", ""),
-            nonce=resource.get("nonce", ""),
-            associated_data=resource.get("associated_data") or "",
-        )
-    except WeChatPayError as e:
-        return _fail(400, str(e))
-
-    if not isinstance(data, dict):
-        return _fail(400, "回调业务数据必须为对象")
-    if notify.get("event_type") != "TRANSACTION.SUCCESS" or data.get("trade_state") != "SUCCESS":
-        return _fail(422, "此入口仅处理支付成功；退款及其他事件尚未接入，不能当作已处理")
-
-    if (data.get("appid") != cfg.appid or data.get("mchid") != cfg.mchid
-            or data.get("trade_type") != "NATIVE" or resource.get("algorithm") != "AEAD_AES_256_GCM"
-            or resource.get("original_type") != "transaction" or notify.get("resource_type") != "encrypt-resource"):
-        return _fail(400, "回调商户、应用或交易类型不匹配")
-    order_no, transaction_id = data.get("out_trade_no"), data.get("transaction_id")
-    if any(not isinstance(value, str) or not value or "\x00" in value or len(value) > size
-           for value, size in ((order_no, 32), (transaction_id, 64))):
-        return _fail(400, "回调订单标识无效")
-    amount = data.get("amount")
-    if not isinstance(amount, dict) or type(amount.get("total")) is not int or amount.get("currency") != "CNY":
-        return _fail(400, "回调金额结构无效")
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None:
-        return _fail(404, f"订单不存在：{data.get('out_trade_no')}")
-    total = amount["total"]
-    if total != order.amount:
-        return _fail(400, f"金额不符：回调 {total} 分，订单 {order.amount} 分")
-
-    try:
-        success_time = data.get('success_time')
-        if not isinstance(success_time, str) or len(success_time) > 40:
-            raise ValueError('missing time')
-        provider_paid_at = datetime.fromisoformat(success_time)
-        if provider_paid_at.tzinfo is None:
-            raise ValueError('missing timezone')
-    except ValueError:
-        return _fail(400, '支付成功时间必须为带时区的有效时间')
-
-    # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
-    try:
-        await settle(db, order, source='wechat', transaction_id=transaction_id,
-                     merchant_id=data['mchid'], app_id=data['appid'], amount=total, paid_at=provider_paid_at)
+        if not cfg.notify_ready:
+            raise _NotifyReject(503, "回调商户、应用或平台验签配置不完整")
+        body = await _read_notify_body(request)
+        _verify_notify_headers(cfg, request.headers, body)
+        notice = _parse_paid_notice(cfg, body)
+        order = await db.scalar(select(Order).where(Order.order_no == notice.order_no))
+        if order is None:
+            raise _NotifyReject(404, f"订单不存在：{notice.order_no}")
+        if notice.total != order.amount:
+            raise _NotifyReject(400, f"金额不符：回调 {notice.total} 分，订单 {order.amount} 分")
+        paid_at = _provider_paid_at(notice.success_time)
+        # 幂等（S3-01-3-3）：重复通知不会二次迁移、不报错，也不覆盖首次的支付信息
+        await settle(db, order, source='wechat', transaction_id=notice.transaction_id,
+                     merchant_id=notice.merchant_id, app_id=notice.app_id, amount=notice.total, paid_at=paid_at)
+    except _NotifyReject as r:
+        return _fail(r.status, r.message)
     except PaymentConflict as e:
         return _fail(409, str(e))
     return _ok()
@@ -656,9 +715,13 @@ async def _snapshot(request: Request, key: str):
         raise HTTPException(503, str(e)) from e
 
 
+def _channel(mode: str, cfg) -> tuple[str | None, str | None]:
+    """订单冻结的收款方 (merchant_id, app_id)：只有 wechat 单记商户号/应用号，manual/mock 为空。"""
+    return (cfg.mchid, cfg.appid) if mode == 'wechat' else (None, None)
+
+
 def _check_order_channel(order: Order, mode: str, cfg) -> None:
-    expected = (mode, cfg.mchid if mode == 'wechat' else None, cfg.appid if mode == 'wechat' else None)
-    if (order.payment_mode, order.merchant_id, order.app_id) != expected:
+    if (order.payment_mode, order.merchant_id, order.app_id) != (mode, *_channel(mode, cfg)):
         raise HTTPException(409, "待支付订单的渠道/商户与当前配置不一致，请核账后处理，不能换渠道确认")
 
 
@@ -691,13 +754,47 @@ async def bind_legacy_order(order_no: str, proof: LegacyBindingIn, request: Requ
         await db.rollback()
         raise HTTPException(409, '订单已被其他维护者绑定')
     order.payment_mode = proof.payment_mode
-    order.merchant_id = cfg.mchid if proof.payment_mode == 'wechat' else None
-    order.app_id = cfg.appid if proof.payment_mode == 'wechat' else None
+    order.merchant_id, order.app_id = _channel(proof.payment_mode, cfg)
     order.delivery_key, order.delivery_digest, order.delivery_size = snapshot.key, snapshot.digest, snapshot.size
     db.add(PaymentEvent(order_id=order.id, attempt_id=uuid.uuid4().hex, kind='legacy_bound',
                         actor_id=admin.id, actor_name=admin.username, evidence=proof.evidence))
     await db.commit()
     return {'order_no': order.order_no, 'bound': True}
+
+
+def _refund_view(refund) -> dict | None:
+    if refund is None:
+        return None
+    return {'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
+            'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
+            'received_at': refund.received_at, 'actor': refund.actor_name,
+            'recorded_by': 'system' if refund.verification_event_id is not None else 'administrator',
+            'verification_event_id': refund.verification_event_id, 'evidence': refund.evidence}
+
+
+def _receipt_view(receipt: PaymentReceipt | None) -> dict | None:
+    if receipt is None:
+        return None
+    return {'source': receipt.source, 'reference': receipt.transaction_id,
+            'amount': receipt.amount, 'currency': receipt.currency,
+            'actor': receipt.actor_name, 'evidence': receipt.evidence,
+            'paid_at': receipt.paid_at, 'received_at': receipt.received_at}
+
+
+def _order_contract_view(order: Order) -> dict:
+    """订单冻结的合同字段：价格、渠道/商户与交付快照；NULL 渠道显示 legacy。"""
+    return {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
+            'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
+            'merchant_id': order.merchant_id, 'app_id': order.app_id,
+            'delivery_key': order.delivery_key, 'delivery_digest': order.delivery_digest,
+            'delivery_size': order.delivery_size}
+
+
+async def _refund_prepare_allowed(db: AsyncSession, order: Order, receipt, refund, prepared) -> bool:
+    """只有带商户/应用凭证的微信收款、已付状态、且从未有过任何退款活动的单才能准备退款请求。"""
+    return (receipt is not None and receipt.source == 'wechat' and order.status in ('paid', 'downloaded')
+            and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
+            and not await prior_refund_activity(db, order.id))
 
 
 @router.get('/admin/orders/{order_no}/ledger')
@@ -718,30 +815,17 @@ async def payment_ledger(order_no: str, response: Response, before: int | None =
     notice = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order.id, PaymentEvent.kind == NOTICE_KIND)
                              .order_by(PaymentEvent.id.desc()).limit(1))
     prepared = await request_for(db, order.id)
-    can_prepare = (receipt is not None and receipt.source == 'wechat' and order.status in ('paid', 'downloaded')
-                   and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
-                   and not await prior_refund_activity(db, order.id))
+    can_prepare = await _refund_prepare_allowed(db, order, receipt, refund, prepared)
     return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
             'refund_auto_record_enabled': settings.WX_REFUND_AUTO_RECORD_ENABLED,
             'refund_verification': await jobs_view(db, order.id), 'refund_verify_enabled': settings.WX_REFUND_VERIFY_ENABLED,
             'channel_close': await closure_view(db, order, cfg=pay_config(), enabled=settings.WX_ORDER_CLOSE_ENABLED),
             'refund_submission': await submission_view(db, prepared), 'refund_send_enabled': settings.WX_REFUND_SEND_ENABLED,
             'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
-            'refund': ({'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
-                        'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
-                        'received_at': refund.received_at, 'actor': refund.actor_name,
-                        'recorded_by': 'system' if refund.verification_event_id is not None else 'administrator',
-                        'verification_event_id': refund.verification_event_id, 'evidence': refund.evidence} if refund else None),
-            'order': {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
-                      'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
-                      'merchant_id': order.merchant_id, 'app_id': order.app_id,
-                      'delivery_key': order.delivery_key, 'delivery_digest': order.delivery_digest,
-                      'delivery_size': order.delivery_size},
+            'refund': _refund_view(refund),
+            'order': _order_contract_view(order),
             'actions': {'manual': settings.SHOP_PAY_MODE == 'manual', 'mock_binding': settings.ENV == 'development'},
-            'receipt': ({'source': receipt.source, 'reference': receipt.transaction_id,
-                         'amount': receipt.amount, 'currency': receipt.currency,
-                         'actor': receipt.actor_name, 'evidence': receipt.evidence,
-                         'paid_at': receipt.paid_at, 'received_at': receipt.received_at} if receipt else None),
+            'receipt': _receipt_view(receipt),
             'events': [{'id': e.id, 'attempt_id': e.attempt_id, 'kind': e.kind,
                         'actor': e.actor_name, 'evidence': e.evidence, 'create_time': e.create_time} for e in events],
             'next_cursor': events[-1].id if len(events) == 50 else None}

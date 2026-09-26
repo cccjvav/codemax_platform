@@ -1348,133 +1348,208 @@
     },
     {
       "path": "app/routers/shop.py",
-      "sha256": "df794def24aecde540c37dfecf6cb6c4a56f0752a7d7179e8a47dd7f44418b25",
+      "sha256": "6b1f968a57b9dc1e512be7c433475202846492e0383e17aee53c6d9fccf3333a",
       "method": "manual",
       "blocks": [
         {
-          "end": 67,
+          "end": 68,
           "title": "模块装配与边界",
           "explanation": "新增原子结算/快照/线程执行、金额及依据schema；结构化日志仅辅助。所有HTTP路径保持原身份/管理员依赖，不自动接入真实退款或模型。\n\n第七批复核：新增通知种类与只读摘要解析器导入，不在导入时处理回调。 ledger增加jobs_view独立最近50任务/截断标记和核验开关；不暴露token，不受事件before影响，不查询外网。默认SUCCESS观察仍待人工；另有系统登记授权。 新增 asyncio 导入与 _PREPAY_LOCKS（user_id → [Lock, 引用计数]）：同一用户预支付段的进程内单飞状态（TD-262），多实例各自单飞。"
         },
         {
-          "end": 93,
+          "end": 94,
           "title": "_prepay_flight",
           "explanation": "异步上下文管理器：进入时取/建该用户的锁并加引用计数，等待获取锁被取消也会归还计数；退出时释放锁，最后一个使用者离开就删掉字典项，锁表不随用户数增长。只在 create_order 数据库提交之后进入，不与 lock_user 嵌套，不持数据库锁跨网络；不是跨进程互斥。"
         },
         {
-          "end": 116,
+          "end": 117,
           "title": "_qr_svg",
           "explanation": "只把本站订单code_url用segno转内联SVG，不提供任意用户字符串画码接口。业务script-src只允许self，服务端画码无需额外CDN；开发文档CDN例外不能用于业务页。不把画码成功等同商户成功。"
         },
         {
-          "end": 122,
+          "end": 123,
           "title": "ping",
           "explanation": "功能契约：需登录的商业平台连通性示例，不检测支付商户可用性。\n\n登记/装饰：router.get('/ping')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：_: User=Depends(get_current_user)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL120 结束当前函数，返回 {'platform': 'shop', 'message': 'pong'}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 258,
-          "title": "create_order",
-          "explanation": "输入当前登录用户与服务端商品配置；验证金额范围/mock只开发/微信本地凭据。过期pending关闭后可另建；未过期单必须匹配自身渠道和商户才能复用。新单先在线程复制内容寻址快照，再保存固定价格/渠道/商户/交付hash；并发唯一冲突回滚重读并再次验证渠道。微信先commit订单与started事件才触网，失败记unknown，成功记ready并提交二维码，最后刷新避免盖掉回调状态。外部未知结果并非失败，无自动查单/退款。 复制前以数据库用户锁串行同一用户下单，避免5次连点把重复复制挤进两槽而出现伪繁忙；外部预支付前commit释放锁。 TD-262：路由挂 order 桶限流（RATE_LIMIT_AUTH）；wechat 分支在本地订单提交（释放 lock_user）后进入 _prepay_flight(user_id)，锁内 populate_existing 重读订单——已非 pending 409、已有 code_url 直接 reused=True 返回，否则才写 prepay_started 并跨网络；并发第二个请求因此不会对同一单号再发预支付，失败（unknown）后等待者沿用同一单号重试。"
+          "end": 143,
+          "title": "_checkout_channel",
+          "explanation": "下单前的配置闸门，从 create_order 抽出（TD-288），检查顺序不变：商品分金额是正整数且在 int4 内（503）→ mock 只许开发环境（503）→ 模式只能 wechat/mock/manual（500）→ wechat 需下单配置完整且回调凭据可用（503）。返回 (mode, cfg)；全部发生在碰数据库之前，失败不建单。"
+        },
+        {
+          "end": 152,
+          "title": "_latest_pending",
+          "explanation": "取该用户最新一张 pending 单（按 id 倒序取 1）。下单时查一次、撞唯一索引回滚后再查一次，原来两处复制的查询合为一处（TD-288）。只读，不加锁；锁由调用方先取的 lock_user 提供。"
+        },
+        {
+          "end": 163,
+          "title": "_reusable",
+          "explanation": "判断未过期的 pending 单能否直接返回：先 _check_order_channel（冻结渠道/商户与当前配置不一致即 409，不能换渠道确认），再看有没有可付款方式——有 code_url，或 manual 模式（manual 没有 code_url，收款码是全站静态图）。create_order 的首次查询与冲突重读两处共用（TD-288），原来两处各写一遍「先核渠道再判 code_url/manual」。"
+        },
+        {
+          "end": 195,
+          "title": "_prepay_wechat",
+          "explanation": "微信分支从 create_order 抽出（TD-288），语义不变：调用方已 commit（订单持久、lock_user 释放）后进入 _prepay_flight(user_id)；锁内 populate_existing 重读订单，已非 pending 409、已有 code_url 返回 (order, True)；否则先提交 prepay_started 再跨网络，WeChatPayError 记 prepay_unknown 提交后 502（未知不等于没付），成功记 prepay_ready 并提交 code_url，返回 (order, False)。"
         },
         {
           "end": 280,
+          "title": "create_order",
+          "explanation": "输入当前登录用户与服务端商品配置；验证金额范围/mock只开发/微信本地凭据。过期pending关闭后可另建；未过期单必须匹配自身渠道和商户才能复用。新单先在线程复制内容寻址快照，再保存固定价格/渠道/商户/交付hash；并发唯一冲突回滚重读并再次验证渠道。微信先commit订单与started事件才触网，失败记unknown，成功记ready并提交二维码，最后刷新避免盖掉回调状态。外部未知结果并非失败，无自动查单/退款。 复制前以数据库用户锁串行同一用户下单，避免5次连点把重复复制挤进两槽而出现伪繁忙；外部预支付前commit释放锁。 TD-262：路由挂 order 桶限流（RATE_LIMIT_AUTH）；wechat 分支在本地订单提交（释放 lock_user）后进入 _prepay_flight(user_id)，锁内 populate_existing 重读订单——已非 pending 409、已有 code_url 直接 reused=True 返回，否则才写 prepay_started 并跨网络；并发第二个请求因此不会对同一单号再发预支付，失败（unknown）后等待者沿用同一单号重试。 TD-288：配置闸门、最新 pending 查询、复用判断、微信预支付分别抽成 _checkout_channel / _latest_pending / _reusable / _prepay_wechat，本函数只剩流程编排；user.id 在任何数据库操作前取成局部变量并全程使用（原来微信分支在可能发生过 rollback 之后又读了一次 user.id）。"
+        },
+        {
+          "end": 302,
           "title": "order_status",
           "explanation": "按原订单号查并核对所有者，其他人/不存在同为404。_payload保留原支付状态，另SELECT退款凭证填refunded，并计算expired；JSON no-store。只读不关单、不领链，不把退款抹成未付。"
         },
         {
-          "end": 284,
+          "end": 306,
           "title": "MockPayIn",
           "explanation": "功能契约：模拟确认请求的Pydantic形状，只提供订单号；不能通过JSON自报金额/买家绕过查库。\n\n结构事实：定义类 MockPayIn，基类 BaseModel；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL282 声明字段 `order_no` 的类型 str；仅类型标注，不执行数据库写入。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 300,
+          "end": 322,
           "title": "mock_pay_page",
           "explanation": "功能契约：只在 mock 模式且 ENV=development 时返回开发模板，否则 404；显示页面不是收款操作。\n\n登记/装饰：router.get('/mock-pay', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：request: Request, order_no: str=''；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL288 判断 `settings.SHOP_PAY_MODE != 'mock' or settings.ENV != 'development'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL289 抛出 HTTPException(404, '模拟支付通道未开启（SHOP_PAY_MODE != mock）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL294 结束当前函数，返回 调用 templates.TemplateResponse(request, 'mock_pay.html', page_context(request, title='模拟收银台', order_no=order_no))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 335,
+          "end": 357,
           "title": "mock_pay_confirm",
           "explanation": "仅development与mock配置，且只对本人mock订单调用原子settle。使用MOCK单号作为模拟流水并与真实wechat命名空间隔离；跨渠道409，完整重复成功，不再用状态函数绕过凭证。 块前的模块级 logger：_audit_logger（codemax.audit，人工确认审计）与 TD-281 新增的 _shop_logger（codemax.shop，运维告警，不是审计记录）。"
         },
         {
-          "end": 346,
+          "end": 368,
           "title": "EvidenceIn",
           "explanation": "共享依据字段3–500字符，拒绝ASCII控制字符；meaningful_evidence去掉两侧空白后至少3字符。不要存完整银行资料/秘密，字段校验不验证真实性。"
         },
         {
-          "end": 352,
+          "end": 374,
           "title": "ManualReceiptIn",
           "explanation": "继承依据合同，amount必须严格整数且正；reference为最多64位ASCII字母数字和指定标点，不再自动生成虚假MANUAL流水。实际金额在settle持锁后与订单比较。"
         },
         {
-          "end": 406,
+          "end": 428,
           "title": "confirm_paid_manually",
           "explanation": "管理员依赖、require_finance_origin来源检查和当前manual配置均通过后读取原单；原渠道须manual，实际分数/参考流水/依据通过schema和settle检查。锁内将凭证和paid原子提交；精确重试不覆盖首次人，冲突409。该函数不查询银行，管理员须独立核实实际到账。"
         },
         {
-          "end": 422,
+          "end": 444,
           "title": "order_history",
           "explanation": "按当前user_id和before倒序最多50单，再批量SELECT这些订单的退款ID集合，将refunded逐单加入_payload；两次有界查询，不逐行查数据库。不创建订单/链接，游标按实际订单ID推进。 TD-281：只给 pending 行画二维码（_payload 传 qr=status==PENDING，每人至多一张 pending）。旧实现给每张带 weixin:// 的单都同步画 SVG，含已关闭、永远不会展示的码；一页 50 张实测约 160 ms 阻塞事件循环，还把失效收款码发给浏览器。单查接口 order_status 不受影响。"
         },
         {
-          "end": 462,
+          "end": 484,
           "title": "download_url",
           "explanation": "所有者与paid/downloaded检查后先拒绝退款；读取冻结key/hash/size，缺失404/损坏409/历史未绑定409。在线程验快照后锁单并重查退款，才签带order_no的v2链接并mark_downloaded；原已downloaded时也显式commit释放锁。异常不消灭未退款权益；不能用当前商品替换旧交付。 TD-281：交付对象缺失时 404 文案改为中性的「商品文件暂不可用，请联系站内客服；购买权益未删除」；对象 key 只写入 codemax.shop 告警日志（附 order_no）。原文案把存储内部路径回给了用户。"
         },
         {
-          "end": 507,
+          "end": 529,
           "title": "serve_download",
           "explanation": "公开入口不要求登录，身份来自订单域HMAC短链；与POST /shop/download共用`download`限流桶（RATE_LIMIT_TOOLS，TD-261/A-08），超额429先于任何签名或数据库检查；旧格式缺order_no统一403并提示重领。先验签/期限，再核订单paid/downloaded、冻结key和实时退款；安全路径缺失404，按冻结hash/size校验后再SELECT退款，最后FileResponse流式no-store。不能召回已接纳连接/副本，仍信任主机管理员和签名密钥。"
         },
         {
-          "end": 516,
+          "end": 538,
           "title": "_storage",
           "explanation": "功能契约：用可信入口规则得到基址，StorageError 转 503；不是静默换后端。\n\n输入签名：request: Request；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL509 执行try体；捕获 StorageError。\nL512 结束当前函数，返回 调用 build_storage(public_base_url(request))；不会自动commit未提交事务。\nL514 抛出 HTTPException(503, str(e))，显式保留原因 e；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 520,
+          "end": 542,
           "title": "_ok",
           "explanation": "功能契约：返回商户协议 SUCCESS JSON；用于已处理和可忽略通知，不表示每种通知都改了订单。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL518 结束当前函数，返回 调用 JSONResponse({'code': 'SUCCESS', 'message': '成功'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 525,
+          "end": 547,
           "title": "_fail",
           "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL523 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 548,
+          "end": 570,
           "title": "_payload",
           "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。 O-09 删除了从未被读取的 pay_mode 形参（六处调用同步更新），当时签名只剩 order 与 reused；渠道只来自订单冻结值。 TD-281：新增仅关键字参数 qr（默认 True）；order_history 对非 pending 行传 False 跳过 SVG 生成，其余五处调用不变。"
         },
         {
-          "end": 651,
-          "title": "pay_notify",
-          "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。"
+          "end": 578,
+          "title": "_NotifyReject",
+          "explanation": "回调内部的拒绝异常，携带 HTTP 状态和消息（TD-288）。各段校验抛它，pay_notify 统一转成微信规定的 FAIL 应答；不外泄到路由之外，也不是 HTTPException（那会变成 {\"detail\": …}）。"
         },
         {
-          "end": 658,
+          "end": 589,
+          "title": "_PaidNotice",
+          "explanation": "验签、解密、结构和渠道校验都通过后的支付成功通知：订单号、微信交易号、分金额、商户号、应用号，以及**尚未解析**的 success_time——时间在查到订单、核完金额后才解析，保持拆分前的拒绝优先级（TD-288）。"
+        },
+        {
+          "end": 602,
+          "title": "_read_notify_body",
+          "explanation": "逐块读请求体，累计超过 64 KiB 即 413；严格 UTF-8 解码，非法字节 400，不做替换——验签要用原样文本（TD-288 从 pay_notify 抽出）。"
+        },
+        {
+          "end": 621,
+          "title": "_verify_notify_headers",
+          "explanation": "签名头长度上限 → 时间戳新鲜度（先于验签：原样重放时签名仍合法，只有时间戳能暴露，也省一次 RSA）→ 平台证书序列号 → 签名。任一 WeChatPayError 转为 401（TD-288 从 pay_notify 抽出）。"
+        },
+        {
+          "end": 663,
+          "title": "_parse_paid_notice",
+          "explanation": "已验签报文 → _PaidNotice，不碰数据库（TD-288 从 pay_notify 抽出）。依次：有界 JSON（含 RecursionError）→ resource 是对象、密文字段是字符串 → 解密失败 400 → 业务数据是对象 → 只接 TRANSACTION.SUCCESS 且 trade_state=SUCCESS（其他 422，不能当已处理）→ appid/mchid/NATIVE/算法/原始类型/资源类型全匹配 → 订单号 ≤32、交易号 ≤64、非空无 NUL → 金额是对象、total 为 int、币种 CNY。"
+        },
+        {
+          "end": 675,
+          "title": "_provider_paid_at",
+          "explanation": "解析微信给的支付时间：必须是 ≤40 字符的字符串、fromisoformat 可解析且带时区，否则 400「支付成功时间必须为带时区的有效时间」。在订单与金额核对之后调用（TD-288）。"
+        },
+        {
+          "end": 710,
+          "title": "pay_notify",
+          "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。 TD-288：拆成 _read_notify_body / _verify_notify_headers / _parse_paid_notice / _provider_paid_at 几段，各段抛 _NotifyReject，这里统一转 _fail；PaymentConflict 仍是 409。拒绝优先级与拆分前逐项相同：配置 → 大小/编码 → 签名头 → 结构/解密/事件/渠道/标识/金额结构 → 订单存在（404）→ 金额相等 → 支付时间，test_notify_rejection_precedence_and_paid_time 在拆分前后都通过。"
+        },
+        {
+          "end": 717,
           "title": "_snapshot",
           "explanation": "使用请求安全基址构建本地存储并卸载snapshot_product到线程；StorageError转503，不先收款，不把文件复制堵在事件循环。"
         },
         {
-          "end": 664,
-          "title": "_check_order_channel",
-          "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。"
+          "end": 722,
+          "title": "_channel",
+          "explanation": "订单冻结的收款方 (merchant_id, app_id)：只有 wechat 单记当前配置的商户号/应用号，manual/mock 为 (None, None)。原来在建单、渠道核对、历史绑定里复制了四次同一个条件表达式（TD-288）。"
         },
         {
-          "end": 670,
+          "end": 727,
+          "title": "_check_order_channel",
+          "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。 TD-288：期望值改由 _channel(mode, cfg) 给出。"
+        },
+        {
+          "end": 733,
           "title": "LegacyBindingIn",
           "explanation": "继承必须有内容的依据；只允许manual/wechat/mock，以及有界无控制字符原文件key。它是管理员声明待核实旧合同，不是面向用户任选文件的入口。"
         },
         {
-          "end": 702,
+          "end": 764,
           "title": "bind_legacy_order",
-          "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。"
+          "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。 TD-288：商户/应用号改由 _channel(proof.payment_mode, cfg) 给出，与建单同一来源。"
         },
         {
-          "end": 747,
+          "end": 774,
+          "title": "_refund_view",
+          "explanation": "账本视图的退款凭证段；无退款返回 None。recorded_by 按是否有 verification_event_id 区分 system 与 administrator。从 payment_ledger 的大字典里抽出，键与顺序不变（TD-288）。"
+        },
+        {
+          "end": 783,
+          "title": "_receipt_view",
+          "explanation": "账本视图的收款凭证段；无凭证返回 None。reference 就是收款凭证的 transaction_id。从 payment_ledger 抽出，键与顺序不变（TD-288）。"
+        },
+        {
+          "end": 792,
+          "title": "_order_contract_view",
+          "explanation": "账本视图的订单合同段：用户、商品名、价格、币种、状态、冻结渠道（NULL 显示 legacy）、商户/应用、交付快照 key/摘要/大小。从 payment_ledger 抽出，键与顺序不变（TD-288）。"
+        },
+        {
+          "end": 799,
+          "title": "_refund_prepare_allowed",
+          "explanation": "能否准备退款请求：微信收款凭证且带商户/应用号、订单 paid/downloaded、没有退款凭证、没有已准备的请求、且 prior_refund_activity 为假。条件与短路顺序与原来的内联表达式相同（TD-288）。"
+        },
+        {
+          "end": 831,
           "title": "payment_ledger",
-          "explanation": "管理员只读原合同、收款/成功退款/通知与过程历史；另request_for取本地准备、检查prior_refund_activity计算页面入口提示，request_view给准备或匹配/另号成功。准备/通知/凭证不受before事件分页影响，不调用外网或写任务。入口可用性不是授权，POST会在用户/订单锁下重查。 第九批还独立读取完整授权/最近尝试和发送开关；GET不发网络、不证明可发送，POST重新检查。 ledger增加jobs_view独立最近50任务/截断标记和核验开关；不暴露token，不受事件before影响，不查询外网。默认SUCCESS观察仍待人工；另有系统登记授权。 第十三批新增refund_auto_record_enabled、refund.recorded_by及verification_event_id；只是本Web配置和持久归属投影，不启动查询、不证明worker在线/配置一致。 新增channel_close只读投影（当前门禁/query/最近尝试），独立于事件before分页，不触发close/query，原付款与退款视图不变。"
+          "explanation": "管理员只读原合同、收款/成功退款/通知与过程历史；另request_for取本地准备、检查prior_refund_activity计算页面入口提示，request_view给准备或匹配/另号成功。准备/通知/凭证不受before事件分页影响，不调用外网或写任务。入口可用性不是授权，POST会在用户/订单锁下重查。 第九批还独立读取完整授权/最近尝试和发送开关；GET不发网络、不证明可发送，POST重新检查。 ledger增加jobs_view独立最近50任务/截断标记和核验开关；不暴露token，不受事件before影响，不查询外网。默认SUCCESS观察仍待人工；另有系统登记授权。 第十三批新增refund_auto_record_enabled、refund.recorded_by及verification_event_id；只是本Web配置和持久归属投影，不启动查询、不证明worker在线/配置一致。 新增channel_close只读投影（当前门禁/query/最近尝试），独立于事件before分页，不触发close/query，原付款与退款视图不变。 TD-288：退款、收款、订单合同三段与「能否准备退款」抽成 _refund_view / _receipt_view / _order_contract_view / _refund_prepare_allowed，响应键与顺序不变。"
         }
       ]
     },
@@ -9148,7 +9223,7 @@
     },
     {
       "path": "tests/test_wechat_notify.py",
-      "sha256": "efb4d957c00b1b1c53336894df53e4a370d2ba65dea4d15cad61ae4b11637f2c",
+      "sha256": "455b17c78af6142c2f5ef2f7a5fcceb4294bf4b0e7aac4767e3983f8f0643534",
       "method": "manual",
       "blocks": [
         {
@@ -9302,9 +9377,14 @@
           "explanation": "本用例的准备条件：client, notify_ready。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, notify_ready；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL431 计算右侧并赋给 `order_no`：await 调用 make_order(status='closed')；等待期间可让出事件循环，恢复后才执行下一句。\nL432 计算右侧并赋给 `(raw, headers)`：调用 build_notify(txn(order_no, txid='TX-LATE-001'))。\nL433 计算右侧并赋给 `r`：await 调用 post_notify(client, raw, headers)；等待期间可让出事件循环，恢复后才执行下一句。\nL434 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL436 计算右侧并赋给 `order`：await 调用 fetch(order_no)；等待期间可让出事件循环，恢复后才执行下一句。\nL437 核对 `order.status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL438 核对 `order.transaction_id == 'TX-LATE-001'`：此条件为假即测试失败；不是生产输入校验。\nL439 核对 `order.paid_at is not None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 454,
+          "end": 456,
           "title": "test_notify_on_closed_order_is_still_idempotent",
           "explanation": "从closed首次接收合成付款，再重复相同流水；均成功且首笔凭证不变，不是允许第二笔不一致付款。"
+        },
+        {
+          "end": 475,
+          "title": "test_notify_rejection_precedence_and_paid_time",
+          "explanation": "本用例的准备条件：client, notify_ready, known, total, success_time, status, message。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-288：用真实加密签名的回调逐项核对拒绝优先级——订单不存在 404 先于金额与时间，金额不符 400 先于时间，时间无时区/缺失/超长 400；已知订单被拒后仍是 pending。在 pay_notify 拆分前后的代码上都通过。\n\n登记/装饰：pytest.mark.parametrize(('known', 'total', 'success_time', 'status', 'message'), [(False, 1, 'bad', 404, '订单不存在'), (True, 1, 'bad', 400, '金额不符'), (True, 19900, '2026-09-01T12:31:00', 400, '带时区'), (True, 19900, None, 400, '带时区'), (True, 19900, 'x' * 41, 400, '带时区')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, notify_ready, known, total, success_time, status, message；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL467 计算右侧并赋给 `order_no`：await make_order(amount=19900) if known else 'CM-NOT-EXIST'；known 为真时 await 建单，否则用不存在的单号。\nL468 计算右侧并赋给 `plain`：调用 txn(order_no, total=total)。\nL469 把 `success_time` 写入 `plain['success_time']`。\nL470 计算右侧并赋给 `(raw, headers)`：调用 build_notify(plain)。\nL471 计算右侧并赋给 `r`：await 调用 post_notify(client, raw, headers)；等待期间可让出事件循环，恢复后才执行下一句。\nL472 核对 `r.status_code == status`：此条件为假即测试失败；不是生产输入校验。\nL473 核对 `r.json()['code'] == 'FAIL' and message in r.json()['message']`：此条件为假即测试失败；不是生产输入校验。\nL474 判断 `known`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL475 核对 `(await fetch(order_no)).status == 'pending'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         }
       ]
     },

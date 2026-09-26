@@ -452,3 +452,24 @@ async def test_notify_on_closed_order_is_still_idempotent(client, notify_ready):
     order = await fetch(order_no)
     assert order.status == "paid"
     assert order.transaction_id == "TX-LATE-FIRST", "重复通知不该覆盖首次的微信支付订单号"
+
+
+@pytest.mark.parametrize(("known", "total", "success_time", "status", "message"), [
+    (False, 1, "bad", 404, "订单不存在"),                       # 订单存在性先于金额与时间
+    (True, 1, "bad", 400, "金额不符"),                          # 金额先于时间
+    (True, 19900, "2026-09-01T12:31:00", 400, "带时区"),        # 无时区
+    (True, 19900, None, 400, "带时区"),                         # 缺字段
+    (True, 19900, "x" * 41, 400, "带时区"),                     # 超长
+])
+async def test_notify_rejection_precedence_and_paid_time(client, notify_ready, known, total, success_time, status, message):
+    """TD-288：pay_notify 拆成读报文 / 验签头 / 解析通知 / 核对订单几段后，拒绝优先级必须与拆分前一致：
+    订单不存在（404）→ 金额不符（400）→ 支付时间无效（400）。时间无效的单不得被结算。"""
+    order_no = await make_order(amount=19900) if known else "CM-NOT-EXIST"
+    plain = txn(order_no, total=total)
+    plain["success_time"] = success_time
+    raw, headers = build_notify(plain)
+    r = await post_notify(client, raw, headers)
+    assert r.status_code == status
+    assert r.json()["code"] == "FAIL" and message in r.json()["message"]
+    if known:
+        assert (await fetch(order_no)).status == "pending"
