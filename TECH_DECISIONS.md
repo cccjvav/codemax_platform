@@ -988,3 +988,40 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
   - `test_static_fetch_and_dynamic_render_share_one_gate`：上限 1，3 个静态 + 3 个动态并发，合计在飞峰值必须为 1。这条在旧代码上同样成立，作用是防止以后有人把两边拆回各自的闸。
 
 **边界**：并发闸仍是进程内的，多 worker / 多实例部署时各自计数。这一点与之前相同，本次不改。
+
+## TD-291：导读维护工具进仓库 `scripts/code_reading_narrate.py`
+
+2026-09-27。基线 `d9bf359`（TD-290）。用户确认（开放事项「笔记生成脚本进仓库」）。
+
+**问题**：
+- `docs/code_reading_notes.json` 每次改源码都要同步：移动段界和 `Lnn`、重写改动函数的 AST 语句导读、增删函数块。
+- `scripts/code_reading.py` 只校验一致性。生成导读用的脚本一直在仓库外，TD-284 也记着「仓库里仍没有导读生成器」。
+- 本会话里工作区多次被还原，仓库外的脚本每次都丢，只能重写。换人接手时也无法复现导读的写法。
+
+**决定**：新增 `scripts/code_reading_narrate.py`，只用标准库，只处理命令行点名的文件。
+- `check`：报告与当前源码生成结果不一致的块，只读。
+- `remap`：按 git 基线用 difflib 移动段界与 `Lnn`，并更新 sha256。
+- `regen`：重写指定块的 AST 段，可用 `--note` 追加 TD 说明。
+- `add` / `drop`：增删函数块。
+- `init`：为新文件建 guided 条目。第一段取自人写的 JSON，缺哪块就报错列出。
+
+**写法与块划分**：
+- 写法模板从现有导读归纳：断言与状态码、ASGI 客户端、monkeypatch、pytest.raises、await/调用附注、多行测试字面量等。状态码表只收录现有导读里用过的写法，表外状态码走通用写法。
+- 嵌套定义块接上外层函数体里其后的语句；模块级语句按块的行范围归属。这两条都与现有导读一致。
+- 没有模板的语句类型，以及写在 if/for/try/with 里的定义，会抛 NotImplementedError，不猜写法，也不静默漏讲。
+
+**证据**：
+- 对仓库里 1206 个带 AST 段、标题对应定义的块，1176 个（约 97.5%）逐行复现。其余 30 个是旧模板写法（如 `except` 元组的两种写法并存）或说明里特意改写的字面量。
+- `check` 在本次就发现了 TD-290 漏更的两处导读：politeness.py 模块块缺 `import contextlib`，browser.py 模块块仍写着导入 `_request`。已用 `regen` 修正。
+- 新增 `tests/test_code_reading_narrate.py`（12 项）：
+  - 写法模板；
+  - 块归属；
+  - 在临时 git 仓库里 init → 改源码 → remap/regen/add/drop 后通过 `code_reading.build_reading` 的完整校验；
+  - `init` 拒绝代写；
+  - 6 个近期用本工具维护的文件逐行复现。
+- 工具与测试文件本身的导读也由 `init` 生成，人写每块第一段。
+
+**边界**：
+- 工具生成的是语法导读，不判定中文说明的语义。
+- `check` 的不一致需要逐条判断，不能为了一致覆盖手写说明。
+- 非 Python 文件（JS/HTML/SQL）的导读仍手工维护。

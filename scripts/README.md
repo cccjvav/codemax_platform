@@ -53,6 +53,20 @@ DOC_GROUPS 登记 Windows/Conda、人工验收和最新全仓交接报告；审�
 
 build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 build_reading，连 `--data-only` 也拒绝漏项与过期讲解；reading.json 和 reading.html 都是生成物。源码与讲解并排嵌入既有源码页，完整源码仍保留。现有文档 job 执行新增完整性校验；本轮只修正工作流注释，没有新增 job。manual/guided 来源明确展示，不把 AST 导读自动认证为设计解释。
 
+### code_reading_narrate.py
+
+导读 JSON 的维护工具（TD-291），只用标准库，只处理命令行点名的文件。
+
+| 子命令 | 作用 | 限制 |
+| --- | --- | --- |
+| `check PATH...` | 用当前源码重新生成每个 guided 块的 AST 语句导读，与已提交的逐行比较 | 只读；手写块与旧模板写法也会被报告，是提示而非错误 |
+| `remap PATH... [--base REV]` | 按 difflib 把段界与行首 `Lnn` 从 REV（默认 HEAD）映射到当前行号，末块收到 EOF，更新 sha256 | 只移动行号，不改说明文字；改动很大的函数仍要 `regen` 并人工复核 |
+| `regen PATH TITLE... [--note TEXT]` | 重写指定块的 AST 段，可向第一段追加说明 | 标题必须对应源码里的定义 |
+| `add PATH TITLE --head TEXT` / `drop PATH TITLE` | 新建函数块（拆分所在块）/ 删除块并入前一块 | 第一段由 `--head` 人工提供 |
+| `init PATH --heads FILE` | 为新文件建 guided 条目，每个定义一块 | heads JSON 缺哪块就报错列出，不代写功能契约 |
+
+写法模板沿用现有导读；没有模板的语句类型、写在 if/for/try/with 里的定义会抛 NotImplementedError，而不是猜写法或静默漏讲。当前对仓库里带 AST 段的块约 97% 逐行复现，其余是旧模板写法或手写块。写入后运行 `tests/test_code_reading.py`、`tests/test_code_reading_narrate.py` 和 `check_docs_contract.py --write`。
+
 ### check_schema_pg.mjs
 
 `loadPGlite(spec)` 接受已安装的包名或目录并解析模块入口。主流程建立临时 WASM PostgreSQL、执行 full_init 两遍，检查表/外键/索引并做写读冒烟。
@@ -66,6 +80,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
+| [`scripts/code_reading_narrate.py`](code_reading_narrate.py) | `b513f2bc2f8c` | L1–L599 |
 | [`scripts/probe_llm.py`](probe_llm.py) | `0ae5958877a2` | L1–L100 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

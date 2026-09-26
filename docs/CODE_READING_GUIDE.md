@@ -342,6 +342,7 @@ Git 已跟踪及未忽略新增文本
 
 1. 先核实现、调用者和测试，再修改对应模块契约/段落；业务语义改了不能沿用旧文字。
 2. 新文件也须补解释；现有源码改动要复核段界，确认后仅更新该文件的 notes 摘要。不要批量覆盖所有 SHA 掩盖过期说明。
+   Python 文件可用 `scripts/code_reading_narrate.py` 做机械部分（TD-291）：`remap` 按 git 基线移动段界与 `Lnn`，`regen` 重写改动函数的 AST 语句导读（`--note` 追加 TD 说明），`add` / `drop` 增删函数块，`init` 为新文件建条目，`check` 报告导读与当前源码生成结果不一致的块。它只处理点名的文件；功能契约（每块第一段）仍要人写，`init` 缺哪块就报哪块。`check` 报告的不一致可能是旧模板写法或手写块，逐条判断，不要为了一致而覆盖手写说明。
 3. 运行 `python scripts/check_docs_contract.py --write` 更新 README 自动表；它不代写人工说明、不刷新 notes 中的源摘要。
 4. 运行 `python -m pytest tests/test_docs_contract.py tests/test_docs_site.py tests/test_code_reading.py -q` 和 `python scripts/build_docs_site.py`。完整构建及 `--data-only` 均拒绝缺讲解；低层 helper 的诊断模式才允许展示待补状态。
 5. 业务/前端有变时运行相应和全量测试、npm 构建；最终以实际提交 SHA 的 CI 为准。生成站点无需提交，源说明和必要 bundle 要提交。
