@@ -95,6 +95,49 @@ async def test_unavailable_robots_means_do_not_crawl(status):
 
 
 @pytest.mark.asyncio
+async def test_unknown_robots_is_cached_briefly_so_a_rerun_can_succeed():
+    """TD-286：规则不可知只缓存 ROBOTS_UNKNOWN_TTL。上一条用例的理由是「漏抓可以重跑」，
+    可改前 503 的结论要缓存整整 ROBOTS_TTL（1 小时），这一小时里重跑都被同一个旧结论拒掉。
+    同时短缓存仍在：紧接着再抓不会立刻又去拉 robots。"""
+    statuses = [503, 404]
+    robots_hits: list[int] = []
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            robots_hits.append(1)
+            return httpx.Response(statuses[min(len(robots_hits), len(statuses)) - 1])
+        return httpx.Response(200, text=PAGE)
+
+    t = httpx.MockTransport(handle)
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/blog/a", transport=t)
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/blog/a", transport=t)
+    assert len(robots_hits) == 1, "短缓存期内不该再拉 robots"
+
+    state = politeness.state_for(f"{BASE}/blog/a")
+    assert state.ttl == politeness.ROBOTS_UNKNOWN_TTL < politeness.ROBOTS_TTL
+    state.fetched_at -= politeness.ROBOTS_UNKNOWN_TTL + 1  # 模拟过了短缓存期，而远没到 1 小时
+    page = await fetch(f"{BASE}/blog/a", transport=t)
+    assert page.status == 200
+    assert len(robots_hits) == 2
+
+
+@pytest.mark.asyncio
+async def test_definitive_robots_answer_keeps_the_full_ttl():
+    """403 是站方明确的拒绝，不是「不可知」：仍按 ROBOTS_TTL 缓存，过了短缓存期也不重拉。"""
+    t, seen = transport(403)
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/blog/a", transport=t)
+    state = politeness.state_for(f"{BASE}/blog/a")
+    assert state.ttl == politeness.ROBOTS_TTL
+    state.fetched_at -= politeness.ROBOTS_UNKNOWN_TTL + 1
+    with pytest.raises(RobotsDisallowed):
+        await fetch(f"{BASE}/blog/a", transport=t)
+    assert sum(u.endswith("/robots.txt") for u in seen) == 1
+
+
+@pytest.mark.asyncio
 async def test_robots_matched_by_product_token_not_full_ua():
     """规则按**产品名 token** 判定，不是整条 UA。
 

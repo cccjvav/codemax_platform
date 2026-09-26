@@ -15,10 +15,14 @@
 最后一条比「拿不到规则就当没规则」保守，代价是目标站抽风时会漏抓；
 对一个内容冷启动爬虫来说，漏抓可以重跑，被封 IP 不行。
 
-## robots.txt 结果缓存 1 小时
+## robots.txt 结果缓存 1 小时（规则不可知只缓存 1 分钟）
 
 同一批冷启动往往要抓同一个站的几十篇文章，每篇都去拉一次 robots.txt
 本身就变成了对目标站的额外压力 —— 那就违背这个模块的初衷了。
+
+超时 / 5xx 这类「规则不可知」的结果只缓存 `ROBOTS_UNKNOWN_TTL`（1 分钟，TD-286）：
+缓存一小时的话，目标站抖一下，接下来一小时重跑都会被同一个旧结论拒掉，「漏抓可以重跑」就不成立了；
+完全不缓存又会让同一批几十篇各拉一次 robots。
 
 ## 抓取间隔按域计算，不是全局
 
@@ -43,6 +47,8 @@ from urllib.robotparser import RobotFileParser
 
 # robots.txt 缓存多久（秒）。1 小时是通行做法。
 ROBOTS_TTL = 3600.0
+# 规则不可知（超时、连接失败、5xx 等）时的缓存时长（秒，TD-286）：短到能重跑，长到同一批抓取不反复拉 robots
+ROBOTS_UNKNOWN_TTL = 60.0
 # 目标站没写 Crawl-delay 时，我们对同一域名两次请求之间的最小间隔（秒）
 DEFAULT_MIN_INTERVAL = 2.0
 # 全局同时在飞的请求数上限。防的是「一百个域名各抓一篇」时把本机带宽打满
@@ -68,6 +74,7 @@ class _DomainState:
     parser: RobotFileParser | None = None
     crawl_delay: float | None = None
     fetched_at: float = 0.0
+    ttl: float = ROBOTS_TTL  # 本次结论的有效期：确定的结论 ROBOTS_TTL，规则不可知 ROBOTS_UNKNOWN_TTL（TD-286）
     last_request: float = 0.0
     touched_at: float = 0.0  # 最近一次被查/被抓的时刻，淘汰按它排序（TD-268）
     lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -136,16 +143,17 @@ async def _load_robots(url: str, user_agent: str, fetch_text) -> _DomainState:
     以便复用爬虫自己那套 SSRF 校验与测试注入的 transport。"""
     state = _state(_origin(url))
     now = time.monotonic()
-    if state.fetched_at and now - state.fetched_at < ROBOTS_TTL:
+    if state.fetched_at and now - state.fetched_at < state.ttl:
         return state
 
     async with state.lock:
         # 双重检查：等锁期间可能已经有别的协程加载完了
-        if state.fetched_at and now - state.fetched_at < ROBOTS_TTL:
+        if state.fetched_at and now - state.fetched_at < state.ttl:
             return state
         state.allowed_all = True
         state.parser = None
         state.crawl_delay = None
+        state.ttl = ROBOTS_TTL
         # 延迟导入：crawler 依赖本模块，模块级反向导入会成环。
         # 这里只是要认出它抛的异常类型，运行时 crawler 早已加载完毕。
         from .crawler import CrawlError
@@ -161,6 +169,7 @@ async def _load_robots(url: str, user_agent: str, fetch_text) -> _DomainState:
             # 超时、连接失败、DNS 失败……规则不可知，按保守处理（本次不抓）
             state.allowed_all = False
             state.parser = None
+            state.ttl = ROBOTS_UNKNOWN_TTL
             state.fetched_at = now
             return state
 
@@ -182,6 +191,7 @@ async def _load_robots(url: str, user_agent: str, fetch_text) -> _DomainState:
                 state.allowed_all = False
         else:
             state.allowed_all = False  # 5xx / 3xx 等：不可知
+            state.ttl = ROBOTS_UNKNOWN_TTL
         state.fetched_at = now
         return state
 

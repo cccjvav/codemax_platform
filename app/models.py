@@ -34,12 +34,12 @@ class User(Base):
     #
     # 角色**不进 JWT**：`get_current_user` 每个请求都从库里读用户，所以改角色
     # 立刻生效，不必等 token 过期，也不必像 TD-70 那样再造一个失效时间戳。
-    # 代价是每请求一次查库 —— 这个查本来就要做（要读 status 和 password_changed_at）。
+    # 代价是每请求一次查库 —— 这个查本来就要做（要读 status、credential_version 和 password_changed_at）。
     role: Mapped[int] = mapped_column(SmallInteger, default=0)
-    # 最近一次改密码的时刻（TD-70）。JWT 里带这个时间戳的副本，校验时对不上就拒 ——
-    # 这样改密码能一次吊销该用户**所有**旧 token，不必维护 jti 黑名单表。
-    # 为 None 表示从未改过密码（注册时建的号）。
+    # 凭证版本（2026-09-12 第二批决策）：改密码时 +1；JWT 与 OAuth 授权码都带它的副本，对不上就拒 ——
+    # 一次吊销该用户**所有**旧 token / 授权码，不必维护 jti 黑名单表，也不依赖时间戳精度。
     credential_version: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
+    # 最近一次改密码的时刻（TD-70），JWT 里同样带副本一并核对；为 None 表示从未改过密码（注册时建的号）。
     password_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     update_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

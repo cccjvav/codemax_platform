@@ -120,7 +120,7 @@ pending → closed → paid
 | [`app/delivery.py`](delivery.py) | `0ba21151ff54` | L1–L154 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
 | [`app/middleware.py`](middleware.py) | `3dd5cca800bc` | L1–L361 |
-| [`app/models.py`](models.py) | `56c71a02daa7` | L1–L359 |
+| [`app/models.py`](models.py) | `8ed02718fa39` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |

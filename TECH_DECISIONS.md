@@ -858,3 +858,24 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **代价与边界**：
 - 退路上限是有意的行为边界：一份 DDL 里超过 16 张「表名后的括号被判在字符串里」的表，第 17 张起不再出现在图里。正常 DDL 不会走到这里。
 - 全局扫描把标识符中间的 `$x$` 当 dollar 引号开头，这点与 PostgreSQL 词法不同（PG 里标识符内的 `$` 不起引号作用）。修正它会改变 ALTER/COMMENT 的字符串判定，超出本次「只提速、不改结果」的范围，没有动。
+
+## TD-286：robots.txt「规则不可知」的结论只缓存 1 分钟
+
+2026-09-26。基线 `1ae36aa`（TD-285）。第 3b 批复核读 `app/tools/politeness.py` 时发现。
+
+**问题**：robots.txt 拉取超时、连接失败或返回 5xx 时，按约定「规则不可知，本次不抓」。模块 docstring 和 `test_unavailable_robots_means_do_not_crawl` 给的理由是「宁可漏抓一篇（可以重跑），被封 IP 不行」。但这个结论和成功拿到的规则一样写进缓存，有效期都是 `ROBOTS_TTL`（1 小时）：目标站抖一下，管理员接下来一小时对该站的每次入库重跑都被同一个旧结论拒掉，「可以重跑」并不成立。
+
+**决定**：
+- 新增 `ROBOTS_UNKNOWN_TTL = 60.0`，`_DomainState` 增加 `ttl` 字段。
+- 异常分支和 5xx/3xx 等「不可知」分支把 `ttl` 设为 `ROBOTS_UNKNOWN_TTL`。401/403（站方明确拒绝）、404/410、2xx（包括 Crawl-delay 超限而拒绝）仍按 `ROBOTS_TTL`。
+- 缓存判断改用 `state.ttl`；每次重新加载先把 `ttl` 复位。
+- 1 分钟的取舍：同一批入库常对同一站连抓几十篇，不缓存的话每篇都会重拉一次 robots，违背模块初衷；1 分钟足够挡住这种连抓，又不会让一次抖动影响之后的重跑。
+
+**证据**：
+- 新增 `test_unknown_robots_is_cached_briefly_so_a_rerun_can_succeed`：先 503、后 404。紧接着再抓仍被拒，且没有重拉 robots；把 `fetched_at` 回拨超过 1 分钟后能抓到，robots 共拉 2 次。改前这条用例失败。
+- 新增 `test_definitive_robots_answer_keeps_the_full_ttl`：403 回拨 1 分钟后仍按缓存拒绝，不重拉。
+- 爬虫相关四个测试文件共 115 项通过。
+
+**代价与边界**：
+- 目标站持续 5xx 时，我们对它的 robots 拉取从每小时一次变成最多每分钟一次（只在有人入库该站时才会发生）。
+- `SSRF` 拒绝、robots 过大、重定向超限等 `CrawlError` 行为不变：照旧直接抛出，不缓存。
