@@ -309,6 +309,15 @@ async def test_difference_classifications_and_receipt_binding(db, kind, expected
     assert result['needs_review'] == (kind != 'normal')
 
 
+
+@pytest.mark.parametrize('column,value', [('交易类型', 'JSAPI'), ('货币种类', 'USD')])
+async def test_non_native_or_non_cny_rows_are_only_excluded(db, column, value):
+    """范围是「本应用 + Native + CNY」三个条件（bill_reconcile._scoped_rows）。
+    此前只测了其他应用这一条；交易类型、币种条件删掉也没有用例失败。"""
+    result = await read_report(raw_bill(row(**{column: value})))
+    assert result['excluded_rows'] == 1 and result['needs_review']
+    assert result['items'] == [] and result['counts'] == {}
+
 async def test_scope_and_utc_midnight_reverse_scan_uses_paid_not_received(db):
     await seed(db, number='DAY_START', transaction='START')
     await seed(db, number='BEFORE', transaction='BEFORE', paid_at=AT - timedelta(seconds=1))

@@ -30,6 +30,26 @@ class _SafeParser(argparse.ArgumentParser):
         self.exit(2, '参数无效；请使用--help查看用法，不要传入密钥或带密码连接串。\n')
 
 
+def _scoped_rows(bill, appid):
+    """The ONE reconciliation scope: this app's Native CNY rows (payments and refunds).
+
+    snapshot() looks up local facts for exactly these rows and compare() reports on exactly
+    these rows; everything else only counts as excluded_rows. Keep a single definition.
+    """
+    return [row for row in bill.rows if row.appid == appid and row.trade_type == 'NATIVE' and row.currency == 'CNY']
+
+
+async def _verify_migrations(db):
+    """Complete, checksum-exact migration ledger inside the caller's session (read only)."""
+    from sqlalchemy import select
+
+    from .db_admin import migration_manifest, verify_ledger
+    from .models import SchemaMigration
+
+    rows = (await db.execute(select(SchemaMigration.version, SchemaMigration.checksum))).all()
+    verify_ledger(rows, migration_manifest(), complete=True)
+
+
 async def snapshot(factory, bill, appid, *, check_schema=False):
     """Bounded consistent read of day receipts AND channel references, no commit/row-write locks/network.
 
@@ -54,8 +74,7 @@ async def snapshot(factory, bill, appid, *, check_schema=False):
     # Include conflicting order/receipt dates or identities from either side, not just valid pairs.
     day_query = query.where(or_(and_(receipt, in_day(R.paid_at)),
                                and_(original, O.status.in_(('paid', 'downloaded')), in_day(O.paid_at))))
-    scoped = [row for row in bill.rows if row.appid == appid and row.trade_type == 'NATIVE' and row.currency == 'CNY']
-    payments = [row for row in scoped if row.state == 'SUCCESS']
+    payments = [row for row in _scoped_rows(bill, appid) if row.state == 'SUCCESS']
     found = {}
     async with asyncio.timeout(20), factory() as db:
         dialect = db.bind.dialect.name
@@ -68,10 +87,7 @@ async def snapshot(factory, bill, appid, *, check_schema=False):
         else:
             raise BillError('对账快照数据库类型不支持')
         if check_schema:
-            from .db_admin import migration_manifest, verify_ledger
-            from .models import SchemaMigration
-            verify_ledger((await db.execute(select(SchemaMigration.version, SchemaMigration.checksum))).all(),
-                          migration_manifest(), complete=True)
+            await _verify_migrations(db)
         day_rows = (await db.execute(day_query.limit(MAX_ROWS + 1))).all()
         found.update((order.id, (order, record)) for order, record in day_rows)
         for offset in range(0, len(payments), 400):
@@ -103,7 +119,7 @@ def compare(bill, local, appid):
     No global 'balanced' assertion: exclusions, legacy unknown dates and refund snapshots require
     human review. Even zero differences within this scope is NOT settlement/accounting closure.
     """
-    scoped = [row for row in bill.rows if row.appid == appid and row.trade_type == 'NATIVE' and row.currency == 'CNY']
+    scoped = _scoped_rows(bill, appid)
     by_number = {fact['order']['order_no']: fact for fact in local['facts']}
     by_transaction = {fact['receipt']['transaction_id']: fact for fact in local['facts']
                       if fact['receipt'] and fact['receipt']['source'] == 'wechat'}
@@ -115,30 +131,9 @@ def compare(bill, local, appid):
                             'out_refund_no': row.out_refund_no, 'requested_refund_cents': row.refund_total,
                             'bill_refund_state': row.refund_state, 'initiated_at': row.at.isoformat()})
             continue
-        fact, owner = by_number.get(row.order_no), by_transaction.get(row.transaction_id)
         seen.add(row.order_no)
-        code = 'matched_payment'
-        if owner and owner['order']['order_no'] != row.order_no:
-            code = 'transaction_owned_elsewhere'
-        elif not fact:
-            code = 'channel_payment_without_order'
-        else:
-            order, receipt = fact['order'], fact['receipt']
-            identity = (bill.merchant_id, appid, row.total, 'CNY')
-            if (order['payment_mode'] != 'wechat'
-                    or tuple(order[key] for key in ('merchant_id', 'app_id', 'amount', 'currency')) != identity):
-                code = 'order_contract_mismatch'
-            elif not receipt:
-                code = 'channel_payment_without_receipt'
-            elif (receipt['source'] != 'wechat' or receipt['transaction_id'] != row.transaction_id
-                    or tuple(receipt[key] for key in ('merchant_id', 'app_id', 'amount', 'currency')) != identity):
-                code = 'receipt_contract_mismatch'
-            elif order['status'] not in ('paid', 'downloaded') or order['transaction_id'] != row.transaction_id:
-                code = 'order_state_mismatch'
-            elif (not receipt['paid_at'] or not order['paid_at']
-                    or datetime.fromisoformat(receipt['paid_at']) != row.at
-                    or datetime.fromisoformat(order['paid_at']) != row.at):
-                code = 'paid_time_mismatch'
+        code = _payment_code(row, by_number.get(row.order_no), by_transaction.get(row.transaction_id),
+                             (bill.merchant_id, appid, row.total, 'CNY'))
         results.append({**item, 'code': code, 'order_total_cents': row.total, 'paid_at': row.at.isoformat()})
     day_ids = set(local['day_order_ids'])
     for fact in local['facts']:
@@ -159,6 +154,34 @@ def compare(bill, local, appid):
             'accounting_closed': False, 'financial_writes': False, 'counts': counts, 'items': results,
             'snapshot': local,
             'snapshot_sha256': hashlib.sha256(json.dumps(local, sort_keys=True, ensure_ascii=True).encode()).hexdigest()}
+
+
+def _payment_code(row, fact, owner, identity):
+    """Classify ONE successful bill payment against its local facts; first failed check wins.
+
+    fact = local order found by merchant order number, owner = local fact already holding this
+    transaction_id, identity = (merchant_id, app_id, cents, currency) the bill row asserts.
+    """
+    if owner and owner['order']['order_no'] != row.order_no:
+        return 'transaction_owned_elsewhere'
+    if not fact:
+        return 'channel_payment_without_order'
+    order, receipt = fact['order'], fact['receipt']
+    if (order['payment_mode'] != 'wechat'
+            or tuple(order[key] for key in ('merchant_id', 'app_id', 'amount', 'currency')) != identity):
+        return 'order_contract_mismatch'
+    if not receipt:
+        return 'channel_payment_without_receipt'
+    if (receipt['source'] != 'wechat' or receipt['transaction_id'] != row.transaction_id
+            or tuple(receipt[key] for key in ('merchant_id', 'app_id', 'amount', 'currency')) != identity):
+        return 'receipt_contract_mismatch'
+    if order['status'] not in ('paid', 'downloaded') or order['transaction_id'] != row.transaction_id:
+        return 'order_state_mismatch'
+    if (not receipt['paid_at'] or not order['paid_at']
+            or datetime.fromisoformat(receipt['paid_at']) != row.at
+            or datetime.fromisoformat(order['paid_at']) != row.at):
+        return 'paid_time_mismatch'
+    return 'matched_payment'
 
 
 def report_directory(storage_root):
@@ -213,14 +236,8 @@ def connection_target(url):
 
 async def ledger_ready(factory):
     """Read-only preflight ends BEFORE HTTP; do not download against an unready local schema."""
-    from sqlalchemy import select
-
-    from .db_admin import migration_manifest, verify_ledger
-    from .models import SchemaMigration
-
     async with asyncio.timeout(10), factory() as db:
-        rows = (await db.execute(select(SchemaMigration.version, SchemaMigration.checksum))).all()
-        verify_ledger(rows, migration_manifest(), complete=True)
+        await _verify_migrations(db)
 
 
 async def run(args):

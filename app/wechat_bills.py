@@ -114,7 +114,7 @@ async def fetch_bill(cfg: PayConfig, day: date, *, transport=None) -> Bill:
     bill_day(day.isoformat())
     try:
         async with asyncio.timeout(DEADLINE):
-            metadata = await pay._request_json(cfg, 'GET', f'/v3/bill/tradebill?bill_date={day.isoformat()}&bill_type=ALL', transport=transport)
+            metadata = await pay.apply_trade_bill(cfg, day, transport=transport)
             digest = metadata.get('hash_value')
             if (metadata.get('hash_type') != 'SHA1' or not isinstance(digest, str)
                     or not re.fullmatch(r'[0-9a-fA-F]{40}', digest)):

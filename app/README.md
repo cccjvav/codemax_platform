@@ -112,7 +112,7 @@ pending → closed → paid
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/bill_reconcile.py`](bill_reconcile.py) | `9750db145474` | L1–L287 |
+| [`app/bill_reconcile.py`](bill_reconcile.py) | `2387beca6ddf` | L1–L304 |
 | [`app/config.py`](config.py) | `6acbbb805d97` | L1–L150 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
@@ -139,8 +139,8 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `cb2e081a4545` | L1–L160 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_bills.py`](wechat_bills.py) | `fdb132bebf41` | L1–L232 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `706358db4def` | L1–L466 |
+| [`app/wechat_bills.py`](wechat_bills.py) | `06ee7811c473` | L1–L232 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `c874e73c7a0d` | L1–L476 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -279,3 +279,11 @@ refund_health.queue_snapshot用DB时钟只读聚合活动队列，alarms返回�
 order_closures复用PaymentEvent的channel_close_started/acknowledged/unknown，不新建付款/退款凭证。eligibility只读原closed合同/无收款、最新可信NOTPAY≤300秒、重试距start≥60秒且新查询在start后；已ack挡新关单。begin在调用者用户锁后锁订单，same-key原人/内容先恢复，再验新动作，started必须先commit；返回原单号标量才可网络POST。finish只追加原发起人观察，不修改状态/下载，失权在途也记录观察而不新增财务权限。
 
 wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_json仅此调用明确选择204空体，原下单/查询/退款仍严格200对象。所有应答先验原字节/平台身份/时效/签名，错误脱敏归未知。shop ledger独立于事件分页展示当前关单提示/最近尝试，GET不关单。管理页先单独查单、再确认金额/原号；不会自动发送/查询/关单。完整操作见PAYMENTS_ADMIN_GUIDE。
+
+## 2026-09-27：账单申请收归 wechat_pay，对账范围只定义一次（TD-298）
+
+- `wechat_pay.apply_trade_bill(cfg, day)`：日交易账单（ALL）申请的签名 GET，返回经验签的元数据。`wechat_bills.fetch_bill` 改调它，不再直接调用 `wechat_pay` 的私有 `_request_json`；SHA1 元数据校验、下载地址白名单和文件下载仍在 `wechat_bills`。
+- `bill_reconcile._scoped_rows`：对账范围（本应用 + Native + CNY）的唯一定义，`snapshot` 与 `compare` 共用，保证「查了哪些本地事实」和「对哪些账单行出结论」是同一批行。
+- `bill_reconcile._verify_migrations`：`ledger_ready`（联网前预检）与 `snapshot(check_schema=True)`（快照事务内复核）共用的迁移台账校验。
+- `bill_reconcile._payment_code`：一行成功付款的差异判定（纯函数，第一个不满足的检查即结论），从 `compare` 的循环里抽出，逻辑未改。
+

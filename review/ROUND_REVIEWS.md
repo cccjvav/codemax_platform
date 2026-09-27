@@ -35,3 +35,13 @@
 
 复核过、没有发现问题的点：各端点原有检查顺序不变（`review_order` 仍先比确认单号，`close_channel` 仍先复核管理员）；删掉的手写 `update(User)` + 重读与 `lock_user` 等价（都是无更新时间副作用的行锁并重读）；6 个测试文件的替身目标改到 `admin_common.lock_user` 后断言未改，若误留旧目标 `monkeypatch.setattr` 会直接报错。本机 PostgreSQL 上受影响的 420 个用例全部通过。
 
+## 2026-09-27：TD-298（账单申请与 bill_reconcile 整理）
+
+范围：`wechat_pay.apply_trade_bill`；`bill_reconcile` 抽出 `_scoped_rows`、`_verify_migrations`、`_payment_code`。另确认 TD-297 的 47a4421 六个 CI job 全部通过（RR-07 的修复生效）。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-10 | 变异检查：删掉对账范围里的交易类型（NATIVE）或币种（CNY）条件，`tests/test_wechat_bills.py` 全部通过。原来只有「其他应用」被排除的用例；这两个条件若在以后的修改里丢失，JSAPI 或外币付款会被当成本应用付款去匹配，并报成「渠道有付款、本地无订单」一类的差异。 | 已修：新增 `test_non_native_or_non_cny_rows_are_only_excluded`（2 组），两种变异分别被抓到。 |
+
+复核过、没有发现问题的点：`apply_trade_bill` 生成的路径与原来逐字相同（原始字节断言 + 变异确认）；`_payment_code` 的判定顺序与结果代码未变，7 种差异都有用例；`_verify_migrations` 仍在调用方原有的会话与超时内执行，`snapshot` 的 SQL 顺序不变（PG 快照隔离用例依赖执行顺序）。
+

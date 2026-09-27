@@ -2871,7 +2871,7 @@
     },
     {
       "path": "app/wechat_pay.py",
-      "sha256": "706358db4def7737cc6e918d35e24b2044d744e0ede603ec47e526e71b899530",
+      "sha256": "c874e73c7a0dbcb52016e175632db8547f06beb8cee6a72c78e9cc9cb000715b",
       "method": "manual",
       "blocks": [
         {
@@ -2990,9 +2990,14 @@
           "explanation": "只供明确发送调用者使用，核冻结请求精确键集合、原交易/全额，固定POST /v3/refund/domestic/refunds，_request_json签原正文并有界验应答。复用parse_full_refund返回观察，不创建RefundReceipt，不自动重试/查询。"
         },
         {
-          "end": 466,
+          "end": 468,
           "title": "close_order",
           "explanation": "校原out_trade_no安全32字符，固定POST /v3/pay/transactions/out-trade-no/原号/close，仅mchid规范JSON；调用共享传输显式empty_success，不重试、不改订单。None仅代表签名空204，其他响应WeChatPayError需上层记unknown并独立查单。"
+        },
+        {
+          "end": 476,
+          "title": "apply_trade_bill",
+          "explanation": "TD-298：日交易账单（ALL）申请的签名GET。路径在这里拼好，与被签名的字节完全一致（测试钉住原始路径），经_request_json做平台身份、时效与原文验签后返回元数据字典。只负责这一次签名请求：SHA1元数据校验、下载地址白名单和不带微信签名的文件下载都留在wechat_bills.fetch_bill。出错抛WeChatPayError，调用方不得当作当天零交易。此前wechat_bills直接调用本模块私有的_request_json，现在所有签名的商户API路径都集中在本模块。"
         }
       ]
     },
@@ -12992,7 +12997,7 @@
     },
     {
       "path": "app/wechat_bills.py",
-      "sha256": "fdb132bebf41ad30180390b39fa64e05314292878960447eb23881d021d34354",
+      "sha256": "06ee7811c473c1b2cb0103ee30c44824b23a147ed2ab83040fb1288cf0ef09e0",
       "method": "manual",
       "blocks": [
         {
@@ -13033,7 +13038,7 @@
         {
           "end": 149,
           "title": "fetch_bill",
-          "explanation": "局部导入现有支付协议，先校验明确日期，再在45秒总预算内用已有_request_json申请ALL，必须经过平台身份/时间/RSA验证。检查SHA1类型/40位摘要，先白名单URL后签空GET，不重定向、不用环境代理下载、不接受压缩。预检Content-Length并逐块限制4MiB，结束再核声明长度；下载端点按官方不带微信签名，hmac比较签名元数据中的SHA1是必需门禁。最后才parse_bill；HTTP/总期限/签名/编码错误转固定BillError，未生成可信报告不能称零交易。"
+          "explanation": "局部导入现有支付协议，先校验明确日期，再在45秒总预算内用wechat_pay.apply_trade_bill申请ALL（TD-298前是直接调私有_request_json），必须经过平台身份/时间/RSA验证。检查SHA1类型/40位摘要，先白名单URL后签空GET，不重定向、不用环境代理下载、不接受压缩。预检Content-Length并逐块限制4MiB，结束再核声明长度；下载端点按官方不带微信签名，hmac比较签名元数据中的SHA1是必需门禁。最后才parse_bill；HTTP/总期限/签名/编码错误转固定BillError，未生成可信报告不能称零交易。"
         },
         {
           "end": 157,
@@ -13054,7 +13059,7 @@
     },
     {
       "path": "app/bill_reconcile.py",
-      "sha256": "9750db145474aee3fe6b2520cc488482d68dfe26058033fb111848e58b20138a",
+      "sha256": "2387beca6ddfcd8fa033b848bb0959ea4788c0b47b374ec30b9fb3fcfb79d6ab",
       "method": "manual",
       "blocks": [
         {
@@ -13068,42 +13073,57 @@
           "explanation": "继承ArgumentParser只替换error：忽略原错误message，固定退出2和帮助提示，不回显未知参数。即使运行者误贴了带密码DSN/密钥也不能被argparse默认unrecognized arguments输出到日志；--help仍走正常格式和0退出，参数失败在Settings导入/所有外部I/O之前。"
         },
         {
-          "end": 99,
+          "end": 41,
+          "title": "_scoped_rows",
+          "explanation": "TD-298：对账范围的唯一定义——本应用、Native、CNY三个条件同时满足的账单行（付款和退款都算）。snapshot按这些行去查本地事实，compare只对这些行出结论，其余行只计入excluded_rows并让报告需人工核查。此前两处各写一遍同样的列表推导，一处改了另一处没改就会出现「查了却不比」或「比了却没查」。交易类型、币种、应用三个条件各有用例守住。"
+        },
+        {
+          "end": 52,
+          "title": "_verify_migrations",
+          "explanation": "TD-298：在调用方的会话里只读SELECT迁移版本与校验和，用verify_ledger对照仓库完整迁移清单（complete=True）。ledger_ready（联网前预检）和snapshot(check_schema=True)（同一快照事务内复核）共用；不init、不migrate，不一致就抛错整次失败。"
+        },
+        {
+          "end": 115,
           "title": "snapshot",
-          "explanation": "从账单日UTC+8零点转UTC查询半开区间，分别按原合同与凭证的wechat/商户/app身份选当天或未知paid_at；不使用received_at。当前app Native CNY付款另按订单号和全局微信交易号分400条查，可发现跨日/跨单冲突。PG连接先REPEATABLE READ、READ ONLY和10秒语句预算，SQLite显式BEGIN只供测试；总快照20秒，完整CLI还在同快照核对迁移账本。day与引用集合合并后超过5000整次失败，不能分页截断装作匹配。内部fact仅投影必要字段并统一无时区UTC读回，排除用户/交付/依据；上下文关闭回滚，无commit、行写锁或外部HTTP。"
+          "explanation": "从账单日UTC+8零点转UTC查询半开区间，分别按原合同与凭证的wechat/商户/app身份选当天或未知paid_at；不使用received_at。_scoped_rows范围内的付款另按订单号和全局微信交易号分400条查，可发现跨日/跨单冲突。PG连接先REPEATABLE READ、READ ONLY和10秒语句预算，SQLite显式BEGIN只供测试；总快照20秒，完整CLI还在同快照内用_verify_migrations核对迁移账本。day与引用集合合并后超过5000整次失败，不能分页截断装作匹配。内部fact仅投影必要字段并统一无时区UTC读回，排除用户/交付/依据；上下文关闭回滚，无commit、行写锁或外部HTTP。"
         },
         {
-          "end": 163,
+          "end": 158,
           "title": "compare",
-          "explanation": "纯比较先限定app/Native/CNY，其余行只计排除并要求核查；退款始终输出发起观察，不查询或构造完成凭证。付款按交易号归属、订单存在、原合同、凭证合同、订单状态及精确时间逐层分类，任一差异不修改原数据。再遍历本地日集合找未出现在付款行的凭证/旧已付单，未知时间独立分类，避免只有单向匹配。返回counts/items/范围/源SHA和受限本地快照，needs_review含任何差异/退款/排除；financial_writes/accounting_closed固定false。随机新run_id保证重跑不覆盖旧报告，快照摘要只作定位。"
+          "explanation": "纯比较先用_scoped_rows限定app/Native/CNY，其余行只计排除并要求核查；退款始终输出发起观察，不查询或构造完成凭证。付款交给_payment_code按交易号归属、订单存在、原合同、凭证合同、订单状态及精确时间逐层分类，任一差异不修改原数据。再遍历本地日集合找未出现在付款行的凭证/旧已付单，未知时间独立分类，避免只有单向匹配。返回counts/items/范围/源SHA和受限本地快照，needs_review含任何差异/退款/排除；financial_writes/accounting_closed固定false。随机新run_id保证重跑不覆盖旧报告，快照摘要只作定位。"
         },
         {
-          "end": 175,
+          "end": 186,
+          "title": "_payment_code",
+          "explanation": "TD-298：把一行成功付款和本地事实比对，返回第一个不满足的差异代码：交易号已归属其他订单→没有本地订单→订单合同（渠道/商户/app/金额/币种）不符→缺收款凭证→凭证合同不符→订单状态或交易号不符→支付时间不精确相等；全部通过才是matched_payment。纯函数、无数据库和网络，顺序即优先级。原先是compare循环里的一长串if/elif，抽出后逻辑逐字未改；7种差异各有用例（变异为matched_payment时均失败）。"
+        },
+        {
+          "end": 198,
           "title": "report_directory",
           "explanation": "固定ROOT/runtime/wechat-bills，先拒runtime或子目录符号链接，再resolve并禁止落入当前商品storage、static或文档站。STORAGE_LOCAL_ROOT可以是绝对路径，ROOT拼接仍按Path语义解析；不开放任意输出URL或下载接口。受信目录所有权/ACL仍是运维前提，不能防恶意同权限账户改代码或在检查后换目录。"
         },
         {
-          "end": 195,
+          "end": 218,
           "title": "publish",
           "explanation": "只接内部生成报告和受信目录，mkdir保护新目录，mkstemp默认0600；完整JSON写完flush/fsync后os.link独占发布，已有目标EEXIST而非replace覆盖。finally只删本次临时文件，故障不留下部分JSON目标。原子可见不等于WORM、目录持久备份或Windows ACL；本地硬链接不可用时明确失败，不降级成非原子覆盖。"
         },
         {
-          "end": 213,
+          "end": 236,
           "title": "connection_target",
           "explanation": "从SQLAlchemy URL确定有效单主机/socket、端口和数据库，包含允许的host/port覆盖；要求postgresql+asyncpg，限制查询键、端口范围、单主机与非控制字符。拒绝database等隐性覆盖和多主机，避免只确认DB_NAME却连接别处。只返回无密码target给内部比较，异常固定提示不打印原始URL。"
         },
         {
-          "end": 225,
+          "end": 242,
           "title": "ledger_ready",
-          "explanation": "预检只SELECT版本/校验和，verify_ledger对照仓库完整迁移清单；10秒内完成并关闭会话后才允许网络。不会init/migrate/bootstrap，业务库未升级则失败而不是下载后猜表结构。最终快照还复核一次，防部署切换后用旧模式生成报告。"
+          "explanation": "预检调用_verify_migrations（只SELECT版本/校验和，verify_ledger对照仓库完整迁移清单）；10秒内完成并关闭会话后才允许网络。不会init/migrate/bootstrap，业务库未升级则失败而不是下载后猜表结构。最终快照还复核一次，防部署切换后用旧模式生成报告。"
         },
         {
-          "end": 257,
+          "end": 274,
           "title": "run",
           "explanation": "局部读中央Settings/支付配置，默认关闭先拒绝，原平台凭据、有效PG目标/商户和明确日必须通过；随后才导入会话并预检。80秒协作预算内按迁移→可信下载→无网络只读快照→纯比较→线程私有发布顺序执行，finally释放此CLI进程engine。文件系统线程不是可强杀任务，超时/中断应核对私有目录；不自动重试或使用网站用户身份。"
         },
         {
-          "end": 287,
+          "end": 304,
           "title": "main",
           "explanation": "argparse要求三个显式参数，帮助先于Settings；专用CLI屏蔽第三方日志以免SQL/传输诊断泄露。仅BillError固定消息可直显，未知异常统一提示且返回1，键盘中断130；成功只打印随机文件名，0为限定范围无差异、2为有报告需核查。argparse用法错误也退出2但没有报告路径，文档要求区分。模块启动才SystemExit(main)，导入不出网或运行。 参数解析使用_SafeParser，坏用法不会回显未知值，命令执行的配置/业务错误仍分别处理。"
         }
@@ -13111,7 +13131,7 @@
     },
     {
       "path": "tests/test_wechat_bills.py",
-      "sha256": "2209bd1c14bd5d152dac2422c2322dbe5ed3a62cd8c8e7ec1bde5fc546725b86",
+      "sha256": "f50d6a23e17ed97edb2129ac6093b02185a6cb983d2e472d47d50533d4c65c84",
       "method": "manual",
       "blocks": [
         {
@@ -13205,72 +13225,77 @@
           "explanation": "已有匹配和本地缺渠道两单，加退款快照，精确断言三类结果；监听真实SQL拒INSERT/UPDATE/DELETE/COMMIT，再用独立连接核对状态/交付/两凭证不变且退款/事件为空。输出不得包含私有标识/证据键/token，scope文案中的普通evidence单词不算泄露。"
         },
         {
-          "end": 311,
+          "end": 312,
           "title": "test_difference_classifications_and_receipt_binding",
           "explanation": "分别造正常、未知单、无凭证、原合同/渠道、凭证流水/金额、订单状态/流水、跨日/未知时间、跨单归属冲突。逐一断言具体code及needs_review，不接受所有异常都以模糊“成功”结束，唯一正常情景才不需核查。"
         },
         {
-          "end": 323,
+          "end": 320,
+          "title": "test_non_native_or_non_cny_rows_are_only_excluded",
+          "explanation": "TD-298：把唯一一行账单分别改成JSAPI交易类型或USD币种，本地不造订单。报告只能把它计入excluded_rows并标为需人工核查，不能产生任何比对条目（items与counts都为空）。对账范围由bill_reconcile._scoped_rows的三个条件定义，此前只有「其他应用」一条有用例，删掉交易类型或币种条件都没有测试失败；现在两个参数组分别守住这两个条件。"
+        },
+        {
+          "end": 332,
           "title": "test_scope_and_utc_midnight_reverse_scan_uses_paid_not_received",
           "explanation": "设置北京日边界前1秒/零点/次日零点、未知日期与无凭证历史已付单；外app账单排除但必须needs_review。反向集合精确包含当天、未知与legacy，排除日期外，不依赖自动received_at时间。"
         },
         {
-          "end": 331,
+          "end": 340,
           "title": "test_both_channel_and_local_limits_fail_not_partial_success",
           "explanation": "本地两单把预算降成1，零行渠道文件也不能截成无差异；必须报本地快照超额。确保反向读取同样受预算约束，不只限制下载文件。"
         },
         {
-          "end": 336,
+          "end": 345,
           "title": "test_missing_migration_ledger_refuses_cli_snapshot",
           "explanation": "ORM建表没有正式迁移账本，check_schema必须失败；不为测试填虚构完整迁移来绕开门禁。完整SQL链路另在独立PG用真实初始化验证。"
         },
         {
-          "end": 344,
+          "end": 353,
           "title": "test_partial_refund_states_never_mean_completed_receipt",
           "explanation": "SUCCESS/PROCESSING/FAIL/CHANGE四种冻结状态都是观察，申请500分与needs_review不变，RefundReceipt仍空。不能用账单状态或部分额冒充当前全额完成。"
         },
         {
-          "end": 362,
+          "end": 371,
           "title": "test_atomic_private_report_no_overwrite_and_failed_publish_cleanup",
           "explanation": "真实临时文件验证JSON内容与POSIX0600；相同名字第二次发布必须FileExistsError且原字节不变。注入fsync失败后不能出现新目标或临时残留，不用mock替代原子文件发布核心。"
         },
         {
-          "end": 378,
+          "end": 387,
           "title": "test_report_directory_not_downloadable_or_symlinked",
           "explanation": "固定临时ROOT，正常私有目录可用，storage覆盖runtime与目录符号链接都拒绝。Windows无创建symlink权限时明确skip这一分支，不能说已证明Windows ACL；前面普通路径断言仍实际执行。"
         },
         {
-          "end": 393,
+          "end": 402,
           "title": "test_cli_gates_precede_all_external_io",
           "explanation": "合成配置与无业务意义DSN下分别禁用/错商户/错目标/坏日，出站函数是pytest.fail哨兵。必须在触外部之前BillError，不能为测试开真实账单读取。"
         },
         {
-          "end": 407,
+          "end": 416,
           "title": "test_cli_exit_codes_and_secret_safe_errors",
           "explanation": "注入正常无差异/需核查/含私有DSN异常三类run结果，执行main和argparse，断言0/2/1与仅成功有文件名。恢复日志设置通过monkeypatch隔离，不影响后续套件，异常原文不得出现。"
         },
         {
-          "end": 421,
+          "end": 430,
           "title": "test_real_cli_help_and_invalid_environment_are_secret_safe",
           "explanation": "子进程设置坏DB_PORT及开关，不提供可用商户。--help无需有效Settings；实际命令配置失败必须1且不出现PRIVATE或Traceback，证明脱敏包含导入期而不只是正常函数异常。 另在齐全必需参数后追加带PRIVATE哨兵的未知参数，确保不被缺参检查提前短路；真实子进程必须退出2且不回显。恢复默认argparse的受控变异会被此断言捕获。"
         },
         {
-          "end": 449,
+          "end": 458,
           "title": "test_consistent_pg_snapshot_does_not_see_mid_read_receipt",
           "explanation": "仅PG执行，在真实SET READ ONLY后SHOW验证on/repeatable read；第一条读完成后由另一会话提交新凭证。当前快照必须仍报渠道无本地订单，下一快照才匹配，证明不跨读取拼接两个时间的事实。SQLite明确skip，不用单连接模拟隔离。"
         },
         {
-          "end": 469,
+          "end": 478,
           "title": "test_confirmation_cannot_hide_database_url_overrides",
           "explanation": "检验正常主机、有效socket/port覆盖返回实际target，拒database覆盖、多host、零端口、逗号主机、SQLite与非asyncpg。确认口径必须跟真实DSN一致，不打印PRIVATE密码。"
         },
         {
-          "end": 490,
+          "end": 499,
           "title": "test_streamed_hash_and_download_phase_deadline",
           "explanation": "真实AsyncByteStream分两段传输也须得到原SHA256；第二个替身在下载阶段阻塞，45秒总预算被测试降至0.1后应取消且已发生两请求。补申请阶段期限测试，不能只验证第一跳。"
         },
         {
-          "end": 539,
+          "end": 548,
           "title": "test_full_cli_pipeline_on_complete_disposable_pg",
           "explanation": "自行创建pgserver临时库与非超级用户角色，用closing保证psycopg初始化不重复进入已有事务；执行真实完整SQL/账本，不用ORM伪造版本。中央配置/SessionLocal只替换到此可丢弃库，真实fetch使用签名MockTransport，完整run须生成未知订单报告且数据库仍无订单/凭证。finally清服务器，绝不接受业务DSN或真实商户；这不是Windows或生产恢复签收。"
         }

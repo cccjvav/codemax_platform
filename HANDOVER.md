@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-298 / 账单对账整理）**：重构批次第二项。`wechat_pay.apply_trade_bill` 取代 `wechat_bills` 对私有 `_request_json` 的调用；`bill_reconcile` 的对账范围（`_scoped_rows`）、迁移校验（`_verify_migrations`）与差异判定（`_payment_code`）各只写一处，逻辑未改。补了交易类型、币种两个范围条件的测试缺口。TD-297 的 CI（47a4421）六个 job 全部通过。见 TECH_DECISIONS TD-298。
+
 **接手状态（2026-09-27，TD-297 / 管理员资金操作共用检查）**：重构批次第一项。新增 `app/routers/admin_common.py`（`locked_active_admin`、`confirmed_order`），payments_admin 三个端点与 refunds_admin 改用它；测试里的撤权替身改为替换 `admin_common.lock_user`。补上了复核端点写入边界复核的测试缺口。见 TECH_DECISIONS TD-297。
 
 **接手状态（2026-09-27，TD-296 / 首轮每轮复审）**：用户要求每轮任务后做复审（AGENTS 工作循环第 9 步），不当轮处理的发现登记在 ROADMAP R 组、证据在 review/ROUND_REVIEWS.md。首轮复审 TD-291～295 发现 CI 真 PG job 因测试夹具锁等待挂死（已修，本机 PG 全量通过）和转人工按钮角色切换后未隐藏（已修）。全仓先前实现的重点审查（R-02）排在当前重构批次之后。见 TECH_DECISIONS TD-296。

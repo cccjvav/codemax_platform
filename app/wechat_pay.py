@@ -39,7 +39,7 @@ import re
 import secrets
 import time
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from urllib.parse import quote, urlencode, urlsplit
 
 import httpx
@@ -464,3 +464,13 @@ async def close_order(cfg: PayConfig, *, out_trade_no: str, transport=None) -> N
     path = '/v3/pay/transactions/out-trade-no/' + quote(out_trade_no, safe='') + '/close'
     body = json.dumps({'mchid': cfg.mchid}, separators=(',', ':'))
     await _request_json(cfg, 'POST', path, body, transport=transport, empty_success=True)
+
+
+async def apply_trade_bill(cfg: PayConfig, bill_day: date, *, transport=None) -> dict:
+    """Signed GET for one day's ALL trade bill; returns the verified metadata, not the file.
+
+    The path stays byte-identical to what is signed. Hash/URL checks and the unsigned
+    download belong to wechat_bills; errors here never mean "no trades that day".
+    """
+    path = f'/v3/bill/tradebill?bill_date={bill_day.isoformat()}&bill_type=ALL'
+    return await _request_json(cfg, 'GET', path, transport=transport)

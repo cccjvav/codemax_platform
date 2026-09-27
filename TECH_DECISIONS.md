@@ -1163,3 +1163,21 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 6 个测试文件用替身模拟「请求期间被撤权」，原先替换 `payments_admin.lock_user` / `refunds_admin.lock_user`；两个路由不再直接调用 `lock_user`，替换目标改为 `admin_common.lock_user`，断言不变（若仍替换旧位置，`monkeypatch.setattr` 会因属性不存在直接报错，不会变成空测试）。
 - 变异检查：让 `locked_active_admin` 跳过身份复核，10 个用例失败，覆盖 `close_channel`、`reconcile`（role/status/凭据版本）与退款各端点；但 `review_order` 没有任何用例失败——它在写入边界的复核此前没有测试。
 - 新增 `tests/test_payment_review.py::test_review_rechecks_the_admin_at_the_write_boundary`（role / status / 凭据版本 3 组）：鉴权通过后、写复核前被撤权，返回 403 且复核日志没有新增记录；在上述变异下 3 组都失败。
+
+## TD-298：账单申请收归 wechat_pay；bill_reconcile 的对账范围、迁移校验与差异判定各只写一处
+
+**状态**：已实施（2026-09-27），优化阶段重构批次第二项。
+
+**问题**：
+- `wechat_bills.fetch_bill` 直接调用 `wechat_pay._request_json`（私有函数）并自己拼签名路径。其他所有签名的商户 API（下单、查单、退款、关单）都在 `wechat_pay` 里有公开函数，只有账单申请例外。
+- `bill_reconcile` 里「本应用 + Native + CNY」这一对账范围在 `snapshot` 和 `compare` 各写一遍。两处若不一致，会出现「查了本地事实却不比」或「比了却没查，被误判为本地无订单」。
+- 迁移台账校验（查询 + `verify_ledger`）在 `ledger_ready` 和 `snapshot(check_schema=True)` 各写一遍。
+- `compare` 里单笔付款的差异判定是夹在循环中的 7 层 if/elif。
+
+**决定**：
+- 新增 `wechat_pay.apply_trade_bill(cfg, day, *, transport=None) -> dict`，路径与原来逐字相同（测试钉住原始路径字节）；`fetch_bill` 改调它。
+- `bill_reconcile` 新增 `_scoped_rows`、`_verify_migrations`、`_payment_code`，原处改为调用；判定顺序与结果代码逐字未改，执行的 SQL 与次数不变。
+
+**测试**：
+- 变异检查：把路径的 `ALL` 改为 `all`，2 个用例失败；`_payment_code` 的 7 种差异逐个改成 `matched_payment`，每种都有 1～2 个用例失败。
+- 变异检查发现缺口：删掉对账范围里的交易类型或币种条件，**没有用例失败**（原来只测了「其他应用」）。新增 `tests/test_wechat_bills.py::test_non_native_or_non_cny_rows_are_only_excluded`（JSAPI / USD 两组）：只计入 `excluded_rows`、需人工核查、不产生任何比对条目；两种变异分别被对应参数组抓到。
