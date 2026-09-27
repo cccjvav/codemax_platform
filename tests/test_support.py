@@ -60,6 +60,25 @@ def test_router_ambiguous_gets_low_confidence_so_upstream_can_escalate(router):
     assert r.confidence < LOW_CONFIDENCE
 
 
+@pytest.mark.parametrize("text", [
+    "我老早就提过这个问题了", "早知道就不买了", "早上好几次都打不开", "rapid response please", "I need a therapist",
+])
+def test_router_keywords_do_not_match_inside_other_words(router, text):
+    """R-05：「早」不能靠子串把抱怨判成寒暄；英文技术词不能在 rapid / therapist 里命中 api。"""
+    r = router.classify(text)
+    assert (r.intent, r.confidence) == (Intent.CHITCHAT, 0.3), r.reason
+
+
+@pytest.mark.parametrize("text,intent", [
+    ("早！", Intent.CHITCHAT), ("早上好", Intent.CHITCHAT), ("早安～", Intent.CHITCHAT), ("调用API报500", Intent.PROFESSIONAL),
+    ("REST APIs 怎么设计", Intent.PROFESSIONAL), ("python3 装不上 numpy", Intent.PROFESSIONAL),
+    ("javascript 闭包原理", Intent.PROFESSIONAL), ("sqlite 锁表", Intent.PROFESSIONAL),
+])
+def test_router_whole_word_and_exact_greeting_still_match(router, text, intent):
+    r = router.classify(text)
+    assert r.intent is intent and r.confidence >= LOW_CONFIDENCE, r.reason
+
+
 def test_router_empty_input_does_not_crash(router):
     assert router.classify("   ").intent is Intent.CHITCHAT
 
@@ -136,6 +155,16 @@ async def test_explicit_human_request_short_circuits(db, word):
     llm = FakeLLM()
     r = await answer(f"我要{word}", db, llm=llm)
     assert r.escalated and llm.calls == []
+
+
+@pytest.mark.asyncio
+async def test_artificial_intelligence_is_not_a_human_request(db):
+    """R-05：「人工智能」里的「人工」不是要人工；同一句里真的要人工仍然转。"""
+    r = await answer("人工智能方向的毕业设计能做吗", db, llm=FakeLLM())
+    assert "明确要求人工" not in r.reason
+    llm = FakeLLM()
+    r = await answer("人工智能的问题我要转人工", db, llm=llm)
+    assert r.escalated and "明确要求人工" in r.reason and llm.calls == []
 
 
 @pytest.mark.asyncio

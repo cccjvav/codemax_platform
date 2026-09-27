@@ -133,7 +133,21 @@
     faq: "来自常见问题", "faq-semantic": "来自常见问题（相近问法）", llm: "智能助手回答",
     rag: "根据站内文章整理", human: "需要管理员协助",
   };
-  let asking = false, lastQuestion = "", lastEscalated = false, handoffDraft = null;
+  // 固定的转人工答案（source=human）是写给 /support/ask 所有调用方的，要他们「登录站内客服页留言」；
+  // 人已经在客服页上，就按登录身份换成页内说法（R-03）。其他来源的回答原样显示。
+  const HUMAN_ANSWERS = {
+    guest: "这个问题需要管理员协助。点下面的按钮并登录，问题会自动带到留言框。",
+    user: "这个问题需要管理员协助。点下面的按钮把问题带到留言框，提交后管理员会在本页回复。",
+    admin: "这个问题需要管理员协助；普通用户在这里会看到「留言给管理员」的入口。",
+  };
+  let asking = false, lastQuestion = "", lastEscalated = false, lastAnswer = null, handoffDraft = null;
+  function renderAnswer(user) {
+    if (lastAnswer === null) return;
+    const role = !user ? "guest" : user.role === 1 ? "admin" : "user";
+    el("ask-answer").textContent = lastAnswer.human ? HUMAN_ANSWERS[role] : lastAnswer.text;
+    // 管理员自己是回复方，不需要「转给管理员」
+    el("ask-handoff").hidden = !lastEscalated || role === "admin";
+  }
   const askController = new AbortController();
   function fillDraft(text) {
     const box = el("body");
@@ -142,15 +156,14 @@
   function showAnswer(data, question) {
     lastQuestion = question; lastEscalated = !!data?.escalated;
     el("ask-source").textContent = SOURCE_LABELS[data?.source] || "";
-    el("ask-answer").textContent = typeof data?.answer === "string" ? data.answer : "";
+    lastAnswer = { human: data?.source === "human" && lastEscalated, text: typeof data?.answer === "string" ? data.answer : "" };
     el("ask-busy").hidden = !(typeof data?.reason === "string" && data.reason.includes("模型繁忙"));
     const refs = Array.isArray(data?.references) ? data.references.filter((x) => typeof x === "string" && x) : [];
     el("ask-refs").replaceChildren(...refs.map((title) => {
       const li = document.createElement("li"); li.textContent = title; return li;
     }));
     el("ask-refs-panel").hidden = !refs.length;
-    // 管理员自己是回复方，不需要「转给管理员」
-    el("ask-handoff").hidden = !lastEscalated || currentUser?.role === 1;
+    renderAnswer(currentUser);
     el("ask-result").hidden = false;
   }
   el("ask-form").onsubmit = async (e) => {
@@ -183,7 +196,7 @@
     if (draft) el("body").value = draft;
     if (user && user.role !== 1 && handoffDraft) { fillDraft(handoffDraft); handoffDraft = null; }
     // 回答显示之后换了账号：管理员是回复方，隐藏「留言给管理员」；换回普通用户或退出后按原回答恢复
-    el("ask-handoff").hidden = !lastEscalated || user?.role === 1;
+    renderAnswer(user);
     el("inbox").replaceChildren(); el("inbox-more").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;

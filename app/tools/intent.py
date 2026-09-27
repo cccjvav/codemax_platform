@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass
 from enum import Enum
 from typing import Protocol
@@ -45,17 +46,28 @@ class Intent(str, Enum):
 FAQ_CONFIDENCE_THRESHOLD = 0.40
 
 # 技术/专业词表。命中即倾向判为专业问题。
+# 英文词按字母边界匹配（见 _keyword_hits）：子串匹配会让 rapid / therapist 命中 api（R-05）。
+# 所以原先靠子串带出来的 mysql、postgresql、sqlite、javascript 要显式列出。
 PROFESSIONAL_KEYWORDS: tuple[str, ...] = (
     "部署", "nginx", "报错", "异常", "堆栈", "接口", "并发", "索引", "事务",
     "死锁", "外键", "缓存", "性能", "优化", "迁移", "docker", "linux",
-    "python", "java", "sql", "数据库设计", "算法", "架构", "api",
+    "python", "java", "javascript", "sql", "mysql", "postgresql", "sqlite", "数据库设计", "算法", "架构", "api",
     "空指针", "超时", "连接池", "日志", "调试", "环境", "依赖",
 )
 
 # 闲聊特征词。只在没命中 FAQ、也没有技术词时才用得上。
 CHITCHAT_KEYWORDS: tuple[str, ...] = (
-    "你好", "您好", "在吗", "谢谢", "感谢", "哈哈", "再见", "辛苦了", "早",
+    "你好", "您好", "在吗", "谢谢", "感谢", "哈哈", "再见", "辛苦了",
 )
+# 带「早」的问候只在整句就是问候时才算：子串匹配会把「我老早就提过」「早知道就不买了」「早上好几次都打不开」
+# 这类抱怨判成 0.7 的寒暄，交给闲聊模型敷衍，而不是走低置信度兜底（R-05）。
+CHITCHAT_EXACT: tuple[str, ...] = ("早", "早啊", "早呀", "早安", "早上好")
+
+
+def _keyword_hits(words: tuple[str, ...], lowered: str) -> list[str]:
+    """中文词按子串；英文词两侧不能紧挨字母（允许复数 s 与数字，如 apis、python3）。"""
+    return [w for w in words
+            if (re.search(rf"(?<![a-z]){re.escape(w)}s?(?![a-z])", lowered) if w.isascii() else w in lowered)]
 
 
 @dataclass(frozen=True)
@@ -96,7 +108,7 @@ class RuleIntentRouter:
             )
 
         lowered = query.lower()
-        matched = [w for w in PROFESSIONAL_KEYWORDS if w in lowered]
+        matched = _keyword_hits(PROFESSIONAL_KEYWORDS, lowered)
         if matched:
             # 命中越多越有把握，但封顶 0.9 —— 词表判定不该给出「绝对确定」
             confidence = min(0.5 + 0.15 * len(matched), 0.9)
@@ -107,6 +119,8 @@ class RuleIntentRouter:
             )
 
         chit = [w for w in CHITCHAT_KEYWORDS if w in query]
+        if query.rstrip("!！~～。.，, ") in CHITCHAT_EXACT:
+            chit.append(query.rstrip("!！~～。.，, "))
         if chit:
             return IntentResult(Intent.CHITCHAT, 0.7, f"命中寒暄词 {chit[:3]}")
 

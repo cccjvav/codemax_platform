@@ -694,7 +694,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "3c39b1af84b686accf0c5f885cd1a06c1b514d8ebb9d5b664defd7a6bc7a6d06",
+      "sha256": "cf725cd704a4587d8959b0c454707e03317a06413bd50011a3ffce36bae9c628",
       "blocks": [
         {
           "end": 19,
@@ -732,14 +732,14 @@
           "explanation": "未登录唤起登录；sending阻止重叠，管理员target为空时明确拒绝并提示。正文非空后在try内创建/复用pending.body与client_nonce，网络不确认时保留同nonce重试，防重复写入。成功不跳读游标到POST id，避免漏管理员回复；epoch变更丢弃旧回包，finally只恢复本上下文按钮。"
         },
         {
-          "end": 178,
+          "end": 191,
           "title": "先问智能助手：公开 /support/ask，独立于会话代次",
-          "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 记入 lastEscalated，且当前不是管理员时显示转人工按钮。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
+          "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 记入 lastEscalated。R-03：固定转人工答案（source=human）是写给所有 /support/ask 调用方的「登录站内客服页留言」，人已在客服页，renderAnswer 按访客/普通用户/管理员换成 HUMAN_ANSWERS 里的页内说法，其他来源原样显示；它同时决定转人工按钮（管理员不显示），onUser 换账号时重新渲染。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
         },
         {
-          "end": 199,
+          "end": 212,
           "title": "onUser 与离开页面",
-          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。"
+          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。 R-03：这一步改由 renderAnswer(user) 完成，同时把固定转人工答案刷新成新身份对应的页内文案。"
         }
       ]
     },
@@ -2409,48 +2409,53 @@
     },
     {
       "path": "app/tools/intent.py",
-      "sha256": "a05aa09a18957a05e601f0abf48745cbf1b11dca23a0e91ea1a93f752d6d7a6d",
+      "sha256": "af1fcb3467058becb78e78b88e897ffb4cda71f0df134b129bb74ba824f61cce",
       "method": "guided",
       "blocks": [
         {
-          "end": 31,
+          "end": 32,
           "title": "模块装配",
-          "explanation": "模块协作与边界：用可替换 Protocol 表达意图分类，不是外部客服供应商。规则优先 FAQ 绝对置信度，再技术关键词、寒暄，最后低置信度回退。 TD-292：新增 codemax.intent logger。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL18 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from dataclasses import dataclass；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from enum import Enum；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 from typing import Protocol；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL25 导入 from .faq import search；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 导入 from .llm import LLMClient, LLMError, default_llm, public_failure_note；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL29 计算右侧并赋给 `_intent_logger`：调用 logging.getLogger('codemax.intent')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：用可替换 Protocol 表达意图分类，不是外部客服供应商。规则优先 FAQ 绝对置信度，再技术关键词、寒暄，最后低置信度回退。 TD-292：新增 codemax.intent logger。 R-05：寒暄单字「早」改为整句匹配（CHITCHAT_EXACT），英文技术词按词边界匹配。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL18 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from dataclasses import dataclass；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL23 导入 from enum import Enum；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL24 导入 from typing import Protocol；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL26 导入 from .faq import search；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL27 导入 from .llm import LLMClient, LLMError, default_llm, public_failure_note；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL30 计算右侧并赋给 `_intent_logger`：调用 logging.getLogger('codemax.intent')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 60,
+          "end": 66,
           "title": "Intent",
-          "explanation": "功能契约：字符串枚举让分类值可序列化又避免拼写漂移，仅有FAQ/闲聊/专业三个标签；LLM回复other由分类函数作为低置信度回退处理，不是第四个枚举成员。\n\n结构事实：定义类 Intent，基类 str, Enum；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL33 计算右侧并赋给 `FAQ`：'faq'。\nL34 计算右侧并赋给 `CHITCHAT`：'chitchat'。\nL35 计算右侧并赋给 `PROFESSIONAL`：'professional'。\nL45 计算右侧并赋给 `FAQ_CONFIDENCE_THRESHOLD`：0.4。\nL48 计算右侧并赋给 `PROFESSIONAL_KEYWORDS`：('部署', 'nginx', '报错', '异常', '堆栈', '接口', '并发', '索引', '事务', '死锁', '外键', '缓存', '性能', '优化', '迁移', 'docker', 'linux', 'python', 'java', 'sql', '数据库设计', '算法', '架构', 'api', '空指针', '超时', '连接池', '日志', '调试', '环境', '依赖')。\nL56 计算右侧并赋给 `CHITCHAT_KEYWORDS`：('你好', '您好', '在吗', '谢谢', '感谢', '哈哈', '再见', '辛苦了', '早')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：字符串枚举让分类值可序列化又避免拼写漂移，仅有FAQ/闲聊/专业三个标签；LLM回复other由分类函数作为低置信度回退处理，不是第四个枚举成员。 R-05：寒暄单字「早」改为整句匹配（CHITCHAT_EXACT），英文技术词按词边界匹配。 R-05：带「早」的问候（早、早安、早上好等）只认整句（CHITCHAT_EXACT），英文技术词按词边界匹配。\n\n结构事实：定义类 Intent，基类 str, Enum；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL34 计算右侧并赋给 `FAQ`：'faq'。\nL35 计算右侧并赋给 `CHITCHAT`：'chitchat'。\nL36 计算右侧并赋给 `PROFESSIONAL`：'professional'。\nL46 计算右侧并赋给 `FAQ_CONFIDENCE_THRESHOLD`：0.4。\nL51 计算右侧并赋给 `PROFESSIONAL_KEYWORDS`：('部署', 'nginx', '报错', '异常', '堆栈', '接口', '并发', '索引', '事务', '死锁', '外键', '缓存', '性能', '优化', '迁移', 'docker', 'linux', 'python', 'java', 'javascript', 'sql', 'mysql', 'postgresql', 'sqlite', '数据库设计', '算法', '架构', 'api', '空指针', '超时', '连接池', '日志', '调试', '环境', '依赖')。\nL59 计算右侧并赋给 `CHITCHAT_KEYWORDS`：('你好', '您好', '在吗', '谢谢', '感谢', '哈哈', '再见', '辛苦了')。\nL64 计算右侧并赋给 `CHITCHAT_EXACT`：('早', '早啊', '早呀', '早安', '早上好')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 67,
+          "end": 72,
+          "title": "_keyword_hits",
+          "explanation": "关键词命中（R-05）：中文词按子串；英文词两侧不能紧挨字母，允许复数 s 与数字，避免 rapid/therapist 命中 api。\n\n输入签名：words: tuple[str, ...], lowered: str；定义函数不等于此处立刻执行函数体。 返回类型标注：list[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL69 结束当前函数，返回 [w for w in words if (re.search(f'(?<![a-z]){re.escape(w)}s?(?![a-z])', lowered) if w.isascii() else w in lowered)]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 79,
           "title": "IntentResult",
-          "explanation": "功能契约：意图、置信度与reason的内部结果，分数是路由启发式而非概率承诺。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 IntentResult，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL63 声明字段 `intent` 的类型 Intent；仅类型标注，不执行数据库写入。\nL64 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL65 声明字段 `reason` 的类型 str；仅类型标注，不执行数据库写入。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：意图、置信度与reason的内部结果，分数是路由启发式而非概率承诺。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 IntentResult，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL75 声明字段 `intent` 的类型 Intent；仅类型标注，不执行数据库写入。\nL76 声明字段 `confidence` 的类型 float；仅类型标注，不执行数据库写入。\nL77 声明字段 `reason` 的类型 str；仅类型标注，不执行数据库写入。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 70,
+          "end": 82,
           "title": "IntentRouter",
           "explanation": "功能契约：Protocol声明classify接口，可在测试替换规则实现，不强依赖某个外部供应商。\n\n结构事实：定义类 IntentRouter，基类 Protocol；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 73,
+          "end": 85,
           "title": "IntentRouter.classify",
-          "explanation": "功能契约：接口只规定输入问题返回IntentResult，省略号不执行分类；RuleIntentRouter实现真实规则。\n\n输入签名：self, text: str；定义函数不等于此处立刻执行函数体。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL71 ...。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：接口只规定输入问题返回IntentResult，省略号不执行分类；RuleIntentRouter实现真实规则。\n\n输入签名：self, text: str；定义函数不等于此处立刻执行函数体。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 ...。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 80,
+          "end": 92,
           "title": "RuleIntentRouter",
           "explanation": "功能契约：确定性分类实现，优先FAQ，再技术词/寒暄；低置信度由上游级联处理，不直接发人工消息。\n\n结构事实：定义类 RuleIntentRouter，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 158,
+          "end": 172,
           "title": "RuleIntentRouter.classify",
-          "explanation": "功能契约：FAQ 达 0.4 优先；技术词命中数量提高分数且封顶，寒暄固定分数，未知返回低置信度以触发二次判定。中文/英文按源码大小写处理，非真正机器学习概率。\n\n输入签名：self, text: str；定义函数不等于此处立刻执行函数体。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL82 计算右侧并赋给 `query`：调用 text.strip()。\nL83 判断 `not query`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL84 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, '空输入，按闲聊处理')；不会自动commit未提交事务。\nL86 计算右侧并赋给 `hits`：调用 search(query, k=1)。\nL89 判断 `hits and hits[0].confidence >= FAQ_CONFIDENCE_THRESHOLD`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL90 计算右侧并赋给 `h`：hits[0]。\nL91 结束当前函数，返回 调用 IntentResult(Intent.FAQ, h.confidence, f'FAQ 检索命中「{h.faq.q}」，绝对置信度 {h.confidence:.2f} ≥ {FAQ_CONFIDENCE_THRESHOLD}（bm25={h.bm25:.2f} cos={h.cosine:.2f}）')；不会自动commit未提交事务。\nL98 计算右侧并赋给 `lowered`：调用 query.lower()。\nL99 计算右侧并赋给 `matched`：[w for w in PROFESSIONAL_KEYWORDS if w in lowered]。\nL100 判断 `matched`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL102 计算右侧并赋给 `confidence`：调用 min(0.5 + 0.15 * len(matched), 0.9)。\nL103 结束当前函数，返回 调用 IntentResult(Intent.PROFESSIONAL, confidence, f\"命中技术词 {matched[:5]}{(' 等' if len(matched) > 5 else '')}\")；不会自动commit未提交事务。\nL109 计算右侧并赋给 `chit`：[w for w in CHITCHAT_KEYWORDS if w in query]。\nL110 判断 `chit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL111 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.7, f'命中寒暄词 {chit[:3]}')；不会自动commit未提交事务。\nL114 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.3, '未命中 FAQ、无技术词、无寒暄词，按闲聊兜底')；不会自动commit未提交事务。\nL117 计算右侧并赋给 `default_router`：调用 RuleIntentRouter()。\nL133 计算右侧并赋给 `LLM_ROUTER_SYSTEM`：'你是意图分类器，把用户的客服提问分成三类之一，**只输出一个词**，不要解释、不要标点：\\n- faq：问平台自身的规则与流程（收费、发票、交付周期、下载、账号、退款等）\\n- chitchat：寒暄、感谢、与平台无关的闲聊\\n- professional：具体技术问题（代码、报错、部署、数据库、算法等）\\n- unknown：信息太少无法判断，或三类都不像\\n拿不准时输出 unknown，不要猜。'。\nL145 计算右侧并赋给 `LLM_ROUTER_CONFIDENCE`：0.8。\nL149 计算右侧并赋给 `_LLM_LABEL_MAP`：{'faq': Intent.FAQ, 'chitchat': Intent.CHITCHAT, '闲聊': Intent.CHITCHAT, 'professional': Intent.PROFESSIONAL, '专业': Intent.PROFESSIONAL, '专业问题': Intent.PROFESSIONAL}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：FAQ 达 0.4 优先；技术词命中数量提高分数且封顶，寒暄固定分数，未知返回低置信度以触发二次判定。中文/英文按源码大小写处理，非真正机器学习概率。 R-05：寒暄单字「早」改为整句匹配（CHITCHAT_EXACT），英文技术词按词边界匹配。\n\n输入签名：self, text: str；定义函数不等于此处立刻执行函数体。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL94 计算右侧并赋给 `query`：调用 text.strip()。\nL95 判断 `not query`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL96 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, '空输入，按闲聊处理')；不会自动commit未提交事务。\nL98 计算右侧并赋给 `hits`：调用 search(query, k=1)。\nL101 判断 `hits and hits[0].confidence >= FAQ_CONFIDENCE_THRESHOLD`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL102 计算右侧并赋给 `h`：hits[0]。\nL103 结束当前函数，返回 调用 IntentResult(Intent.FAQ, h.confidence, f'FAQ 检索命中「{h.faq.q}」，绝对置信度 {h.confidence:.2f} ≥ {FAQ_CONFIDENCE_THRESHOLD}（bm25={h.bm25:.2f} cos={h.cosine:.2f}）')；不会自动commit未提交事务。\nL110 计算右侧并赋给 `lowered`：调用 query.lower()。\nL111 计算右侧并赋给 `matched`：调用 _keyword_hits(PROFESSIONAL_KEYWORDS, lowered)。\nL112 判断 `matched`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL114 计算右侧并赋给 `confidence`：调用 min(0.5 + 0.15 * len(matched), 0.9)。\nL115 结束当前函数，返回 调用 IntentResult(Intent.PROFESSIONAL, confidence, f\"命中技术词 {matched[:5]}{(' 等' if len(matched) > 5 else '')}\")；不会自动commit未提交事务。\nL121 计算右侧并赋给 `chit`：[w for w in CHITCHAT_KEYWORDS if w in query]。\nL122 判断 `query.rstrip('!！~～。.，, ') in CHITCHAT_EXACT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL123 调用 chit.append(query.rstrip('!！~～。.，, '))。\nL124 判断 `chit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL125 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.7, f'命中寒暄词 {chit[:3]}')；不会自动commit未提交事务。\nL128 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.3, '未命中 FAQ、无技术词、无寒暄词，按闲聊兜底')；不会自动commit未提交事务。\nL131 计算右侧并赋给 `default_router`：调用 RuleIntentRouter()。\nL147 计算右侧并赋给 `LLM_ROUTER_SYSTEM`：'你是意图分类器，把用户的客服提问分成三类之一，**只输出一个词**，不要解释、不要标点：\\n- faq：问平台自身的规则与流程（收费、发票、交付周期、下载、账号、退款等）\\n- chitchat：寒暄、感谢、与平台无关的闲聊\\n- professional：具体技术问题（代码、报错、部署、数据库、算法等）\\n- unknown：信息太少无法判断，或三类都不像\\n拿不准时输出 unknown，不要猜。'。\nL159 计算右侧并赋给 `LLM_ROUTER_CONFIDENCE`：0.8。\nL163 计算右侧并赋给 `_LLM_LABEL_MAP`：{'faq': Intent.FAQ, 'chitchat': Intent.CHITCHAT, '闲聊': Intent.CHITCHAT, 'professional': Intent.PROFESSIONAL, '专业': Intent.PROFESSIONAL, '专业问题': Intent.PROFESSIONAL}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 189,
+          "end": 203,
           "title": "llm_classify",
-          "explanation": "功能契约：调用模型只要类别词；去围栏/标点，允许若干标签前缀形式，无法识别或模型错误回置信度 0；不是把任何非空答案当分类成功。 TD-292：LLMError 的类别、状态码与原文写进 codemax.intent warning，返回的 reason 只写「LLM 路由调用失败」加 public_failure_note；该 reason 会经客服回复返回给匿名用户。\n\n输入签名：text: str, llm: LLMClient=default_llm；异步调用需await才推进。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL164 执行try体；捕获 LLMError。\nL165 计算右侧并赋给 `reply`：await 调用 llm.chat(LLM_ROUTER_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL167 调用 _intent_logger.warning('intent LLM routing failure category=%s status=%s detail=%s', exc.category, exc.status_code, exc)。\nL170 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, f'LLM 路由调用失败{public_failure_note(exc)}')；不会自动commit未提交事务。\nL172 计算右侧并赋给 `label`：调用 reply.strip().lower().strip('`。．.！!，, ').strip()。\nL173 计算右侧并赋给 `intent`：调用 _LLM_LABEL_MAP.get(label)。\nL174 判断 `intent is None and label`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL178 逐项遍历 `('：', ':', '，', ',', ' ')`，绑定 `sep`；循环体按缩进执行，break可提前结束。\nL179 计算右侧并赋给 `label`：调用 label.replace(sep, ' ')。\nL180 计算右侧并赋给 `intent`：_LLM_LABEL_MAP.get(label.split()[-1]) if label.split() else None。\nL181 判断 `intent is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL182 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, f'LLM 路由答非所问（原文 {reply[:40]!r}），按未知处理')；不会自动commit未提交事务。\nL185 结束当前函数，返回 调用 IntentResult(intent, LLM_ROUTER_CONFIDENCE, f'LLM 路由判定为 {intent.value}')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：调用模型只要类别词；去围栏/标点，允许若干标签前缀形式，无法识别或模型错误回置信度 0；不是把任何非空答案当分类成功。 TD-292：LLMError 的类别、状态码与原文写进 codemax.intent warning，返回的 reason 只写「LLM 路由调用失败」加 public_failure_note；该 reason 会经客服回复返回给匿名用户。\n\n输入签名：text: str, llm: LLMClient=default_llm；异步调用需await才推进。 返回类型标注：IntentResult。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL178 执行try体；捕获 LLMError。\nL179 计算右侧并赋给 `reply`：await 调用 llm.chat(LLM_ROUTER_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL181 调用 _intent_logger.warning('intent LLM routing failure category=%s status=%s detail=%s', exc.category, exc.status_code, exc)。\nL184 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, f'LLM 路由调用失败{public_failure_note(exc)}')；不会自动commit未提交事务。\nL186 计算右侧并赋给 `label`：调用 reply.strip().lower().strip('`。．.！!，, ').strip()。\nL187 计算右侧并赋给 `intent`：调用 _LLM_LABEL_MAP.get(label)。\nL188 判断 `intent is None and label`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL192 逐项遍历 `('：', ':', '，', ',', ' ')`，绑定 `sep`；循环体按缩进执行，break可提前结束。\nL193 计算右侧并赋给 `label`：调用 label.replace(sep, ' ')。\nL194 计算右侧并赋给 `intent`：_LLM_LABEL_MAP.get(label.split()[-1]) if label.split() else None。\nL195 判断 `intent is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL196 结束当前函数，返回 调用 IntentResult(Intent.CHITCHAT, 0.0, f'LLM 路由答非所问（原文 {reply[:40]!r}），按未知处理')；不会自动commit未提交事务。\nL199 结束当前函数，返回 调用 IntentResult(intent, LLM_ROUTER_CONFIDENCE, f'LLM 路由判定为 {intent.value}')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -2543,7 +2548,7 @@
     },
     {
       "path": "app/tools/politeness.py",
-      "sha256": "5f5dc4a210c2df86283fd845017acdee30fbaa68e3ffc21e0817568cbabfc02c",
+      "sha256": "977b636a75466bdbd8cc419062555670d90a78548d571180dc5278f2c55425c8",
       "method": "guided",
       "blocks": [
         {
@@ -2577,54 +2582,54 @@
           "explanation": "功能契约：取或建 origin 的状态：不存在时先淘汰再插入，最后 _touch；_load_robots 与 state_for 都经它拿状态。\n\n输入签名：origin: tuple[str, str]；定义函数不等于此处立刻执行函数体。 返回类型标注：_DomainState。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL108 计算右侧并赋给 `state`：调用 _states.get(origin)。\nL109 判断 `state is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL110 调用 _evict_if_full()。\nL111 计算右侧并赋给 `state`：调用 _DomainState()。\nL112 计算右侧并赋给 `_states[origin]`：state。\nL113 结束当前函数，返回 调用 _touch(origin, state)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 120,
+          "end": 136,
           "title": "_origin",
-          "explanation": "功能契约：取 scheme/netloc 作为域状态键，端口仍属于 netloc；不在这里做 SSRF 校验。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：tuple[str, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL117 计算右侧并赋给 `p`：调用 urlsplit(url)。\nL118 结束当前函数，返回 (p.scheme, p.netloc)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 125,
-          "title": "_robots_url",
-          "explanation": "功能契约：用 origin 构造 /robots.txt，不沿用原页面 path/query。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL122 计算右侧并赋给 `(scheme, netloc)`：调用 _origin(url)。\nL123 结束当前函数，返回 f'{scheme}://{netloc}/robots.txt'；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 134,
-          "title": "_get_semaphore",
-          "explanation": "功能契约：懒建全局 Semaphore，调用方 async with 才占用槽位。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：asyncio.Semaphore。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL129 global 指定后续赋值修改模块状态：_semaphore；多请求共享，需按模块并发规则使用。\nL130 判断 `_semaphore is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL131 计算右侧并赋给 `_semaphore`：调用 asyncio.Semaphore(MAX_CONCURRENCY)。\nL132 结束当前函数，返回 _semaphore；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：取 scheme/netloc 作为域状态键，端口仍属于 netloc；不在这里做 SSRF 校验。 R-05：站点键规范化——scheme/主机名小写、默认端口省略、不带凭据，同一站点只有一份 robots 缓存与抓取间隔。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：tuple[str, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL116 计算右侧并赋给 `_DEFAULT_PORTS`：{'http': 80, 'https': 443}。\nL125 计算右侧并赋给 `p`：调用 urlsplit(url)。\nL126 计算右侧并赋给 `scheme`：调用 p.scheme.lower()。\nL127 执行try体；捕获 ValueError。\nL128 计算右侧并赋给 `port`：p.port。\nL130 结束当前函数，返回 (scheme, p.netloc.lower())；不会自动commit未提交事务。\nL131 计算右侧并赋给 `host`：p.hostname or ''。\nL132 判断 `':' in host`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL133 计算右侧并赋给 `host`：f'[{host}]'。\nL134 结束当前函数，返回 (scheme, host if port in (None, _DEFAULT_PORTS.get(scheme)) else f'{host}:{port}')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 141,
+          "title": "_robots_url",
+          "explanation": "功能契约：用 origin 构造 /robots.txt，不沿用原页面 path/query。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL138 计算右侧并赋给 `(scheme, netloc)`：调用 _origin(url)。\nL139 结束当前函数，返回 f'{scheme}://{netloc}/robots.txt'；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 150,
+          "title": "_get_semaphore",
+          "explanation": "功能契约：懒建全局 Semaphore，调用方 async with 才占用槽位。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：asyncio.Semaphore。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL145 global 指定后续赋值修改模块状态：_semaphore；多请求共享，需按模块并发规则使用。\nL146 判断 `_semaphore is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL147 计算右侧并赋给 `_semaphore`：调用 asyncio.Semaphore(MAX_CONCURRENCY)。\nL148 结束当前函数，返回 _semaphore；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 157,
           "title": "reset_cache",
-          "explanation": "功能契约：测试清域状态和信号量引用；不要在正在运行的请求中随意重置。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL137 global 指定后续赋值修改模块状态：_semaphore；多请求共享，需按模块并发规则使用。\nL138 调用 _states.clear()。\nL139 计算右侧并赋给 `_semaphore`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：测试清域状态和信号量引用；不要在正在运行的请求中随意重置。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL153 global 指定后续赋值修改模块状态：_semaphore；多请求共享，需按模块并发规则使用。\nL154 调用 _states.clear()。\nL155 计算右侧并赋给 `_semaphore`：None。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 199,
+          "end": 215,
           "title": "_load_robots",
-          "explanation": "功能契约：TTL 内复用，锁内再查防重复拉取；401/403 和未知错误拒绝，404/410 放行，2xx 解析规则。CrawlError 必须传播，不能被当作缺 robots 而放行。 TD-268：改经 _state 取状态；200 分支解析出的 Crawl-delay 超过 MAX_CRAWL_DELAY 时把 allowed_all 置 False（不抓，不睡槽）。 TD-286：缓存判断改用 state.ttl；每次重新加载先把 ttl 复位为 ROBOTS_TTL，异常分支与 5xx/3xx 分支改设 ROBOTS_UNKNOWN_TTL，401/403、404/410、2xx（含 Crawl-delay 超限）保持整小时。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 返回类型标注：_DomainState。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL145 计算右侧并赋给 `state`：调用 _state(_origin(url))。\nL146 计算右侧并赋给 `now`：调用 time.monotonic()。\nL147 判断 `state.fetched_at and now - state.fetched_at < state.ttl`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL148 结束当前函数，返回 state；不会自动commit未提交事务。\nL150 进入 state.lock 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL152 判断 `state.fetched_at and now - state.fetched_at < state.ttl`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL153 结束当前函数，返回 state；不会自动commit未提交事务。\nL154 计算右侧并赋给 `state.allowed_all`：True。\nL155 计算右侧并赋给 `state.parser`：None。\nL156 计算右侧并赋给 `state.crawl_delay`：None。\nL157 计算右侧并赋给 `state.ttl`：ROBOTS_TTL。\nL160 导入 from .crawler import CrawlError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL162 执行try体；捕获 CrawlError, Exception。\nL163 计算右侧并赋给 `(status, text)`：await 调用 fetch_text(_robots_url(url))；等待期间可让出事件循环，恢复后才执行下一句。\nL168 抛出 当前异常；本路径不再顺序执行后文，由匹配的except/上层处理。\nL171 计算右侧并赋给 `state.allowed_all`：False。\nL172 计算右侧并赋给 `state.parser`：None。\nL173 计算右侧并赋给 `state.ttl`：ROBOTS_UNKNOWN_TTL。\nL174 计算右侧并赋给 `state.fetched_at`：now。\nL175 结束当前函数，返回 state；不会自动commit未提交事务。\nL177 判断 `status in (401, 403)`，为真进入当前缩进分支，为假进入else/elif。\nL178 计算右侧并赋给 `state.allowed_all`：False。\nL179 判断 `status in (404, 410)`，为真进入当前缩进分支，为假进入else/elif。\nL180 计算右侧并赋给 `state.allowed_all`：True。\nL181 判断 `200 <= status < 300`，为真进入当前缩进分支，为假进入else/elif。\nL182 计算右侧并赋给 `parser`：调用 RobotFileParser()。\nL183 调用 parser.parse((text or '').splitlines())。\nL184 计算右侧并赋给 `state.parser`：parser。\nL188 计算右侧并赋给 `delay`：调用 parser.crawl_delay(user_agent)。\nL189 计算右侧并赋给 `state.crawl_delay`：float(delay) if delay else None。\nL190 判断 `state.crawl_delay is not None and state.crawl_delay > MAX_CRAWL_DELAY`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL192 计算右侧并赋给 `state.allowed_all`：False。\nL194 计算右侧并赋给 `state.allowed_all`：False。\nL195 计算右侧并赋给 `state.ttl`：ROBOTS_UNKNOWN_TTL。\nL196 计算右侧并赋给 `state.fetched_at`：now。\nL197 结束当前函数，返回 state；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：TTL 内复用，锁内再查防重复拉取；401/403 和未知错误拒绝，404/410 放行，2xx 解析规则。CrawlError 必须传播，不能被当作缺 robots 而放行。 TD-268：改经 _state 取状态；200 分支解析出的 Crawl-delay 超过 MAX_CRAWL_DELAY 时把 allowed_all 置 False（不抓，不睡槽）。 TD-286：缓存判断改用 state.ttl；每次重新加载先把 ttl 复位为 ROBOTS_TTL，异常分支与 5xx/3xx 分支改设 ROBOTS_UNKNOWN_TTL，401/403、404/410、2xx（含 Crawl-delay 超限）保持整小时。 R-05：站点键规范化——scheme/主机名小写、默认端口省略、不带凭据，同一站点只有一份 robots 缓存与抓取间隔。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 返回类型标注：_DomainState。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL161 计算右侧并赋给 `state`：调用 _state(_origin(url))。\nL162 计算右侧并赋给 `now`：调用 time.monotonic()。\nL163 判断 `state.fetched_at and now - state.fetched_at < state.ttl`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL164 结束当前函数，返回 state；不会自动commit未提交事务。\nL166 进入 state.lock 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL168 判断 `state.fetched_at and now - state.fetched_at < state.ttl`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL169 结束当前函数，返回 state；不会自动commit未提交事务。\nL170 计算右侧并赋给 `state.allowed_all`：True。\nL171 计算右侧并赋给 `state.parser`：None。\nL172 计算右侧并赋给 `state.crawl_delay`：None。\nL173 计算右侧并赋给 `state.ttl`：ROBOTS_TTL。\nL176 导入 from .crawler import CrawlError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL178 执行try体；捕获 CrawlError、Exception。\nL179 计算右侧并赋给 `(status, text)`：await 调用 fetch_text(_robots_url(url))；等待期间可让出事件循环，恢复后才执行下一句。\nL184 抛出 当前异常；本路径不再顺序执行后文，由匹配的except/上层处理。\nL187 计算右侧并赋给 `state.allowed_all`：False。\nL188 计算右侧并赋给 `state.parser`：None。\nL189 计算右侧并赋给 `state.ttl`：ROBOTS_UNKNOWN_TTL。\nL190 计算右侧并赋给 `state.fetched_at`：now。\nL191 结束当前函数，返回 state；不会自动commit未提交事务。\nL193 判断 `status in (401, 403)`，为真进入当前缩进分支，为假进入else/elif。\nL194 计算右侧并赋给 `state.allowed_all`：False。\nL195 判断 `status in (404, 410)`，为真进入当前缩进分支，为假进入else/elif。\nL196 计算右侧并赋给 `state.allowed_all`：True。\nL197 判断 `200 <= status < 300`，为真进入当前缩进分支，为假进入else/elif。\nL198 计算右侧并赋给 `parser`：调用 RobotFileParser()。\nL199 调用 parser.parse((text or '').splitlines())。\nL200 计算右侧并赋给 `state.parser`：parser。\nL204 计算右侧并赋给 `delay`：调用 parser.crawl_delay(user_agent)。\nL205 计算右侧并赋给 `state.crawl_delay`：float(delay) if delay else None。\nL206 判断 `state.crawl_delay is not None and state.crawl_delay > MAX_CRAWL_DELAY`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL208 计算右侧并赋给 `state.allowed_all`：False。\nL210 计算右侧并赋给 `state.allowed_all`：False。\nL211 计算右侧并赋给 `state.ttl`：ROBOTS_UNKNOWN_TTL。\nL212 计算右侧并赋给 `state.fetched_at`：now。\nL213 结束当前函数，返回 state；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 212,
+          "end": 228,
           "title": "check_allowed",
-          "explanation": "功能契约：根据 allowed_all 和 parser.can_fetch 拒绝目标，抛 RobotsDisallowed，不直接下载页面。 TD-268：allowed_all 为假且原因是 Crawl-delay 超限时，文案点名要求值与上限。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL202 计算右侧并赋给 `state`：await 调用 _load_robots(url, user_agent, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL203 判断 `not state.allowed_all`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL204 判断 `state.crawl_delay is not None and state.crawl_delay > MAX_CRAWL_DELAY`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL205 抛出 RobotsDisallowed(f'robots.txt 要求的 Crawl-delay {state.crawl_delay:g} 秒超过上限 {MAX_CRAWL_DELAY:g} 秒，不抓：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL208 抛出 RobotsDisallowed(f'robots.txt 不允许抓取（或规则暂不可知）：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL209 判断 `state.parser is not None and (not state.parser.can_fetch(user_agent, url))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL210 抛出 RobotsDisallowed(f'robots.txt 明确禁止抓取：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：根据 allowed_all 和 parser.can_fetch 拒绝目标，抛 RobotsDisallowed，不直接下载页面。 TD-268：allowed_all 为假且原因是 Crawl-delay 超限时，文案点名要求值与上限。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL218 计算右侧并赋给 `state`：await 调用 _load_robots(url, user_agent, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL219 判断 `not state.allowed_all`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL220 判断 `state.crawl_delay is not None and state.crawl_delay > MAX_CRAWL_DELAY`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL221 抛出 RobotsDisallowed(f'robots.txt 要求的 Crawl-delay {state.crawl_delay:g} 秒超过上限 {MAX_CRAWL_DELAY:g} 秒，不抓：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL224 抛出 RobotsDisallowed(f'robots.txt 不允许抓取（或规则暂不可知）：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL225 判断 `state.parser is not None and (not state.parser.can_fetch(user_agent, url))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL226 抛出 RobotsDisallowed(f'robots.txt 明确禁止抓取：{url}')；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 219,
+          "end": 235,
           "title": "min_interval_for",
-          "explanation": "功能契约：有效 crawl_delay 优先，否则默认 2 秒；状态由 robots 加载过程准备。\n\n输入签名：state: _DomainState；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL215 判断 `state.crawl_delay and state.crawl_delay > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL216 结束当前函数，返回 state.crawl_delay；不会自动commit未提交事务。\nL217 结束当前函数，返回 DEFAULT_MIN_INTERVAL；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：有效 crawl_delay 优先，否则默认 2 秒；状态由 robots 加载过程准备。\n\n输入签名：state: _DomainState；定义函数不等于此处立刻执行函数体。 返回类型标注：float。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL231 判断 `state.crawl_delay and state.crawl_delay > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL232 结束当前函数，返回 state.crawl_delay；不会自动commit未提交事务。\nL233 结束当前函数，返回 DEFAULT_MIN_INTERVAL；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 236,
+          "end": 252,
           "title": "throttle",
-          "explanation": "功能契约：锁内预订下一时隙，释放锁后 sleep；同域多个任务不会同时认为无需等待，等待期间不持有域锁。\n\n输入签名：url: str, state: _DomainState；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL226 计算右侧并赋给 `interval`：调用 min_interval_for(state)。\nL227 进入 state.lock 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL228 计算右侧并赋给 `now`：调用 time.monotonic()。\nL229 计算右侧并赋给 `wait`：state.last_request + interval - now。\nL232 计算右侧并赋给 `state.last_request`：now + max(wait, 0.0)。\nL233 判断 `wait > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL234 await 调用 asyncio.sleep(wait)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：锁内预订下一时隙，释放锁后 sleep；同域多个任务不会同时认为无需等待，等待期间不持有域锁。\n\n输入签名：url: str, state: _DomainState；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL242 计算右侧并赋给 `interval`：调用 min_interval_for(state)。\nL243 进入 state.lock 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL244 计算右侧并赋给 `now`：调用 time.monotonic()。\nL245 计算右侧并赋给 `wait`：state.last_request + interval - now。\nL248 计算右侧并赋给 `state.last_request`：now + max(wait, 0.0)。\nL249 判断 `wait > 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL250 await 调用 asyncio.sleep(wait)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 240,
+          "end": 256,
           "title": "state_for",
-          "explanation": "功能契约：拿域状态，不存在建默认状态；应在 check_allowed 之后用于正常抓取。 TD-268：经 _state，自带淘汰与 LRU 触碰。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：_DomainState。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL238 结束当前函数，返回 调用 _state(_origin(url))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：拿域状态，不存在建默认状态；应在 check_allowed 之后用于正常抓取。 TD-268：经 _state，自带淘汰与 LRU 触碰。\n\n输入签名：url: str；定义函数不等于此处立刻执行函数体。 返回类型标注：_DomainState。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL254 结束当前函数，返回 调用 _state(_origin(url))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 254,
+          "end": 270,
           "title": "polite_access",
-          "explanation": "功能契约：一次对外访问的完整礼貌流程：check_allowed（robots 不允许即抛 RobotsDisallowed，此时尚未占并发槽、未登记限速时刻）→ 取全局信号量 → throttle 按域排队，然后才 yield 进入调用方的 with 体；with 体执行期间一直占着并发槽，退出（含异常）时释放。fetch_text 只用来取 robots.txt，必须自带 SSRF 校验且不再走本流程。TD-290：静态抓取 crawler.fetch 与动态渲染 browser.render 共用这一个入口，不再各自调用 _get_semaphore。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL250 await 调用 check_allowed(url, user_agent, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL251 计算右侧并赋给 `state`：调用 state_for(url)。\nL252 进入 _get_semaphore() 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL253 await 调用 throttle(url, state)；等待期间可让出事件循环，恢复后才执行下一句。\nL254 yield 交出 None；生成器下次恢复才继续后续清理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：一次对外访问的完整礼貌流程：check_allowed（robots 不允许即抛 RobotsDisallowed，此时尚未占并发槽、未登记限速时刻）→ 取全局信号量 → throttle 按域排队，然后才 yield 进入调用方的 with 体；with 体执行期间一直占着并发槽，退出（含异常）时释放。fetch_text 只用来取 robots.txt，必须自带 SSRF 校验且不再走本流程。TD-290：静态抓取 crawler.fetch 与动态渲染 browser.render 共用这一个入口，不再各自调用 _get_semaphore。\n\n输入签名：url: str, user_agent: str, fetch_text；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL266 await 调用 check_allowed(url, user_agent, fetch_text)；等待期间可让出事件循环，恢复后才执行下一句。\nL267 计算右侧并赋给 `state`：调用 state_for(url)。\nL268 进入 _get_semaphore() 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL269 await 调用 throttle(url, state)；等待期间可让出事件循环，恢复后才执行下一句。\nL270 yield 交出 None；生成器下次恢复才继续后续清理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -2762,7 +2767,7 @@
     },
     {
       "path": "app/tools/support.py",
-      "sha256": "eac86d7b05952cb501505d6506c6b411beb9ef153b58711d084578c1e46b2a99",
+      "sha256": "7b0d616fe44576fd113238ce508d8fa58c8dded640fb6d6b40062844408cdef7",
       "method": "guided",
       "blocks": [
         {
@@ -2821,35 +2826,35 @@
           "explanation": "功能契约：问题分词为空返回 []；否则用 faq.fused_scores（与 FAQ 检索同一个融合公式与 BM25_WEIGHT）打分，按分数降序取前 RAG_TOP_K 篇、只留分数为正的，每篇正文截 RAG_SNIPPET_CHARS 字。TD-289 前这里手抄了一份公式、权重写死 0.6/0.4；默认权重下分数与原来逐位相同。\n\n输入签名：index: RetrievalIndex, rows: list, question: str；定义函数不等于此处立刻执行函数体。 返回类型标注：list[tuple[str, str]]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL228 计算右侧并赋给 `q`：调用 tokenize(question)。\nL229 判断 `not q`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL230 结束当前函数，返回 []；不会自动commit未提交事务。\nL231 计算右侧并赋给 `fused`：调用 fused_scores(index, q)。\nL232 计算右侧并赋给 `ranked`：调用 sorted(range(len(rows)), key=lambda i: fused[i], reverse=True)。\nL233 结束当前函数，返回 [(rows[i].title, rows[i].content[:RAG_SNIPPET_CHARS]) for i in ranked[:RAG_TOP_K] if fused[i] > 0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         },
         {
-          "end": 278,
+          "end": 280,
           "title": "answer",
-          "explanation": "功能契约：显式人工/空问题先回退；低置信度才复核并记录标签。FAQ 回确定答案，闲聊调模型，专业问题检索资料后 RAG；不可用或无资料分别回人工，references 是引用标题而非充分事实证据。 TD-289：意图判定抽成 _classify，三个分支抽成 _answer_faq / _answer_chitchat / _answer_professional，本函数只剩顺序编排；每条转人工的条件与文案不变。\n\n输入签名：question: str, db: AsyncSession, llm: LLMClient=default_llm, router=default_router；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL251 计算右侧并赋给 `text`：调用 (question or '').strip()。\nL252 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL253 结束当前函数，返回 调用 _escalate(question, '空提问', Intent.CHITCHAT, 0.0)；不会自动commit未提交事务。\nL256 计算右侧并赋给 `hit`：[w for w in ESCALATE_KEYWORDS if w in text]。\nL257 判断 `hit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL258 结束当前函数，返回 调用 _escalate(question, f'用户明确要求人工（命中 {hit}）', Intent.CHITCHAT, 1.0)；不会自动commit未提交事务。\nL260 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _classify(question, text, llm, router)；等待期间可让出事件循环，恢复后才执行下一句。\nL263 判断 `result.confidence < LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL264 结束当前函数，返回 调用 _escalate(question, f'置信度 {result.confidence:.2f} < {LOW_CONFIDENCE}（{result.reason}）', result.intent, result.confidence)；不会自动commit未提交事务。\nL272 判断 `result.intent is Intent.FAQ`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL273 结束当前函数，返回 调用 _answer_faq(question, text, result, semantic_hit)；不会自动commit未提交事务。\nL274 判断 `result.intent is Intent.CHITCHAT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL275 结束当前函数，返回 await 调用 _answer_chitchat(question, text, result, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\nL276 结束当前函数，返回 await 调用 _answer_professional(question, text, result, db, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：显式人工/空问题先回退；低置信度才复核并记录标签。FAQ 回确定答案，闲聊调模型，专业问题检索资料后 RAG；不可用或无资料分别回人工，references 是引用标题而非充分事实证据。 TD-289：意图判定抽成 _classify，三个分支抽成 _answer_faq / _answer_chitchat / _answer_professional，本函数只剩顺序编排；每条转人工的条件与文案不变。 R-05：匹配转人工关键词前先去掉「人工智能」，避免 AI 方向的问题被直接转人工。\n\n输入签名：question: str, db: AsyncSession, llm: LLMClient=default_llm, router=default_router；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL251 计算右侧并赋给 `text`：调用 (question or '').strip()。\nL252 判断 `not text`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL253 结束当前函数，返回 调用 _escalate(question, '空提问', Intent.CHITCHAT, 0.0)；不会自动commit未提交事务。\nL257 计算右侧并赋给 `probe`：调用 text.replace('人工智能', '')。\nL258 计算右侧并赋给 `hit`：[w for w in ESCALATE_KEYWORDS if w in probe]。\nL259 判断 `hit`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL260 结束当前函数，返回 调用 _escalate(question, f'用户明确要求人工（命中 {hit}）', Intent.CHITCHAT, 1.0)；不会自动commit未提交事务。\nL262 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _classify(question, text, llm, router)；等待期间可让出事件循环，恢复后才执行下一句。\nL265 判断 `result.confidence < LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 结束当前函数，返回 调用 _escalate(question, f'置信度 {result.confidence:.2f} < {LOW_CONFIDENCE}（{result.reason}）', result.intent, result.confidence)；不会自动commit未提交事务。\nL274 判断 `result.intent is Intent.FAQ`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL275 结束当前函数，返回 调用 _answer_faq(question, text, result, semantic_hit)；不会自动commit未提交事务。\nL276 判断 `result.intent is Intent.CHITCHAT`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL277 结束当前函数，返回 await 调用 _answer_chitchat(question, text, result, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\nL278 结束当前函数，返回 await 调用 _answer_professional(question, text, result, db, llm)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 294,
+          "end": 296,
           "title": "_classify",
-          "explanation": "功能契约：规则路由置信度达到 LOW_CONFIDENCE 直接返回 (规则判定, None)；否则走 _second_opinion 级联（语义检索 → LLM 分类）并记一条标注样本，返回 (级联判定, 语义命中的 FAQ 或 None)。从 answer 抽出（TD-289），级联触发条件与标注日志时机不变。\n\n输入签名：question: str, text: str, llm: LLMClient, router；异步调用需await才推进。 返回类型标注：tuple[IntentResult, FaqHit | None]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL284 计算右侧并赋给 `rule_result`：调用 router.classify(text)。\nL285 判断 `rule_result.confidence >= LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL286 结束当前函数，返回 (rule_result, None)；不会自动commit未提交事务。\nL290 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _second_opinion(text, rule_result, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL291 调用 _log_labeling_sample(question, rule_result, result)。\nL292 结束当前函数，返回 (result, semantic_hit)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+          "explanation": "功能契约：规则路由置信度达到 LOW_CONFIDENCE 直接返回 (规则判定, None)；否则走 _second_opinion 级联（语义检索 → LLM 分类）并记一条标注样本，返回 (级联判定, 语义命中的 FAQ 或 None)。从 answer 抽出（TD-289），级联触发条件与标注日志时机不变。\n\n输入签名：question: str, text: str, llm: LLMClient, router；异步调用需await才推进。 返回类型标注：tuple[IntentResult, FaqHit | None]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL286 计算右侧并赋给 `rule_result`：调用 router.classify(text)。\nL287 判断 `rule_result.confidence >= LOW_CONFIDENCE`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL288 结束当前函数，返回 (rule_result, None)；不会自动commit未提交事务。\nL292 计算右侧并赋给 `(result, semantic_hit)`：await 调用 _second_opinion(text, rule_result, llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL293 调用 _log_labeling_sample(question, rule_result, result)。\nL294 结束当前函数，返回 (result, semantic_hit)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         },
         {
-          "end": 309,
+          "end": 311,
           "title": "_answer_faq",
-          "explanation": "功能契约：级联中语义命中的 FAQ 优先，否则词袋 search 取第一条；有命中回 FAQ 答案（source 为 faq-semantic 或 faq，references 是标准问法），无命中转人工。不调用 LLM。从 answer 抽出（TD-289）。\n\n输入签名：question: str, text: str, result: IntentResult, semantic_hit: FaqHit | None；定义函数不等于此处立刻执行函数体。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL297 计算右侧并赋给 `hit`：semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)。\nL298 判断 `hit is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL299 结束当前函数，返回 调用 _escalate(question, '路由判为 FAQ 但检索已无命中', Intent.FAQ, result.confidence)；不会自动commit未提交事务。\nL300 结束当前函数，返回 调用 SupportReply(answer=hit.faq.a, intent=Intent.FAQ, confidence=result.confidence, source='faq-semantic' if hit.semantic else 'faq', reason=result.reason, references=(hit.faq.q,))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+          "explanation": "功能契约：级联中语义命中的 FAQ 优先，否则词袋 search 取第一条；有命中回 FAQ 答案（source 为 faq-semantic 或 faq，references 是标准问法），无命中转人工。不调用 LLM。从 answer 抽出（TD-289）。\n\n输入签名：question: str, text: str, result: IntentResult, semantic_hit: FaqHit | None；定义函数不等于此处立刻执行函数体。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL299 计算右侧并赋给 `hit`：semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)。\nL300 判断 `hit is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL301 结束当前函数，返回 调用 _escalate(question, '路由判为 FAQ 但检索已无命中', Intent.FAQ, result.confidence)；不会自动commit未提交事务。\nL302 结束当前函数，返回 调用 SupportReply(answer=hit.faq.a, intent=Intent.FAQ, confidence=result.confidence, source='faq-semantic' if hit.semantic else 'faq', reason=result.reason, references=(hit.faq.q,))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         },
         {
-          "end": 325,
+          "end": 327,
           "title": "_answer_chitchat",
-          "explanation": "功能契约：闲聊交给 LLM（CHITCHAT_SYSTEM）；LLMError 转人工而不是 502。从 answer 抽出（TD-289）。 TD-292：LLMError 原文与类别经 _log_llm_failure 写进日志，转人工的 reason 只写阶段加 public_failure_note（繁忙时提示稍后再试，否则「详情已记入服务日志」）。\n\n输入签名：question: str, text: str, result: IntentResult, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL311 执行try体；捕获 LLMError。\nL312 计算右侧并赋给 `reply`：await 调用 llm.chat(CHITCHAT_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL315 调用 _log_llm_failure('chitchat', e)。\nL316 结束当前函数，返回 调用 _escalate(question, f'闲聊应答失败{public_failure_note(e)}', Intent.CHITCHAT, result.confidence)；不会自动commit未提交事务。\nL317 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.CHITCHAT, confidence=result.confidence, source='llm', reason=result.reason)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+          "explanation": "功能契约：闲聊交给 LLM（CHITCHAT_SYSTEM）；LLMError 转人工而不是 502。从 answer 抽出（TD-289）。 TD-292：LLMError 原文与类别经 _log_llm_failure 写进日志，转人工的 reason 只写阶段加 public_failure_note（繁忙时提示稍后再试，否则「详情已记入服务日志」）。\n\n输入签名：question: str, text: str, result: IntentResult, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL313 执行try体；捕获 LLMError。\nL314 计算右侧并赋给 `reply`：await 调用 llm.chat(CHITCHAT_SYSTEM, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL317 调用 _log_llm_failure('chitchat', e)。\nL318 结束当前函数，返回 调用 _escalate(question, f'闲聊应答失败{public_failure_note(e)}', Intent.CHITCHAT, result.confidence)；不会自动commit未提交事务。\nL319 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.CHITCHAT, confidence=result.confidence, source='llm', reason=result.reason)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         },
         {
-          "end": 357,
+          "end": 359,
           "title": "_answer_professional",
-          "explanation": "功能契约：专业问题走 RAG。知识库不可用（None）与无相关内容（[]）分别转人工并写明原因；有材料时把标题与片段拼进 RAG_SYSTEM 提示，LLMError 转人工；成功时 references 是所引文章标题，不是事实充分性的证明。从 answer 抽出（TD-289）。 TD-292：LLMError 原文与类别经 _log_llm_failure 写进日志，转人工的 reason 只写阶段加 public_failure_note（繁忙时提示稍后再试，否则「详情已记入服务日志」）。\n\n输入签名：question: str, text: str, result: IntentResult, db: AsyncSession, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL330 计算右侧并赋给 `refs`：await 调用 _retrieve_articles(db, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL331 判断 `refs is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL332 结束当前函数，返回 调用 _escalate(question, f'知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL338 判断 `not refs`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL339 结束当前函数，返回 调用 _escalate(question, f'知识库（sys_article）无相关内容，RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL344 计算右侧并赋给 `context`：调用 '\\n\\n'.join((f'【{title}】\\n{body}' for title, body in refs))。\nL345 执行try体；捕获 LLMError。\nL346 计算右侧并赋给 `reply`：await 调用 llm.chat(RAG_SYSTEM, f'材料：\\n{context}\\n\\n用户问题：{text}')；等待期间可让出事件循环，恢复后才执行下一句。\nL348 调用 _log_llm_failure('rag', e)。\nL349 结束当前函数，返回 调用 _escalate(question, f'RAG 生成失败{public_failure_note(e)}', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL350 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.PROFESSIONAL, confidence=result.confidence, source='rag', reason=result.reason, references=tuple((title for title, _ in refs)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+          "explanation": "功能契约：专业问题走 RAG。知识库不可用（None）与无相关内容（[]）分别转人工并写明原因；有材料时把标题与片段拼进 RAG_SYSTEM 提示，LLMError 转人工；成功时 references 是所引文章标题，不是事实充分性的证明。从 answer 抽出（TD-289）。 TD-292：LLMError 原文与类别经 _log_llm_failure 写进日志，转人工的 reason 只写阶段加 public_failure_note（繁忙时提示稍后再试，否则「详情已记入服务日志」）。\n\n输入签名：question: str, text: str, result: IntentResult, db: AsyncSession, llm: LLMClient；异步调用需await才推进。 返回类型标注：SupportReply。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL332 计算右侧并赋给 `refs`：await 调用 _retrieve_articles(db, text)；等待期间可让出事件循环，恢复后才执行下一句。\nL333 判断 `refs is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL334 结束当前函数，返回 调用 _escalate(question, f'知识库不可用（sys_article 不存在或数据库异常），RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL340 判断 `not refs`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL341 结束当前函数，返回 调用 _escalate(question, f'知识库（sys_article）无相关内容，RAG 无法作答（路由依据：{result.reason}）', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL346 计算右侧并赋给 `context`：调用 '\\n\\n'.join((f'【{title}】\\n{body}' for title, body in refs))。\nL347 执行try体；捕获 LLMError。\nL348 计算右侧并赋给 `reply`：await 调用 llm.chat(RAG_SYSTEM, f'材料：\\n{context}\\n\\n用户问题：{text}')；等待期间可让出事件循环，恢复后才执行下一句。\nL350 调用 _log_llm_failure('rag', e)。\nL351 结束当前函数，返回 调用 _escalate(question, f'RAG 生成失败{public_failure_note(e)}', Intent.PROFESSIONAL, result.confidence)；不会自动commit未提交事务。\nL352 结束当前函数，返回 调用 SupportReply(answer=reply, intent=Intent.PROFESSIONAL, confidence=result.confidence, source='rag', reason=result.reason, references=tuple((title for title, _ in refs)))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
         }
       ]
     },
     {
       "path": "app/tools/word.py",
-      "sha256": "3359cd1776a4f42d22e77b115513dce3d72710e764ec5afc9cbe8b9f41295b21",
+      "sha256": "69ccc5ac4d4abc14c8d4f912a0cbd99a2c953be46edfc51a296f712c50baeb90",
       "method": "guided",
       "blocks": [
         {
@@ -2863,9 +2868,9 @@
           "explanation": "功能契约：递归清理 XML 非法控制字符后写标题、每表字段表格和外键列表，保存 BytesIO 返回 bytes；清理只影响导出表示，不改原始 graph 或数据库。\n\n输入签名：graph: dict；定义函数不等于此处立刻执行函数体。 返回类型标注：bytes。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 62,
+          "end": 64,
           "title": "build_data_dictionary.safe",
-          "explanation": "功能契约：字符串只保留 XML 允许字符，dict/list 递归复制，其他标量原样返回；不是 SQL 解析器也不是 HTML sanitizer。\n\n输入签名：value；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL22 判断 `isinstance(value, str)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL23 结束当前函数，返回 调用 re.sub('[^\\\\x09\\\\x0a\\\\x0d\\\\x20-\\\\ud7ff\\\\ue000-\\\\ufffd\\\\U00010000-\\\\U0010ffff]', '', value)；不会自动commit未提交事务。\nL24 判断 `isinstance(value, dict)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL25 结束当前函数，返回 {k: safe(v) for k, v in value.items()}；不会自动commit未提交事务。\nL26 判断 `isinstance(value, list)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL27 结束当前函数，返回 [safe(v) for v in value]；不会自动commit未提交事务。\nL28 结束当前函数，返回 value；不会自动commit未提交事务。\nL30 计算右侧并赋给 `graph`：调用 safe(graph)。\nL31 计算右侧并赋给 `doc`：调用 Document()。\nL32 调用 doc.add_heading('数据库数据字典', level=0)。\nL33 调用 doc.add_paragraph(f\"共 {len(graph['tables'])} 张表，{len(graph['edges'])} 条外键关系。\")。\nL35 逐项遍历 `graph['tables']`，绑定 `table`；循环体按缩进执行，break可提前结束。\nL36 计算右侧并赋给 `suffix`：f\"（{table['comment']}）\" if table.get('comment') else ''。\nL37 调用 doc.add_heading(f\"{table['name']}{suffix}\", level=1)。\nL38 计算右侧并赋给 `grid`：调用 doc.add_table(rows=1, cols=len(_HEADERS))。\nL39 计算右侧并赋给 `grid.style`：'Table Grid'。\nL40 逐项遍历 `enumerate(_HEADERS)`，绑定 `(i, head)`；循环体按缩进执行，break可提前结束。\nL41 计算右侧并赋给 `grid.rows[0].cells[i].text`：head。\nL42 计算右侧并赋给 `grid.rows[0].cells[i].paragraphs[0].runs[0].bold`：True。\nL43 逐项遍历 `table['columns']`，绑定 `col`；循环体按缩进执行，break可提前结束。\nL44 计算右侧并赋给 `cells`：grid.add_row().cells。\nL45 计算右侧并赋给 `cells[0].text`：col['name']。\nL46 计算右侧并赋给 `cells[1].text`：col['type']。\nL47 计算右侧并赋给 `cells[2].text`：'✔' if col['primary_key'] else ''。\nL48 计算右侧并赋给 `cells[3].text`：'否' if not col['nullable'] else '是'。\nL49 计算右侧并赋给 `cells[4].text`：'' if col['default'] is None else str(col['default'])。\nL50 计算右侧并赋给 `cells[5].text`：col['comment'] or ''。\nL52 判断 `graph['edges']`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL53 调用 doc.add_heading('外键关系', level=1)。\nL54 逐项遍历 `graph['edges']`，绑定 `e`；循环体按缩进执行，break可提前结束。\nL55 调用 doc.add_paragraph(f\"{e['from_table']}.{e['from_column']} → {e['to_table']}.{e['to_column']}\", style='List Bullet')。\nL60 计算右侧并赋给 `buf`：调用 BytesIO()。\nL61 调用 doc.save(buf)。\nL62 结束当前函数，返回 调用 buf.getvalue()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：字符串只保留 XML 允许字符，dict/list 递归复制，其他标量原样返回；不是 SQL 解析器也不是 HTML sanitizer。 R-05：表注释放进标题括号时去掉句末句号，表格单元格保留原文。\n\n输入签名：value；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL22 判断 `isinstance(value, str)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL23 结束当前函数，返回 调用 re.sub('[^\\\\x09\\\\x0a\\\\x0d\\\\x20-\\\\ud7ff\\\\ue000-\\\\ufffd\\\\U00010000-\\\\U0010ffff]', '', value)；不会自动commit未提交事务。\nL24 判断 `isinstance(value, dict)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL25 结束当前函数，返回 {k: safe(v) for k, v in value.items()}；不会自动commit未提交事务。\nL26 判断 `isinstance(value, list)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL27 结束当前函数，返回 [safe(v) for v in value]；不会自动commit未提交事务。\nL28 结束当前函数，返回 value；不会自动commit未提交事务。\nL30 计算右侧并赋给 `graph`：调用 safe(graph)。\nL31 计算右侧并赋给 `doc`：调用 Document()。\nL32 调用 doc.add_heading('数据库数据字典', level=0)。\nL33 调用 doc.add_paragraph(f\"共 {len(graph['tables'])} 张表，{len(graph['edges'])} 条外键关系。\")。\nL35 逐项遍历 `graph['tables']`，绑定 `table`；循环体按缩进执行，break可提前结束。\nL37 计算右侧并赋给 `label`：调用 (table.get('comment') or '').strip().rstrip('。.．').rstrip()。\nL38 计算右侧并赋给 `suffix`：f'（{label}）' if label else ''。\nL39 调用 doc.add_heading(f\"{table['name']}{suffix}\", level=1)。\nL40 计算右侧并赋给 `grid`：调用 doc.add_table(rows=1, cols=len(_HEADERS))。\nL41 计算右侧并赋给 `grid.style`：'Table Grid'。\nL42 逐项遍历 `enumerate(_HEADERS)`，绑定 `(i, head)`；循环体按缩进执行，break可提前结束。\nL43 计算右侧并赋给 `grid.rows[0].cells[i].text`：head。\nL44 计算右侧并赋给 `grid.rows[0].cells[i].paragraphs[0].runs[0].bold`：True。\nL45 逐项遍历 `table['columns']`，绑定 `col`；循环体按缩进执行，break可提前结束。\nL46 计算右侧并赋给 `cells`：grid.add_row().cells。\nL47 计算右侧并赋给 `cells[0].text`：col['name']。\nL48 计算右侧并赋给 `cells[1].text`：col['type']。\nL49 计算右侧并赋给 `cells[2].text`：'✔' if col['primary_key'] else ''。\nL50 计算右侧并赋给 `cells[3].text`：'否' if not col['nullable'] else '是'。\nL51 计算右侧并赋给 `cells[4].text`：'' if col['default'] is None else str(col['default'])。\nL52 计算右侧并赋给 `cells[5].text`：col['comment'] or ''。\nL54 判断 `graph['edges']`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL55 调用 doc.add_heading('外键关系', level=1)。\nL56 逐项遍历 `graph['edges']`，绑定 `e`；循环体按缩进执行，break可提前结束。\nL57 调用 doc.add_paragraph(f\"{e['from_table']}.{e['from_column']} → {e['to_table']}.{e['to_column']}\", style='List Bullet')。\nL62 计算右侧并赋给 `buf`：调用 BytesIO()。\nL63 调用 doc.save(buf)。\nL64 结束当前函数，返回 调用 buf.getvalue()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -7626,7 +7631,7 @@
     },
     {
       "path": "tests/test_politeness.py",
-      "sha256": "cd8a580257bbdadccee39d4d5b9a3bf2f0784eeb7bc77acbd614a158fbeb5817",
+      "sha256": "03e7222f7d166fcaa9c63b2b5f5cba33068edbf39583b79582cf4aee3fef2955",
       "method": "guided",
       "blocks": [
         {
@@ -7705,144 +7710,154 @@
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL178 计算右侧并赋给 `(t, seen)`：调用 transport(200, 'User-agent: *\\nDisallow: /nope\\n')。\nL179 逐项遍历 `range(5)`，绑定 `i`；循环体按缩进执行，break可提前结束。\nL180 await 调用 fetch(f'{BASE}/blog/{i}', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL181 核对 `sum((1 for u in seen if u.endswith('/robots.txt'))) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 196,
+          "end": 192,
+          "title": "test_same_origin_spelled_differently_shares_robots_and_interval",
+          "explanation": "R-05：显式写默认端口 :80 的同一站点共用 robots 缓存，只拉一次 robots.txt。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL187 计算右侧并赋给 `(t, seen)`：调用 transport(200, 'User-agent: *\\nDisallow: /nope\\n')。\nL188 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL189 await 调用 fetch(f'http://{FAKE_IP}:80/blog/b', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL190 核对 `sum((1 for u in seen if u.endswith('/robots.txt'))) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 204,
+          "title": "test_origin_key_is_case_and_default_port_insensitive",
+          "explanation": "R-05：_origin 纯函数——主机名大小写、默认端口、IPv6 字面量都规范成同一个键，robots 地址随之一致。\n\n登记/装饰：pytest.mark.parametrize('url,origin', [('https://Example.COM/a', ('https', 'example.com')), ('https://example.com:443/b', ('https', 'example.com')), ('http://example.com:8080/x', ('http', 'example.com:8080')), ('http://[2001:DB8::1]:80/x', ('http', '[2001:db8::1]')), ('http://[2001:db8::1]:8443/', ('http', '[2001:db8::1]:8443'))])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：url, origin；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL201 核对 `politeness._origin(url) == origin`：此条件为假即测试失败；不是生产输入校验。\nL202 核对 `politeness._robots_url(url) == f'{origin[0]}://{origin[1]}/robots.txt'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 217,
           "title": "test_robots_of_each_domain_is_fetched_separately",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL186 计算右侧并赋给 `(t, seen)`：调用 transport(200, 'User-agent: *\\nDisallow: /nope\\n')。\nL187 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL188 await 调用 fetch(f'{OTHER}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL189 计算右侧并赋给 `robots`：[u for u in seen if u.endswith('/robots.txt')]。\nL190 核对 `len(robots) == 2`：此条件为假即测试失败；不是生产输入校验。\nL191 核对 `FAKE_IP in robots[0] and OTHER_IP in robots[1]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL207 计算右侧并赋给 `(t, seen)`：调用 transport(200, 'User-agent: *\\nDisallow: /nope\\n')。\nL208 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL209 await 调用 fetch(f'{OTHER}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL210 计算右侧并赋给 `robots`：[u for u in seen if u.endswith('/robots.txt')]。\nL211 核对 `len(robots) == 2`：此条件为假即测试失败；不是生产输入校验。\nL212 核对 `FAKE_IP in robots[0] and OTHER_IP in robots[1]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 213,
+          "end": 234,
           "title": "test_ssrf_rejection_is_not_masked_as_robots_error",
-          "explanation": "本用例的准备条件：url。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio; pytest.mark.parametrize('url', ['http://127.0.0.1:8000/x', 'http://169.254.169.254/latest/meta-data/'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：url；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL206 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow:\\n')。\nL207 进入 pytest.raises(CrawlError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL208 await 调用 fetch(url, transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：url。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio; pytest.mark.parametrize('url', ['http://127.0.0.1:8000/x', 'http://169.254.169.254/latest/meta-data/'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：url；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL227 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow:\\n')。\nL228 进入 pytest.raises(CrawlError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL229 await 调用 fetch(url, transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 227,
+          "end": 248,
           "title": "test_same_domain_requests_are_spaced_out",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL217 计算右侧并赋给 `(t, _)`：调用 transport(404)。\nL218 计算右侧并赋给 `start`：调用 time.perf_counter()。\nL219 逐项遍历 `range(4)`，绑定 `i`；循环体按缩进执行，break可提前结束。\nL220 await 调用 fetch(f'{BASE}/blog/{i}', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL221 计算右侧并赋给 `elapsed`：time.perf_counter() - start。\nL223 核对 `elapsed >= 3 * politeness.DEFAULT_MIN_INTERVAL * 0.9`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL238 计算右侧并赋给 `(t, _)`：调用 transport(404)。\nL239 计算右侧并赋给 `start`：调用 time.perf_counter()。\nL240 逐项遍历 `range(4)`，绑定 `i`；循环体按缩进执行，break可提前结束。\nL241 await 调用 fetch(f'{BASE}/blog/{i}', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL242 计算右侧并赋给 `elapsed`：time.perf_counter() - start。\nL244 核对 `elapsed >= 3 * politeness.DEFAULT_MIN_INTERVAL * 0.9`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 242,
+          "end": 263,
           "title": "test_crawl_delay_from_robots_is_picked_up",
-          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL236 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow:\\nCrawl-delay: 3\\n')。\nL237 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL238 计算右侧并赋给 `state`：调用 politeness.state_for(f'{BASE}/blog/a')。\nL239 核对 `state.crawl_delay == 3.0`：此条件为假即测试失败；不是生产输入校验。\nL240 核对 `politeness.min_interval_for(state) == 3.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL257 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow:\\nCrawl-delay: 3\\n')。\nL258 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL259 计算右侧并赋给 `state`：调用 politeness.state_for(f'{BASE}/blog/a')。\nL260 核对 `state.crawl_delay == 3.0`：此条件为假即测试失败；不是生产输入校验。\nL261 核对 `politeness.min_interval_for(state) == 3.0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 260,
+          "end": 281,
           "title": "test_fractional_crawl_delay_is_silently_ignored_by_stdlib",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL251 导入 from urllib.robotparser import RobotFileParser；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL253 计算右侧并赋给 `rp`：调用 RobotFileParser()。\nL254 调用 rp.parse('User-agent: *\\nDisallow:\\nCrawl-delay: 0.5\\n'.splitlines())。\nL255 核对 `rp.crawl_delay('codemax-platform') is None`：此条件为假即测试失败；不是生产输入校验。\nL256 计算右侧并赋给 `rp2`：调用 RobotFileParser()。\nL257 调用 rp2.parse('User-agent: *\\nDisallow:\\nCrawl-delay: 5\\n'.splitlines())。\nL258 核对 `rp2.crawl_delay('codemax-platform') == 5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL272 导入 from urllib.robotparser import RobotFileParser；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL274 计算右侧并赋给 `rp`：调用 RobotFileParser()。\nL275 调用 rp.parse('User-agent: *\\nDisallow:\\nCrawl-delay: 0.5\\n'.splitlines())。\nL276 核对 `rp.crawl_delay('codemax-platform') is None`：此条件为假即测试失败；不是生产输入校验。\nL277 计算右侧并赋给 `rp2`：调用 RobotFileParser()。\nL278 调用 rp2.parse('User-agent: *\\nDisallow:\\nCrawl-delay: 5\\n'.splitlines())。\nL279 核对 `rp2.crawl_delay('codemax-platform') == 5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 278,
+          "end": 299,
           "title": "test_different_domains_are_not_throttled_against_each_other",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL264 计算右侧并赋给 `(t, _)`：调用 transport(404)。\nL265 计算右侧并赋给 `start`：调用 time.perf_counter()。\nL266 await 调用 asyncio.gather(fetch(f'{BASE}/a', transport=t), fetch(f'{OTHER}/a', transport=t))：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL270 计算右侧并赋给 `elapsed`：time.perf_counter() - start。\nL271 核对 `elapsed < politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL285 计算右侧并赋给 `(t, _)`：调用 transport(404)。\nL286 计算右侧并赋给 `start`：调用 time.perf_counter()。\nL287 await 调用 asyncio.gather(fetch(f'{BASE}/a', transport=t), fetch(f'{OTHER}/a', transport=t))：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL291 计算右侧并赋给 `elapsed`：time.perf_counter() - start。\nL292 核对 `elapsed < politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 288,
+          "end": 309,
           "title": "test_global_concurrency_is_capped",
-          "explanation": "本用例的准备条件：monkeypatch。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL282 调用 monkeypatch.setattr(politeness, 'DEFAULT_MIN_INTERVAL', 0.0)：仅在本测试替换属性，fixture结束恢复。\nL283 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 2)：仅在本测试替换属性，fixture结束恢复。\nL284 调用 politeness.reset_cache()。\nL286 计算右侧并赋给 `inflight`：0。\nL287 计算右侧并赋给 `peak`：0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL303 调用 monkeypatch.setattr(politeness, 'DEFAULT_MIN_INTERVAL', 0.0)：仅在本测试替换属性，fixture结束恢复。\nL304 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 2)：仅在本测试替换属性，fixture结束恢复。\nL305 调用 politeness.reset_cache()。\nL307 计算右侧并赋给 `inflight`：0。\nL308 计算右侧并赋给 `peak`：0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 293,
+          "end": 314,
           "title": "test_global_concurrency_is_capped.handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL290 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL291 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL292 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 311,
-          "title": "test_global_concurrency_is_capped.slow_handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL295 nonlocal 修改外层闭包状态：inflight, peak；不是本函数新建同名局部变量。\nL296 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL297 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL298 累积修改 `inflight`：执行 `inflight += 1`，新值供下一轮/后续分支使用。\nL299 计算右侧并赋给 `peak`：调用 max(peak, inflight)。\nL300 await 调用 asyncio.sleep(0.02)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL301 累积修改 `inflight`：执行 `inflight -= 1`，新值供下一轮/后续分支使用。\nL302 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\nL304 计算右侧并赋给 `t`：调用 httpx.MockTransport(slow_handle)。\nL305 await 调用 asyncio.gather(*[fetch(f'{BASE}/blog/{i}', transport=t) for i in range(8)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL306 核对 `peak <= 2`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 319,
-          "title": "test_reset_cache_clears_both_states_and_semaphore",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL313 调用 politeness.state_for(f'{BASE}/x')。\nL314 调用 politeness._get_semaphore()。\nL315 调用 politeness.reset_cache()。\nL316 核对 `politeness._states == {}`：此条件为假即测试失败；不是生产输入校验。\nL317 核对 `politeness._semaphore is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL311 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL312 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL313 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 332,
+          "title": "test_global_concurrency_is_capped.slow_handle",
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL316 nonlocal 修改外层闭包状态：inflight, peak；不是本函数新建同名局部变量。\nL317 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL318 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL319 累积修改 `inflight`：执行 `inflight += 1`，新值供下一轮/后续分支使用。\nL320 计算右侧并赋给 `peak`：调用 max(peak, inflight)。\nL321 await 调用 asyncio.sleep(0.02)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL322 累积修改 `inflight`：执行 `inflight -= 1`，新值供下一轮/后续分支使用。\nL323 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\nL325 计算右侧并赋给 `t`：调用 httpx.MockTransport(slow_handle)。\nL326 await 调用 asyncio.gather(*[fetch(f'{BASE}/blog/{i}', transport=t) for i in range(8)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL327 核对 `peak <= 2`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 340,
+          "title": "test_reset_cache_clears_both_states_and_semaphore",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL334 调用 politeness.state_for(f'{BASE}/x')。\nL335 调用 politeness._get_semaphore()。\nL336 调用 politeness.reset_cache()。\nL337 核对 `politeness._states == {}`：此条件为假即测试失败；不是生产输入校验。\nL338 核对 `politeness._semaphore is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 353,
           "title": "test_min_interval_prefers_crawl_delay",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL321 计算右侧并赋给 `s`：调用 politeness._DomainState(crawl_delay=7.5)。\nL322 核对 `politeness.min_interval_for(s) == 7.5`：此条件为假即测试失败；不是生产输入校验。\nL323 核对 `politeness.min_interval_for(politeness._DomainState()) == politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\nL325 核对 `politeness.min_interval_for(politeness._DomainState(crawl_delay=0.0)) == politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL342 计算右侧并赋给 `s`：调用 politeness._DomainState(crawl_delay=7.5)。\nL343 核对 `politeness.min_interval_for(s) == 7.5`：此条件为假即测试失败；不是生产输入校验。\nL344 核对 `politeness.min_interval_for(politeness._DomainState()) == politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\nL346 核对 `politeness.min_interval_for(politeness._DomainState(crawl_delay=0.0)) == politeness.DEFAULT_MIN_INTERVAL`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 351,
+          "end": 372,
           "title": "test_excessive_crawl_delay_refuses_instead_of_sleeping_on_a_slot",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/blog/a。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 Crawl-delay=上限+1：RobotsDisallowed 且文案含 Crawl-delay、1 秒内返回、页面未被请求；恰等于上限仍接受。改前 min_interval 原样返回 3600/1e9 并真的 sleep。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL339 计算右侧并赋给 `(t, seen)`：调用 transport(200, f'User-agent: *\\nDisallow:\\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY) + 1}\\n')。\nL340 计算右侧并赋给 `started`：调用 time.monotonic()。\nL341 进入 pytest.raises(RobotsDisallowed, match='Crawl-delay')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL342 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL343 核对 `time.monotonic() - started < 1.0`：此条件为假即测试失败；不是生产输入校验。\nL344 核对 `not any(('/blog/a' in u for u in seen))`：此条件为假即测试失败；不是生产输入校验。\nL346 调用 politeness.reset_cache()。\nL347 计算右侧并赋给 `(t2, _)`：调用 transport(200, f'User-agent: *\\nDisallow:\\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY)}\\n')。\nL348 await 调用 politeness.check_allowed(f'{BASE}/blog/b', USER_AGENT, _text_via(t2))；等待期间可让出事件循环，恢复后才执行下一句。\nL349 核对 `politeness.state_for(f'{BASE}/blog/b').crawl_delay == politeness.MAX_CRAWL_DELAY`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/blog/a。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 Crawl-delay=上限+1：RobotsDisallowed 且文案含 Crawl-delay、1 秒内返回、页面未被请求；恰等于上限仍接受。改前 min_interval 原样返回 3600/1e9 并真的 sleep。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL360 计算右侧并赋给 `(t, seen)`：调用 transport(200, f'User-agent: *\\nDisallow:\\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY) + 1}\\n')。\nL361 计算右侧并赋给 `started`：调用 time.monotonic()。\nL362 进入 pytest.raises(RobotsDisallowed, match='Crawl-delay')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL363 await 调用 fetch(f'{BASE}/blog/a', transport=t)；等待期间可让出事件循环，恢复后才执行下一句。\nL364 核对 `time.monotonic() - started < 1.0`：此条件为假即测试失败；不是生产输入校验。\nL365 核对 `not any(('/blog/a' in u for u in seen))`：此条件为假即测试失败；不是生产输入校验。\nL367 调用 politeness.reset_cache()。\nL368 计算右侧并赋给 `(t2, _)`：调用 transport(200, f'User-agent: *\\nDisallow:\\nCrawl-delay: {int(politeness.MAX_CRAWL_DELAY)}\\n')。\nL369 await 调用 politeness.check_allowed(f'{BASE}/blog/b', USER_AGENT, _text_via(t2))；等待期间可让出事件循环，恢复后才执行下一句。\nL370 核对 `politeness.state_for(f'{BASE}/blog/b').crawl_delay == politeness.MAX_CRAWL_DELAY`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 352,
+          "end": 373,
           "title": "_text_via",
           "explanation": "测试辅助：把 MockTransport 包成 politeness 需要的 fetch_text(url) → (status, text)。\n\n输入签名：t: httpx.MockTransport；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 359,
+          "end": 380,
           "title": "_text_via.fetch_text",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL354 进入 httpx.AsyncClient(transport=t) as client 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL355 计算右侧并赋给 `r`：await 调用 client.get(url)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL356 结束当前函数，返回 (r.status_code, r.text)；不会自动commit未提交事务。\nL357 结束当前函数，返回 fetch_text；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL375 进入 httpx.AsyncClient(transport=t) as client 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL376 计算右侧并赋给 `r`：await 调用 client.get(url)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL377 结束当前函数，返回 (r.status_code, r.text)；不会自动commit未提交事务。\nL378 结束当前函数，返回 fetch_text；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 367,
+          "end": 388,
           "title": "test_domain_state_table_is_bounded_and_evicts_least_recently_used",
-          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 上限 3：a、b、c 后再用 a，插入 d 淘汰最久未用的 b，顺序为 c、a、d。改前 20000 个 origin 就是 20000 个永久条目。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL366 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 3)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 上限 3：a、b、c 后再用 a，插入 d 淘汰最久未用的 b，顺序为 c、a、d。改前 20000 个 origin 就是 20000 个永久条目。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL387 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 3)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 378,
+          "end": 399,
           "title": "test_domain_state_table_is_bounded_and_evicts_least_recently_used.no_robots",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL369 结束当前函数，返回 (404, '')；不会自动commit未提交事务。\nL371 逐项遍历 `('a', 'b', 'c')`，绑定 `host`；循环体按缩进执行，break可提前结束。\nL372 await 调用 politeness.check_allowed(f'http://{host}.example/', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL373 await 调用 politeness.check_allowed('http://a.example/again', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL374 await 调用 politeness.check_allowed('http://d.example/', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL375 核对 `[o[1] for o in politeness._states] == ['c.example', 'a.example', 'd.example']`：此条件为假即测试失败；不是生产输入校验。\nL376 核对 `len(politeness._states) == 3`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：tuple[int, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL390 结束当前函数，返回 (404, '')；不会自动commit未提交事务。\nL392 逐项遍历 `('a', 'b', 'c')`，绑定 `host`；循环体按缩进执行，break可提前结束。\nL393 await 调用 politeness.check_allowed(f'http://{host}.example/', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL394 await 调用 politeness.check_allowed('http://a.example/again', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL395 await 调用 politeness.check_allowed('http://d.example/', USER_AGENT, no_robots)；等待期间可让出事件循环，恢复后才执行下一句。\nL396 核对 `[o[1] for o in politeness._states] == ['c.example', 'a.example', 'd.example']`：此条件为假即测试失败；不是生产输入校验。\nL397 核对 `len(politeness._states) == 3`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 403,
+          "end": 424,
           "title": "test_eviction_skips_states_whose_lock_is_held",
-          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 持锁的 busy 不被淘汰、idle 被淘汰；上限 1 且唯一项持锁时宁可暂时超上限。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL382 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 2)：仅在本测试替换属性，fixture结束恢复。\nL383 计算右侧并赋给 `busy`：调用 politeness.state_for('http://busy.example/')。\nL384 调用 politeness.state_for('http://idle.example/')。\nL385 await 调用 busy.lock.acquire()；等待期间可让出事件循环，恢复后才执行下一句。\nL386 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL387 调用 politeness.state_for('http://new.example/')。\nL388 核对 `('http', 'busy.example') in politeness._states`：此条件为假即测试失败；不是生产输入校验。\nL389 核对 `('http', 'idle.example') not in politeness._states`：此条件为假即测试失败；不是生产输入校验。\nL391 调用 busy.lock.release()。\nL393 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 1)：仅在本测试替换属性，fixture结束恢复。\nL394 调用 politeness.reset_cache()。\nL395 计算右侧并赋给 `s1`：调用 politeness.state_for('http://one.example/')。\nL396 await 调用 s1.lock.acquire()；等待期间可让出事件循环，恢复后才执行下一句。\nL397 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL398 调用 politeness.state_for('http://two.example/')。\nL399 核对 `len(politeness._states) == 2`：此条件为假即测试失败；不是生产输入校验。\nL401 调用 s1.lock.release()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 持锁的 busy 不被淘汰、idle 被淘汰；上限 1 且唯一项持锁时宁可暂时超上限。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL403 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 2)：仅在本测试替换属性，fixture结束恢复。\nL404 计算右侧并赋给 `busy`：调用 politeness.state_for('http://busy.example/')。\nL405 调用 politeness.state_for('http://idle.example/')。\nL406 await 调用 busy.lock.acquire()；等待期间可让出事件循环，恢复后才执行下一句。\nL407 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL408 调用 politeness.state_for('http://new.example/')。\nL409 核对 `('http', 'busy.example') in politeness._states`：此条件为假即测试失败；不是生产输入校验。\nL410 核对 `('http', 'idle.example') not in politeness._states`：此条件为假即测试失败；不是生产输入校验。\nL412 调用 busy.lock.release()。\nL414 调用 monkeypatch.setattr(politeness, 'MAX_DOMAIN_STATES', 1)：仅在本测试替换属性，fixture结束恢复。\nL415 调用 politeness.reset_cache()。\nL416 计算右侧并赋给 `s1`：调用 politeness.state_for('http://one.example/')。\nL417 await 调用 s1.lock.acquire()；等待期间可让出事件循环，恢复后才执行下一句。\nL418 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL419 调用 politeness.state_for('http://two.example/')。\nL420 核对 `len(politeness._states) == 2`：此条件为假即测试失败；不是生产输入校验。\nL422 调用 s1.lock.release()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 411,
+          "end": 432,
           "title": "test_redirect_target_domain_robots_is_consulted",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 A 允许、302 到 B、B 全禁：RobotsDisallowed，B 的 robots 被读取，B 的页面从未被请求。改前 B 页面直接抓走。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL410 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 A 允许、302 到 B、B 全禁：RobotsDisallowed，B 的 robots 被读取，B 的页面从未被请求。改前 B 页面直接抓走。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL431 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 426,
+          "end": 447,
           "title": "test_redirect_target_domain_robots_is_consulted.handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL413 调用 seen.append(str(request.url))。\nL414 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL415 计算右侧并赋给 `body`：'User-agent: *\\nDisallow: /\\n' if request.url.host == OTHER_IP else 'User-agent: *\\nAllow: /\\n'。\nL416 结束当前函数，返回 调用 httpx.Response(200, text=body)；不会自动commit未提交事务。\nL417 判断 `request.url.host == FAKE_IP`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL418 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{OTHER}/secret'})；不会自动commit未提交事务。\nL419 结束当前函数，返回 调用 httpx.Response(200, text='OTHER-CONTENT')；不会自动commit未提交事务。\nL421 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL422 await 调用 fetch(f'{BASE}/jump', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL423 核对 `f'{OTHER}/robots.txt' in seen`：此条件为假即测试失败；不是生产输入校验。\nL424 核对 `f'{OTHER}/secret' not in seen`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL434 调用 seen.append(str(request.url))。\nL435 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL436 计算右侧并赋给 `body`：'User-agent: *\\nDisallow: /\\n' if request.url.host == OTHER_IP else 'User-agent: *\\nAllow: /\\n'。\nL437 结束当前函数，返回 调用 httpx.Response(200, text=body)；不会自动commit未提交事务。\nL438 判断 `request.url.host == FAKE_IP`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL439 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{OTHER}/secret'})；不会自动commit未提交事务。\nL440 结束当前函数，返回 调用 httpx.Response(200, text='OTHER-CONTENT')；不会自动commit未提交事务。\nL442 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL443 await 调用 fetch(f'{BASE}/jump', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL444 核对 `f'{OTHER}/robots.txt' in seen`：此条件为假即测试失败；不是生产输入校验。\nL445 核对 `f'{OTHER}/secret' not in seen`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 431,
+          "end": 452,
           "title": "test_same_domain_redirect_still_obeys_path_rules",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/public、/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 同域 /public 302 到被 Disallow 的 /private/x：拦下且目标未被请求。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL430 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/public、/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 同域 /public 302 到被 Disallow 的 /private/x：拦下且目标未被请求。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL451 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 444,
+          "end": 465,
           "title": "test_same_domain_redirect_still_obeys_path_rules.handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL433 调用 seen.append(str(request.url))。\nL434 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL435 结束当前函数，返回 调用 httpx.Response(200, text='User-agent: *\\nDisallow: /private\\n')；不会自动commit未提交事务。\nL436 判断 `request.url.path == '/public'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL437 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{BASE}/private/x'})；不会自动commit未提交事务。\nL438 结束当前函数，返回 调用 httpx.Response(200, text='PRIVATE')；不会自动commit未提交事务。\nL440 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL441 await 调用 fetch(f'{BASE}/public', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL442 核对 `f'{BASE}/private/x' not in seen`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL454 调用 seen.append(str(request.url))。\nL455 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL456 结束当前函数，返回 调用 httpx.Response(200, text='User-agent: *\\nDisallow: /private\\n')；不会自动commit未提交事务。\nL457 判断 `request.url.path == '/public'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL458 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{BASE}/private/x'})；不会自动commit未提交事务。\nL459 结束当前函数，返回 调用 httpx.Response(200, text='PRIVATE')；不会自动commit未提交事务。\nL461 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL462 await 调用 fetch(f'{BASE}/public', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL463 核对 `f'{BASE}/private/x' not in seen`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 449,
+          "end": 470,
           "title": "test_robots_fetch_never_passes_on_hop_so_it_cannot_recurse",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 robots.txt 自己 302 到另一域的 robots：只跟一次、不递归查 robots，页面正常抓到。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL448 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 robots.txt 自己 302 到另一域的 robots：只跟一次、不递归查 robots，页面正常抓到。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL469 计算右侧并赋给 `seen`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 462,
+          "end": 483,
           "title": "test_robots_fetch_never_passes_on_hop_so_it_cannot_recurse.handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL451 调用 seen.append(str(request.url))。\nL452 判断 `request.url.path == '/robots.txt' and request.url.host == FAKE_IP`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL453 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{OTHER}/robots.txt'})；不会自动commit未提交事务。\nL454 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL455 结束当前函数，返回 调用 httpx.Response(200, text='User-agent: *\\nAllow: /\\n')；不会自动commit未提交事务。\nL456 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\nL458 计算右侧并赋给 `page`：await 调用 fetch(f'{BASE}/blog/a', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL459 核对 `page.url == f'{BASE}/blog/a'`：此条件为假即测试失败；不是生产输入校验。\nL460 核对 `seen.count(f'{OTHER}/robots.txt') == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL472 调用 seen.append(str(request.url))。\nL473 判断 `request.url.path == '/robots.txt' and request.url.host == FAKE_IP`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL474 结束当前函数，返回 调用 httpx.Response(302, headers={'location': f'{OTHER}/robots.txt'})；不会自动commit未提交事务。\nL475 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL476 结束当前函数，返回 调用 httpx.Response(200, text='User-agent: *\\nAllow: /\\n')；不会自动commit未提交事务。\nL477 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\nL479 计算右侧并赋给 `page`：await 调用 fetch(f'{BASE}/blog/a', transport=httpx.MockTransport(handle))；等待期间可让出事件循环，恢复后才执行下一句。\nL480 核对 `page.url == f'{BASE}/blog/a'`：此条件为假即测试失败；不是生产输入校验。\nL481 核对 `seen.count(f'{OTHER}/robots.txt') == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 480,
+          "end": 501,
           "title": "test_polite_access_refuses_before_taking_a_slot_or_a_throttle_turn",
-          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-290：用 MAX_CONCURRENCY=1 观察 polite_access：robots 拒绝时 with 体不执行、该域 last_request 仍为 0.0、并发槽未被占；robots 允许时 with 体内槽被占，退出后释放。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL466 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 1)：仅在本测试替换属性，fixture结束恢复。\nL467 调用 politeness.reset_cache()。\nL468 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow: /private\\n')。\nL469 计算右侧并赋给 `entered`：False。\nL470 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL471 进入 politeness.polite_access(f'{BASE}/private/a', USER_AGENT, _text_via(t)) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL472 计算右侧并赋给 `entered`：True。\nL473 核对 `not entered`：此条件为假即测试失败；不是生产输入校验。\nL474 核对 `politeness.state_for(f'{BASE}/private/a').last_request == 0.0`：此条件为假即测试失败；不是生产输入校验。\nL475 核对 `not politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\nL476 进入 politeness.polite_access(f'{BASE}/blog/a', USER_AGENT, _text_via(t)) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL477 核对 `politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\nL478 核对 `not politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-290：用 MAX_CONCURRENCY=1 观察 polite_access：robots 拒绝时 with 体不执行、该域 last_request 仍为 0.0、并发槽未被占；robots 允许时 with 体内槽被占，退出后释放。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL487 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 1)：仅在本测试替换属性，fixture结束恢复。\nL488 调用 politeness.reset_cache()。\nL489 计算右侧并赋给 `(t, _)`：调用 transport(200, 'User-agent: *\\nDisallow: /private\\n')。\nL490 计算右侧并赋给 `entered`：False。\nL491 进入 pytest.raises(RobotsDisallowed)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL492 进入 politeness.polite_access(f'{BASE}/private/a', USER_AGENT, _text_via(t)) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL493 计算右侧并赋给 `entered`：True。\nL494 核对 `not entered`：此条件为假即测试失败；不是生产输入校验。\nL495 核对 `politeness.state_for(f'{BASE}/private/a').last_request == 0.0`：此条件为假即测试失败；不是生产输入校验。\nL496 核对 `not politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\nL497 进入 politeness.polite_access(f'{BASE}/blog/a', USER_AGENT, _text_via(t)) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL498 核对 `politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\nL499 核对 `not politeness._get_semaphore().locked()`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 492,
+          "end": 513,
           "title": "test_static_fetch_and_dynamic_render_share_one_gate",
-          "explanation": "本用例的准备条件：monkeypatch。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-290：MAX_CONCURRENCY=1、间隔 0 时并发发起 3 个静态 fetch 与 3 个动态 render（_goto 替身），两者共用的在飞计数峰值必须为 1；此前两边各自取同一个信号量，本用例钉住合并为 polite_access 后仍共用一个闸。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL484 导入 from app.tools import browser；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL485 导入 from app.tools.crawler import Page；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL487 调用 monkeypatch.setattr(politeness, 'DEFAULT_MIN_INTERVAL', 0.0)：仅在本测试替换属性，fixture结束恢复。\nL488 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 1)：仅在本测试替换属性，fixture结束恢复。\nL489 调用 politeness.reset_cache()。\nL490 计算右侧并赋给 `inflight`：0。\nL491 计算右侧并赋给 `peak`：0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch。涉及接口：/robots.txt。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-290：MAX_CONCURRENCY=1、间隔 0 时并发发起 3 个静态 fetch 与 3 个动态 render（_goto 替身），两者共用的在飞计数峰值必须为 1；此前两边各自取同一个信号量，本用例钉住合并为 polite_access 后仍共用一个闸。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL505 导入 from app.tools import browser；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL506 导入 from app.tools.crawler import Page；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL508 调用 monkeypatch.setattr(politeness, 'DEFAULT_MIN_INTERVAL', 0.0)：仅在本测试替换属性，fixture结束恢复。\nL509 调用 monkeypatch.setattr(politeness, 'MAX_CONCURRENCY', 1)：仅在本测试替换属性，fixture结束恢复。\nL510 调用 politeness.reset_cache()。\nL511 计算右侧并赋给 `inflight`：0。\nL512 计算右侧并赋给 `peak`：0。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 499,
+          "end": 520,
           "title": "test_static_fetch_and_dynamic_render_share_one_gate.busy",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL494 nonlocal 修改外层闭包状态：inflight, peak；不是本函数新建同名局部变量。\nL495 累积修改 `inflight`：执行 `inflight += 1`，新值供下一轮/后续分支使用。\nL496 计算右侧并赋给 `peak`：调用 max(peak, inflight)。\nL497 await 调用 asyncio.sleep(0.02)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL498 累积修改 `inflight`：执行 `inflight -= 1`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：；异步调用需await才推进。 返回类型标注：None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL515 nonlocal 修改外层闭包状态：inflight, peak；不是本函数新建同名局部变量。\nL516 累积修改 `inflight`：执行 `inflight += 1`，新值供下一轮/后续分支使用。\nL517 计算右侧并赋给 `peak`：调用 max(peak, inflight)。\nL518 await 调用 asyncio.sleep(0.02)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL519 累积修改 `inflight`：执行 `inflight -= 1`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 505,
+          "end": 526,
           "title": "test_static_fetch_and_dynamic_render_share_one_gate.handle",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL501 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL502 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL503 await 调用 busy()；等待期间可让出事件循环，恢复后才执行下一句。\nL504 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；异步调用需await才推进。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL522 判断 `request.url.path == '/robots.txt'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL523 结束当前函数，返回 调用 httpx.Response(404)；不会自动commit未提交事务。\nL524 await 调用 busy()；等待期间可让出事件循环，恢复后才执行下一句。\nL525 结束当前函数，返回 调用 httpx.Response(200, text=PAGE)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 516,
+          "end": 537,
           "title": "test_static_fetch_and_dynamic_render_share_one_gate.fake_goto",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：Page。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL507 await 调用 busy()；等待期间可让出事件循环，恢复后才执行下一句。\nL508 结束当前函数，返回 调用 Page(url=url, status=200, html=PAGE)；不会自动commit未提交事务。\nL510 调用 monkeypatch.setattr(browser, '_goto', fake_goto)：仅在本测试替换属性，fixture结束恢复。\nL511 计算右侧并赋给 `t`：调用 httpx.MockTransport(handle)。\nL512 await 调用 asyncio.gather(*[fetch(f'{BASE}/s/{i}', transport=t) for i in range(3)], *[browser.render(f'{OTHER}/d/{i}', transport=t) for i in range(3)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL516 核对 `peak == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：url: str；异步调用需await才推进。 返回类型标注：Page。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL528 await 调用 busy()；等待期间可让出事件循环，恢复后才执行下一句。\nL529 结束当前函数，返回 调用 Page(url=url, status=200, html=PAGE)；不会自动commit未提交事务。\nL531 调用 monkeypatch.setattr(browser, '_goto', fake_goto)：仅在本测试替换属性，fixture结束恢复。\nL532 计算右侧并赋给 `t`：调用 httpx.MockTransport(handle)。\nL533 await 调用 asyncio.gather(*[fetch(f'{BASE}/s/{i}', transport=t) for i in range(3)], *[browser.render(f'{OTHER}/d/{i}', transport=t) for i in range(3)])：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL537 核对 `peak == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -8275,18 +8290,18 @@
     },
     {
       "path": "tests/test_second_frontend_regressions.py",
-      "sha256": "2ab981b4c575351e0e78b5c12ffe8fb7100627a17e4941a4fb53d03b465b5f7e",
+      "sha256": "36a6e0f2fdf004a8b5000855744c772526be6270b160fdc2fde86048f3133b6b",
       "method": "guided",
       "blocks": [
         {
-          "end": 104,
+          "end": 115,
           "title": "模块装配",
-          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（6842字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：Node执行源码和bundle，造迟到fetch/身份变更/编辑器消息，核私人状态清空、文本非HTML和重试nonce；无外部编辑器网络。Python程序中嵌的JavaScript是测试驱动，不是另一份生产算法。 TD-278：HARNESS 新增 support-scroll 场景，给消息框桩加可增长的 scrollHeight 来判断自动滚动。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。 R-03：新增 support-ask-human 场景——固定转人工答案在客服页上按访客/用户/管理员换成页内文案。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL2 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL3 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL4 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL5 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL11 把测试JavaScript多行字面量存入 `HARNESS`（7630字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 132,
+          "end": 151,
           "title": "test_browser_lifecycle",
-          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL109 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL110 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL112 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL113 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL114 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL115 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL116 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL117 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL118 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL120 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL121 判断 `scenario == 'support-ask'`，为真进入当前缩进分支，为假进入else/elif。\nL122 核对 `output == {'payload': {'text': '退款多久到账？'}, 'method': 'POST', 'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'], 'result': True, 'busy': True, 'handoff': True, 'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员', 'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？', 'adminHandoff': False}`：此条件为假即测试失败；不是生产输入校验。\nL129 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL130 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL131 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL132 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：folder, scenario。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：新增 support-scroll 场景：消息框桩每条 100px、可视 200px；首屏带到最新（500）、用户往上翻时新消息不打断（仍 0）、停在底部时跟随到最新（700）。 TD-295：夹具新增 support-ask 场景（先问智能助手：文本渲染、转人工填草稿、退出不清回答、未登录先登录后填入）。 R-03：新增 support-ask-human 场景——固定转人工答案在客服页上按访客/用户/管理员换成页内文案。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')；pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])；pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'drawio-export'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：folder, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL121 计算右侧并赋给 `filename`：'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'。\nL122 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario], capture_output=True, text=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL124 计算右侧并赋给 `output`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL125 判断 `scenario == 'support-privacy'`，为真进入当前缩进分支，为假进入else/elif。\nL126 核对 `output == {'cleared': True, 'text': '<script>BOB_LITERAL</script>'}`：此条件为假即测试失败；不是生产输入校验。\nL127 判断 `scenario == 'support-retry'`，为真进入当前缩进分支，为假进入else/elif。\nL128 核对 `output['payloads'][0] == output['payloads'][1]`：此条件为假即测试失败；不是生产输入校验。\nL129 核对 `output['messages'] == ['admin reply', 'customer text']`：此条件为假即测试失败；不是生产输入校验。\nL130 判断 `scenario == 'support-scroll'`，为真进入当前缩进分支，为假进入else/elif。\nL132 核对 `output == {'first': 500, 'reading': 0, 'following': 700, 'height': 700}`：此条件为假即测试失败；不是生产输入校验。\nL133 判断 `scenario == 'support-ask'`，为真进入当前缩进分支，为假进入else/elif。\nL134 核对 `output == {'payload': {'text': '退款多久到账？'}, 'method': 'POST', 'answer': '<b>RAW</b> 请联系管理员', 'source': '根据站内文章整理', 'refs': ['退款说明'], 'result': True, 'busy': True, 'handoff': True, 'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员', 'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？', 'adminHandoff': False}`：此条件为假即测试失败；不是生产输入校验。\nL140 判断 `scenario == 'support-ask-human'`，为真进入当前缩进分支，为假进入else/elif。\nL142 核对 `output == {'source': '需要管理员协助', 'guest': {'answer': '这个问题需要管理员协助。点下面的按钮并登录，问题会自动带到留言框。', 'handoff': True}, 'user': {'answer': '这个问题需要管理员协助。点下面的按钮把问题带到留言框，提交后管理员会在本页回复。', 'handoff': True}, 'admin': {'answer': '这个问题需要管理员协助；普通用户在这里会看到「留言给管理员」的入口。', 'handoff': False}}`：此条件为假即测试失败；不是生产输入校验。\nL148 核对 `output['before'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL149 核对 `output['body']['content'] == '<mxfile>FRESH</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL150 核对 `output['lastLoad']['autosave'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL151 核对 `'ALICE_PRIVATE' not in output['lastLoad']['xml'] and 'FRESH' not in output['lastLoad']['xml']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -8912,7 +8927,7 @@
     },
     {
       "path": "tests/test_support.py",
-      "sha256": "36e7fc0e530a9d7d0e1b948ba07699995f16552bab33019f852cb06861bc048e",
+      "sha256": "f0ccc6097a4a3101b4daf143126431af5cc9a8f828c008c289b1e73653a594bd",
       "method": "guided",
       "blocks": [
         {
@@ -8966,139 +8981,154 @@
           "explanation": "本用例的准备条件：router。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：router；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL59 计算右侧并赋给 `r`：调用 router.classify('asdfghjkl 嗯嗯')。\nL60 核对 `r.confidence < LOW_CONFIDENCE`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 66,
-          "title": "test_router_empty_input_does_not_crash",
-          "explanation": "本用例的准备条件：router。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：router；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL64 核对 `router.classify('   ').intent is Intent.CHITCHAT`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 72,
-          "title": "test_router_is_deterministic",
-          "explanation": "本用例的准备条件：router。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：router；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL69 计算右侧并赋给 `(a, b)`：(router.classify('服务多少钱'), router.classify('服务多少钱'))。\nL70 核对 `(a.intent, a.confidence) == (b.intent, b.confidence)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "end": 71,
+          "title": "test_router_keywords_do_not_match_inside_other_words",
+          "explanation": "R-05：「我老早就提过」「早知道就不买了」不能靠子串命中寒暄词；rapid / therapist 不能命中技术词 api；四句都落到 0.3 的兜底。\n\n登记/装饰：pytest.mark.parametrize('text', ['我老早就提过这个问题了', '早知道就不买了', 'rapid response please', 'I need a therapist'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：router, text；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL68 计算右侧并赋给 `r`：调用 router.classify(text)。\nL69 核对 `(r.intent, r.confidence) == (Intent.CHITCHAT, 0.3)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 81,
-          "title": "test_faq_confidence_is_comparable_across_queries",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL76 计算右侧并赋给 `on_topic`：faq_mod.search('毕业设计服务怎么收费', k=1)[0]。\nL77 计算右侧并赋给 `off_topic`：faq_mod.search('python 部署 nginx 报错怎么排查', k=1)[0]。\nL78 核对 `on_topic.score == off_topic.score == 1.0`：此条件为假即测试失败；不是生产输入校验。\nL79 核对 `on_topic.confidence > off_topic.confidence`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "title": "test_router_whole_word_and_exact_greeting_still_match",
+          "explanation": "R-05 的反面：整句问候「早！」「早上好」、词边界上的 API/APIs、python3、javascript、sqlite 仍然命中对应意图。\n\n登记/装饰：pytest.mark.parametrize('text,intent', [('早！', Intent.CHITCHAT), ('早上好', Intent.CHITCHAT), ('调用API报500', Intent.PROFESSIONAL), ('REST APIs 怎么设计', Intent.PROFESSIONAL), ('python3 装不上 numpy', Intent.PROFESSIONAL), ('javascript 闭包原理', Intent.PROFESSIONAL), ('sqlite 锁表', Intent.PROFESSIONAL)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：router, text, intent；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL78 计算右侧并赋给 `r`：调用 router.classify(text)。\nL79 核对 `r.intent is intent and r.confidence >= LOW_CONFIDENCE`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 85,
+          "title": "test_router_empty_input_does_not_crash",
+          "explanation": "本用例的准备条件：router。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：router；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 核对 `router.classify('   ').intent is Intent.CHITCHAT`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 91,
-          "title": "test_cosine_is_a_real_cosine",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL84 计算右侧并赋给 `index`：调用 faq_mod._Index(faq_mod._corpus_tokens())。\nL86 逐项遍历 `('毕业设计服务怎么收费', '会给源码吗', '开发票', 'nginx', '随便打一串没有的词')`，绑定 `q`；循环体按缩进执行，break可提前结束。\nL87 核对 `all((0.0 <= c <= 1.0 for c in index.cosine(faq_mod.tokenize(q))))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "title": "test_router_is_deterministic",
+          "explanation": "本用例的准备条件：router。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：router；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL88 计算右侧并赋给 `(a, b)`：(router.classify('服务多少钱'), router.classify('服务多少钱'))。\nL89 核对 `(a.intent, a.confidence) == (b.intent, b.confidence)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 101,
-          "title": "test_faq_branch_answers_without_calling_llm",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL94 计算右侧并赋给 `llm`：调用 FakeLLM()。\nL95 计算右侧并赋给 `r`：await 调用 answer('毕业设计服务怎么收费', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL96 核对 `r.source == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL97 核对 `not r.escalated`：此条件为假即测试失败；不是生产输入校验。\nL98 核对 `llm.calls == []`：此条件为假即测试失败；不是生产输入校验。\nL99 核对 `r.references == ('毕业设计服务怎么收费',)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "end": 100,
+          "title": "test_faq_confidence_is_comparable_across_queries",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 计算右侧并赋给 `on_topic`：faq_mod.search('毕业设计服务怎么收费', k=1)[0]。\nL96 计算右侧并赋给 `off_topic`：faq_mod.search('python 部署 nginx 报错怎么排查', k=1)[0]。\nL97 核对 `on_topic.score == off_topic.score == 1.0`：此条件为假即测试失败；不是生产输入校验。\nL98 核对 `on_topic.confidence > off_topic.confidence`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 110,
+          "title": "test_cosine_is_a_real_cosine",
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL103 计算右侧并赋给 `index`：调用 faq_mod._Index(faq_mod._corpus_tokens())。\nL105 逐项遍历 `('毕业设计服务怎么收费', '会给源码吗', '开发票', 'nginx', '随便打一串没有的词')`，绑定 `q`；循环体按缩进执行，break可提前结束。\nL106 核对 `all((0.0 <= c <= 1.0 for c in index.cosine(faq_mod.tokenize(q))))`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 120,
+          "title": "test_faq_branch_answers_without_calling_llm",
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL113 计算右侧并赋给 `llm`：调用 FakeLLM()。\nL114 计算右侧并赋给 `r`：await 调用 answer('毕业设计服务怎么收费', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL115 核对 `r.source == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL116 核对 `not r.escalated`：此条件为假即测试失败；不是生产输入校验。\nL117 核对 `llm.calls == []`：此条件为假即测试失败；不是生产输入校验。\nL118 核对 `r.references == ('毕业设计服务怎么收费',)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 129,
           "title": "test_chitchat_branch_uses_llm",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL104 计算右侧并赋给 `llm`：调用 FakeLLM(reply='你好呀，有什么可以帮你？')。\nL105 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL106 核对 `r.source == 'llm'`：此条件为假即测试失败；不是生产输入校验。\nL107 核对 `r.answer == '你好呀，有什么可以帮你？'`：此条件为假即测试失败；不是生产输入校验。\nL108 核对 `len(llm.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 121,
-          "title": "test_professional_branch_does_rag_and_cites_articles",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL113 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL114 计算右侧并赋给 `llm`：调用 FakeLLM(reply='根据资料：用 proxy_pass 转发。')。\nL115 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL116 核对 `r.source == 'rag'`：此条件为假即测试失败；不是生产输入校验。\nL117 核对 `r.references == ('Nginx 反向代理配置',)`：此条件为假即测试失败；不是生产输入校验。\nL118 核对 `'Nginx 反向代理配置' in llm.calls[0][1]`：此条件为假即测试失败；不是生产输入校验。\nL119 核对 `'只依据下面提供的材料作答' in llm.calls[0][0]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 131,
-          "title": "test_rag_without_knowledge_base_escalates",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL125 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL126 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL127 核对 `'sys_article' in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL123 计算右侧并赋给 `llm`：调用 FakeLLM(reply='你好呀，有什么可以帮你？')。\nL124 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL125 核对 `r.source == 'llm'`：此条件为假即测试失败；不是生产输入校验。\nL126 核对 `r.answer == '你好呀，有什么可以帮你？'`：此条件为假即测试失败；不是生产输入校验。\nL127 核对 `len(llm.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 140,
-          "title": "test_explicit_human_request_short_circuits",
-          "explanation": "本用例的准备条件：db, word。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio；pytest.mark.parametrize('word', ESCALATE_KEYWORDS)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, word；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL136 计算右侧并赋给 `llm`：调用 FakeLLM()。\nL137 计算右侧并赋给 `r`：await 调用 answer(f'我要{word}', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL138 核对 `r.escalated and llm.calls == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "title": "test_professional_branch_does_rag_and_cites_articles",
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL132 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL133 计算右侧并赋给 `llm`：调用 FakeLLM(reply='根据资料：用 proxy_pass 转发。')。\nL134 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL135 核对 `r.source == 'rag'`：此条件为假即测试失败；不是生产输入校验。\nL136 核对 `r.references == ('Nginx 反向代理配置',)`：此条件为假即测试失败；不是生产输入校验。\nL137 核对 `'Nginx 反向代理配置' in llm.calls[0][1]`：此条件为假即测试失败；不是生产输入校验。\nL138 核对 `'只依据下面提供的材料作答' in llm.calls[0][0]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 150,
+          "title": "test_rag_without_knowledge_base_escalates",
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL144 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL145 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `'sys_article' in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 159,
+          "title": "test_explicit_human_request_short_circuits",
+          "explanation": "本用例的准备条件：db, word。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio；pytest.mark.parametrize('word', ESCALATE_KEYWORDS)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, word；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL155 计算右侧并赋给 `llm`：调用 FakeLLM()。\nL156 计算右侧并赋给 `r`：await 调用 answer(f'我要{word}', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL157 核对 `r.escalated and llm.calls == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 169,
+          "title": "test_artificial_intelligence_is_not_a_human_request",
+          "explanation": "R-05：「人工智能」不触发明确转人工；同一句里真的说了「转人工」仍然短路转人工且不调模型。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL163 计算右侧并赋给 `r`：await 调用 answer('人工智能方向的毕业设计能做吗', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL164 核对 `'明确要求人工' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL165 计算右侧并赋给 `llm`：调用 FakeLLM()。\nL166 计算右侧并赋给 `r`：await 调用 answer('人工智能的问题我要转人工', db, llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL167 核对 `r.escalated and '明确要求人工' in r.reason and (llm.calls == [])`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 179,
           "title": "test_llm_outage_degrades_to_human_not_500",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：改为要求 reason 写「闲聊应答失败」且不含上游原文（「模拟上游 502」只进日志）；此前断言 502 出现在 reason 里，等于把泄露当成契约。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL144 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=FakeLLM(fail=True))；等待期间可让出事件循环，恢复后才执行下一句。\nL145 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL147 核对 `'闲聊应答失败' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL148 核对 `'502' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：改为要求 reason 写「闲聊应答失败」且不含上游原文（「模拟上游 502」只进日志）；此前断言 502 出现在 reason 里，等于把泄露当成契约。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL173 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=FakeLLM(fail=True))；等待期间可让出事件循环，恢复后才执行下一句。\nL174 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL176 核对 `'闲聊应答失败' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL177 核对 `'502' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 157,
+          "end": 186,
           "title": "test_rag_generation_failure_degrades_to_human",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL153 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL154 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM(fail=True))；等待期间可让出事件循环，恢复后才执行下一句。\nL155 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL182 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL183 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM(fail=True))；等待期间可让出事件循环，恢复后才执行下一句。\nL184 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 164,
+          "end": 193,
           "title": "test_low_confidence_question_escalates",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 计算右侧并赋给 `r`：await 调用 answer('asdfghjkl 嗯嗯', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL161 核对 `r.escalated`：此条件为假即测试失败；不是生产输入校验。\nL162 核对 `str(LOW_CONFIDENCE) in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL189 计算右侧并赋给 `r`：await 调用 answer('asdfghjkl 嗯嗯', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL190 核对 `r.escalated`：此条件为假即测试失败；不是生产输入校验。\nL191 核对 `str(LOW_CONFIDENCE) in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 171,
+          "end": 200,
           "title": "test_empty_question_escalates",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL167 核对 `(await answer('   ', db, llm=FakeLLM())).escalated`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL196 核对 `(await answer('   ', db, llm=FakeLLM())).escalated`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 182,
+          "end": 211,
           "title": "test_ask_endpoint_returns_full_payload",
-          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL174 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': '毕业设计服务怎么收费'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL175 核对 `resp.status_code == 200`：要求请求成功；不满足即本用例失败。\nL176 计算右侧并赋给 `body`：调用 resp.json()。\nL177 核对 `body['intent'] == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL178 核对 `body['source'] == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL179 核对 `body['escalated'] is False`：此条件为假即测试失败；不是生产输入校验。\nL180 核对 `set(body) == {'answer', 'intent', 'confidence', 'source', 'escalated', 'reason', 'references', 'human_support_url'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL203 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': '毕业设计服务怎么收费'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL204 核对 `resp.status_code == 200`：要求请求成功；不满足即本用例失败。\nL205 计算右侧并赋给 `body`：调用 resp.json()。\nL206 核对 `body['intent'] == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL207 核对 `body['source'] == 'faq'`：此条件为假即测试失败；不是生产输入校验。\nL208 核对 `body['escalated'] is False`：此条件为假即测试失败；不是生产输入校验。\nL209 核对 `set(body) == {'answer', 'intent', 'confidence', 'source', 'escalated', 'reason', 'references', 'human_support_url'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 188,
+          "end": 217,
           "title": "test_ask_endpoint_rejects_empty_text",
-          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL185 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': ''})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL186 核对 `resp.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL214 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': ''})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL215 核对 `resp.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 195,
+          "end": 224,
           "title": "test_ask_endpoint_needs_no_auth",
-          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL192 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL193 核对 `resp.status_code == 200`：要求请求成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL221 计算右侧并赋给 `resp`：await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL222 核对 `resp.status_code == 200`：要求请求成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 208,
+          "end": 237,
           "title": "test_ask_endpoint_is_rate_limited",
-          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL199 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL201 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL202 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL203 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_LLM', 2)：仅在本测试替换属性，fixture结束恢复。\nL204 调用 monkeypatch.setattr(settings, 'TRUST_PROXY_HEADERS', False)：仅在本测试替换属性，fixture结束恢复。\nL205 计算右侧并赋给 `codes`：[(await client.post('/support/ask', json={'text': '你好'})).status_code for _ in range(3)]。\nL206 核对 `codes == [200, 200, 429]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL228 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL230 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL231 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL232 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_LLM', 2)：仅在本测试替换属性，fixture结束恢复。\nL233 调用 monkeypatch.setattr(settings, 'TRUST_PROXY_HEADERS', False)：仅在本测试替换属性，fixture结束恢复。\nL234 计算右侧并赋给 `codes`：[(await client.post('/support/ask', json={'text': '你好'})).status_code for _ in range(3)]。\nL235 核对 `codes == [200, 200, 429]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 223,
+          "end": 252,
           "title": "test_ask_endpoint_rate_limited_response_has_retry_after",
-          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL211 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL213 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL214 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL215 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_LLM', 1)：仅在本测试替换属性，fixture结束恢复。\nL216 调用 monkeypatch.setattr(settings, 'TRUST_PROXY_HEADERS', False)：仅在本测试替换属性，fixture结束恢复。\nL217 await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL218 计算右侧并赋给 `r`：await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL219 核对 `r.status_code == 429`：要求限流拒绝；不满足即本用例失败。\nL220 核对 `r.headers['Retry-After']`：此条件为假即测试失败；不是生产输入校验。\nL221 核对 `r.json()['detail'].startswith('请求过于频繁')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/support/ask。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL240 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL242 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL243 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL244 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_LLM', 1)：仅在本测试替换属性，fixture结束恢复。\nL245 调用 monkeypatch.setattr(settings, 'TRUST_PROXY_HEADERS', False)：仅在本测试替换属性，fixture结束恢复。\nL246 await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL247 计算右侧并赋给 `r`：await 调用 client.post('/support/ask', json={'text': '你好'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL248 核对 `r.status_code == 429`：要求限流拒绝；不满足即本用例失败。\nL249 核对 `r.headers['Retry-After']`：此条件为假即测试失败；不是生产输入校验。\nL250 核对 `r.json()['detail'].startswith('请求过于频繁')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 230,
+          "end": 259,
           "title": "test_articles_are_readable",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL227 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL228 核对 `len((await db.execute(select(Article))).scalars().all()) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 244,
-          "title": "test_missing_article_table_degrades_to_human_not_500",
-          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL236 导入 from sqlalchemy import text；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL238 await 调用 db.execute(text('DROP TABLE IF EXISTS sys_article'))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL239 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL240 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL241 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL242 核对 `'不可用' in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 264,
-          "title": "test_rag_ranking_follows_the_faq_fusion_weight",
-          "explanation": "本用例的准备条件：monkeypatch, weight, first。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-289：三篇语料在纯 BM25（权重 1.0）与纯余弦（0.0）下第一名分别是 T2 与 T1；把 faq.BM25_WEIGHT 换成这两个值，客服 RAG 的 _rank_articles 第一名必须跟着变。写死 0.6/0.4 的旧实现两种设置下都是 T2，0.0 那一组失败。\n\n登记/装饰：pytest.mark.parametrize(('weight', 'first'), [(1.0, 'T2'), (0.0, 'T1')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch, weight, first；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL250 导入 from types import SimpleNamespace；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL252 导入 from app.tools import support as support_module；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL254 计算右侧并赋给 `rows`：[SimpleNamespace(id=0, title='T0', content='压缩 缓存 超时 监控 续期'), SimpleNamespace(id=1, title='T1', content='日志 监控 续期 续期 重试'), SimpleNamespace(id=2, title='T2', content='负载 负载 监控 负载 缓存 日志 证书 负载 监控')]。\nL259 计算右侧并赋给 `index`：调用 support_module._build_index(rows)。\nL260 调用 monkeypatch.setattr(faq_mod, 'BM25_WEIGHT', weight)：仅在本测试替换属性，fixture结束恢复。\nL261 计算右侧并赋给 `ranked`：调用 support_module._rank_articles(index, rows, '证书 续期')。\nL262 核对 `[title for title, _ in ranked][0] == first`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
-        },
-        {
-          "end": 269,
-          "title": "_LeakyLLM",
-          "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。 DETAIL 模拟上游错误文本里夹带内网地址、状态码与配置状态（TD-292）。\n\n结构事实：定义类 _LeakyLLM，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL268 计算右侧并赋给 `DETAIL`：'上游 http://10.0.0.5:8080 返回 503；未配置 LLM_API_KEY'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL256 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL257 核对 `len((await db.execute(select(Article))).scalars().all()) == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 273,
+          "title": "test_missing_article_table_degrades_to_human_not_500",
+          "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.asyncio。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL265 导入 from sqlalchemy import text；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL267 await 调用 db.execute(text('DROP TABLE IF EXISTS sys_article'))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL268 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL269 计算右侧并赋给 `r`：await 调用 answer('python 部署 nginx 报错怎么排查', db, llm=FakeLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL270 核对 `r.escalated and r.source == 'human'`：此条件为假即测试失败；不是生产输入校验。\nL271 核对 `'不可用' in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 293,
+          "title": "test_rag_ranking_follows_the_faq_fusion_weight",
+          "explanation": "本用例的准备条件：monkeypatch, weight, first。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-289：三篇语料在纯 BM25（权重 1.0）与纯余弦（0.0）下第一名分别是 T2 与 T1；把 faq.BM25_WEIGHT 换成这两个值，客服 RAG 的 _rank_articles 第一名必须跟着变。写死 0.6/0.4 的旧实现两种设置下都是 T2，0.0 那一组失败。\n\n登记/装饰：pytest.mark.parametrize(('weight', 'first'), [(1.0, 'T2'), (0.0, 'T1')])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch, weight, first；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL279 导入 from types import SimpleNamespace；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL281 导入 from app.tools import support as support_module；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL283 计算右侧并赋给 `rows`：[SimpleNamespace(id=0, title='T0', content='压缩 缓存 超时 监控 续期'), SimpleNamespace(id=1, title='T1', content='日志 监控 续期 续期 重试'), SimpleNamespace(id=2, title='T2', content='负载 负载 监控 负载 缓存 日志 证书 负载 监控')]。\nL288 计算右侧并赋给 `index`：调用 support_module._build_index(rows)。\nL289 调用 monkeypatch.setattr(faq_mod, 'BM25_WEIGHT', weight)：仅在本测试替换属性，fixture结束恢复。\nL290 计算右侧并赋给 `ranked`：调用 support_module._rank_articles(index, rows, '证书 续期')。\nL291 核对 `[title for title, _ in ranked][0] == first`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 "
+        },
+        {
+          "end": 298,
+          "title": "_LeakyLLM",
+          "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。 DETAIL 模拟上游错误文本里夹带内网地址、状态码与配置状态（TD-292）。\n\n结构事实：定义类 _LeakyLLM，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL297 计算右侧并赋给 `DETAIL`：'上游 http://10.0.0.5:8080 返回 503；未配置 LLM_API_KEY'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 302,
           "title": "_LeakyLLM.chat",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=http、status_code=503 的 LLMError，文本为 DETAIL。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL271 抛出 LLMError(self.DETAIL, category='http', status_code=503)；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=http、status_code=503 的 LLMError，文本为 DETAIL。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL300 抛出 LLMError(self.DETAIL, category='http', status_code=503)；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 303,
+          "end": 332,
           "title": "test_llm_failure_detail_goes_to_logs_not_to_the_public_reason",
-          "explanation": "本用例的准备条件：db, client, caplog, monkeypatch, question, stage, seed。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：闲聊、RAG（先写入文章）、意图路由三种输入各走一次：reason 含对应阶段且不含地址、配置名、状态码；caplog 里有带 category=http 的原文；再经 /support/ask（替换路由模块的 answer 注入替身）确认 HTTP 返回的 reason 同样不含原文。\n\n登记/装饰：pytest.mark.parametrize('question,stage,seed', [('你好', '闲聊应答失败', False), ('python 部署 nginx 报错怎么排查', 'RAG 生成失败', True), ('asdfghjkl 嗯嗯', 'LLM 路由调用失败', False)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, client, caplog, monkeypatch, question, stage, seed；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL283 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL285 导入 from app.routers import support as support_router；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL287 判断 `seed`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL288 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL289 调用 caplog.set_level(logging.WARNING)。\nL290 计算右侧并赋给 `r`：await 调用 answer(question, db, llm=_LeakyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL291 核对 `r.escalated and stage in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL292 核对 `'10.0.0.5' not in r.reason and 'LLM_API_KEY' not in r.reason and ('503' not in r.reason)`：此条件为假即测试失败；不是生产输入校验。\nL293 核对 `any((_LeakyLLM.DETAIL in rec.getMessage() and 'category=http' in rec.getMessage() for rec in caplog.records))`：此条件为假即测试失败；不是生产输入校验。\nL296 await 调用 db.rollback()；等待期间可让出事件循环，恢复后才执行下一句。\nL298 计算右侧并赋给 `real_answer`：support_router.answer。\nL299 调用 monkeypatch.setattr(support_router, 'answer', lambda text, session: real_answer(text, session, llm=_LeakyLLM()))：仅在本测试替换属性，fixture结束恢复。\nL300 计算右侧并赋给 `body`：调用 (await client.post('/support/ask', json={'text': question})).json()。\nL301 核对 `body['escalated'] and '10.0.0.5' not in body['reason'] and ('LLM_API_KEY' not in body['reason'])`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：db, client, caplog, monkeypatch, question, stage, seed。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：闲聊、RAG（先写入文章）、意图路由三种输入各走一次：reason 含对应阶段且不含地址、配置名、状态码；caplog 里有带 category=http 的原文；再经 /support/ask（替换路由模块的 answer 注入替身）确认 HTTP 返回的 reason 同样不含原文。\n\n登记/装饰：pytest.mark.parametrize('question,stage,seed', [('你好', '闲聊应答失败', False), ('python 部署 nginx 报错怎么排查', 'RAG 生成失败', True), ('asdfghjkl 嗯嗯', 'LLM 路由调用失败', False)])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：db, client, caplog, monkeypatch, question, stage, seed；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL312 导入 import logging；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL314 导入 from app.routers import support as support_router；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL316 判断 `seed`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL317 await 调用 _seed_articles(db)；等待期间可让出事件循环，恢复后才执行下一句。\nL318 调用 caplog.set_level(logging.WARNING)。\nL319 计算右侧并赋给 `r`：await 调用 answer(question, db, llm=_LeakyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL320 核对 `r.escalated and stage in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL321 核对 `'10.0.0.5' not in r.reason and 'LLM_API_KEY' not in r.reason and ('503' not in r.reason)`：此条件为假即测试失败；不是生产输入校验。\nL322 核对 `any((_LeakyLLM.DETAIL in rec.getMessage() and 'category=http' in rec.getMessage() for rec in caplog.records))`：此条件为假即测试失败；不是生产输入校验。\nL325 await 调用 db.rollback()；等待期间可让出事件循环，恢复后才执行下一句。\nL327 计算右侧并赋给 `real_answer`：support_router.answer。\nL328 调用 monkeypatch.setattr(support_router, 'answer', lambda text, session: real_answer(text, session, llm=_LeakyLLM()))：仅在本测试替换属性，fixture结束恢复。\nL329 计算右侧并赋给 `body`：调用 (await client.post('/support/ask', json={'text': question})).json()。\nL330 核对 `body['escalated'] and '10.0.0.5' not in body['reason'] and ('LLM_API_KEY' not in body['reason'])`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 306,
+          "end": 335,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason",
           "explanation": "本用例的准备条件：db。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-292：category=busy 时 reason 保留「模型繁忙，请稍后再试」，但不带在途上限数字。\n\n输入签名：db；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 307,
+          "end": 336,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason.BusyLLM",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。 模拟本进程模型闸门已满。\n\n结构事实：定义类 BusyLLM，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 313,
+          "end": 342,
           "title": "test_busy_llm_keeps_a_retry_hint_in_the_public_reason.BusyLLM.chat",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=busy 的 LLMError。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL309 抛出 LLMError('客服繁忙：本站同时处理的模型请求已达 4 个，请 5 秒后再试', category='busy')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL311 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=BusyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL312 核对 `r.escalated and '闲聊应答失败（模型繁忙，请稍后再试）' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL313 核对 `'4 个' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 总是抛 category=busy 的 LLMError。\n\n输入签名：self, system: str, text: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL338 抛出 LLMError('客服繁忙：本站同时处理的模型请求已达 4 个，请 5 秒后再试', category='busy')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL340 计算右侧并赋给 `r`：await 调用 answer('你好', db, llm=BusyLLM())；等待期间可让出事件循环，恢复后才执行下一句。\nL341 核对 `r.escalated and '闲聊应答失败（模型繁忙，请稍后再试）' in r.reason`：此条件为假即测试失败；不是生产输入校验。\nL342 核对 `'4 个' not in r.reason`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -9832,7 +9862,7 @@
     },
     {
       "path": "tests/test_word_export.py",
-      "sha256": "768f2e4799cf7b80f43c787dbfe295db7eae31d4b772ed4099e103e67bc3b335",
+      "sha256": "8bfbb5850a11464b0ec43aeabf14ef9ed522d74f67e58e14504fe786f9a3378c",
       "method": "guided",
       "blocks": [
         {
@@ -9856,24 +9886,29 @@
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL32 计算右侧并赋给 `graph`：调用 _graph()。\nL33 计算右侧并赋给 `raw`：调用 build_data_dictionary(graph)。\nL34 核对 `zipfile.is_zipfile(BytesIO(raw))`：此条件为假即测试失败；不是生产输入校验。\nL35 计算右侧并赋给 `doc`：调用 Document(BytesIO(raw))。\nL36 核对 `len(doc.tables) == len(graph['tables'])`：此条件为假即测试失败；不是生产输入校验。\nL37 核对 `len(doc.tables) >= 6`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 74,
+          "end": 71,
           "title": "test_build_data_dictionary_table_contents",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL41 计算右侧并赋给 `graph`：调用 _graph()。\nL42 计算右侧并赋给 `doc`：调用 Document(BytesIO(build_data_dictionary(graph)))。\nL43 计算右侧并赋给 `names`：[t['name'] for t in graph['tables']]。\nL46 核对 `[len(t.rows) - 1 for t in doc.tables] == [len(t['columns']) for t in graph['tables']]`：此条件为假即测试失败；不是生产输入校验。\nL47 核对 `[c.text for c in doc.tables[0].rows[0].cells] == HEADERS`：此条件为假即测试失败；不是生产输入校验。\nL50 计算右侧并赋给 `user`：{r.cells[0].text: [c.text for c in r.cells] for r in doc.tables[names.index('sys_user')].rows[1:]}。\nL51 核对 `user['id'][1:4] == ['SERIAL', '✔', '否']`：此条件为假即测试失败；不是生产输入校验。\nL52 核对 `user['username'][1:4] == ['VARCHAR(50)', '', '否']`：此条件为假即测试失败；不是生产输入校验。\nL53 核对 `user['nickname'][1:4] == ['VARCHAR(50)', '', '是']`：此条件为假即测试失败；不是生产输入校验。\nL54 核对 `user['status'][4] == '1'`：此条件为假即测试失败；不是生产输入校验。\nL57 计算右侧并赋给 `diagram`：{r.cells[0].text: [c.text for c in r.cells] for r in doc.tables[names.index('sys_diagram')].rows[1:]}。\nL58 核对 `diagram['user_id'][1] == 'INTEGER'`：此条件为假即测试失败；不是生产输入校验。\nL59 核对 `diagram['content'][1] == 'TEXT'`：此条件为假即测试失败；不是生产输入校验。\nL62 计算右侧并赋给 `headings`：[p.text for p in doc.paragraphs]。\nL63 核对 `set(names) <= set(headings)`：此条件为假即测试失败；不是生产输入校验。\nL64 核对 `'外键关系' in headings`：此条件为假即测试失败；不是生产输入校验。\nL65 计算右侧并赋给 `body`：调用 '\\n'.join(headings)。\nL66 逐项遍历 `graph['edges']`，绑定 `e`；循环体按缩进执行，break可提前结束。\nL67 核对 `f\"{e['from_table']}.{e['from_column']} → {e['to_table']}.{e['to_column']}\" in body`：此条件为假即测试失败；不是生产输入校验。\nL68 核对 `'sys_diagram.user_id → sys_user.id' in body`：此条件为假即测试失败；不是生产输入校验。\nL69 核对 `f\"共 {len(names)} 张表，{len(graph['edges'])} 条外键关系。\" in body`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 87,
+          "title": "test_heading_drops_sentence_final_period_but_cells_keep_comment",
+          "explanation": "R-05：表注释「用户表。」进标题括号时去掉句号；只有句号的注释不留空括号；字段注释单元格保留原文。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL74 计算右侧并赋给 `graph`：调用 parse_ddl(\"CREATE TABLE sys_user (id INT PRIMARY KEY COMMENT '主键。');\\nCREATE TABLE sys_log (id INT PRIMARY KEY);\\nCOMMENT ON TABLE sys_user IS '用户表。';\\nCOMMENT ON TABLE sys_log IS '。';\")。\nL79 计算右侧并赋给 `doc`：调用 Document(BytesIO(build_data_dictionary(graph)))。\nL80 计算右侧并赋给 `headings`：[p.text for p in doc.paragraphs]。\nL81 核对 `'sys_user（用户表）' in headings and 'sys_log' in headings`：此条件为假即测试失败；不是生产输入校验。\nL82 核对 `doc.tables[0].rows[1].cells[5].text == '主键。'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 100,
           "title": "test_word_export_returns_attachment",
           "explanation": "Word接口用共享全表DDL投影，先核图等于原始SQL图，再验200、MIME/附件名、zip可读及docx全表数量。所有字段/FK仍由原pure函数测试与共享图等价验证；不把删掉部分schema当通过。"
         },
         {
-          "end": 93,
+          "end": 106,
           "title": "test_word_export_rejects_ddl_without_table",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL89 计算右侧并赋给 `r`：await 调用 _export(client, 'SELECT 1')；等待期间可让出事件循环，恢复后才执行下一句。\nL90 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL91 核对 `'CREATE TABLE' in r.json()['detail']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL102 计算右侧并赋给 `r`：await 调用 _export(client, 'SELECT 1')；等待期间可让出事件循环，恢复后才执行下一句。\nL103 核对 `r.status_code == 400`：要求业务/协议拒绝；不满足即本用例失败。\nL104 核对 `'CREATE TABLE' in r.json()['detail']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 95,
+          "end": 108,
           "title": "test_word_export_rejects_empty_ddl",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 核对 `(await _export(client, '')).status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL108 核对 `(await _export(client, '')).status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

@@ -46,7 +46,7 @@
 | `fetch` | URL → Page（最终 URL、HTML 等） | 在 `politeness.polite_access` 内发请求（robots → 进程内并发闸 → 域节流）；非成功页与不支持的内容拒绝；不执行 JavaScript |
 | `to_skeleton` | HTML → 有界文本 DOM 骨架 | 迭代遍历；默认最多 1000 节点、深度 32、输出 32,000 字符，并限制单段文本/属性；给模型结构提示，不等于已提取正文 |
 | `check_allowed` / `_load_robots` | URL、UA、注入抓取函数 → 判定或 RobotsDisallowed | 404/410 视为没有 robots 限制；401/403、暂时不可知等保守拒绝；`Crawl-delay` 超过 `MAX_CRAWL_DELAY`（60 秒）的站也拒绝而不是占并发槽久等（TD-268）。确定的结论缓存 `ROBOTS_TTL`（1 小时），规则不可知只缓存 `ROBOTS_UNKNOWN_TTL`（1 分钟），重跑不会被旧的失败结论挡一小时（TD-286）。复用同一受约束请求路径读取 robots；`fetch` 对重定向每一跳的目标域再调用一次 |
-| `state_for` / `min_interval_for` / `throttle` | 域状态 → 最小间隔或等待 | 状态按 scheme/netloc 分组，表上限 `MAX_DOMAIN_STATES`（512）满了淘汰最久未用且未持锁的项（TD-268）；锁内更新上次请求时间；优先站方有效 Crawl-delay，否则默认间隔 |
+| `state_for` / `min_interval_for` / `throttle` | 域状态 → 最小间隔或等待 | 状态按规范化站点键分组（scheme/主机名小写、默认端口省略，R-05），表上限 `MAX_DOMAIN_STATES`（512）满了淘汰最久未用且未持锁的项（TD-268）；锁内更新上次请求时间；优先站方有效 Crawl-delay，否则默认间隔 |
 | `polite_access(url, UA, fetch_text)` | 异步上下文：robots 允许 → 取并发槽 → 域节流后进入 with 体 | 对外访问的唯一礼貌入口，静态抓取与动态渲染共用、合计受同一并发上限约束；robots 拒绝时不占槽、不登记限速时刻；with 体执行期间一直占槽（TD-290） |
 | `_get_semaphore` / `reset_cache` | 进程内并发闸／清理测试状态 | 不是跨进程、跨服务的全局限速；域状态表有 `MAX_DOMAIN_STATES` 上限，但不应描述成无限规模抓取系统 |
 
@@ -77,11 +77,11 @@
 | `_semantic_key` / `warm_semantic_index` | 提供方、凭据摘要、模型、transport、语料绑定的向量缓存；成功 bool | LLM_EMBED_ENABLED 默认 false，关闭时预热不请求并清缓存、查询不使用语义结果；开启后预热超时最多 5 秒，模型失败回退词袋；先验证完整向量再发布，不把半个索引提供给查询 |
 | `semantic_ready` / `semantic_search` | 是否有索引／语义 Top-k；不可用 None | ready 不证明任意客户端/语料都兼容；查询持有一致快照，等待期间缓存换代则回退；None 与“有结果但不相关”不同 |
 | `reset_semantic_index` | 清空语义向量、模长、键 | 用于测试/显式失效，不负责重建词袋索引 |
-| `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答 |
+| `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答。英文关键词按词边界匹配，带「早」的问候只认整句（R-05） |
 | `_second_opinion` / `_log_labeling_sample` | 低置信规则的语义/模型复核，及标定样本日志 | 只在需要时调用模型；样本日志不是人工客服会话，运营应控制访问与保留期限 |
 | `_retrieve_articles` / `_article_index` / `_rank_articles` / `_build_index` | 相关标题与正文片段；无相关内容 []，查询失败 None；`_article_index` 管指纹缓存，`_rank_articles` 用 `fused_scores` 排序 | 读取文章内容并计算指纹，跨进程修改可见；不是增量向量数据库，全文读取/哈希仍有成本 |
 | `reset_article_index` | 清除进程内文章检索缓存 | 测试隔离；文章持久数据不删除 |
-| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员。模型失败的 `reason` 只写阶段加 `llm.public_failure_note`（busy 提示稍后再试，其余「详情已记入服务日志」），异常原文、类别和状态码由 `_log_llm_failure` 写 `codemax.support` warning（TD-292） |
+| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员。模型失败的 `reason` 只写阶段加 `llm.public_failure_note`（busy 提示稍后再试，其余「详情已记入服务日志」），异常原文、类别和状态码由 `_log_llm_failure` 写 `codemax.support` warning（TD-292）；明确要人工的关键词匹配前先去掉「人工智能」（R-05） |
 
 <!-- doc-contract:files:start -->
 
@@ -92,12 +92,12 @@
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8ab4fbdb9855` | L1–L179 |
 | [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
-| [`app/tools/intent.py`](intent.py) | `a05aa09a1895` | L1–L189 |
+| [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
 | [`app/tools/llm.py`](llm.py) | `8090e7eb24ae` | L1–L249 |
-| [`app/tools/politeness.py`](politeness.py) | `5f5dc4a210c2` | L1–L254 |
+| [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `205c84d4261f` | L1–L489 |
-| [`app/tools/support.py`](support.py) | `eac86d7b0595` | L1–L357 |
-| [`app/tools/word.py`](word.py) | `3359cd1776a4` | L1–L62 |
+| [`app/tools/support.py`](support.py) | `7b0d616fe445` | L1–L359 |
+| [`app/tools/word.py`](word.py) | `69ccc5ac4d4a` | L1–L64 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

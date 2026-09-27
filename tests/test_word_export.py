@@ -69,6 +69,19 @@ def test_build_data_dictionary_table_contents():
     assert f"共 {len(names)} 张表，{len(graph['edges'])} 条外键关系。" in body
 
 
+def test_heading_drops_sentence_final_period_but_cells_keep_comment():
+    # R-05：「用户表。」放进标题括号不应成为「（用户表。）」；只有句号的注释不留空括号。
+    graph = parse_ddl(
+        "CREATE TABLE sys_user (id INT PRIMARY KEY COMMENT '主键。');\n"
+        "CREATE TABLE sys_log (id INT PRIMARY KEY);\n"
+        "COMMENT ON TABLE sys_user IS '用户表。';\nCOMMENT ON TABLE sys_log IS '。';"
+    )
+    doc = Document(BytesIO(build_data_dictionary(graph)))
+    headings = [p.text for p in doc.paragraphs]
+    assert "sys_user（用户表）" in headings and "sys_log" in headings
+    assert doc.tables[0].rows[1].cells[5].text == "主键。"
+
+
 # ---------- 接口 ----------
 
 

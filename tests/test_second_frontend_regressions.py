@@ -85,6 +85,17 @@ if(scenario==='support-privacy'){
   const afterLogin=get('support-body').value;
   await auth.listener({username:'root',role:1});await tick();const adminHandoff=!get('support-ask-handoff').hidden;
   console.log(JSON.stringify({...shown,filled,kept,opened,draftBeforeLogin,afterLogin,adminHandoff}));
+}else if(scenario==='support-ask-human'){
+  // R-03：固定转人工答案是写给所有 /support/ask 调用方的「登录站内客服页留言」；在客服页上按身份换成页内说法。
+  fetchImpl=async(url)=>url==='/support/ask'?{answer:'这个问题需要管理员协助。请登录站内客服页发送留言',source:'human',escalated:true}:[];
+  start();await tick();
+  get('support-ask-text').value='我要开发票';
+  await get('support-ask-form').onsubmit({preventDefault(){}});await tick();
+  const view=()=>({answer:get('support-ask-answer').textContent,handoff:!get('support-ask-handoff').hidden});
+  const user=view();                                // 桩默认以普通用户 alice 登录
+  await auth.listener(null);await tick();const guest=view();
+  await auth.listener({username:'root',role:1});await tick();const admin=view();
+  console.log(JSON.stringify({source:get('support-ask-source').textContent,guest,user,admin}));
 }else if(scenario==='drawio-export'){
   fetchImpl=async(url,opt)=>opt.method==='POST'?{id:10}:[];start();await tick();
   event({event:'init'});event({event:'load'});event({event:'autosave',xml:'<mxfile>STALE</mxfile>'});
@@ -104,7 +115,8 @@ if(scenario==='support-privacy'){
 
 @pytest.mark.skipif(shutil.which('node') is None, reason='Node is required for frontend tests')
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
-@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'support-ask', 'drawio-export'])
+@pytest.mark.parametrize('scenario', ['support-privacy', 'support-retry', 'support-scroll', 'support-ask', 'support-ask-human',
+                                      'drawio-export'])
 def test_browser_lifecycle(folder, scenario):
     filename = 'drawio-page.js' if scenario.startswith('drawio') else 'support-page.js'
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / filename), scenario],
@@ -125,6 +137,13 @@ def test_browser_lifecycle(folder, scenario):
             'result': True, 'busy': True, 'handoff': True,
             'filled': '退款多久到账？', 'kept': '<b>RAW</b> 请联系管理员',
             'opened': 1, 'draftBeforeLogin': '', 'afterLogin': '退款多久到账？', 'adminHandoff': False}
+    elif scenario == 'support-ask-human':
+        # R-03：人已在客服页，不再叫他「登录站内客服页」；管理员是回复方，不给留言入口。
+        assert output == {
+            'source': '需要管理员协助',
+            'guest': {'answer': '这个问题需要管理员协助。点下面的按钮并登录，问题会自动带到留言框。', 'handoff': True},
+            'user': {'answer': '这个问题需要管理员协助。点下面的按钮把问题带到留言框，提交后管理员会在本页回复。', 'handoff': True},
+            'admin': {'answer': '这个问题需要管理员协助；普通用户在这里会看到「留言给管理员」的入口。', 'handoff': False}}
     else:
         assert output['before'] == 0
         assert output['body']['content'] == '<mxfile>FRESH</mxfile>'

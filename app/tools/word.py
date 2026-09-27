@@ -33,7 +33,9 @@ def build_data_dictionary(graph: dict) -> bytes:
     doc.add_paragraph(f"共 {len(graph['tables'])} 张表，{len(graph['edges'])} 条外键关系。")
 
     for table in graph["tables"]:
-        suffix = f"（{table['comment']}）" if table.get("comment") else ""
+        # 注释常写成整句（「用户表。」）；放进标题括号时去掉句末句号，免得出现「（用户表。）」。表格单元格保留原文。
+        label = (table.get("comment") or "").strip().rstrip("。.．").rstrip()
+        suffix = f"（{label}）" if label else ""
         doc.add_heading(f"{table['name']}{suffix}", level=1)
         grid = doc.add_table(rows=1, cols=len(_HEADERS))
         grid.style = "Table Grid"

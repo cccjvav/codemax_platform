@@ -109,7 +109,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
 | [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `d905dcad0de1` | L1–L602 |
 | [`tests/test_perf.py`](test_perf.py) | `4c839be0364b` | L1–L398 |
-| [`tests/test_politeness.py`](test_politeness.py) | `cd8a580257bb` | L1–L516 |
+| [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `f83386373f6b` | L1–L386 |
@@ -126,13 +126,13 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_equivalence.py`](test_schema_equivalence.py) | `763478f8979b` | L1–L219 |
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
-| [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `2ab981b4c575` | L1–L132 |
+| [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `36a6e0f2fdf0` | L1–L151 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `8e3792de0465` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `7989136535c4` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
-| [`tests/test_support.py`](test_support.py) | `36e7fc0e530a` | L1–L313 |
+| [`tests/test_support.py`](test_support.py) | `f0ccc6097a4a` | L1–L342 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
@@ -143,7 +143,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `f50d6a23e17e` | L1–L548 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `455b17c78af6` | L1–L475 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
-| [`tests/test_word_export.py`](test_word_export.py) | `768f2e4799cf` | L1–L95 |
+| [`tests/test_word_export.py`](test_word_export.py) | `8bfbb5850a11` | L1–L108 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

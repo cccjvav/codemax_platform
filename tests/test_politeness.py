@@ -182,6 +182,27 @@ async def test_robots_fetched_once_per_domain_not_per_page():
 
 
 @pytest.mark.asyncio
+async def test_same_origin_spelled_differently_shares_robots_and_interval():
+    """R-05：显式写默认端口不能变成「另一个站」，从而再拉一次 robots、绕过按域间隔。"""
+    t, seen = transport(200, "User-agent: *\nDisallow: /nope\n")
+    await fetch(f"{BASE}/blog/a", transport=t)
+    await fetch(f"http://{FAKE_IP}:80/blog/b", transport=t)
+    assert sum(1 for u in seen if u.endswith("/robots.txt")) == 1, seen
+
+
+@pytest.mark.parametrize("url,origin", [
+    ("https://Example.COM/a", ("https", "example.com")),
+    ("https://example.com:443/b", ("https", "example.com")),
+    ("http://example.com:8080/x", ("http", "example.com:8080")),
+    ("http://[2001:DB8::1]:80/x", ("http", "[2001:db8::1]")),
+    ("http://[2001:db8::1]:8443/", ("http", "[2001:db8::1]:8443")),
+])
+def test_origin_key_is_case_and_default_port_insensitive(url, origin):
+    assert politeness._origin(url) == origin
+    assert politeness._robots_url(url) == f"{origin[0]}://{origin[1]}/robots.txt"
+
+
+@pytest.mark.asyncio
 async def test_robots_of_each_domain_is_fetched_separately():
     t, seen = transport(200, "User-agent: *\nDisallow: /nope\n")
     await fetch(f"{BASE}/blog/a", transport=t)

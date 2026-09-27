@@ -113,9 +113,25 @@ def _state(origin: tuple[str, str]) -> _DomainState:
     return _touch(origin, state)
 
 
+_DEFAULT_PORTS = {"http": 80, "https": 443}
+
+
 def _origin(url: str) -> tuple[str, str]:
+    """同一站点只对应一个键：scheme/主机名小写、默认端口省略、不带凭据（R-05）。
+
+    原先直接用 netloc，`Example.com`、`example.com:443` 与 `example.com` 各有一份 robots 缓存和
+    抓取间隔，换个大小写就绕过了按域节流。端口非法的 URL 在爬虫校验时已被拒绝，这里只兜底。
+    """
     p = urlsplit(url)
-    return (p.scheme, p.netloc)
+    scheme = p.scheme.lower()
+    try:
+        port = p.port
+    except ValueError:
+        return (scheme, p.netloc.lower())
+    host = p.hostname or ""
+    if ":" in host:
+        host = f"[{host}]"  # IPv6 字面量
+    return (scheme, host if port in (None, _DEFAULT_PORTS.get(scheme)) else f"{host}:{port}")
 
 
 def _robots_url(url: str) -> str:

@@ -253,7 +253,9 @@ async def answer(
         return _escalate(question, "空提问", Intent.CHITCHAT, 0.0)
 
     # ---- 兜底 1：用户明确要人工 ----
-    hit = [w for w in ESCALATE_KEYWORDS if w in text]
+    # 「人工智能」是毕设常见方向，不是要人工：先去掉再匹配，免得「人工智能毕设能做吗」被直接转人工（R-05）。
+    probe = text.replace("人工智能", "")
+    hit = [w for w in ESCALATE_KEYWORDS if w in probe]
     if hit:
         return _escalate(question, f"用户明确要求人工（命中 {hit}）", Intent.CHITCHAT, 1.0)
 
