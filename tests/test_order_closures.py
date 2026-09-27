@@ -115,7 +115,8 @@ async def test_durable_before_wire_exact_replay_and_late_success(client, workben
     assert detail['review']['state'] == 'open'
 
 
-@pytest.mark.parametrize('condition', ['disabled', 'pending', 'paid', 'manual', 'merchant', 'old-query', 'new-query', 'wrong-query'])
+@pytest.mark.parametrize('condition', ['disabled', 'pending', 'paid', 'manual', 'merchant', 'old-query', 'new-query', 'wrong-query',
+                                       'non-notpay-query'])
 async def test_fresh_eligible_original_only(client, workbench, monkeypatch, condition):
     headers, number, provider, proof, calls = await setup(client, workbench, monkeypatch)
     if condition == 'disabled':
@@ -124,9 +125,14 @@ async def test_fresh_eligible_original_only(client, workbench, monkeypatch, cond
         monkeypatch.setattr(payments_admin, 'pay_config', lambda: replace(CFG, mchid='other'))
     elif condition == 'wrong-query':
         proof['query_attempt_id'] = uuid.uuid4().hex
-    elif condition == 'new-query':
+    elif condition in ('new-query', 'non-notpay-query'):
         provider(lambda request: signed_response({**txn(number), 'trade_state': 'CLOSED'}))
-        assert (await reconcile(client, headers, number)).status_code == 200
+        newer = await reconcile(client, headers, number)
+        assert newer.status_code == 200
+        if condition == 'non-notpay-query':
+            # R-02 / TD-302：用最新一次查单自己的 ID 提交——最新结果不是 NOTPAY 也必须拒绝。
+            # 'new-query' 仍提交旧 ID，被「必须是最新查单」拦下，走不到这条。
+            proof['query_attempt_id'] = newer.json()['attempt_id']
     else:
         async with TestSession() as db:
             if condition == 'old-query':
@@ -155,6 +161,17 @@ async def test_concurrent_requests_only_one_post(client, workbench, monkeypatch,
     assert len(calls) == 1
 
 
+async def test_two_admins_racing_send_only_one_close(client, workbench, monkeypatch):
+    """R-02 / TD-302：同一管理员的并发请求已被管理员行锁串行化；两位**不同**管理员同时关同一单时，
+    只有开始关单处的订单锁能保证只发一次。在 PostgreSQL 上才有真实交错（SQLite 连接串行）。"""
+    headers, number, _, proof, calls = await setup(client, workbench, monkeypatch)
+    other_admin = await admin_headers(client, 'second_auditor')
+    other = {**proof, 'request_id': uuid.uuid4().hex}
+    results = await asyncio.gather(post(client, headers, number, proof), post(client, other_admin, number, other))
+    assert sorted(r.status_code for r in results) == [200, 409]
+    assert len(calls) == 1
+
+
 @pytest.mark.parametrize('fault', ['before-start', 'ack-lost', 'finish'])
 async def test_commit_failure_never_blindly_resends(client, workbench, monkeypatch, fault):
     headers, number, _, proof, calls = await setup(client, workbench, monkeypatch)
@@ -176,6 +193,19 @@ async def test_commit_failure_never_blindly_resends(client, workbench, monkeypat
     assert recovered.status_code == 200
     assert recovered.json()['attempt']['state'] == ('acknowledged' if fault == 'before-start' else 'unknown')
     assert len(calls) == (0 if fault == 'ack-lost' else 1)
+
+
+async def test_acknowledged_close_is_never_sent_again(client, workbench, monkeypatch):
+    """R-02 / TD-302：渠道已确认关单后，即使重新查到 NOTPAY、也等满重试间隔、换新请求 ID，也不再发关单。"""
+    headers, number, _, proof, calls = await setup(client, workbench, monkeypatch)
+    assert (await post(client, headers, number, proof)).json()['attempt']['state'] == 'acknowledged'
+    query = await reconcile(client, headers, number)
+    async with TestSession() as db:
+        await db.execute(update(PaymentEvent).where(PaymentEvent.kind == close.STARTED).values(create_time=datetime.now(timezone.utc)-timedelta(seconds=61)))
+        await db.commit()
+    again = {**proof, 'request_id': uuid.uuid4().hex, 'query_attempt_id': query.json()['attempt_id']}
+    assert (await post(client, headers, number, again)).status_code == 409
+    assert len(calls) == 1
 
 
 async def test_unknown_requires_new_query_and_wait_then_explicit_new_key(client, workbench, monkeypatch):

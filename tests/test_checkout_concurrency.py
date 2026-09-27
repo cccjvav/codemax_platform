@@ -10,14 +10,15 @@
 import asyncio
 
 import pytest
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.config import settings
 from app.models import Order, PaymentEvent
+from app.order_state import mark_closed
 from app.ratelimit import limiter
 from app.routers import shop
 from tests.conftest import TestSession
-from tests.test_download import auth_headers
+from tests.test_download import auth_headers, make_order
 from tests.test_wechat_pay import _ENV
 
 
@@ -162,3 +163,58 @@ async def test_checkout_has_its_own_rate_limit_bucket(client, product, mock_mode
             assert len((await db.scalars(select(Order))).all()) == 1, "被限流的请求不建单，前三次复用同一张"
     finally:
         limiter.reset()
+
+
+# ---------------------------------------------------------------- R-02 / TD-302：变异检查补的缺口
+
+
+async def test_response_reflects_a_payment_that_landed_while_prepay_was_in_flight(client, product, wechat_env, monkeypatch):
+    """预支付在途时回调已把订单记为已付款：响应必须是库里的最新状态，而不是内存里的旧 pending。"""
+    async def provider_then_paid(cfg, **kw):
+        async with TestSession() as db:
+            await db.execute(update(Order).where(Order.order_no == kw["out_trade_no"]).values(status="paid"))
+            await db.commit()
+        return f"weixin://synthetic/{kw['out_trade_no']}"
+
+    monkeypatch.setattr(shop, "native_prepay", provider_then_paid)
+    headers = await auth_headers(client, "late_callback")
+    r = await client.post("/shop/orders", headers=headers)
+    assert r.status_code == 200 and r.json()["status"] == "paid"
+
+
+async def test_prepay_is_not_sent_for_an_order_that_left_pending_while_waiting(client, product, wechat_env, monkeypatch):
+    """等单飞锁期间订单被关闭（或付款）：拿到锁后复查状态，409，不发起预支付、不记开始事件。"""
+    calls = []
+
+    async def provider(cfg, **kw):
+        calls.append(kw["out_trade_no"])
+        return "weixin://synthetic/never"
+
+    class ClosedWhileWaiting(shop._prepay_flight):
+        async def __aenter__(self):
+            await super().__aenter__()
+            async with TestSession() as db:
+                await db.execute(update(Order).where(Order.user_id == self.user_id).values(status="closed"))
+                await db.commit()
+
+    monkeypatch.setattr(shop, "native_prepay", provider)
+    monkeypatch.setattr(shop, "_prepay_flight", ClosedWhileWaiting)
+    headers = await auth_headers(client, "closed_while_waiting")
+    r = await client.post("/shop/orders", headers=headers)
+    assert r.status_code == 409 and calls == []
+    async with TestSession() as db:
+        order = await db.scalar(select(Order))
+    assert await events_of(order.order_no) == []
+
+
+async def test_closing_a_stale_pending_object_cannot_overwrite_a_payment(client, product):
+    """内存里的订单对象还是 pending，库里已被另一个事务记为已付款：关单的条件更新不能生效。
+    状态机检查只看内存对象，拦不住这种交错；唯一的保护是 UPDATE 的 status 条件。"""
+    number = await make_order("pending", "stale_close")
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == number))
+        async with TestSession() as other:
+            await other.execute(update(Order).where(Order.order_no == number).values(status="paid"))
+            await other.commit()
+        assert await mark_closed(db, order) is False
+        assert order.status == "paid"

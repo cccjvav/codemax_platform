@@ -149,6 +149,18 @@ async def test_order_history_draws_qr_only_for_pending_rows(client, product, mon
     assert single["qr_svg"].startswith("<svg")
 
 
+async def test_order_history_lists_only_my_orders_and_pages_by_cursor(client, product):
+    """R-02 / TD-302：订单历史只列当前用户的单；一页 50 张，next_cursor 取下一页，末页游标为 None。"""
+    h = await auth_headers(client)
+    mine = [await make_order("closed", "buyer") for _ in range(51)]
+    theirs = await make_order("paid", "someone_else")
+    first = (await client.get("/shop/orders", headers=h)).json()
+    assert len(first["orders"]) == 50 and theirs not in {o["order_no"] for o in first["orders"]}
+    assert [o["order_no"] for o in first["orders"]] == mine[:0:-1]
+    second = (await client.get("/shop/orders", params={"before": first["next_cursor"]}, headers=h)).json()
+    assert [o["order_no"] for o in second["orders"]] == [mine[0]] and second["next_cursor"] is None
+
+
 # ---------------------------------------------------------------- 第二重：预签名 URL
 
 

@@ -1,5 +1,6 @@
 """Money/rights boundaries with real local crypto, independent DB sessions and immutable file bytes."""
 import asyncio
+from dataclasses import replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -281,6 +282,30 @@ async def test_legacy_paid_order_needs_explicit_one_time_binding(client, monkeyp
     assert ledger['events'][0]['evidence'] == proof['evidence']
 
 
+@pytest.mark.parametrize('mode', ['mock', 'wechat'])
+async def test_legacy_binding_refuses_mock_in_production_and_wechat_without_callback_credentials(client, monkeypatch, product, mode):
+    """R-02 / TD-302：生产环境不能把历史订单绑定为模拟支付（409）；绑定为微信单前回调凭据必须可用（503）。
+    两种情况订单合同都保持未绑定。此前删掉任一检查都没有用例失败。"""
+    from app.routers import shop
+
+    monkeypatch.setattr(settings, "SHOP_PAY_MODE", "manual")
+    await auth_headers(client)
+    async with TestSession() as db:
+        user = await db.scalar(select(User).where(User.username == 'buyer'))
+        db.add(Order(order_no='legacy-paid', user_id=user.id, product_name='historical', amount=100, status='paid'))
+        await db.commit()
+    admin = await admin_headers(client)
+    if mode == 'mock':
+        monkeypatch.setattr(settings, 'ENV', 'production')
+    else:
+        monkeypatch.setattr(shop, 'pay_config', lambda: replace(CFG, platform_cert=''))
+    proof = {'payment_mode': mode, 'source_key': PRODUCT_KEY, 'evidence': 'verified original historical deliverable'}
+    r = await client.post('/shop/orders/legacy-paid/legacy-binding', headers=admin, json=proof)
+    assert r.status_code == (409 if mode == 'mock' else 503)
+    order = await fetch('legacy-paid')
+    assert order.payment_mode is None and order.delivery_key is None
+
+
 async def test_pending_order_cannot_silently_switch_channel(client, mock_mode, monkeypatch):
     buyer = await auth_headers(client)
     no = (await client.post('/shop/orders', headers=buyer)).json()['order_no']
@@ -303,6 +328,34 @@ def test_snapshot_copy_has_size_and_admission_bounds(product, monkeypatch):
         delivery._COPY_SLOTS.release()
         delivery._COPY_SLOTS.release()
     assert not list(Path(product).glob('.snapshots/tmp*'))
+
+
+def test_snapshot_rejects_a_source_that_changes_during_the_copy(product, monkeypatch):
+    """R-02 / TD-302：复制期间源文件被改写（这里在打开临时文件时追加字节）：拒绝，不发布快照、不留临时文件。"""
+    storage = build_storage('http://test')
+    source = storage.local_path(PRODUCT_KEY)
+    real = delivery.tempfile.NamedTemporaryFile
+
+    def append_then_open(*args, **kwargs):
+        with open(source, 'ab') as handle:
+            handle.write(b'late operator write')
+        return real(*args, **kwargs)
+
+    monkeypatch.setattr(delivery.tempfile, 'NamedTemporaryFile', append_then_open)
+    with pytest.raises(StorageError, match='复制时发生变更'):
+        delivery.snapshot_product(storage, PRODUCT_KEY)
+    assert not list(Path(product).glob('.snapshots/*/*')) and not list(Path(product).glob('.snapshots/tmp*'))
+
+
+def test_snapshot_refuses_to_reuse_a_corrupted_published_copy(product):
+    """R-02 / TD-302：同内容的快照已发布但字节被改坏：再次下单时拒绝（需从备份恢复），也不覆盖它。"""
+    storage = build_storage('http://test')
+    first = delivery.snapshot_product(storage, PRODUCT_KEY)
+    published = storage.local_path(first.key)
+    published.write_bytes(b'corrupted')
+    with pytest.raises(StorageError, match='已有商品快照损坏'):
+        delivery.snapshot_product(storage, PRODUCT_KEY)
+    assert published.read_bytes() == b'corrupted'
 
 
 @pytest.mark.parametrize('sql', ['BEGIN; SELECT 1', 'SELECT 1;COMMIT;', '-- comment\nSTART TRANSACTION;',

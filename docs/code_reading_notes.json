@@ -4266,73 +4266,88 @@
     },
     {
       "path": "tests/test_checkout_concurrency.py",
-      "sha256": "f7fb58420a6ceea932029e9819b37b74b719b8d9ede0718155922f0853251cc4",
+      "sha256": "f17b4b3efb10cf32066b3b57104140bb9914382bb7caf2b414880e27cd574f34",
       "method": "guided",
       "blocks": [
         {
-          "end": 23,
+          "end": 24,
           "title": "模块装配",
-          "explanation": "模块协作与边界：TD-262 同用户预支付单飞与 POST /shop/orders 独立限流桶的默认套件回归，替换 audit_handoff_probes 的 F-03 诊断。事件屏障让第一次预支付停在半路，第二个并发请求必须等待并复用结果；全部进程内 ASGI + 可控替身，不是多实例共享单飞或渠道幂等证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL10 导入 import asyncio；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from app.models import Order, PaymentEvent；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from app.ratelimit import limiter；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 from app.routers import shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from tests.conftest import TestSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from tests.test_download import auth_headers；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from tests.test_wechat_pay import _ENV；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：TD-262 同用户预支付单飞与 POST /shop/orders 独立限流桶的默认套件回归，替换 audit_handoff_probes 的 F-03 诊断。事件屏障让第一次预支付停在半路，第二个并发请求必须等待并复用结果；全部进程内 ASGI + 可控替身，不是多实例共享单飞或渠道幂等证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL10 导入 import asyncio；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from sqlalchemy import select, update；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from app.models import Order, PaymentEvent；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from app.order_state import mark_closed；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 from app.ratelimit import limiter；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from app.routers import shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from tests.conftest import TestSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from tests.test_download import auth_headers, make_order；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from tests.test_wechat_pay import _ENV；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 30,
+          "end": 31,
           "title": "wechat_env",
-          "explanation": "测试辅助：把 test_wechat_pay 的合成商户六项写入 settings 并切到 wechat 模式；不发真实请求。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL26 逐项遍历 `_ENV.items()`，绑定 `(key, value)`；循环体按缩进执行，break可提前结束。\nL27 调用 monkeypatch.setattr(settings, key, value)：仅在本测试替换属性，fixture结束恢复。\nL28 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'wechat')：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：把 test_wechat_pay 的合成商户六项写入 settings 并切到 wechat 模式；不发真实请求。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL27 逐项遍历 `_ENV.items()`，绑定 `(key, value)`；循环体按缩进执行，break可提前结束。\nL28 调用 monkeypatch.setattr(settings, key, value)：仅在本测试替换属性，fixture结束恢复。\nL29 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'wechat')：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 33,
+          "end": 34,
           "title": "BlockingProvider",
           "explanation": "测试对象：native_prepay 的可控替身。第一次调用置位 first_in_flight 并等待 release，记录每次 out_trade_no；返回合成 weixin:// 串。\n\n结构事实：定义类 BlockingProvider，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 38,
+          "end": 39,
           "title": "BlockingProvider.__init__",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL35 计算右侧并赋给 `self.calls`：[]。\nL36 计算右侧并赋给 `self.first_in_flight`：调用 asyncio.Event()。\nL37 计算右侧并赋给 `self.release`：调用 asyncio.Event()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL36 计算右侧并赋给 `self.calls`：[]。\nL37 计算右侧并赋给 `self.first_in_flight`：调用 asyncio.Event()。\nL38 计算右侧并赋给 `self.release`：调用 asyncio.Event()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 46,
+          "end": 47,
           "title": "BlockingProvider.__call__",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL40 调用 self.calls.append(kw['out_trade_no'])。\nL41 判断 `len(self.calls) == 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL42 调用 self.first_in_flight.set()。\nL43 await 调用 self.release.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL44 结束当前函数，返回 f\"weixin://synthetic/{kw['out_trade_no']}\"；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL41 调用 self.calls.append(kw['out_trade_no'])。\nL42 判断 `len(self.calls) == 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL43 调用 self.first_in_flight.set()。\nL44 await 调用 self.release.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL45 结束当前函数，返回 f\"weixin://synthetic/{kw['out_trade_no']}\"；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 53,
+          "end": 54,
           "title": "events_of",
-          "explanation": "测试辅助：按单号读取 PaymentEvent 的 kind 序列，用来断言尝试事件只有一组或包含 unknown 后的重试。\n\n输入签名：order_no: str；异步调用需await才推进。 返回类型标注：list[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL48 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL49 计算右侧并赋给 `order`：await 调用 db.scalar(select(Order).where(Order.order_no == order_no))：执行查询并取一个标量/对象；等待期间可让出事件循环，恢复后才执行下一句。\nL50 计算右侧并赋给 `rows`：调用 (await db.scalars(select(PaymentEvent).where(PaymentEvent.order_id == order.id).order_by(PaymentEvent.id))).all()。\nL51 结束当前函数，返回 [row.kind for row in rows]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：按单号读取 PaymentEvent 的 kind 序列，用来断言尝试事件只有一组或包含 unknown 后的重试。\n\n输入签名：order_no: str；异步调用需await才推进。 返回类型标注：list[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL49 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL50 计算右侧并赋给 `order`：await 调用 db.scalar(select(Order).where(Order.order_no == order_no))：执行查询并取一个标量/对象；等待期间可让出事件循环，恢复后才执行下一句。\nL51 计算右侧并赋给 `rows`：调用 (await db.scalars(select(PaymentEvent).where(PaymentEvent.order_id == order.id).order_by(PaymentEvent.id))).all()。\nL52 结束当前函数，返回 [row.kind for row in rows]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 77,
+          "end": 78,
           "title": "test_concurrent_checkout_calls_the_provider_once_and_shares_the_result",
-          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 第一次预支付卡住时第二个请求未完成也未调用提供方；放行后两者 200、同单号同 code_url、reused 分别为 False/True，提供方只调用一次，事件只有 started/ready，一张订单，锁表回收为空。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL55 计算右侧并赋给 `provider`：调用 BlockingProvider()。\nL56 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL57 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight')；等待期间可让出事件循环，恢复后才执行下一句。\nL59 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL60 await 调用 asyncio.wait_for(provider.first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL61 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL62 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL63 核对 `len(provider.calls) == 1 and (not second.done())`：此条件为假即测试失败；不是生产输入校验。\nL64 调用 provider.release.set()。\nL65 计算右侧并赋给 `(r1, r2)`：await 调用 asyncio.gather(first, second)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL67 核对 `(r1.status_code, r2.status_code) == (200, 200)`：此条件为假即测试失败；不是生产输入校验。\nL68 核对 `r1.json()['order_no'] == r2.json()['order_no'] == provider.calls[0]`：此条件为假即测试失败；不是生产输入校验。\nL69 核对 `r1.json()['code_url'] == r2.json()['code_url'] == f'weixin://synthetic/{provider.calls[0]}'`：此条件为假即测试失败；不是生产输入校验。\nL70 核对 `(r1.json()['reused'], r2.json()['reused']) == (False, True)`：此条件为假即测试失败；不是生产输入校验。\nL71 核对 `len(provider.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\nL72 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL73 核对 `len((await db.scalars(select(Order))).all()) == 1`：此条件为假即测试失败；不是生产输入校验。\nL74 核对 `await events_of(provider.calls[0]) == ['prepay_started', 'prepay_ready']`：此条件为假即测试失败；不是生产输入校验。\nL75 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 第一次预支付卡住时第二个请求未完成也未调用提供方；放行后两者 200、同单号同 code_url、reused 分别为 False/True，提供方只调用一次，事件只有 started/ready，一张订单，锁表回收为空。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `provider`：调用 BlockingProvider()。\nL57 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL58 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight')；等待期间可让出事件循环，恢复后才执行下一句。\nL60 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL61 await 调用 asyncio.wait_for(provider.first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL62 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL63 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL64 核对 `len(provider.calls) == 1 and (not second.done())`：此条件为假即测试失败；不是生产输入校验。\nL65 调用 provider.release.set()。\nL66 计算右侧并赋给 `(r1, r2)`：await 调用 asyncio.gather(first, second)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL68 核对 `(r1.status_code, r2.status_code) == (200, 200)`：此条件为假即测试失败；不是生产输入校验。\nL69 核对 `r1.json()['order_no'] == r2.json()['order_no'] == provider.calls[0]`：此条件为假即测试失败；不是生产输入校验。\nL70 核对 `r1.json()['code_url'] == r2.json()['code_url'] == f'weixin://synthetic/{provider.calls[0]}'`：此条件为假即测试失败；不是生产输入校验。\nL71 核对 `(r1.json()['reused'], r2.json()['reused']) == (False, True)`：此条件为假即测试失败；不是生产输入校验。\nL72 核对 `len(provider.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\nL73 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL74 核对 `len((await db.scalars(select(Order))).all()) == 1`：此条件为假即测试失败；不是生产输入校验。\nL75 核对 `await events_of(provider.calls[0]) == ['prepay_started', 'prepay_ready']`：此条件为假即测试失败；不是生产输入校验。\nL76 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 82,
+          "end": 83,
           "title": "test_waiter_sees_the_unknown_result_and_retries_with_the_same_order",
-          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 第一次预支付以 WeChatPayError 失败（502、事件 unknown），等待者不复用空 code_url 而用同一单号再调一次提供方并 200；事件序列 started/unknown/started/ready，锁表为空。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL80 计算右侧并赋给 `calls`（标注 list[str]）：[]。\nL81 计算右侧并赋给 `(first_in_flight, release)`：(asyncio.Event(), asyncio.Event())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 第一次预支付以 WeChatPayError 失败（502、事件 unknown），等待者不复用空 code_url 而用同一单号再调一次提供方并 200；事件序列 started/unknown/started/ready，锁表为空。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL81 计算右侧并赋给 `calls`（标注 list[str]）：[]。\nL82 计算右侧并赋给 `(first_in_flight, release)`：(asyncio.Event(), asyncio.Event())。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 106,
+          "end": 107,
           "title": "test_waiter_sees_the_unknown_result_and_retries_with_the_same_order.provider",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL84 调用 calls.append(kw['out_trade_no'])。\nL85 判断 `len(calls) == 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL86 调用 first_in_flight.set()。\nL87 await 调用 release.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL88 抛出 shop.WeChatPayError('微信支付网络请求失败；结果未知，请核查原订单')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL89 结束当前函数，返回 'weixin://synthetic/retry'；不会自动commit未提交事务。\nL91 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL92 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight_retry')；等待期间可让出事件循环，恢复后才执行下一句。\nL93 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL94 await 调用 asyncio.wait_for(first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL95 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL96 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL97 调用 release.set()。\nL98 计算右侧并赋给 `(r1, r2)`：await 调用 asyncio.gather(first, second)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL100 核对 `r1.status_code == 502 and r2.status_code == 200`：要求上游故障被明确映射；不满足即本用例失败。\nL101 核对 `calls == [calls[0], calls[0]]`：此条件为假即测试失败；不是生产输入校验。\nL102 核对 `r2.json()['code_url'] == 'weixin://synthetic/retry' and r2.json()['reused'] is False`：此条件为假即测试失败；不是生产输入校验。\nL103 核对 `await events_of(calls[0]) == ['prepay_started', 'prepay_unknown', 'prepay_started', 'prepay_ready']`：此条件为假即测试失败；不是生产输入校验。\nL104 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL85 调用 calls.append(kw['out_trade_no'])。\nL86 判断 `len(calls) == 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL87 调用 first_in_flight.set()。\nL88 await 调用 release.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL89 抛出 shop.WeChatPayError('微信支付网络请求失败；结果未知，请核查原订单')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL90 结束当前函数，返回 'weixin://synthetic/retry'；不会自动commit未提交事务。\nL92 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL93 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight_retry')；等待期间可让出事件循环，恢复后才执行下一句。\nL94 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL95 await 调用 asyncio.wait_for(first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL96 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL97 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL98 调用 release.set()。\nL99 计算右侧并赋给 `(r1, r2)`：await 调用 asyncio.gather(first, second)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL101 核对 `r1.status_code == 502 and r2.status_code == 200`：要求上游故障被明确映射；不满足即本用例失败。\nL102 核对 `calls == [calls[0], calls[0]]`：此条件为假即测试失败；不是生产输入校验。\nL103 核对 `r2.json()['code_url'] == 'weixin://synthetic/retry' and r2.json()['reused'] is False`：此条件为假即测试失败；不是生产输入校验。\nL104 核对 `await events_of(calls[0]) == ['prepay_started', 'prepay_unknown', 'prepay_started', 'prepay_ready']`：此条件为假即测试失败；不是生产输入校验。\nL105 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 123,
+          "end": 124,
           "title": "test_cancelled_waiter_does_not_leak_the_lock_entry",
-          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 等待中的第二个请求被取消后，第一个仍 200、提供方仅一次调用，_PREPAY_LOCKS 为空——取消不泄漏引用计数。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL108 计算右侧并赋给 `provider`：调用 BlockingProvider()。\nL109 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL110 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight_cancel')；等待期间可让出事件循环，恢复后才执行下一句。\nL111 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL112 await 调用 asyncio.wait_for(provider.first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL113 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL114 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL115 调用 second.cancel()。\nL116 进入 pytest.raises(asyncio.CancelledError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL117 求值表达式 await second；结果未被保存。\nL118 调用 provider.release.set()。\nL119 核对 `(await first).status_code == 200`：要求请求成功；不满足即本用例失败。\nL120 核对 `len(provider.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\nL121 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product, wechat_env, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 等待中的第二个请求被取消后，第一个仍 200、提供方仅一次调用，_PREPAY_LOCKS 为空——取消不泄漏引用计数。\n\n输入签名：client, product, wechat_env, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL109 计算右侧并赋给 `provider`：调用 BlockingProvider()。\nL110 调用 monkeypatch.setattr(shop, 'native_prepay', provider)：仅在本测试替换属性，fixture结束恢复。\nL111 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'single_flight_cancel')；等待期间可让出事件循环，恢复后才执行下一句。\nL112 计算右侧并赋给 `first`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL113 await 调用 asyncio.wait_for(provider.first_in_flight.wait(), 5)；等待期间可让出事件循环，恢复后才执行下一句。\nL114 计算右侧并赋给 `second`：调用 asyncio.create_task(client.post('/shop/orders', headers=headers))：启动独立任务，调用者还需管理完成/取消/异常。\nL115 await 调用 asyncio.sleep(0.2)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL116 调用 second.cancel()。\nL117 进入 pytest.raises(asyncio.CancelledError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL118 求值表达式 await second；结果未被保存。\nL119 调用 provider.release.set()。\nL120 核对 `(await first).status_code == 200`：要求请求成功；不满足即本用例失败。\nL121 核对 `len(provider.calls) == 1`：此条件为假即测试失败；不是生产输入校验。\nL122 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 127,
+          "end": 128,
           "title": "test_prepay_flight_is_per_user",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 直接使用 _prepay_flight：用户 2 不等用户 1，同一用户第二次调用排队，全部结束后锁表为空。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL126 计算右侧并赋给 `order`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 直接使用 _prepay_flight：用户 2 不等用户 1，同一用户第二次调用排队，全部结束后锁表为空。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL127 计算右侧并赋给 `order`（标注 list[str]）：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 147,
+          "end": 148,
           "title": "test_prepay_flight_is_per_user.hold",
-          "explanation": "测试辅助：在指定用户的单飞段内记录进入/退出顺序，可选等待一个事件以制造在途状态。\n\n输入签名：user_id: int, tag: str, gate: asyncio.Event | None=None；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL129 进入 shop._prepay_flight(user_id) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL130 调用 order.append(f'{tag}:in')。\nL131 判断 `gate is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL132 await 调用 gate.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL133 调用 order.append(f'{tag}:out')。\nL135 计算右侧并赋给 `gate`：调用 asyncio.Event()。\nL136 计算右侧并赋给 `a1`：调用 asyncio.create_task(hold(1, 'a1', gate))：启动独立任务，调用者还需管理完成/取消/异常。\nL137 await 调用 asyncio.sleep(0)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL138 计算右侧并赋给 `a2`：调用 asyncio.create_task(hold(1, 'a2'))：启动独立任务，调用者还需管理完成/取消/异常。\nL139 计算右侧并赋给 `b1`：调用 asyncio.create_task(hold(2, 'b1'))：启动独立任务，调用者还需管理完成/取消/异常。\nL140 await 调用 asyncio.sleep(0.05)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL141 核对 `order == ['a1:in', 'b1:in', 'b1:out']`：此条件为假即测试失败；不是生产输入校验。\nL142 调用 gate.set()。\nL143 await 调用 asyncio.gather(a1, a2, b1)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL144 核对 `order[-3:] == ['a1:out', 'a2:in', 'a2:out']`：此条件为假即测试失败；不是生产输入校验。\nL145 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：在指定用户的单飞段内记录进入/退出顺序，可选等待一个事件以制造在途状态。\n\n输入签名：user_id: int, tag: str, gate: asyncio.Event | None=None；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL130 进入 shop._prepay_flight(user_id) 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL131 调用 order.append(f'{tag}:in')。\nL132 判断 `gate is not None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL133 await 调用 gate.wait()；等待期间可让出事件循环，恢复后才执行下一句。\nL134 调用 order.append(f'{tag}:out')。\nL136 计算右侧并赋给 `gate`：调用 asyncio.Event()。\nL137 计算右侧并赋给 `a1`：调用 asyncio.create_task(hold(1, 'a1', gate))：启动独立任务，调用者还需管理完成/取消/异常。\nL138 await 调用 asyncio.sleep(0)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL139 计算右侧并赋给 `a2`：调用 asyncio.create_task(hold(1, 'a2'))：启动独立任务，调用者还需管理完成/取消/异常。\nL140 计算右侧并赋给 `b1`：调用 asyncio.create_task(hold(2, 'b1'))：启动独立任务，调用者还需管理完成/取消/异常。\nL141 await 调用 asyncio.sleep(0.05)：等待计时器，不忙循环占CPU；等待期间可让出事件循环，恢复后才执行下一句。\nL142 核对 `order == ['a1:in', 'b1:in', 'b1:out']`：此条件为假即测试失败；不是生产输入校验。\nL143 调用 gate.set()。\nL144 await 调用 asyncio.gather(a1, a2, b1)：让多个协程共同推进；返回结果列表，不保证网络完成顺序；等待期间可让出事件循环，恢复后才执行下一句。\nL145 核对 `order[-3:] == ['a1:out', 'a2:in', 'a2:out']`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `not shop._PREPAY_LOCKS`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 164,
+          "end": 167,
           "title": "test_checkout_has_its_own_rate_limit_bucket",
-          "explanation": "本用例的准备条件：client, product, mock_mode, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 RATE_LIMIT_AUTH=3 时四次下单得到 200,200,200,429 且带 Retry-After；注册/登录占各自桶不占 order 桶；被限流的请求不建单，库里只有一张复用的 pending 单。\n\n输入签名：client, product, mock_mode, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL150 调用 limiter.reset()。\nL151 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL152 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL153 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_AUTH', 3)：仅在本测试替换属性，fixture结束恢复。\nL154 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_TOOLS', 100)：仅在本测试替换属性，fixture结束恢复。\nL155 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL156 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'quota_user')；等待期间可让出事件循环，恢复后才执行下一句。\nL157 计算右侧并赋给 `codes`：[(await client.post('/shop/orders', headers=headers)).status_code for _ in range(4)]。\nL158 核对 `codes == [200, 200, 200, 429]`：此条件为假即测试失败；不是生产输入校验。\nL159 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL160 核对 `r.status_code == 429 and r.headers['retry-after'].isdigit()`：要求限流拒绝；不满足即本用例失败。\nL161 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL162 核对 `len((await db.scalars(select(Order))).all()) == 1`：此条件为假即测试失败；不是生产输入校验。\nL164 调用 limiter.reset()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product, mock_mode, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 RATE_LIMIT_AUTH=3 时四次下单得到 200,200,200,429 且带 Retry-After；注册/登录占各自桶不占 order 桶；被限流的请求不建单，库里只有一张复用的 pending 单。\n\n输入签名：client, product, mock_mode, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL151 调用 limiter.reset()。\nL152 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', True)：仅在本测试替换属性，fixture结束恢复。\nL153 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_WINDOW', 60)：仅在本测试替换属性，fixture结束恢复。\nL154 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_AUTH', 3)：仅在本测试替换属性，fixture结束恢复。\nL155 调用 monkeypatch.setattr(settings, 'RATE_LIMIT_TOOLS', 100)：仅在本测试替换属性，fixture结束恢复。\nL156 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL157 计算右侧并赋给 `headers`：await 调用 auth_headers(client, 'quota_user')；等待期间可让出事件循环，恢复后才执行下一句。\nL158 计算右侧并赋给 `codes`：[(await client.post('/shop/orders', headers=headers)).status_code for _ in range(4)]。\nL159 核对 `codes == [200, 200, 200, 429]`：此条件为假即测试失败；不是生产输入校验。\nL160 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL161 核对 `r.status_code == 429 and r.headers['retry-after'].isdigit()`：要求限流拒绝；不满足即本用例失败。\nL162 进入 TestSession() as db 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL163 核对 `len((await db.scalars(select(Order))).all()) == 1`：此条件为假即测试失败；不是生产输入校验。\nL165 调用 limiter.reset()。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 184,
+          "title": "test_response_reflects_a_payment_that_landed_while_prepay_was_in_flight",
+          "explanation": "本用例的准备条件：client、product、wechat_env、monkeypatch 夹具；预支付替身在返回收款链接之前，用另一个会话把订单改成 paid（模拟回调在预支付途中到达）。下单响应的 status 必须是 paid：提交后要从库里刷新订单，不能返回内存里的旧 pending。"
+        },
+        {
+          "end": 209,
+          "title": "test_prepay_is_not_sent_for_an_order_that_left_pending_while_waiting",
+          "explanation": "本用例的准备条件：client、product、wechat_env、monkeypatch 夹具；把单飞锁换成一个子类，拿到锁后用另一个会话把该用户的订单关掉（模拟等锁期间订单被关闭）。下单必须 409，提供方一次都没被调用，订单上没有 prepay_started 事件。此前删掉拿锁后的状态复查没有用例失败。"
+        },
+        {
+          "end": 220,
+          "title": "test_closing_a_stale_pending_object_cannot_overwrite_a_payment",
+          "explanation": "本用例的准备条件：client、product 夹具；会话里读出一张 pending 订单后，另一个会话把它改成 paid。用这个过期的内存对象调用 mark_closed：返回 False，刷新后状态仍是 paid。状态机检查只看内存对象、拦不住这种交错，唯一的保护是 UPDATE 语句里的 status 条件。"
         }
       ]
     },
@@ -4686,13 +4701,13 @@
     },
     {
       "path": "tests/test_delivery_verify_cache.py",
-      "sha256": "3c19b727ec19763f93ff4686b05b4e32a2d33975f42928dd50eccee6c2c881af",
+      "sha256": "03d8fd22cf3d7cc85b21ae9c0683397bcff9eed21078eb06c8634710f45c11f2",
       "method": "guided",
       "blocks": [
         {
           "end": 24,
           "title": "模块装配",
-          "explanation": "模块协作与边界：TD-266 / O-01 的单元回归。测量数字（900 MiB/s、512 MiB 0.53 s、30 次 Range 8 s → 0.27 s）只写在 docstring 里作背景，断言的是语义：首次与 inode 状态变化后全量哈希、未变只 stat、篡改/回拨 mtime/换 inode 必重哈希、宽限期内不缓存、非 POSIX 关闭。直接调用 app.delivery，不经过 HTTP；出口层的权益不缓存由 test_download 证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL12 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import os；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 import time；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app import delivery；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from app.delivery import _inode_state, file_digest, snapshot_product, verify_snapshot；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from app.storage import LocalStorage；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：TD-266 / O-01 的单元回归。测量数字（900 MiB/s、512 MiB 0.53 s、30 次 Range 8 s → 0.27 s）只写在 docstring 里作背景，断言的是语义：首次与 inode 状态变化后全量哈希、未变只 stat、篡改/回拨 mtime/换 inode 必重哈希、宽限期内不缓存、非 POSIX 关闭。直接调用 app.delivery，不经过 HTTP；出口层的权益不缓存由 test_download 证明。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL12 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import os；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 import time；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app import delivery；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from app.delivery import _inode_state, file_digest, snapshot_product, verify_snapshot；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL22 导入 from app.storage import LocalStorage, StorageError；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 35,
@@ -4770,9 +4785,14 @@
           "explanation": "本用例的准备条件：snapshot, monkeypatch。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 开关关闭时每次都 file_digest，缓存为空，结果仍正确。\n\n输入签名：snapshot, monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL176 计算右侧并赋给 `(storage, snap, path)`：snapshot。\nL177 调用 monkeypatch.setattr(delivery, '_VERIFY_CACHE_ENABLED', False)：仅在本测试替换属性，fixture结束恢复。\nL178 计算右侧并赋给 `calls`：调用 hashing_calls(monkeypatch)。\nL179 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL180 核对 `verify_snapshot(storage, snap.key, snap.digest, snap.size) is True`：此条件为假即测试失败；不是生产输入校验。\nL181 核对 `calls == [path, path] and delivery._VERIFIED == {}`：此条件为假即测试失败；不是生产输入校验。\nL182 核对 `delivery._VERIFY_CACHE_ENABLED is False or os.name != 'posix'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 187,
+          "end": 189,
           "title": "test_default_switch_follows_the_platform",
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 钉住宽限期 3 秒与上限 256 两个常量。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL186 核对 `delivery._VERIFIED_GRACE_NS == 3000000000`：此条件为假即测试失败；不是生产输入校验。\nL187 核对 `delivery._VERIFIED_LIMIT == 256`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 196,
+          "title": "test_whole_file_hash_is_bounded_in_size",
+          "explanation": "本用例的准备条件：snapshot 夹具；把字节上限临时调到 1024（快照约 64 KiB）。file_digest 必须报 StorageError，verify_snapshot 判 False——超限即停，而不是读完整个文件再比对。此前删掉 file_digest 里的上限检查没有用例失败。"
         }
       ]
     },
@@ -5218,7 +5238,7 @@
     },
     {
       "path": "tests/test_download.py",
-      "sha256": "a5c1ccc3b3048ff8c69bf596335d5fbd3b992672b7bcb142a574377659203904",
+      "sha256": "532509f675725a9f8dbf4c9e05c82256ad0d53076aea76eca4a399f19c0865e1",
       "method": "manual",
       "blocks": [
         {
@@ -5282,59 +5302,64 @@
           "explanation": "TD-281：造 closed/paid/pending 三张单并都写上 weixin:// code_url，把 _qr_svg 包一层计数。GET /shop/orders 只画了 pending 那一张（调用列表恰为该单的 code_url），pending 行 qr_svg 是 <svg…，closed/paid 行为 None；单查 GET /shop/orders/{pending} 仍返回二维码。改前失败（三张都画）。"
         },
         {
-          "end": 164,
-          "title": "test_presigned_url_downloads_the_file",
-          "explanation": "本用例的准备条件：client, product。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL156 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL157 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL158 计算右侧并赋给 `url`：(await client.post(f'/shop/download/{order_no}', headers=h)).json()['download_url']。\nL159 计算右侧并赋给 `r`：await 调用 client.get(path_of(url))：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL160 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL161 核对 `r.content == PRODUCT_BYTES`：此条件为假即测试失败；不是生产输入校验。\nL162 核对 `'attachment' in r.headers['content-disposition']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "end": 163,
+          "title": "test_order_history_lists_only_my_orders_and_pages_by_cursor",
+          "explanation": "R-02 / TD-302：给 buyer 造 51 张已关闭订单、再给另一个用户造一张已付款订单。第一页 50 张、按 id 倒序、不含别人的单；用 next_cursor 取第二页只剩最早那一张，且游标为 None。此前删掉订单历史的用户过滤（越权列出所有人的订单）或游标条件都没有用例失败。"
         },
         {
-          "end": 199,
+          "end": 176,
+          "title": "test_presigned_url_downloads_the_file",
+          "explanation": "本用例的准备条件：client, product。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL168 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL169 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL170 计算右侧并赋给 `url`：(await client.post(f'/shop/download/{order_no}', headers=h)).json()['download_url']。\nL171 计算右侧并赋给 `r`：await 调用 client.get(path_of(url))：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL172 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL173 核对 `r.content == PRODUCT_BYTES`：此条件为假即测试失败；不是生产输入校验。\nL174 核对 `'attachment' in r.headers['content-disposition']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 211,
           "title": "test_download_streams_instead_of_reading_whole_file",
           "explanation": "真实登录→已付冻结订单→POST领取v2链接，再GET验证原字节、Content-Length且从不调用LocalStorage.read，保留流式不整包读内存约束。"
         },
         {
-          "end": 216,
+          "end": 228,
           "title": "test_signed_url_for_missing_file_returns_404",
           "explanation": "先真实领取有效订单短链，再删除该订单冻结快照；GET必须404而非响应阶段500，不能以拒绝旧链接403掩盖文件缺失分支。"
         },
         {
-          "end": 224,
+          "end": 236,
           "title": "test_tampered_signature_rejected",
-          "explanation": "本用例的准备条件：client, product。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL218 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL219 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL220 计算右侧并赋给 `url`：(await client.post(f'/shop/download/{order_no}', headers=h)).json()['download_url']。\nL221 计算右侧并赋给 `tampered`：url[:-1] + ('0' if url[-1] != '0' else '1')。\nL222 核对 `(await client.get(path_of(tampered))).status_code == 403`：要求有身份但无权执行；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL230 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL231 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL232 计算右侧并赋给 `url`：(await client.post(f'/shop/download/{order_no}', headers=h)).json()['download_url']。\nL233 计算右侧并赋给 `tampered`：url[:-1] + ('0' if url[-1] != '0' else '1')。\nL234 核对 `(await client.get(path_of(tampered))).status_code == 403`：要求有身份但无权执行；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 234,
+          "end": 246,
           "title": "test_expired_url_rejected",
           "explanation": "构造真实已付冻结订单，再用正确order_no/key及已过期整数签v2，GET403证明期限校验，而不是因缺订单字段而提前拒绝。"
         },
         {
-          "end": 246,
+          "end": 258,
           "title": "test_signature_is_bound_to_key",
           "explanation": "为真实订单冻结key签v2，然后只替换请求key为另一个存在对象；403证明不能持原签名更换文件，不依赖旧格式统一拒绝。"
         },
         {
-          "end": 254,
+          "end": 266,
           "title": "test_directory_traversal_blocked",
-          "explanation": "本用例的准备条件：client, product。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL248 调用 (product.parent / 'secret.txt').write_bytes(b'top secret')。\nL249 计算右侧并赋给 `storage`：调用 LocalStorage(str(product), 'http://test', settings.SECRET_KEY)。\nL250 核对 `storage.exists('../secret.txt') is False`：此条件为假即测试失败；不是生产输入校验。\nL251 进入 pytest.raises(ValueError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL252 调用 storage.read('../secret.txt')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL260 调用 (product.parent / 'secret.txt').write_bytes(b'top secret')。\nL261 计算右侧并赋给 `storage`：调用 LocalStorage(str(product), 'http://test', settings.SECRET_KEY)。\nL262 核对 `storage.exists('../secret.txt') is False`：此条件为假即测试失败；不是生产输入校验。\nL263 进入 pytest.raises(ValueError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL264 调用 storage.read('../secret.txt')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 269,
+          "end": 281,
           "title": "test_unknown_backend_fails_loudly",
-          "explanation": "本用例的准备条件：client, product, monkeypatch。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL257 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'oss')：仅在本测试替换属性，fixture结束恢复。\nL258 进入 pytest.raises(StorageError) as e（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL259 调用 build_storage('http://test')。\nL260 核对 `'TD-128' in str(e.value)`：此条件为假即测试失败；不是生产输入校验。\nL262 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL263 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL264 核对 `(await client.post(f'/shop/download/{order_no}', headers=h)).status_code == 503`：要求服务暂不可用而非假成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, product, monkeypatch。涉及接口：/shop/download/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, product, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL269 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'oss')：仅在本测试替换属性，fixture结束恢复。\nL270 进入 pytest.raises(StorageError) as e（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL271 调用 build_storage('http://test')。\nL272 核对 `'TD-128' in str(e.value)`：此条件为假即测试失败；不是生产输入校验。\nL274 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL275 计算右侧并赋给 `order_no`：await 调用 make_order('paid', 'buyer')；等待期间可让出事件循环，恢复后才执行下一句。\nL276 核对 `(await client.post(f'/shop/download/{order_no}', headers=h)).status_code == 503`：要求服务暂不可用而非假成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 352,
+          "end": 364,
           "title": "test_download_exit_shares_the_download_rate_limit",
           "explanation": "本用例的准备条件：client, product, monkeypatch。涉及接口：/shop/download/{order_no}、GET /shop/dl（经path_of拆出的预签名链接）。显式打开限流并把RATE_LIMIT_TOOLS压到3、窗口60秒，先limiter.reset()。领取链接占download桶1次，随后两次出口GET都是200且字节等于PRODUCT_BYTES，第三次429并带数字Retry-After；订单状态仍为downloaded。再reset模拟窗口过后，同一链接再次200，证明权益判断没有被缓存。finally再次reset避免污染其他用例。只证明出口与领取共用同一桶（TD-261/A-08），不测量全量哈希成本（O-01）。"
         },
         {
-          "end": 362,
+          "end": 374,
           "title": "test_verify_download_rules",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL354 计算右侧并赋给 `(secret, key)`：('s3cr3t', 'a/b.zip')。\nL355 计算右侧并赋给 `ok`：int(time.time()) + 60。\nL356 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok)) is True`：此条件为假即测试失败；不是生产输入校验。\nL357 核对 `verify_download(secret, key, int(time.time()) - 1, sign_download(secret, key, int(time.time()) - 1)) is False`：此条件为假即测试失败；不是生产输入校验。\nL358 核对 `verify_download(secret, key, ok, sign_download('other', key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL359 核对 `verify_download(secret, 'other.zip', ok, sign_download(secret, key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL360 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok).upper()) is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL366 计算右侧并赋给 `(secret, key)`：('s3cr3t', 'a/b.zip')。\nL367 计算右侧并赋给 `ok`：int(time.time()) + 60。\nL368 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok)) is True`：此条件为假即测试失败；不是生产输入校验。\nL369 核对 `verify_download(secret, key, int(time.time()) - 1, sign_download(secret, key, int(time.time()) - 1)) is False`：此条件为假即测试失败；不是生产输入校验。\nL370 核对 `verify_download(secret, key, ok, sign_download('other', key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL371 核对 `verify_download(secret, 'other.zip', ok, sign_download(secret, key, ok)) is False`：此条件为假即测试失败；不是生产输入校验。\nL372 核对 `verify_download(secret, key, ok, sign_download(secret, key, ok).upper()) is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 374,
+          "end": 386,
           "title": "test_strategy_switch_by_config",
-          "explanation": "本用例的准备条件：monkeypatch, tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch, tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL365 调用 monkeypatch.setattr(settings, 'STORAGE_LOCAL_ROOT', str(tmp_path))：仅在本测试替换属性，fixture结束恢复。\nL366 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'local')：仅在本测试替换属性，fixture结束恢复。\nL367 计算右侧并赋给 `local`：调用 build_storage('http://test/')。\nL368 核对 `local.backend == 'local'`：此条件为假即测试失败；不是生产输入校验。\nL369 核对 `local.presigned_url('k.zip', expires_in=60).startswith('http://test/shop/dl?')`：此条件为假即测试失败；不是生产输入校验。\nL371 逐项遍历 `('oss', 'cos', '')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL372 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', name)：仅在本测试替换属性，fixture结束恢复。\nL373 进入 pytest.raises(StorageError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL374 调用 build_storage('http://test')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：monkeypatch, tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：monkeypatch, tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL377 调用 monkeypatch.setattr(settings, 'STORAGE_LOCAL_ROOT', str(tmp_path))：仅在本测试替换属性，fixture结束恢复。\nL378 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', 'local')：仅在本测试替换属性，fixture结束恢复。\nL379 计算右侧并赋给 `local`：调用 build_storage('http://test/')。\nL380 核对 `local.backend == 'local'`：此条件为假即测试失败；不是生产输入校验。\nL381 核对 `local.presigned_url('k.zip', expires_in=60).startswith('http://test/shop/dl?')`：此条件为假即测试失败；不是生产输入校验。\nL383 逐项遍历 `('oss', 'cos', '')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL384 调用 monkeypatch.setattr(settings, 'STORAGE_BACKEND', name)：仅在本测试替换属性，fixture结束恢复。\nL385 进入 pytest.raises(StorageError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL386 调用 build_storage('http://test')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -6804,7 +6829,7 @@
     },
     {
       "path": "tests/test_mock_pay.py",
-      "sha256": "876fff3193d5146112495202a0038d332e7995d33a876ab5b8639f09936809bc",
+      "sha256": "6549e100006250b379a606c30a255403f9f7ed3702f505bded4679b14de5eed5",
       "method": "guided",
       "blocks": [
         {
@@ -6893,9 +6918,34 @@
           "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL161 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL163 导入 from app.site import page_context；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL165 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL166 计算右侧并赋给 `base`：调用 (root / 'app/templates/base.html').read_text(encoding='utf-8')。\nL167 计算右侧并赋给 `used`：调用 set(re.findall('{{\\\\s*([a-z_]+)', base))。\nL169 累积修改 `used`：执行 `used -= {'t', 'request'}`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 176,
+          "end": 178,
           "title": "test_page_context_is_the_single_source_of_base_template_fields._Req",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n结构事实：定义类 test_page_context_is_the_single_source_of_base_template_fields._Req，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL172 pass 是显式空操作；接口/异常类无需额外实现时保留合法语法。\nL174 计算右侧并赋给 `provided`：调用 set(page_context(_Req(), title='x'))。\nL175 计算右侧并赋给 `missing`：used - provided。\nL176 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 186,
+          "title": "order_count",
+          "explanation": "R-02 / TD-302 补测试的辅助：数测试库里的订单行数，用来断言被拒绝的下单没有留下订单。"
+        },
+        {
+          "end": 196,
+          "title": "test_checkout_refuses_an_invalid_product_amount_configuration",
+          "explanation": "本用例的准备条件：client、mock_mode、product、monkeypatch 夹具；商品金额配置取 0、-1、2147483648、199.0、True 五组。每组下单都必须 503 且不建单。浮点 199.0 与布尔 True 在 Python 里都能通过「0 < x <= 上限」，所以类型检查不能省；2147483648 超过数据库 INTEGER 上限。此前删掉类型检查或上限都没有用例失败。"
+        },
+        {
+          "end": 206,
+          "title": "test_mock_checkout_and_confirm_are_refused_outside_development",
+          "explanation": "本用例的准备条件：client、mock_mode、product、monkeypatch 夹具；先在开发环境建一张模拟单，再把 ENV 切到 production。下单必须 503，模拟确认必须 404，原有的模拟单保持 pending。模拟支付等于免费发货按钮，这两处环境检查此前删掉都没有用例失败。"
+        },
+        {
+          "end": 215,
+          "title": "test_order_status_of_another_user_is_not_found",
+          "explanation": "本用例的准备条件：client、mock_mode、product 夹具；alice 下单，bob 用自己的令牌按单号查询：404，响应里没有收款链接。此前把单查接口的归属检查删掉没有用例失败——任何登录用户都能凭单号看到别人的订单状态和收款链接。"
+        },
+        {
+          "end": 231,
+          "title": "test_only_pending_orders_report_expiry",
+          "explanation": "本用例的准备条件：client、mock_mode、product 夹具；把一张模拟单的创建时间拨到有效期之前：待支付时 expired 为 True；模拟付款后再查，status 为 paid、expired 为 False。钉住「只有待支付单会过期」，否则已付款的旧单在轮询里会显示为过期。"
         }
       ]
     },
@@ -10199,7 +10249,7 @@
     },
     {
       "path": "tests/test_release_boundaries.py",
-      "sha256": "87e5fd6ff0107ff0e5a747fe1a07f39f91a3b64c6f4af1bee9b06d95210b858d",
+      "sha256": "c37988b5e45de26fa0bde3180e38b3985487746aa12b01b1b7bfe70d202513c1",
       "method": "manual",
       "blocks": [
         {
@@ -10278,9 +10328,14 @@
           "explanation": "读取实际.dockerignore与Compose，SQL目录必须留在镜像上下文，不能恢复自动SQL挂载，示例DATABASE_URL必须清空防误连外库；配置文本合同不是Docker实机验证。"
         },
         {
-          "end": 197,
+          "end": 199,
           "title": "test_prepay_refuses_unusable_callback_configuration",
           "explanation": "参数化缺平台凭据、损坏证书和过短APIv3密钥；调用真实下单HTTP必须503，provider桩一旦被调用就失败，数据库无订单。防止先让用户付款、再发现本地无法验签解密。"
+        },
+        {
+          "end": 215,
+          "title": "test_prepay_refuses_incomplete_merchant_order_configuration",
+          "explanation": "R-02 / TD-302：回调凭据完整、但下单用的证书序列号、商户私钥或回调地址缺一项（三组参数）：下单 503，库里没有订单，提供方替身一旦被调用就让用例失败。这三项不在回调配置检查 assert_notify_configuration 的范围里，`cfg.configured` 是唯一一道；此前删掉它没有用例失败。"
         }
       ]
     },
@@ -10556,131 +10611,146 @@
     },
     {
       "path": "tests/test_payment_ledger.py",
-      "sha256": "572f1246a5ff100696a78ab64844ed16f30cf38c4bad255109dce364dab56bc7",
+      "sha256": "00dcd0f86ab27cfbc95fbdf794375286cf691ee2f57ffb75acf60c7ee6fb4a71",
       "method": "manual",
       "blocks": [
         {
-          "end": 25,
+          "end": 26,
           "title": "模块装配与边界",
           "explanation": "复用合成RSA/AES通知、独立测试会话与明确别名导出的PG fixtures；无真实商户访问。两类PG证据分开：ORM应用事务和实际SQL迁移触发器。"
         },
         {
-          "end": 34,
+          "end": 35,
           "title": "admin_headers",
           "explanation": "注册登录测试账号后在隔离DB授予role1，JWT不携带伪造角色。"
         },
         {
-          "end": 39,
+          "end": 40,
           "title": "receipts",
           "explanation": "独立会话读取全部测试凭证，用于证明确实持久化且无重复。"
         },
         {
-          "end": 47,
+          "end": 48,
           "title": "test_signed_transaction_has_exactly_one_order_owner",
           "explanation": "两张不同订单用真正签名/加密通知争同流水，第一200第二409；第二仍pending且仅一凭证。"
         },
         {
-          "end": 61,
+          "end": 62,
           "title": "test_different_transaction_for_paid_order_is_conflict",
           "explanation": "首笔200、不同号409、原号重复200；记录只一条且首号不变。 设置旧update_time后精确重放仍不刷新，证明锁UPDATE没有触发隐式onupdate副作用。"
         },
         {
-          "end": 76,
+          "end": 77,
           "title": "test_independent_connections_race_for_same_transaction",
           "explanation": "两个独立会话并发结算不同订单同一流水；只能一方成功，另一方pending，数据库唯一约束和回滚真实生效；不共享单内存连接。"
         },
         {
-          "end": 95,
+          "end": 96,
           "title": "test_settlement_commit_failure_rolls_back_both_records",
           "explanation": "在commit先flush再故意抛错，必须同时回滚订单状态与已flush凭证；不能只有status或只有流水残留。 故障仅在凭证flush后触发；若错误实现先提交paid再插凭证，会留下paid并被此测试拒绝。"
         },
         {
-          "end": 108,
+          "end": 109,
           "title": "test_unique_reference_is_a_database_constraint",
           "explanation": "绕过服务直接插两张订单同来源/流水，提交必须IntegrityError且回滚全部，证明不是只靠Python先查。"
         },
         {
-          "end": 130,
+          "end": 131,
           "title": "test_cannot_confirm_order_through_a_different_channel",
           "explanation": "参数化模拟、人工、真实签名通知渠道串用，均409、不改pending不入凭证；直接ORM造坏合同不宣称生产触发器允许变更。"
         },
         {
-          "end": 146,
+          "end": 147,
           "title": "test_order_frozen_to_another_merchant_is_not_paid_by_current_merchant",
           "explanation": "R-02 / TD-300：把微信订单冻结的商户号改成另一个（模拟换商户前创建的旧单），再发当前商户验签合法的成功通知：409、订单仍 pending、没有收款凭证。回调入口只核对通知商户等于当前配置，冻结快照的比对只在 settle 里；此前删掉这条比对没有用例失败——换商户时新商户的通知会把旧商户的订单记为已付款。"
         },
         {
-          "end": 166,
+          "end": 167,
           "title": "test_ledger_refuses_manual_receipt_without_admin_and_evidence",
           "explanation": "R-02 / TD-300：直接调用 settle 登记人工收款，分别缺管理员、依据为空字符串：抛 PaymentConflict，订单仍 pending、无凭证。缺管理员时数据库约束 ck_receipt_manual_evidence 也会拒绝；但该约束只查 IS NOT NULL，空字符串依据只有 settle 的 `not evidence` 拦得住。"
         },
         {
-          "end": 195,
+          "end": 196,
           "title": "test_manual_proof_is_required_and_first_actor_survives_retry",
           "explanation": "缺body/布尔金额422、错误金额409；核准成功及另一管理员同号重试不改首人/依据。普通客户ledger403，管理员可读真实参考号。 监听实际SQL证明ledger GET无INSERT/UPDATE/DELETE，并断言no-store，不只把路径加入只读白名单。"
         },
         {
-          "end": 221,
+          "end": 222,
           "title": "test_prepay_unknown_and_retry_are_durable_attempts",
           "explanation": "提供方桩通过独立会话先看到started，第一次抛错记unknown，第二次同订单号成功记ready；四事件两attempt配对且不存上游敏感原文。"
         },
         {
-          "end": 236,
+          "end": 237,
           "title": "test_order_snapshot_survives_config_and_source_changes",
           "explanation": "新订单模拟付款后覆盖原文件并切换key/渠道配置，两次重领都拿到原字节且状态查询仍显示原mock渠道。"
         },
         {
-          "end": 244,
+          "end": 245,
           "title": "test_missing_source_refuses_checkout_without_order",
           "explanation": "删除隔离原商品，再HTTP下单503且无订单，不能先收款再发现无交付物。"
         },
         {
-          "end": 260,
+          "end": 261,
           "title": "test_tampered_snapshot_blocks_issued_link_and_preserves_rights",
           "explanation": "应用put拒覆盖；模拟操作人直接篡改磁盘后，已签链接和重领均409。恢复相同字节再成功，权益不被消耗。 同时测试原key与unused/../别名，保护不能只比较原始字符串前缀。"
         },
         {
-          "end": 283,
+          "end": 284,
           "title": "test_legacy_paid_order_needs_explicit_one_time_binding",
           "explanation": "历史paid无交付元数据先409，非管理员绑定403；管理员核实后一次绑定成功、重复409，下载恢复，不允许confirm重记旧收入，事件持久化依据。 第六批fixture先移除refund_receipt/检查函数再移除原收款，精确恢复相同旧基线；不是放宽真实约束。"
         },
         {
-          "end": 291,
+          "end": 308,
+          "title": "test_legacy_binding_refuses_mock_in_production_and_wechat_without_callback_credentials",
+          "explanation": "R-02 / TD-302：两组参数。mock：生产环境把历史订单绑定为模拟支付，必须 409；wechat：把平台证书置空后绑定为微信单，必须 503。两种情况订单的支付方式和交付对象都保持未绑定。此前删掉任一检查都没有用例失败。"
+        },
+        {
+          "end": 316,
           "title": "test_pending_order_cannot_silently_switch_channel",
           "explanation": "mock pending后切全局manual，再下单409，原渠道不改变。"
         },
         {
-          "end": 307,
+          "end": 332,
           "title": "test_snapshot_copy_has_size_and_admission_bounds",
           "explanation": "把字节上限压小必须拒绝；占满两槽再复制立即繁忙；finally释放槽且不遗留临时复制文件。"
         },
         {
-          "end": 314,
+          "end": 349,
+          "title": "test_snapshot_rejects_a_source_that_changes_during_the_copy",
+          "explanation": "R-02 / TD-302：替换 tempfile.NamedTemporaryFile，在打开临时文件时往源文件追加字节（模拟复制期间运维改写商品）。snapshot_product 必须抛出「复制时发生变更」，快照目录下既没有已发布的对象也没有残留临时文件。此前删掉复制前后的大小/修改时间比对没有用例失败。"
+        },
+        {
+          "end": 360,
+          "title": "test_snapshot_refuses_to_reuse_a_corrupted_published_copy",
+          "explanation": "R-02 / TD-302：先发布一份快照，再把已发布的文件改坏，然后对同一商品再做一次快照：必须抛出「已有商品快照损坏」，且坏文件保持原样、不被覆盖（需人工从备份恢复）。此前删掉对已存在快照的哈希复核没有用例失败。"
+        },
+        {
+          "end": 367,
           "title": "test_transaction_guard_rejects_real_wrappers",
           "explanation": "顶层BEGIN、同行COMMIT、START TRANSACTION、嵌套注释后END、PREPARE和PG的#操作符后ROLLBACK均拒绝。"
         },
         {
-          "end": 321,
+          "end": 374,
           "title": "test_transaction_guard_accepts_quoted_bodies",
           "explanation": "函数体BEGIN/字符串/引用标识符/E转义/注释内关键词不会被误当顶层事务命令。"
         },
         {
-          "end": 348,
+          "end": 401,
           "title": "test_pg_upgrade_preserves_history_and_enforces_immutable_evidence",
           "explanation": "新空维护库先按依赖顺序拆除0012准备表/函数、0011退款表/函数与0010结构，账本删除0010–0012以构造原0009基线。执行当前升级后原订单数据保留，历史合同/金额与证据只追加约束仍用真实非法SQL验证。不是拿新init冒充升级。 第九批历史基线构造先拆授权表/函数及0013账本，再保持原升级/保留数据断言，不改历史SQL。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。 降级迁移测试先移除0015任务表/函数/账本版本，再测试旧迁移；不修改已发布历史SQL，不降低原业务断言。 第十三批造旧基线前先拆0016的系统trigger/function/CHECK/FK列，恢复actor非空并删0016账本；仅限可丢弃夹具，不是业务回退方案。 首先调用legacy_0016恢复前版本唯一约束/插入函数，再拆16及更早结构；只造可丢弃历史夹具，不允许业务降级。"
         },
         {
-          "end": 354,
+          "end": 407,
           "title": "test_transaction_guard_rejects_unterminated_regions",
           "explanation": "未闭合字符串、注释或dollar函数体必须失败，不能省略未读内容后放行。"
         },
         {
-          "end": 362,
+          "end": 415,
           "title": "test_callback_needs_provider_time_with_timezone",
           "explanation": "合成有效签名但缺/坏/无时区成功时间，400且不记凭证；避免不可用财政时间元数据。"
         },
         {
-          "end": 375,
+          "end": 428,
           "title": "test_pg_contract_and_event_are_not_overwritable",
           "explanation": "真实full_init安装的PG触发器拒改既定支付渠道/交付key及删改事件；原值保持。"
         }
@@ -13000,7 +13070,7 @@
     },
     {
       "path": "tests/test_order_closures.py",
-      "sha256": "b6b6b5639978f21b18a30d747482dfd2bb7a9097d17abead8bba96e86ead62a5",
+      "sha256": "a4652243679f584e40d483dc9528c3563595f87c4948a4121d4f7ad9cde6b182",
       "method": "manual",
       "blocks": [
         {
@@ -13034,42 +13104,52 @@
           "explanation": "网络替身前独立查到STARTED并能写订单证明无持锁；204后仍closed且无收款，新key拒绝。真实签名迟到通知仍paid/唯一凭证；换商户/关门禁后原key仅读首次、零重发；before=1仍展示最近尝试且复核open。"
         },
         {
-          "end": 141,
+          "end": 147,
           "title": "test_fresh_eligible_original_only",
-          "explanation": "关闭门禁、非closed、已付、人工渠道、错商户、6分钟前NOTPAY、新CLOSED查询和错query key八类均409且零STARTED/网络。去新鲜度变异被旧查询断言检出。"
+          "explanation": "关闭门禁、非closed、已付、人工渠道、错商户、6分钟前NOTPAY、新CLOSED查询和错query key八类均409且零STARTED/网络。去新鲜度变异被旧查询断言检出。 R-02 / TD-302：新增 non-notpay-query 一组——最新一次查单结果为 CLOSED，并用这次查单自己的 ID 提交，也必须 409。原有的 new-query 一组仍提交旧 ID，会先被「必须是最新查单」拦下，走不到「最新查单必须是 NOTPAY」这条；此前删掉后者没有用例失败。"
         },
         {
-          "end": 148,
+          "end": 154,
           "title": "test_strict_confirmation",
           "explanation": "bool/错额、客户端URL、带控制字符依据、错原号均422/409且不触网；曾发现子schema重定义丢pattern，必须实际拒绝而非删反例。"
         },
         {
-          "end": 157,
+          "end": 163,
           "title": "test_concurrent_requests_only_one_post",
           "explanation": "独立HTTP请求并发同key或异key；前者都200但一次POST，后者一200一409且一次POST。完整PG轮次再验真实事务锁，不把SQLite当PG隔离证明。"
         },
         {
-          "end": 180,
+          "end": 174,
+          "title": "test_two_admins_racing_send_only_one_close",
+          "explanation": "R-02 / TD-302：两位不同的管理员用不同请求 ID 同时关同一单：结果恰好一个 200、一个 409，关单只发一次。同一管理员的并发请求已被管理员行锁串行化（现有并发用例因此测不到订单锁）；两位管理员之间只有开始关单处的订单锁能保证只发一次。只在 PostgreSQL 上有真实交错，本机 PG 上三次变异均被抓到。"
+        },
+        {
+          "end": 197,
           "title": "test_commit_failure_never_blindly_resends",
           "explanation": "开始提交前失败/真实提交后丢ACK/终态提交前故障均503；先独立核网络次数，恢复原key只有尚未started才首次发送，其他只读unknown，不把丢ACK当未发送。"
         },
         {
-          "end": 202,
+          "end": 210,
+          "title": "test_acknowledged_close_is_never_sent_again",
+          "explanation": "R-02 / TD-302：先完成一次渠道确认的关单；然后重新查单（仍是 NOTPAY），把开始记录的时间拨回 61 秒前，换新的请求 ID、用新查单 ID 再提交：409，关单请求只发过一次。此前删掉「已确认关单」这条资格检查没有用例失败。"
+        },
+        {
+          "end": 232,
           "title": "test_unknown_requires_new_query_and_wait_then_explicit_new_key",
           "explanation": "模拟WeChatPayError记unknown，旧NOTPAY或未等待都拒新key；真实新reconcile后仅测试前移start时间，再新确认成功。旧key始终读回原unknown、不覆盖且无重发；时间改表不推广到业务。"
         },
         {
-          "end": 222,
+          "end": 252,
           "title": "test_permissions_original_actor_content_and_other_order",
           "explanation": "普通用户拒绝；首次成功后改依据/额/query、另一管理员、另一订单借原key均409；用户锁内变credential_version403，网络仅一次。"
         },
         {
-          "end": 238,
+          "end": 268,
           "title": "test_payment_racing_close_is_not_overwritten",
           "explanation": "在出站边界真实签名通知付款并降发起人权限；结束仍记首次人观察但不改已付/唯一收款。表明在途关单不可召回、观察不是新财务写授权。"
         },
         {
-          "end": 249,
+          "end": 279,
           "title": "test_origin_and_rate_limit_before_close",
           "explanation": "实际Cookie登录后跨Origin403；临时启用实际Limiter并设整数阈值1，同原key第二次也429。只一次渠道调用，不能用未登录401冒充来源测试。"
         }

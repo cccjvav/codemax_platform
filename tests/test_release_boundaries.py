@@ -195,3 +195,21 @@ async def test_prepay_refuses_unusable_callback_configuration(client, monkeypatc
     assert (await client.post('/shop/orders', headers=headers)).status_code == 503
     async with TestSession() as db:
         assert (await db.scalars(select(Order))).all() == []
+
+
+@pytest.mark.parametrize('field', ['serial_no', 'private_key', 'notify_url'])
+async def test_prepay_refuses_incomplete_merchant_order_configuration(client, monkeypatch, field):
+    """R-02 / TD-302：回调凭据完整、但下单用的证书序列号/商户私钥/回调地址缺一项：503，不建单、不调用提供方。
+    这三项不在回调配置检查里，`cfg.configured` 是唯一一道；此前删掉它没有用例失败。"""
+    from app.models import Order
+    from app.routers import shop
+
+    headers = await auth_headers(client)
+    monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'wechat')
+    monkeypatch.setattr(shop, 'pay_config', lambda: replace(CFG, **{field: ''}))
+    async def never_call(*args, **kwargs):
+        pytest.fail('must not charge with an incomplete merchant configuration')
+    monkeypatch.setattr(shop, 'native_prepay', never_call)
+    assert (await client.post('/shop/orders', headers=headers)).status_code == 503
+    async with TestSession() as db:
+        assert (await db.scalars(select(Order))).all() == []

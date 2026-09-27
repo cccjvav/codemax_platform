@@ -19,7 +19,7 @@ import pytest
 
 from app import delivery
 from app.delivery import _inode_state, file_digest, snapshot_product, verify_snapshot
-from app.storage import LocalStorage
+from app.storage import LocalStorage, StorageError
 
 
 @pytest.fixture(autouse=True)
@@ -185,3 +185,12 @@ def test_cache_is_disabled_where_ctime_is_not_a_change_signal(snapshot, monkeypa
 def test_default_switch_follows_the_platform():
     assert delivery._VERIFIED_GRACE_NS == 3_000_000_000
     assert delivery._VERIFIED_LIMIT == 256
+
+
+def test_whole_file_hash_is_bounded_in_size(snapshot, monkeypatch):
+    """R-02 / TD-302：全量哈希有字节上限（也有时间上限）：超过即报错，校验判失败而不是读完再比。"""
+    storage, snap, path = snapshot
+    monkeypatch.setattr(delivery, "MAX_PRODUCT_BYTES", 1024)
+    with pytest.raises(StorageError):
+        file_digest(path)
+    assert verify_snapshot(storage, snap.key, snap.digest, snap.size) is False

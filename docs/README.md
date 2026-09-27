@@ -37,7 +37,7 @@ ROADMAP 是当前唯一队列；TECH_DECISIONS 与原始审查/阶段报告按�
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`docs/code_reading_notes.json`](code_reading_notes.json) | `7e35869fb187` | L1–L13976 |
+| [`docs/code_reading_notes.json`](code_reading_notes.json) | `f5385e87e190` | L1–L14056 |
 | [`docs/documentation_policy.json`](documentation_policy.json) | `4201a25e6404` | L1–L7 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

@@ -174,3 +174,58 @@ def test_page_context_is_the_single_source_of_base_template_fields():
     provided = set(page_context(_Req(), title="x"))
     missing = used - provided
     assert not missing, f"base.html 用到但 page_context 未提供的变量：{sorted(missing)}"
+
+
+# ---------------------------------------------------------------- R-02 / TD-302：变异检查补的缺口
+
+
+async def order_count() -> int:
+    async with TestSession() as s:
+        return len((await s.scalars(select(Order))).all())
+
+
+@pytest.mark.parametrize("amount", [0, -1, 2147483648, 199.0, True])
+async def test_checkout_refuses_an_invalid_product_amount_configuration(client, mock_mode, product, monkeypatch, amount):
+    """商品金额必须是 int 类型的正整数分、且不超过数据库 INTEGER 上限：否则 503、不建单。
+    浮点 199.0 与布尔 True 在 Python 里都能通过「0 < x <= 上限」，所以类型检查不能省。"""
+    h = await auth_headers(client)
+    monkeypatch.setattr(settings, "SHOP_PRODUCT_AMOUNT", amount)
+    assert (await client.post("/shop/orders", headers=h)).status_code == 503
+    assert await order_count() == 0
+
+
+async def test_mock_checkout_and_confirm_are_refused_outside_development(client, mock_mode, product, monkeypatch):
+    """模拟支付等于免费发货按钮：离开开发环境后，下单 503、确认 404，已有的模拟单保持 pending。"""
+    h = await auth_headers(client)
+    no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
+    monkeypatch.setattr(settings, "ENV", "production")
+    assert (await client.post("/shop/orders", headers=h)).status_code == 503
+    assert (await client.post("/shop/mock-pay/confirm", json={"order_no": no}, headers=h)).status_code == 404
+    assert (await order_row(no)).status == "pending"
+
+
+async def test_order_status_of_another_user_is_not_found(client, mock_mode, product):
+    """单查订单与不存在一样返回 404：不能凭单号看到别人的状态、收款链接或二维码。"""
+    alice = await auth_headers(client, "alice")
+    bob = await auth_headers(client, "bob")
+    no = (await client.post("/shop/orders", headers=alice)).json()["order_no"]
+    r = await client.get(f"/shop/orders/{no}", headers=bob)
+    assert r.status_code == 404 and "code_url" not in r.text and "mock-pay" not in r.text
+
+
+async def test_only_pending_orders_report_expiry(client, mock_mode, product):
+    """超过有效期的只有待支付单算过期；已付款的旧单不能在轮询里显示为 expired。"""
+    from datetime import datetime, timedelta, timezone
+
+    from sqlalchemy import update
+
+    h = await auth_headers(client)
+    no = (await client.post("/shop/orders", headers=h)).json()["order_no"]
+    async with TestSession() as s:
+        await s.execute(update(Order).where(Order.order_no == no).values(
+            create_time=datetime.now(timezone.utc) - timedelta(minutes=settings.ORDER_EXPIRE_MINUTES + 5)))
+        await s.commit()
+    assert (await client.get(f"/shop/orders/{no}", headers=h)).json()["expired"] is True
+    assert (await client.post("/shop/mock-pay/confirm", json={"order_no": no}, headers=h)).status_code == 200
+    body = (await client.get(f"/shop/orders/{no}", headers=h)).json()
+    assert body["status"] == "paid" and body["expired"] is False
