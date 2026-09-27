@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-299 / 管理页未知请求体集中管理）**：重构批次第三项。`payments-admin.js` 的八个 pendingXxx 合并为按表单类型索引的 `pending` 对象（`RESUMABLE`、`settle`、`DONE`），行为不变，已重建打包产物；补上「发送成功后保留尝试键」「换单清空」两条测试缺口。见 TECH_DECISIONS TD-299。
+
 **接手状态（2026-09-27，TD-298 / 账单对账整理）**：重构批次第二项。`wechat_pay.apply_trade_bill` 取代 `wechat_bills` 对私有 `_request_json` 的调用；`bill_reconcile` 的对账范围（`_scoped_rows`）、迁移校验（`_verify_migrations`）与差异判定（`_payment_code`）各只写一处，逻辑未改。补了交易类型、币种两个范围条件的测试缺口。TD-297 的 CI（47a4421）六个 job 全部通过。见 TECH_DECISIONS TD-298。
 
 **接手状态（2026-09-27，TD-297 / 管理员资金操作共用检查）**：重构批次第一项。新增 `app/routers/admin_common.py`（`locked_active_admin`、`confirmed_order`），payments_admin 三个端点与 refunds_admin 改用它；测试里的撤权替身改为替换 `admin_common.lock_user`。补上了复核端点写入边界复核的测试缺口。见 TECH_DECISIONS TD-297。

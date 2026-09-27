@@ -173,7 +173,7 @@ if(scenario.startsWith('close-')){
  impl=async(url,opt)=>{
   if(opt.method==='POST'){
    ++tries;if(scenario==='submit-race')return new Promise(r=>release=r);
-   if(tries===1 && ['submit-retry','submit-authorize-retry'].includes(scenario))throw Error('lost ACK');
+   if(tries===1 && ['submit-retry','submit-authorize-retry','submit-switch'].includes(scenario))throw Error('lost ACK');
    if(url.endsWith('/authorize'))saved=ready;
    return {attempt:{state:'unknown'},submission:saved};
   }
@@ -189,7 +189,11 @@ if(scenario.startsWith('close-')){
  const pending=el(action).onsubmit({preventDefault(){}});await tick();
  if(scenario==='submit-race'){auth.listener(null);release({attempt:{state:'accepted'}})}
  await pending;
- if(['submit-retry','submit-authorize-retry'].includes(scenario))await el(action).onsubmit({preventDefault(){}});
+ if(['submit-retry','submit-authorize-retry','submit-resend'].includes(scenario))await el(action).onsubmit({preventDefault(){}});
+ if(scenario==='submit-switch'){
+  await clickOrder(1);await clickOrder(0);input();el('send-number').value='CMR'+'b'.repeat(32);el('send-amount').value='19900';
+  el('customer-reason').value='客户取消';await el(action).onsubmit({preventDefault(){}});
+ }
  const sent=posts().map(r=>({url:r.url,body:JSON.parse(r.options.body)}));
  auth.listener(null);
  console.log(JSON.stringify({sent,confirmations,cleared:el('submission-view').textContent===''&&el('send-number').value==='',hidden:el('workspace').hidden}));
@@ -465,14 +469,21 @@ def test_preparation_ui_preserves_request_and_never_sends_money(folder, scenario
 
 
 @pytest.mark.parametrize('path', ['app/frontend/payments-admin.js','app/static/js/payments-admin.js'])
-@pytest.mark.parametrize('scenario', ['submit-retry','submit-authorize-retry','submit-disabled','submit-cancel','submit-race','submit-authorize-bytes'])
+@pytest.mark.parametrize('scenario', ['submit-retry','submit-authorize-retry','submit-disabled','submit-cancel','submit-race','submit-authorize-bytes',
+                                      'submit-resend','submit-switch'])
 def test_explicit_submission_ui_is_not_automatic(path, scenario):
+    """submit-resend：发送成功后再点仍是同一尝试（同 request_id，服务端只读回，不会第二次转款）；
+    submit-switch：结果未知后切到别的订单再回来，旧请求体已清除，新提交用新 request_id（TD-299 补测）。"""
     process = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario], text=True, capture_output=True, timeout=15, check=True)
     result = json.loads(process.stdout)
     assert result['cleared'] and result['hidden']
     if scenario in ('submit-disabled','submit-cancel','submit-authorize-bytes'):
         assert result['sent'] == []
-    elif scenario.endswith('retry'):
+    elif scenario == 'submit-switch':
+        first, second = (item['body'] for item in result['sent'])
+        assert len(result['sent']) == 2 and first['request_id'] != second['request_id']
+        assert {**first, 'request_id': ''} == {**second, 'request_id': ''}
+    elif scenario.endswith('retry') or scenario == 'submit-resend':
         assert len(result['sent']) == 2
         assert result['sent'][0] == result['sent'][1]
         assert len(result['sent'][0]['body']['request_id']) == 32

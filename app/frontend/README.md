@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `a708b7ee4989` | L1–L336 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `7781eb0da6a4` | L1–L338 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `8299e4b12efc` | L1–L370 |
 | [`app/frontend/support-page.js`](support-page.js) | `3c39b1af84b6` | L1–L199 |
 
@@ -186,3 +186,14 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 ## 2026-09-26：商城状态视图去掉死区（TD-281）
 
 - `shop-page.js`：`ST` 去掉 `downloaded`（从无分支显示它，模板区段已删）；`render()` 的 paid/downloaded 合并分支不变，closed 分支写的 `#x-no` 现在就在关闭区里。
+
+## 2026-09-27：管理页未知请求体集中管理（TD-299）
+
+`payments-admin.js` 原先用八个变量（pendingRequest、pendingReview、pendingAuthorization、pendingSend、pendingStop、pendingReauthorization、pendingClose、pendingControl）保存「结果未知、必须原样重发」的请求体，设置、成功清除、失败清除、换单清空和「详情里看到同一 request_id 就清除」分散在五处，各自按名字逐个处理。现改为：
+
+- `pending`：按表单类型索引的对象；`RESUMABLE` 列出可恢复的八类表单。确认后 `pending[kind] = body`，成功后除 `refund-send` 外都删除（发送保留键，再点只读回同一尝试，不会第二次转款），`clearDetail` 一句 `pending = {}` 清空。
+- `settle(kind, id)`：详情里出现同一 request_id 即清除；重新授权按历史列表判断，仍单独写。
+- `DONE`：成功提示查表，文案未变；未列出的类型用通用结果文案。
+
+上文历史批次里的 pendingXxx 名称即对应 `pending["表单类型"]`。新增 Node 场景 `submit-resend`、`submit-switch` 守住「成功后保留发送键」和「换单清空」两条此前没有测试的行为。
+

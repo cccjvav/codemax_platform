@@ -1181,3 +1181,17 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **测试**：
 - 变异检查：把路径的 `ALL` 改为 `all`，2 个用例失败；`_payment_code` 的 7 种差异逐个改成 `matched_payment`，每种都有 1～2 个用例失败。
 - 变异检查发现缺口：删掉对账范围里的交易类型或币种条件，**没有用例失败**（原来只测了「其他应用」）。新增 `tests/test_wechat_bills.py::test_non_native_or_non_cny_rows_are_only_excluded`（JSAPI / USD 两组）：只计入 `excluded_rows`、需人工核查、不产生任何比对条目；两种变异分别被对应参数组抓到。
+
+## TD-299：管理页「结果未知请求体」由八个变量改为一个按表单类型索引的对象
+
+**状态**：已实施（2026-09-27），优化阶段重构批次第三项（前端 payments-admin.js）。
+
+**问题**：`payments-admin.js` 用八个独立变量保存结果未知、必须原样重发的请求体。设置（8 行 if）、成功后清除（7 行 if，唯独不清 `pendingSend`）、失败时清除、`clearDetail` 换单清空、`detail()` 读到同一 request_id 时清除，分散在五处按名字逐个处理；新增一类操作要改五处，漏一处就可能在换单后复用旧请求体，或在发送成功后换新 request_id 造成第二次真实退款申请。成功提示是 9 层嵌套三元表达式。
+
+**决定**：
+- 改为 `pending` 对象 + `RESUMABLE` 列表 + `settle(kind, id)` + `DONE` 提示表。行为逐项不变：成功后仍唯独保留 `refund-send`（同尝试只读回）；两处失败时的清除条件（控制 409、复核 4xx）不变；提示文案逐字不变。
+- 重新构建 `app/static/js/payments-admin.js`。
+
+**测试**：
+- 变异检查：`RESUMABLE` 漏掉 `refund-stop`，原有用例失败；但「成功后也删除发送键」与「清屏不清空 pending」两种变异**没有用例失败**，在重构前的原代码上做等价变异同样如此——原有缺口。
+- 新增 Node 场景 `submit-resend`（成功后再提交，两次请求体完全相同）与 `submit-switch`（丢应答→切单→回原单→重新提交，request_id 必须更换、其余字段相同），源码与打包产物各一组；在重构前后的代码上都通过，上述两种变异下分别失败。
