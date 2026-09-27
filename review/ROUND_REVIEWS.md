@@ -22,3 +22,16 @@
 | RR-06 | 导读笔记中既有、非本轮引入的生成结果不一致：`app/routers/shop.py` 6 块（手写文件）、`tests/test_manual_pay.py::test_admin_confirm_is_idempotent`、`tests/test_second_review_regressions.py::test_pg_serializes_quota_and_message_retries`、`app/tools/llm.py::LLMClient._call`（旧模板变体）。 | 搁置 → ROADMAP R-04（笔记可读性，不影响门禁）。 |
 
 复核过、没有发现问题的点：TD-293 共享常量覆盖全部 9 个字段（自省测试守住）、已存复核事件解码不追溯；TD-294 授权页错误格式未变、未知客户端仍跑假哈希、429 仍为 `detail`；TD-292 日志不含用户问题原文以外的新敏感字段；TD-291 脚本只改指定文件的条目。
+
+## 2026-09-27：TD-296 的 CI 结果与 TD-297（管理员资金操作共用检查）
+
+范围：9a4edbd（TD-296）的 CI；TD-297 抽出 `app/routers/admin_common.py`，payments_admin 与 refunds_admin 改用。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-07 | **9a4edbd 的 CI 有三个 job 失败**（依赖扫描、ruff、前端产物检查通过）：新建的 `review/ROUND_REVIEWS.md` 没有登记进 `scripts/build_docs_site.py` 的 `DOC_GROUPS`。文档站 job 因 AGENTS、ROADMAP、review/README 指向它的链接无效而失败；SQLite 与 PostgreSQL 两个测试 job 都挂在 `tests/test_docs_site.py::test_doc_groups_all_exist`（每份已跟踪的 .md 都必须登记）。本地提交前的全量测试是在该文件尚未 `git add` 时跑的，这个用例只核对已跟踪文件，所以本地假通过；日志取不到，在 9a4edbd 的干净工作树里复现确认。TD-296 的其余修复不受影响，但这个 SHA 不算通过。 | 已修（随 TD-297 提交，TECH_DECISIONS TD-296 补记）：登记到「审计入口与历史阶段」组；本地整站构建无无效链接，`test_docs_site.py` 通过。流程：AGENTS 工作循环第 3 步补充「全量测试前先 `git add` 新文件；增删文档后本地跑整站构建」。 |
+| RR-08 | TD-297 变异检查：让 `locked_active_admin` 跳过身份复核后，close_channel、reconcile 与退款各端点共 10 个用例失败，但 **`review_order` 没有任何用例失败**——它在写入边界的管理员复核此前没有测试（只测了外站来源与普通用户）。 | 已修：新增 `test_review_rechecks_the_admin_at_the_write_boundary`（role / status / 凭据版本 3 组），变异下 3 组均失败。 |
+| RR-09 | `scripts/build_docs_site.py` 的导读笔记有 7 块与生成结果不一致，HEAD 上同样存在，不是本轮引入。 | 搁置 → 并入 ROADMAP R-04。 |
+
+复核过、没有发现问题的点：各端点原有检查顺序不变（`review_order` 仍先比确认单号，`close_channel` 仍先复核管理员）；删掉的手写 `update(User)` + 重读与 `lock_user` 等价（都是无更新时间副作用的行锁并重读）；6 个测试文件的替身目标改到 `admin_common.lock_user` 后断言未改，若误留旧目标 `monkeypatch.setattr` 会直接报错。本机 PostgreSQL 上受影响的 420 个用例全部通过。
+

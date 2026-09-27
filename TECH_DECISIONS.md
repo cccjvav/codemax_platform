@@ -1142,3 +1142,24 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **流程**（RR-02）：TD-291～294 的中间提交 CI 都被后续推送取消，TD-295 汇报时最终 SHA 的 PG job 还在运行，所以挂死没被当场发现。AGENTS 工作循环新增第 9 步：每轮收尾复看 diff、在真 PG 上跑受影响测试，等最终 SHA 的全部 CI 完成后再汇报。
 
 **记录不改**：TD-294 令牌端点参数在 OpenAPI 中显示为可选（RR-04，RFC 语义优先）。**搁置**：R-03 转人工文案、R-04 既有导读不一致、R-05 早先的复核小问题；R-02 全仓重点审查排在当前重构批次之后。
+
+**补记（同日）**：9a4edbd 的文档站构建 job 失败：新建的 `review/ROUND_REVIEWS.md` 没有登记进 `scripts/build_docs_site.py` 的 `DOC_GROUPS`，AGENTS、ROADMAP 与 review/README 指向它的链接被判为无效；两个测试 job 也挂在 `test_doc_groups_all_exist`（本地全量是在文件未 `git add` 时跑的，所以假通过）。已登记到「审计入口与历史阶段」组，随 TD-297 提交。
+
+## TD-297：管理员资金操作的身份复核与确认单号检查抽成共用函数
+
+**状态**：已实施（2026-09-27），优化阶段重构批次第一项（payments_admin `reconcile` 一组）。
+
+**问题**：
+- 「锁住管理员行、重读并确认仍是启用中的管理员且凭据版本未变」这道安全检查，在 payments_admin 里写了三遍：`reconcile` 与 `review_order` 各自手写 `update(User)…` 再 `db.get(populate_existing)` / `db.refresh`，`close_channel` 用 `lock_user`；refunds_admin 又有一份 `active_actor`。行为等价但写法各异，改一处容易漏另外几处。
+- 「确认单号必须与路径一致（409）、订单必须存在（404）」在 payments_admin 写了三遍，refunds_admin 有一份 `target`。
+
+**决定**：
+- 新增 `app/routers/admin_common.py`：`locked_active_admin(db, admin_id, revision) -> User | None` 与 `confirmed_order(db, order_no, confirm_order_no) -> Order`。前者只返回结果，失败时记什么事件（`reconcile` 记 `query_aborted`）、回什么 403 文案仍由各端点决定。
+- payments_admin 三个端点、refunds_admin 的 `active_actor` 与 8 个端点改用它们；删除 `target`。每个端点原有的检查先后顺序不变，多错误并存时的状态码不变。
+- `review_order` 原先 `db.refresh(admin)` 在管理员行被删除时会抛异常，现在与其他端点一样返回 403。
+- 未合并 shop.py 里其他按单号取订单的写法：它们有的按用户过滤、有的用于支付回调，语义不同，强行合并反而模糊边界。
+
+**测试**：
+- 6 个测试文件用替身模拟「请求期间被撤权」，原先替换 `payments_admin.lock_user` / `refunds_admin.lock_user`；两个路由不再直接调用 `lock_user`，替换目标改为 `admin_common.lock_user`，断言不变（若仍替换旧位置，`monkeypatch.setattr` 会因属性不存在直接报错，不会变成空测试）。
+- 变异检查：让 `locked_active_admin` 跳过身份复核，10 个用例失败，覆盖 `close_channel`、`reconcile`（role/status/凭据版本）与退款各端点；但 `review_order` 没有任何用例失败——它在写入边界的复核此前没有测试。
+- 新增 `tests/test_payment_review.py::test_review_rechecks_the_admin_at_the_write_boundary`（role / status / 凭据版本 3 组）：鉴权通过后、写复核前被撤权，返回 403 且复核日志没有新增记录；在上述变异下 3 组都失败。

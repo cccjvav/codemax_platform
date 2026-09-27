@@ -11,13 +11,13 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import ConfigDict, Field, StrictInt
-from sqlalchemy import exists, select, update
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import order_closures
 from ..config import settings
-from ..database import get_db, lock_user
+from ..database import get_db
 from ..deps import require_admin, require_finance_origin
 from ..models import Order, PaymentEvent, PaymentReceipt, User
 from ..payment_ledger import PaymentConflict, lock_order, settle
@@ -25,6 +25,7 @@ from ..payment_review import ISSUES, REVIEW_KIND, review_candidates, review_payl
 from ..ratelimit import rate_limit
 from ..site import page_context, templates
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, close_order, pay_config, query_order
+from .admin_common import confirmed_order, locked_active_admin
 from .shop import NO_CONTROL_CHARS, EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
@@ -109,11 +110,7 @@ async def reconcile(order_no: str, proof: ReconcileIn, response: Response,
     non-success observations never close/refund/revoke local rights. Orphan started = unknown.
     """
     response.headers['Cache-Control'] = 'no-store'
-    if proof.confirm_order_no != order_no:
-        raise HTTPException(409, '确认单号与目标不一致')
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None:
-        raise HTTPException(404, '订单不存在')
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     cfg = pay_config()
     if order.payment_mode != 'wechat' or (order.merchant_id, order.app_id) != (cfg.mchid, cfg.appid):
         raise HTTPException(409, '只能核查与当前商户凭据匹配的微信订单，不能猜测历史合同')
@@ -137,11 +134,8 @@ async def reconcile(order_no: str, proof: ReconcileIn, response: Response,
         db.add(observation('query_unknown', '请求或应答验证失败；未改收款状态'))
         await db.commit()
         raise HTTPException(502, '查单未取得可信结果；已保留核查记录，请勿据此认定未付款') from None
-    await db.execute(update(User).where(User.id == actor_id)
-                     .values(credential_version=User.credential_version, update_time=User.update_time)
-                     .execution_options(synchronize_session=False))
-    current = await db.get(User, actor_id, populate_existing=True)
-    if current is None or current.role != 1 or current.status != 1 or current.credential_version != revision:
+    current = await locked_active_admin(db, actor_id, revision)
+    if current is None:
         db.add(observation('query_aborted', '发起者权限/凭据在核查期间变更，未补记收款'))
         await db.commit()
         raise HTTPException(403, '权限已变更，结果未补记，请重新登录核对记录')
@@ -186,18 +180,12 @@ async def review_order(order_no: str, proof: ReviewIn, db: AsyncSession = Depend
     This records review only; no receipt, provider request or entitlement change. A later visible
     event (even with a lower ID), aged orphan or receipt makes a prior close marker stale.
     """
-    if order_no != proof.confirm_order_no:
+    if order_no != proof.confirm_order_no:   # 单号不一致先于权限复核返回 409（原有顺序）
         raise HTTPException(409, '确认单号与目标不一致')
-    oid, revision = admin.id, admin.credential_version
-    await db.execute(update(User).where(User.id == oid)
-                     .values(credential_version=User.credential_version, update_time=User.update_time)
-                     .execution_options(synchronize_session=False))
-    await db.refresh(admin)
-    if admin.role != 1 or admin.status != 1 or admin.credential_version != revision:
+    admin = await locked_active_admin(db, admin.id, admin.credential_version)
+    if admin is None:
         raise HTTPException(403, '权限已变更，请重新登录')
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None:
-        raise HTTPException(404, '订单不存在')
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     await lock_order(db, order)
     try:
         payload = review_payload(proof.action, proof.snapshot, proof.expected_version, proof.evidence)
@@ -240,15 +228,10 @@ async def close_channel(order_no: str, proof: CloseChannelIn, response: Response
                         db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
     """Explicit close, not refund or receipt mutation. Same key only reads; no automatic retries."""
     response.headers['Cache-Control'] = 'no-store'
-    revision = admin.credential_version
-    current = await lock_user(db, admin.id)
-    if current is None or current.role != 1 or current.status != 1 or current.credential_version != revision:
+    current = await locked_active_admin(db, admin.id, admin.credential_version)
+    if current is None:
         raise HTTPException(403, '权限已变更，请重新登录')
-    if proof.confirm_order_no != order_no:
-        raise HTTPException(409, '确认单号与目标不一致')
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None:
-        raise HTTPException(404, '订单不存在')
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     cfg = pay_config()
     try:
         attempt, packet = await order_closures.begin(db, order, actor=current, key=proof.request_id,

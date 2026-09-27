@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import db_admin, refund_requests
 from app.config import settings
 from app.models import Order, PaymentEvent, PaymentReceipt, RefundRequest, User
-from app.routers import refund_notify, refunds_admin
+from app.routers import admin_common, refund_notify, refunds_admin
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
 from tests.test_db_admin import legacy_0016, rows
@@ -177,13 +177,13 @@ async def test_permissions_origin_rate_limit_and_actor_recheck(client, refund_ca
     assert (await prepare(client, admin, number, body)).status_code == 429
     monkeypatch.setattr(settings, 'RATE_LIMIT_ENABLED', False)
     number = await create('wechat')
-    lock = refunds_admin.lock_user
+    lock = admin_common.lock_user
     async def revoke(db, uid):
         actor = await lock(db, uid)
         await db.execute(update(User).where(User.id == uid).values(credential_version=actor.credential_version + 1))
         await db.refresh(actor)
         return actor
-    monkeypatch.setattr(refunds_admin, 'lock_user', revoke)
+    monkeypatch.setattr(admin_common, 'lock_user', revoke)
     assert (await prepare(client, admin, number, proof(number))).status_code == 403
     assert len(await records()) == 1
 

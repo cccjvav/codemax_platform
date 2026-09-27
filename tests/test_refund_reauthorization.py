@@ -169,14 +169,14 @@ async def test_audit_insert_failure_rolls_back_successor(client, refund_case, mo
 async def test_permissions_and_origin_rechecked(client, refund_case, monkeypatch):
     buyer, admin, number, _, _, body, _ = await setup(client, refund_case)
     assert (await post(client, buyer, number, 'reauthorize', body)).status_code == 403
-    from app.routers import refunds_admin
-    lock = refunds_admin.lock_user
+    from app.routers import admin_common
+    lock = admin_common.lock_user
     async def revoked(db, identity):
         row = await lock(db, identity)
         row.credential_version += 1
         return row
     with monkeypatch.context() as m:
-        m.setattr(refunds_admin, 'lock_user', revoked)
+        m.setattr(admin_common, 'lock_user', revoked)
         assert (await post(client, admin, number, 'reauthorize', body)).status_code == 403
     login = await client.post('/auth/login', data={'username':'auditor', 'password':'secret123'})
     assert login.status_code == 200

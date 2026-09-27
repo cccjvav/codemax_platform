@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app import refund_verification as queue
 from app.config import settings
 from app.models import PaymentEvent, RefundVerificationJob
-from app.routers import refunds_admin
+from app.routers import admin_common
 from tests.conftest import TestSession
 from tests.test_payment_ledger import admin_headers
 from tests.test_refund_notifications import plain, send
@@ -76,13 +76,13 @@ async def test_actor_origin_revision_rate_and_reused_key(client, refund_case, mo
     assert (await client.post('/auth/login', data={'username': 'auditor', 'password': 'secret123'})).status_code == 200
     assert (await client.post(f'/shop/admin/orders/{number}/refunds/verification/control',
                              headers={'Origin': 'https://evil.test'}, json=body)).status_code == 403
-    original = refunds_admin.lock_user
+    original = admin_common.lock_user
     async def revoke(db, uid):
         row = await original(db, uid)
         row.credential_version += 1
         return row
     with monkeypatch.context() as m:
-        m.setattr(refunds_admin, 'lock_user', revoke)
+        m.setattr(admin_common, 'lock_user', revoke)
         assert (await post(client, admin, number, body)).status_code == 403
     assert (await post(client, admin, number, body)).status_code == 200
     assert (await post(client, admin, number, {**body, 'evidence': 'different reason'})).status_code == 409

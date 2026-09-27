@@ -13,15 +13,16 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from .. import refund_submissions as submissions
 from ..config import settings
-from ..database import get_db, lock_user
+from ..database import get_db
 from ..deps import require_admin, require_finance_origin
-from ..models import Order, PaymentEvent, RefundAuthorization, User
+from ..models import PaymentEvent, RefundAuthorization, User
 from ..payment_ledger import PaymentConflict, lock_order
 from ..ratelimit import rate_limit
 from ..refund_requests import prepare_request, request_for, request_view
 from ..refund_verification import control_job
 from ..refunds import original_receipt, record_refund, refund_for
 from ..wechat_pay import WeChatPayError, assert_notify_configuration, pay_config, query_full_refund, submit_full_refund
+from .admin_common import confirmed_order, locked_active_admin
 from .shop import NO_CONTROL_CHARS, EvidenceIn
 
 router = APIRouter(tags=['订单管理'])
@@ -44,19 +45,10 @@ class ManualRefundIn(RefundIn):
 
 async def active_actor(db: AsyncSession, admin: User, revision: int) -> User:
     """User-before-order lock ordering, refresh role AND credential revision at final write boundary."""
-    current = await lock_user(db, admin.id)
-    if current is None or current.role != 1 or current.status != 1 or current.credential_version != revision:
+    current = await locked_active_admin(db, admin.id, revision)
+    if current is None:
         raise HTTPException(403, '权限已变更，请重新登录核对退款记录')
     return current
-
-
-async def target(db: AsyncSession, number: str, proof: RefundIn) -> Order:
-    if number != proof.confirm_order_no:
-        raise HTTPException(409, '确认单号与目标不一致')
-    order = await db.scalar(select(Order).where(Order.order_no == number))
-    if order is None:
-        raise HTTPException(404, '订单不存在')
-    return order
 
 
 @router.post('/shop/admin/orders/{order_no}/refunds/manual',
@@ -66,7 +58,7 @@ async def manual_refund(order_no: str, proof: ManualRefundIn, response: Response
     """Record actual full manual refund, not click-to-refund. Never applies to WeChat or mock money."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     event = PaymentEvent(order_id=order.id, attempt_id=uuid.uuid4().hex, kind='refund_manual_success',
                          actor_id=current.id, actor_name=current.username, evidence=proof.evidence)
     try:
@@ -84,7 +76,7 @@ async def query_refund(order_no: str, proof: RefundQueryIn, response: Response,
                         db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
     """Durable started before read-only external I/O; signed SUCCESS receipt/audit committed together."""
     response.headers['Cache-Control'] = 'no-store'
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     cfg = pay_config()
     if (order.merchant_id, order.app_id) != (cfg.mchid, cfg.appid):
         raise HTTPException(409, '退款核验凭据不属于原商户/应用')
@@ -153,7 +145,7 @@ async def prepare_refund(order_no: str, proof: RefundPrepareIn, response: Respon
     """Persist a local preparation + stable reference, NOT authorization to send or proof of refund."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     try:
         row, changed = await prepare_request(db, order, actor=current, request_id=proof.request_id,
                                              amount=proof.amount, evidence=proof.evidence)
@@ -191,7 +183,7 @@ async def authorize_refund(order_no: str, proof: RefundAuthorizeIn, response: Re
     """Freeze separately confirmed full request; authorizing alone does not send."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     try:
         changed = await submissions.authorize(db, order, actor=current, key=proof.request_id,
                     refund_no=proof.out_refund_no, amount=proof.amount, reason=proof.reason,
@@ -217,7 +209,7 @@ async def reauthorize_refund(order_no: str, proof: RefundReauthorizeIn, response
     """New explicit consent after stop, only before ANY send start; never changes a sent/unknown request."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     try:
         row, changed = await submissions.reauthorize(db, order, actor=current, key=proof.request_id,
             authorization_id=proof.authorization_id, expected_digest=proof.digest,
@@ -239,7 +231,7 @@ async def send_refund(order_no: str, proof: RefundSendIn, response: Response,
     """Fresh explicit money-moving action, gated off by default; exact attempt replay never resends."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     cfg = pay_config()
     try:
         view, packet = await submissions.begin_send(db, order, actor=current, key=proof.request_id,
@@ -268,7 +260,7 @@ async def stop_refund_sending(order_no: str, proof: RefundSendIn, response: Resp
     """Permanently stop new local sends; NOT a channel cancellation or financial correction."""
     response.headers['Cache-Control'] = 'no-store'
     current = await active_actor(db, admin, admin.credential_version)
-    order = await target(db, order_no, proof)
+    order = await confirmed_order(db, order_no, proof.confirm_order_no)
     try:
         stop, changed = await submissions.stop_sending(db, order, actor=current, key=proof.request_id,
                         authorization_id=proof.authorization_id, expected_digest=proof.digest,
@@ -298,7 +290,7 @@ async def control_verification(order_no: str, proof: VerificationControlIn, resp
     response.headers['Cache-Control'] = 'no-store'
     try:
         current = await active_actor(db, admin, admin.credential_version)
-        order = await target(db, order_no, proof)
+        order = await confirmed_order(db, order_no, proof.confirm_order_no)
         control, changed = await control_job(db, order, actor=current, key=proof.request_id, job_id=proof.job_id,
                                             action=proof.action, snapshot=proof.snapshot, evidence=proof.evidence)
         return {'control': control, 'changed': changed,

@@ -16,7 +16,7 @@ from app import db_admin
 from app import refund_submissions as flow
 from app.config import settings
 from app.models import PaymentEvent, RefundAuthorization, RefundRequest, User
-from app.routers import refunds_admin
+from app.routers import admin_common, refunds_admin
 from app.wechat_pay import WeChatPayError, submit_full_refund
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
@@ -384,13 +384,13 @@ async def test_send_rechecks_permissions_merchant_digest_and_intervening_activit
     with monkeypatch.context() as m:
         m.setattr(refunds_admin,'pay_config',lambda: replace(CFG,mchid='FOREIGN'))
         assert (await post(client, admin, number, 'send', body)).status_code == 409
-    original = refunds_admin.lock_user
+    original = admin_common.lock_user
     async def revoked(db, uid):
         row = await original(db, uid)
         row.credential_version += 1
         return row
     with monkeypatch.context() as m:
-        m.setattr(refunds_admin,'lock_user',revoked)
+        m.setattr(admin_common,'lock_user',revoked)
         assert (await post(client, admin, number, 'send', body)).status_code == 403
     async with TestSession() as db:
         prepared = await db.scalar(select(RefundRequest))

@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-297 / 管理员资金操作共用检查）**：重构批次第一项。新增 `app/routers/admin_common.py`（`locked_active_admin`、`confirmed_order`），payments_admin 三个端点与 refunds_admin 改用它；测试里的撤权替身改为替换 `admin_common.lock_user`。补上了复核端点写入边界复核的测试缺口。见 TECH_DECISIONS TD-297。
+
 **接手状态（2026-09-27，TD-296 / 首轮每轮复审）**：用户要求每轮任务后做复审（AGENTS 工作循环第 9 步），不当轮处理的发现登记在 ROADMAP R 组、证据在 review/ROUND_REVIEWS.md。首轮复审 TD-291～295 发现 CI 真 PG job 因测试夹具锁等待挂死（已修，本机 PG 全量通过）和转人工按钮角色切换后未隐藏（已修）。全仓先前实现的重点审查（R-02）排在当前重构批次之后。见 TECH_DECISIONS TD-296。
 
 **接手状态（2026-09-27，TD-295 / 客服页「先问智能助手」，N-08 关闭）**：站内客服页顶部新增对访客开放的助手卡片，调用 `/support/ask`，文本渲染答案/来源/引用；需要人工时把问题填进留言框（未登录先登录）。至此用户 2026-09-26 批准的五项跟进（TD-291～295）全部完成，下一步回到重构候选。见 TECH_DECISIONS TD-295。

@@ -185,6 +185,26 @@ async def test_only_admin_and_same_origin_can_review(client, review_case):
     assert len(await events(number)) == 1
 
 
+
+@pytest.mark.parametrize('change', ['role', 'status', 'credential_version'])
+async def test_review_rechecks_the_admin_at_the_write_boundary(client, review_case, monkeypatch, change):
+    """TD-297：鉴权依赖通过之后、写复核之前被降权/禁用/改密，仍要 403 且不留复核记录。
+    此前复核端点只测了外站来源与普通用户，这条写入边界的复核没有测试。"""
+    from sqlalchemy import update
+
+    from app.routers import admin_common
+    headers, number = review_case
+    proof = await payload(client, headers, number)
+    real = admin_common.lock_user
+    async def revoked(db, uid):
+        value = User.credential_version + 1 if change == 'credential_version' else 0
+        await db.execute(update(User).where(User.id == uid).values(**{change: value}))
+        return await real(db, uid)
+    monkeypatch.setattr(admin_common, 'lock_user', revoked)
+    assert (await write_review(client, headers, number, proof)).status_code == 403
+    assert len(await events(number)) == 1
+
+
 async def test_failed_commit_does_not_complete_review(client, review_case, monkeypatch):
     headers, number = review_case
     proof = await payload(client, headers, number)

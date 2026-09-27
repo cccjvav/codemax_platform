@@ -58,7 +58,7 @@
 | R-01 | 每轮复审（常设流程） | 每轮收尾：复看 diff、真 PG 跑受影响测试、最终 SHA 六项 CI 全部完成后再汇报；结论写入 ROUND_REVIEWS | 2026-09-27 首轮（TD-291～295）已做，修复见 TD-296 |
 | R-02 | 仓库先前实现的重点审查 | 当前重构批次（payments_admin `reconcile`、bill_reconcile 等）结束后进行；挑资金/鉴权/并发/对外接口等重要部分，结论写入 ROUND_REVIEWS，问题分批修复或登记 | 用户 2026-09-27 提出，可暂缓但不能丢 |
 | R-03 | 转人工固定答案的措辞 | 「请登录站内客服页发送留言」在客服页内读来多余；决定是否按调用场景区分文案（API 调用方仍需要指向客服页） | 来自 RR-05；纯文案 |
-| R-04 | 导读笔记中既有的生成结果不一致 | shop.py 6 块、test_manual_pay 1 块、test_second_review_regressions 1 块、llm.py `LLMClient._call`：逐块核对后 regen 或确认保留手写 | 来自 RR-06；不影响门禁 |
+| R-04 | 导读笔记中既有的生成结果不一致 | shop.py 6 块、test_manual_pay 1 块、test_second_review_regressions 1 块、llm.py `LLMClient._call`、scripts/build_docs_site.py 7 块（其中 `_render_graph_page` 含生成器不支持的嵌套定义）：逐块核对后 regen 或确认保留手写 | 来自 RR-06、RR-09；不影响门禁 |
 | R-05 | 早先记下未修的复核小问题 | word.py 结尾句点；intent.py 关键词子串匹配（可能误命中）；politeness `_origin` 未统一主机名大小写 | 接手以来的审查笔记，逐项复现后决定修或关闭 |
 
 ## G2：有边界的发布验收（和代码修复分开签收）

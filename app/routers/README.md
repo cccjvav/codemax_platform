@@ -96,14 +96,15 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | --- | --- | --- |
 | [`app/routers/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/routers/admin.py`](admin.py) | `6a6d47579bf1` | L1–L91 |
+| [`app/routers/admin_common.py`](admin_common.py) | `51315149b95d` | L1–L33 |
 | [`app/routers/auth.py`](auth.py) | `f95778c951b3` | L1–L142 |
 | [`app/routers/diagrams.py`](diagrams.py) | `225cdf41a311` | L1–L240 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `937bc98baa3b` | L1–L309 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `ef2ffeccda89` | L1–L269 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `3b04f298db10` | L1–L252 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
-| [`app/routers/refunds_admin.py`](refunds_admin.py) | `370d862a6138` | L1–L309 |
+| [`app/routers/refunds_admin.py`](refunds_admin.py) | `a93590872183` | L1–L301 |
 | [`app/routers/shop.py`](shop.py) | `fecfea5ac8a1` | L1–L837 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
@@ -152,7 +153,7 @@ ReviewIn限制动作、160字说明、SHA摘要、严格整数版本、32位十�
 
 ## 第六批：refunds_admin与逐次下载授权
 
-`RefundIn`限定确认单号及3–160字单行依据；`RefundQueryIn`加原商户退款号；`ManualRefundIn`加真实退款流水、严格整数分和AwareDatetime（必带时区）。`active_actor`按用户→订单锁序刷新权限/凭据；`target`先比确认号再取单。两个POST均有活跃管理员、财务来源防护、限流与no-store；manual入口按原凭证渠道，而不让当前SHOP_PAY_MODE覆盖旧渠道。
+`RefundIn`限定确认单号及3–160字单行依据；`RefundQueryIn`加原商户退款号；`ManualRefundIn`加真实退款流水、严格整数分和AwareDatetime（必带时区）。`active_actor`按用户→订单锁序刷新权限/凭据（TD-297 起内部调用 `admin_common.locked_active_admin`）；确认号比对与取单改用 `admin_common.confirmed_order`（原 `target`）。两个POST均有活跃管理员、财务来源防护、限流与no-store；manual入口按原凭证渠道，而不让当前SHOP_PAY_MODE覆盖旧渠道。
 
 `manual_refund`登记实际已经完成的人工全额退款，不代为转账；仅manual原凭证。`query_refund`只发GET：先持久化包含原退款单号的refund_query_started，再网络I/O，返回后重查管理员。成功调用record_refund原子写凭证与成功审计；未知/中止/冲突和非成功各写终态，不撤回或恢复权益。进程中断可能只剩started，60秒后进入未知待核查；该查询入口不做自动退款/轮询；退款通知另外接入下节，仅留存线索。
 
@@ -216,3 +217,15 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 - 回调：`pay_notify` 依次调用 `_read_notify_body`（64 KiB、严格 UTF-8）、`_verify_notify_headers`（头长度 → 新鲜度 → 序列号 → 签名，401）、`_parse_paid_notice`（结构、解密、事件、渠道、标识、金额结构，不碰数据库）、查订单（404）、核金额（400）、`_provider_paid_at`（400），再 `settle`。各段抛内部的 `_NotifyReject`，由 `pay_notify` 统一转成 `_fail`。拒绝优先级与拆分前逐项相同，由 `test_notify_rejection_precedence_and_paid_time` 在新旧代码上验证。
 - 账本：`payment_ledger` 的退款/收款/订单合同三段与「能否准备退款」抽成 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed`，响应键与顺序不变。
 - 测试替身的挂点不变：`native_prepay`、`pay_config`、`assert_notify_*`、`verify_notify_signature`、`decrypt_resource`、`run_in_threadpool`、`_qr_svg` 仍是 `app.routers.shop` 的模块属性。
+
+## 2026-09-27：管理员资金操作共用检查（TD-297）
+
+`admin_common.py` 放 payments_admin 与 refunds_admin 共用的两道检查，只做检查、不决定失败时的事件与文案：
+
+| 函数 | 作用 | 调用方 |
+| --- | --- | --- |
+| `locked_active_admin(db, admin_id, revision)` | `lock_user` 锁住管理员行（先用户后订单）并重读；仍是启用中的管理员且凭据版本等于请求开始时的值才返回 User，否则返回 None | payments_admin 的 `reconcile`（联网之后，失败记 `query_aborted`）、`review_order`、`close_channel`；refunds_admin 的 `active_actor` |
+| `confirmed_order(db, order_no, confirm_order_no)` | 手输确认单号与路径不一致 409，订单不存在 404；不加锁 | 上述三个 payments_admin 端点与 refunds_admin 的 8 个端点 |
+
+此前 payments_admin 把「锁管理员并复核」写了三遍，其中两处是手写的 `update` + 重读，与 `lock_user` 等价但写法不一。各端点原有的检查顺序保持不变（例如 `review_order` 仍先比确认单号再复核权限，`close_channel` 先复核权限），因此多种错误同时出现时返回的状态码不变。测试里模拟「请求期间被撤权」的替身统一替换 `admin_common.lock_user`。
+

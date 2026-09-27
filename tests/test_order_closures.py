@@ -14,7 +14,7 @@ from app import order_closures as close
 from app.config import settings
 from app.models import Order, PaymentEvent, User
 from app.order_state import mark_closed
-from app.routers import payments_admin
+from app.routers import admin_common, payments_admin
 from app.wechat_pay import WeChatPayError, close_order
 from tests.conftest import TestSession
 from tests.test_download import auth_headers
@@ -210,12 +210,12 @@ async def test_permissions_original_actor_content_and_other_order(client, workbe
     assert (await post(client, other, number, proof)).status_code == 409
     second = await make_order(status='closed')
     assert (await post(client, headers, second, {**proof, 'confirm_order_no': second})).status_code == 409
-    real = payments_admin.lock_user
+    real = admin_common.lock_user
     async def revoked(db, identity):
         user = await real(db, identity)
         user.credential_version += 1
         return user
-    monkeypatch.setattr(payments_admin, 'lock_user', revoked)
+    monkeypatch.setattr(admin_common, 'lock_user', revoked)
     assert (await post(client, headers, number, proof)).status_code == 403
     assert len(calls) == 1
 

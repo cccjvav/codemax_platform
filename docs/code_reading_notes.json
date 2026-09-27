@@ -3374,7 +3374,7 @@
     },
     {
       "path": "scripts/build_docs_site.py",
-      "sha256": "fdba6f093c1a84ebe4a8ba9a678a84b410ba7fa454b7a9936599f939af652622",
+      "sha256": "42e9f82905f3a5cc564ca0103ffd844ddd5173ff6830ab6f723e8fd33d7aeb7a",
       "method": "manual",
       "blocks": [
         {
@@ -10687,58 +10687,58 @@
     },
     {
       "path": "app/routers/payments_admin.py",
-      "sha256": "ef2ffeccda89f802751f4c4577a520c98317b1460f497cbebf8367fc0763c414",
+      "sha256": "3b04f298db10584bd8fe314d42343f85a2cec59e5c53ba0db3bca8cba37fca31",
       "method": "manual",
       "blocks": [
         {
-          "end": 32,
+          "end": 33,
           "title": "装配与边界",
           "explanation": "订单管理页与显式核查/复核/关渠道入口。原reconcile是独立验签查单；新close-channel另有默认门禁/确认，不发送退款或自动执行。"
         },
         {
-          "end": 40,
+          "end": 41,
           "title": "payments_page",
           "explanation": "Jinja共享上下文渲染payments-admin登录外壳；不查询客户数据，不在PAGES/sitemap，no-store/noindex/no-follow。公开壳是为了能登录，所有数据入口另有管理员依赖。"
         },
         {
-          "end": 49,
+          "end": 50,
           "title": "order_summary",
           "explanation": "从订单冻结列构建管理员摘要：客户ID/商品/分数/币种/状态/原渠道和商户/文件绑定标记/时间；不读取当日商品价格或猜历史渠道。用户名由orders按用户ID联接补充。"
         },
         {
-          "end": 97,
+          "end": 98,
           "title": "orders",
           "explanation": "活跃管理员只读清单，issues统一复用payment_review.ISSUES纳入退款未知/冲突/非成功。needs_review/reviewed先SQL预筛，最多200候选、每批50投影、最多50返回；无匹配可能仍有游标。不会发查询或自动完成复核。"
         },
         {
-          "end": 101,
+          "end": 102,
           "title": "ReconcileIn",
           "explanation": "继承EvidenceIn去空白/长度/控制字符核账原因规则，增加必须输入的安全ASCII确认单号；路由与目标单号再次比较，不靠页面隐藏按钮。"
         },
         {
-          "end": 170,
+          "end": 164,
           "title": "reconcile",
-          "explanation": "管理员+来源+独立限流依赖后校验确认单号、原单渠道/商户/app及本地支付配置，开始事件captured actor/amount/attempt先commit。query_order网络不持锁，失败记unknown且502。回来用无更新时间副作用的用户UPDATE持锁重读角色/状态/版本；变更记aborted并403。SUCCESS传同单audit给settle，原子收款；冲突rollback后以捕获值记冲突，不读过期ORM。其他状态锁订单只记观察，已付遇到NOTPAY/CLOSED记冲突。返回观察、原状态、是否补记和警告，不发送关单/退款。内部observation固定归属/发起人，避免异步途中身份或ORM状态改变。"
+          "explanation": "管理员+来源+独立限流依赖后由admin_common.confirmed_order校验确认单号并取单、原单渠道/商户/app及本地支付配置，开始事件captured actor/amount/attempt先commit。query_order网络不持锁，失败记unknown且502。回来调用admin_common.locked_active_admin（lock_user无更新时间副作用的写锁）持锁重读角色/状态/版本（TD-297）；变更记aborted并403。SUCCESS传同单audit给settle，原子收款；冲突rollback后以捕获值记冲突，不读过期ORM。其他状态锁订单只记观察，已付遇到NOTPAY/CLOSED记冲突。返回观察、原状态、是否补记和警告，不发送关单/退款。内部observation固定归属/发起人，避免异步途中身份或ORM状态改变。"
         },
         {
-          "end": 179,
+          "end": 173,
           "title": "ReviewIn",
           "explanation": "复核正文复用有内容EvidenceIn，收紧为160字；动作固定followup/close/reopen，64位SHA和32位请求ID为小写十六进制；版本是非负StrictInt且有整数上限，确认单号安全ASCII。请求ID不是凭据，不能绕过管理员授权。"
         },
         {
-          "end": 228,
+          "end": 216,
           "title": "review_order",
-          "explanation": "管理员/来源/独立限流后先检查确认单号，锁用户且重查启用/角色/凭据版本，再找并锁订单。编码v1有界载荷；已有请求ID仅在同单、同发起人、同内容时无新增返回，否则409。新请求须匹配资料摘要与上次复核版本，无待办不能直接完成；只追加带操作者的operator_review并提交，唯一竞争回滚409。其他错误由会话退出回滚，不改收款/交付也不发网络；后续资料会让完成标记过期。"
+          "explanation": "管理员/来源/独立限流后先检查确认单号（409先于权限复核），locked_active_admin锁用户且重查启用/角色/凭据版本（失败403），再由confirmed_order取单并锁订单（TD-297，原为手写UPDATE+refresh）。编码v1有界载荷；已有请求ID仅在同单、同发起人、同内容时无新增返回，否则409。新请求须匹配资料摘要与上次复核版本，无待办不能直接完成；只追加带操作者的operator_review并提交，唯一竞争回滚409。其他错误由会话退出回滚，不改收款/交付也不发网络；后续资料会让完成标记过期。"
         },
         {
-          "end": 236,
+          "end": 224,
           "title": "CloseChannelIn",
           "explanation": "继承原单确认与依据strip校验，重新声明160字且拒C0/C1控制字符，不能遗漏父pattern；extra forbid，request/query均32hex，金额StrictInt正整数。不能传任意URL/商户或布尔金额。"
         },
         {
-          "end": 269,
+          "end": 252,
           "title": "close_channel",
-          "explanation": "来源、财务限流、当前管理员三层依赖；先锁用户重核角色/status/凭据revision，再确认原单/查目标。begin锁订单并持久started后才网络；同key无packet只读不调用close_order。仅WeChatPayError归unknown，SQL故障503保留原body/key；finish记观察不登记收入，返回明确独立查原单/迟到成功仍入账警告。"
+          "explanation": "来源、财务限流、当前管理员三层依赖；先locked_active_admin锁用户重核角色/status/凭据revision，再confirmed_order确认原单/查目标（TD-297）。begin锁订单并持久started后才网络；同key无packet只读不调用close_order。仅WeChatPayError归unknown，SQL故障503保留原body/key；finish记观察不登记收入，返回明确独立查原单/迟到成功仍入账警告。"
         }
       ]
     },
@@ -11054,7 +11054,7 @@
     },
     {
       "path": "tests/test_payment_review.py",
-      "sha256": "873ff3bbbb6595c8ed0a78b693d13a72506d7c5fe99f8b95dedccc07032533ed",
+      "sha256": "779c7a799754ec3f842b5a3978c17687eea78789298f983270d2c03a4cb0252d",
       "method": "manual",
       "blocks": [
         {
@@ -11133,42 +11133,47 @@
           "explanation": "参数化空白/超长/控制字符、坏SHA/请求ID、bool/负版本、退款动作和路径注入；全部422且不追加事件，不以表单限制代替服务器验证。"
         },
         {
-          "end": 187,
+          "end": 188,
           "title": "test_only_admin_and_same_origin_can_review",
           "explanation": "管理员Cookie的foreign Origin403，普通用户403，清Cookie后匿名401；各层拒绝均不记录复核。"
         },
         {
-          "end": 200,
+          "end": 207,
+          "title": "写入边界的管理员复核",
+          "explanation": "TD-297：三组参数分别在替身里把该管理员的role/status置0或凭据版本加一，再调用真实lock_user——等于鉴权依赖通过之后、写复核之前被撤权。替身替换的是admin_common.lock_user（复核端点经locked_active_admin加锁）。断言403且复核日志仍只有夹具那一条。此前本端点只测了外站来源与普通用户；让locked_active_admin跳过复核的变异下三组都失败。"
+        },
+        {
+          "end": 220,
           "title": "test_failed_commit_does_not_complete_review",
           "explanation": "替换commit为先flush后故障，真实HTTP调用必须抛；独立读取仍open且只有原未知事件，证明flush不是持久完成。"
         },
         {
-          "end": 211,
+          "end": 231,
           "title": "test_malformed_review_never_hides_a_case",
           "explanation": "注入非JSON、数组、未知版本或缺字段的operator_review，必须open/new_facts且不展示假说明。历史坏原文仍在事件表，没有静默修写。"
         },
         {
-          "end": 235,
+          "end": 255,
           "title": "test_bounded_filtered_pages_can_be_empty_with_a_continuation",
           "explanation": "构造205张历史closed已复核单，避开同客户单pending唯一约束；第一段筛200候选空但有游标，继续才看到原未处理单，完成筛选最多50。测试有界筛选不是假造几行后声称分页正确。"
         },
         {
-          "end": 243,
+          "end": 263,
           "title": "test_manual_followup_can_open_an_order_without_a_provider_exception",
           "explanation": "无异常原单投影none不能直接完成，可先主动登记跟进，再在待办范围发现；不需要伪造渠道失败来建立客服跟进。"
         },
         {
-          "end": 248,
+          "end": 268,
           "title": "test_review_envelope_handles_escaped_notes_without_overflow",
           "explanation": "用160字引号/反斜线与最大版本编码，确认JSON字符数仍在500内且往返说明不变，不能只测简单中文长度。"
         },
         {
-          "end": 260,
+          "end": 280,
           "title": "test_review_without_attribution_cannot_hide_a_case",
           "explanation": "即使v1格式/摘要有效，缺原操作者也不能作为完成复核；投影保持open/new_facts，防坏记录隐藏待办。"
         },
         {
-          "end": 271,
+          "end": 291,
           "title": "test_candidate_completed_between_reads_is_not_returned_as_pending",
           "explanation": "在SQL候选读取之后、聚合之前用独立连接追加匹配结束事件，再执行真实投影；已变none的候选应被过滤为空，不因预筛选命中过就误列待办。"
         }
@@ -11208,101 +11213,96 @@
     },
     {
       "path": "app/routers/refunds_admin.py",
-      "sha256": "370d862a6138a19b8362e92bdc4f1526476f1bf01af9e10d3c7542f5976bddf3",
+      "sha256": "a9359087218378a6364f072f71c2ce64cc14d6528e08e6bf3b292565bbfd38e3",
       "method": "manual",
       "blocks": [
         {
-          "end": 29,
+          "end": 30,
           "title": "装配与边界",
           "explanation": "管理员退款路由同时装配原成功核验、准备和新独立授权/发送服务。新提交发送可能转款但默认开关关闭，require_finance_origin/rate_limit/当前权限门禁独立；新发送不沿用query的记账权限。"
         },
         {
-          "end": 34,
+          "end": 35,
           "title": "RefundIn",
           "explanation": "复用EvidenceIn去空白，收紧3–160字单行依据，并要求安全ASCII完整确认单号。描述不是银行真实性检验。"
         },
         {
-          "end": 38,
+          "end": 39,
           "title": "RefundQueryIn",
           "explanation": "原商户退款单号仅允许官方ASCII数字/字母及_-|*@，最多64字节；不是付款流水或微信退款ID。"
         },
         {
-          "end": 44,
+          "end": 45,
           "title": "ManualRefundIn",
           "explanation": "人工退款引用允许有界ASCII标点；amount严格正整数分，不接受bool/数字字符串；AwareDatetime必须有时区。全额和时间顺序在持锁服务中验证。"
         },
         {
-          "end": 52,
+          "end": 53,
           "title": "active_actor",
-          "explanation": "先通过lock_user拿无更新时间副作用的写锁并刷新，再比启用/角色/捕获的凭据版本。返回当前用户，变更403；全部金融路径采用用户→订单锁序，网络期间不持此锁。"
+          "explanation": "调用admin_common.locked_active_admin（内部lock_user拿无更新时间副作用的写锁并刷新，再比启用/角色/捕获的凭据版本；TD-297起共用）。返回当前用户，变更403；全部金融路径采用用户→订单锁序，网络期间不持此锁。 原target已删除：确认单号比对与取单统一用admin_common.confirmed_order（409/404语义不变）。"
         },
         {
-          "end": 61,
-          "title": "target",
-          "explanation": "先比较手输确认号与路径，不同409；SELECT找单，不存在404。只取目标，不确认付款或退款。"
-        },
-        {
-          "end": 80,
+          "end": 72,
           "title": "manual_refund",
           "explanation": "全路由依赖财务来源/限流，函数依赖活跃管理员，响应no-store。锁并复查管理员后找目标，构造同单审计传record_refund，source固定manual；成功返回refunded/changed，冲突409。只登记已有退款，不查询银行或转钱。"
         },
         {
-          "end": 141,
+          "end": 133,
           "title": "query_refund",
           "explanation": "确认目标与原商户/app，原收款必须wechat，配置与平台信任也先核。捕获订单/金额/原交易/发起人/版本，nested observation把原退款号和说明编码有界JSON；started先commit，GET网络不持锁。失败记unknown后502；返回再锁查管理员，中止留aborted。SUCCESS与audit同事务写退款；冲突回滚后用捕获ID记conflict。其他状态持订单锁仅记终态，不覆盖成功凭证或恢复权益。"
         },
         {
-          "end": 148,
+          "end": 140,
           "title": "RefundPrepareIn",
           "explanation": "继承手输确认和依据验证，extra=forbid拒绝客户端自加currency/actor/refund_no。新依据排除C0/C1控制字符，长度3–160；request_id恰32位小写hex，amount严格正整数且不超过PG整数上限。字段有效不等于原单可准备，后续服务还验证。"
         },
         {
-          "end": 168,
+          "end": 160,
           "title": "prepare_refund",
-          "explanation": "新管理员POST以endpoint依赖校验来源与独立限流，require_admin及active_actor重查状态/角色/凭据版本并持用户锁。target核手输单号；prepare_request自己锁订单并提交。业务冲突409，SQLAlchemy保存故障503保留未知语义。返回原准备视图及changed/no-store，明确不发送、不预授权，不改下载；独立refund_for只读金融结论。"
+          "explanation": "新管理员POST以endpoint依赖校验来源与独立限流，require_admin及active_actor重查状态/角色/凭据版本并持用户锁。confirmed_order核手输单号；prepare_request自己锁订单并提交。业务冲突409，SQLAlchemy保存故障503保留未知语义。返回原准备视图及changed/no-store，明确不发送、不预授权，不改下载；独立refund_for只读金融结论。"
         },
         {
-          "end": 180,
+          "end": 172,
           "title": "RefundAuthorizeIn",
           "explanation": "继承严格准备字段及extra=forbid，另要求原CMR号和独立客户reason；validator按UTF-8字节≤80而非字符、禁止首尾空白/C0/C1。内部evidence不能自动当客户原因。"
         },
         {
-          "end": 186,
+          "end": 178,
           "title": "RefundSendIn",
           "explanation": "继承严格金额/依据/确认单号/32位尝试ID，另要求原授权32位ID、64位摘要及CMR号；客户端不能传替代正文/币种/商户。"
         },
         {
-          "end": 207,
+          "end": 199,
           "title": "authorize_refund",
           "explanation": "默认初始授权POST，来源/限流/管理员及active_actor用户锁保护；只冻结不发送。返回authorization为请求key首次记录（含实际stop）、submission为当前版本，旧根重放不指称它仍可发送；冲突409，DB未知503。"
         },
         {
-          "end": 212,
+          "end": 204,
           "title": "RefundReauthorizeIn",
           "explanation": "继承严格全额/固定号/原因/依据/key和extra forbid，新增前授权32hexID与64hex摘要；不能提交自定义URL、supersedes数据库ID或改商户。"
         },
         {
-          "end": 234,
+          "end": 226,
           "title": "reauthorize_refund",
           "explanation": "独立来源/限流/活跃管理员入口；核凭据版本后取目标，服务锁订单重查未开始条件。返回首笔authorization及当前submission，503要求按原key/body恢复，不发网络、不修改成功凭证；每次调用仍核当前权限。"
         },
         {
-          "end": 263,
+          "end": 255,
           "title": "send_refund",
           "explanation": "同样先锁当前用户并确认原单，begin_send核开关/原授权/原号/金额/摘要。精确attempt只读回；新尝试commit后才调用submit_full_refund，无数据库锁跨网络。微信失败只作unknown，finish持久观察，即使SUCCESS也不record_refund。SQL失败503不能推断未发送；取消/崩溃遗留started供查询。"
         },
         {
-          "end": 283,
+          "end": 275,
           "title": "stop_refund_sending",
-          "explanation": "POST stop使用同一严格确认模型而非send动作。管理员/来源/独立限流、active_actor角色/状态/版本重查，target核手输单号，服务拥有提交。返回no-store和准确范围；409冲突，SQL错误503结果未知。无需发送开关或商户网络配置。"
+          "explanation": "POST stop使用同一严格确认模型而非send动作。管理员/来源/独立限流、active_actor角色/状态/版本重查，confirmed_order核手输单号，服务拥有提交。返回no-store和准确范围；409冲突，SQL错误503结果未知。无需发送开关或商户网络配置。"
         },
         {
-          "end": 292,
+          "end": 284,
           "title": "VerificationControlIn",
           "explanation": "继承原单确认与有意义依据验证，额外字段禁止。任务ID严格正整数不接受bool；请求key/摘要限定小写十六进制；动作只允许hold/retry。客户端不能指定操作者、清零次数或改退款号。"
         },
         {
-          "end": 309,
+          "end": 301,
           "title": "control_verification",
           "explanation": "财务来源、管理员及独立限流保护，当前凭据版本在用户锁内复查，目标单号必须手动确认。将受控字段交服务原子保存，返回首次控制和changed；409提示归属/快照/资格冲突，503表示保存未知须原key恢复；不是同步核验/退款，响应no-store。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。"
         }
@@ -11732,7 +11732,7 @@
     },
     {
       "path": "tests/test_refund_requests.py",
-      "sha256": "75cd3afc6d27528a74f8b997d5df1f25d5d7ad8f0b124f25335f03d526c1c6bc",
+      "sha256": "76441d9fefa51a3748d7c58fcced8d9c43a7eb711f1e5b912e10c41dbbe4e396",
       "method": "manual",
       "blocks": [
         {
@@ -11963,7 +11963,7 @@
     },
     {
       "path": "tests/test_refund_submissions.py",
-      "sha256": "aae264f41e80dd9e21cd82247d0002e201747f92ddfe8b077981ef90af3e2a44",
+      "sha256": "9127c1f533b95f09af27b492febf6149c1da6d10b325f62df2e9940dd320925c",
       "method": "manual",
       "blocks": [
         {
@@ -12092,7 +12092,7 @@
     },
     {
       "path": "tests/test_refund_stops.py",
-      "sha256": "ab5526d5a85f1c505b55bfd6873bcede7603598a00e37a165d454ab6dff99930",
+      "sha256": "d3e938dc54b775afcbdfff15b4390adaddf5097caa3f366777f8503c35204f55",
       "method": "manual",
       "blocks": [
         {
@@ -12434,7 +12434,7 @@
     },
     {
       "path": "tests/test_verification_controls.py",
-      "sha256": "e26999e144906d06f69aa0d3c87145c58755bf00a20e115a2bbdeb15bbe263b3",
+      "sha256": "584738aeee865b38178e618d11cf76a475ae5fa22c18a9e5fa87dc62aad30fbd",
       "method": "manual",
       "blocks": [
         {
@@ -12642,7 +12642,7 @@
     },
     {
       "path": "tests/test_refund_reauthorization.py",
-      "sha256": "a1894e966c2df2bd24beeb87d4e758c6cc2e26cb936e19166799f9cea63a3cfb",
+      "sha256": "c54e0c7ac6aaf275196a5e7190ca49355ef05737201c6790f7163ae9436f7524",
       "method": "manual",
       "blocks": [
         {
@@ -12915,7 +12915,7 @@
     },
     {
       "path": "tests/test_order_closures.py",
-      "sha256": "7832a0b2f1c36bcb65920d751f6de13235c3880b860dfc8b12aecc8ed72535d1",
+      "sha256": "b6b6b5639978f21b18a30d747482dfd2bb7a9097d17abead8bba96e86ead62a5",
       "method": "manual",
       "blocks": [
         {
@@ -13842,6 +13842,28 @@
           "end": 46,
           "title": "test_control_characters_are_rejected_in_every_free_text_field",
           "explanation": "本用例的准备条件：control 取 \\x00、\\x1f、\\x7f、\\x85、\\x9f 五个值（C0 首尾、DEL、C1 中的 NEL 与末尾）。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('control', ['\\x00', '\\x1f', '\\x7f', '\\x85', '\\x9f'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：control；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL41 逐项遍历 `_free_text_fields()`，绑定 `(model, field, info)`；循环体按缩进执行，break可提前结束。\nL42 计算右侧并赋给 `adapter`：调用 TypeAdapter(Annotated[str, info])。\nL43 进入 pytest.raises(ValidationError)（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL44 调用 adapter.validate_python(f'核对{control}流水')。\nL46 核对 `adapter.validate_python('核对流水 20260927\\xa0已到账') == '核对流水 20260927\\xa0已到账'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
+      "path": "app/routers/admin_common.py",
+      "sha256": "51315149b95deb8434e11b780ebca2a0f010fda352ffa6d2f063315fae8d1977",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 13,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：payments_admin 与 refunds_admin 共用的两道检查（TD-297）。只做检查、不决定失败时的事件与文案；不开启事务、不提交，锁随调用方的会话提交或回滚释放。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL6 导入 from fastapi import HTTPException；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from sqlalchemy.ext.asyncio import AsyncSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from ..database import lock_user；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from ..models import Order, User；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 25,
+          "title": "locked_active_admin",
+          "explanation": "功能契约：用 database.lock_user 锁住管理员行（先用户后订单的锁序）并从数据库重读；仍是启用中的管理员（role=1、status=1）且凭据版本等于请求开始时鉴权拿到的 revision 才返回该 User，否则返回 None。期间改密、降权、禁用或被删都会返回 None；调用方据此记事件（如 reconcile 的 query_aborted）并回各自的 403 文案。\n\n输入签名：db: AsyncSession, admin_id: int, revision: int；异步调用需await才推进。 返回类型标注：User | None。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL20 计算右侧并赋给 `current`：await 调用 lock_user(db, admin_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL21 判断 `current is None or current.role != 1 or current.status != 1 or (current.credential_version != revision)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL22 结束当前函数，返回 None；不会自动commit未提交事务。\nL23 结束当前函数，返回 current；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 33,
+          "title": "confirmed_order",
+          "explanation": "功能契约：管理员手输的确认单号必须与路径单号完全一致，否则 409；再按单号取订单，不存在 404。不加锁、不判断支付或退款状态，锁订单由调用方或后续服务负责。\n\n输入签名：db: AsyncSession, order_no: str, confirm_order_no: str；异步调用需await才推进。 返回类型标注：Order。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL28 判断 `confirm_order_no != order_no`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL29 抛出 HTTPException(409, '确认单号与目标不一致')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL30 计算右侧并赋给 `order`：await 调用 db.scalar(select(Order).where(Order.order_no == order_no))：执行查询并取一个标量/对象；等待期间可让出事件循环，恢复后才执行下一句。\nL31 判断 `order is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL32 抛出 HTTPException(404, '订单不存在')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL33 结束当前函数，返回 order；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     }

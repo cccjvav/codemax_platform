@@ -14,7 +14,7 @@ from app import db_admin
 from app import refund_submissions as flow
 from app.config import settings
 from app.models import PaymentEvent, RefundSendStop
-from app.routers import refunds_admin
+from app.routers import admin_common
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
 from tests.test_db_admin import legacy_0016, rows
@@ -119,7 +119,7 @@ async def test_permissions_origin_revision_and_rate_limit(client, refund_case, m
             f"/shop/admin/orders/{number}/refunds/stop", headers={"Origin": "https://evil.test"}, json=body
         )
     ).status_code == 403
-    original = refunds_admin.lock_user
+    original = admin_common.lock_user
 
     async def revoke(db, uid):
         row = await original(db, uid)
@@ -127,7 +127,7 @@ async def test_permissions_origin_revision_and_rate_limit(client, refund_case, m
         return row
 
     with monkeypatch.context() as m:
-        m.setattr(refunds_admin, "lock_user", revoke)
+        m.setattr(admin_common, "lock_user", revoke)
         assert (await post(client, admin, number, "stop", body)).status_code == 403
     monkeypatch.setattr(settings, "RATE_LIMIT_ENABLED", True)
     monkeypatch.setattr(settings, "RATE_LIMIT_TOOLS", 1)
