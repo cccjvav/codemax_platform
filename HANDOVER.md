@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-27，TD-300 / R-02 第一部分）**：重构批次（TD-297～299）结束，开始 R-02。对鉴权、限流、下载授权、支付回调与入账 settle 共 54 处防线做变异检查，补 7 处测试缺口（最重要的是 settle 的商户快照比对：换商户后新商户通知不能把旧商户订单记为已付款），其余存活项判为等价/纵深防御并写明理由。只加测试，未改生产代码。见 TECH_DECISIONS TD-300、review/ROUND_REVIEWS.md RR-12～13。
+
 **接手状态（2026-09-27，TD-299 / 管理页未知请求体集中管理）**：重构批次第三项。`payments-admin.js` 的八个 pendingXxx 合并为按表单类型索引的 `pending` 对象（`RESUMABLE`、`settle`、`DONE`），行为不变，已重建打包产物；补上「发送成功后保留尝试键」「换单清空」两条测试缺口。见 TECH_DECISIONS TD-299。
 
 **接手状态（2026-09-27，TD-298 / 账单对账整理）**：重构批次第二项。`wechat_pay.apply_trade_bill` 取代 `wechat_bills` 对私有 `_request_json` 的调用；`bill_reconcile` 的对账范围（`_scoped_rows`）、迁移校验（`_verify_migrations`）与差异判定（`_payment_code`）各只写一处，逻辑未改。补了交易类型、币种两个范围条件的测试缺口。TD-297 的 CI（47a4421）六个 job 全部通过。见 TECH_DECISIONS TD-298。

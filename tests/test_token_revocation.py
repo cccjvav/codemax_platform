@@ -202,6 +202,23 @@ async def test_disabled_user_token_is_rejected_immediately(client):
     assert r.status_code == 401
 
 
+@pytest.mark.asyncio
+async def test_disabled_user_cannot_log_in_or_receive_a_cookie(client):
+    """R-02 / TD-300：密码正确但账号已禁用，登录返回 403「账号已禁用」，不签发 token、不下发 Cookie。
+
+    get_current_user 会拒绝禁用账号的 token，所以登录处漏检不会直接放行后续请求；
+    但用户会先看到「登录成功」再处处 401。此前删掉登录处的状态检查没有用例失败。
+    """
+    await signup(client)
+    async with TestSession() as s:
+        u = (await s.execute(select(User).where(User.username == "alice"))).scalar_one()
+        u.status = 0
+        await s.commit()
+    r = await client.post("/auth/login", data={"username": "alice", "password": OLD_PWD})
+    assert r.status_code == 403 and r.json()["detail"] == "账号已禁用"
+    assert "set-cookie" not in r.headers and "access_token" not in r.text
+
+
 # ============================================================ token 声明本身
 
 

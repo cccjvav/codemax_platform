@@ -81,11 +81,14 @@ async def test_production_oauth_requires_explicit_first_party_allowlist(client, 
     assert (await client.get('/oauth/authorize', params=params, headers=headers)).status_code == 200
 
 
-@pytest.mark.parametrize('field,value', [('appid', 'foreign'), ('mchid', 'foreign'), ('trade_type', 'JSAPI'), ('currency', 'USD')])
+@pytest.mark.parametrize('field,value', [('appid', 'foreign'), ('mchid', 'foreign'), ('trade_type', 'JSAPI'), ('currency', 'USD'),
+                                         # R-02 / TD-300：金额必须是整数（19900.0 == 19900 在 Python 里成立），
+                                         # 流水号超过 64 字符在回调层就要 400，不能留给账本层变成 409。
+                                         ('total', 19900.0), ('transaction_id', 'T' * 65)])
 async def test_signed_payment_must_match_business_identity(client, notify_ready, field, value):
     number = await make_order()
     data = txn(number)
-    (data['amount'] if field == 'currency' else data)[field] = value
+    (data['amount'] if field in ('currency', 'total') else data)[field] = value
     response = await post_notify(client, *build_notify(data))
     assert response.status_code == 400 and (await fetch(number)).status == 'pending'
 

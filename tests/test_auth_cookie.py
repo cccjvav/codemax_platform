@@ -198,6 +198,8 @@ async def test_garbage_cookie_is_401(client):
     {"Sec-Fetch-Site": "same-site"},
     {"Origin": "null"},
     {"Origin": "http://test/path"},
+    # R-02 / TD-300：第一个 Origin 是本站、第二个是外站，也必须拒绝（只接受恰好一个）。
+    [("Origin", "http://test"), ("Origin", "https://untrusted.invalid")],
 ])
 async def test_foreign_origin_form_login_is_refused_without_a_cookie(client, headers):
     """替换 audit_handoff_probes 的「跨站来源表单登录」诊断：浏览器标记为跨站的表单提交 403，不下发 cookie。

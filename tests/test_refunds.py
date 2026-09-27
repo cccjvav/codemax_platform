@@ -292,6 +292,20 @@ async def test_order_key_must_match_frozen_contract_even_with_valid_signature(cl
     assert (await client.get('/shop/dl', params={'order_no': number, 'key': key, 'expires': expires, 'signature': signature})).status_code == 403
 
 
+async def test_signed_link_stops_when_order_status_leaves_paid(client, refund_case):
+    """R-02 / TD-300：领链接时已付款；之后订单状态若被改离 paid/downloaded（例如运维直接改库），
+    同一条仍在有效期内、签名正确的链接也必须 403。付款后状态正常不会回退，这是纵深防御；
+    此前删掉 serve_download 的状态条件没有用例失败。"""
+    buyer, _, create, _ = refund_case
+    number = await create()
+    url = (await client.post(f'/shop/download/{number}', headers=buyer)).json()['download_url']
+    assert (await client.get(path_of(url))).content == PRODUCT_BYTES
+    async with TestSession() as db:
+        await db.execute(update(Order).where(Order.order_no == number).values(status='closed'))
+        await db.commit()
+    assert (await client.get(path_of(url))).status_code == 403
+
+
 def test_pg_refund_migration_validates_full_original_receipt_and_freezes_records(maintenance_db):
     conn, _ = maintenance_db
     db_admin.initialize(conn)

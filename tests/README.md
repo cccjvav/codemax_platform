@@ -67,7 +67,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f697c9b6d36a` | L1–L179 |
 | [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `bcb6bbe584a2` | L1–L300 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
-| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `7f453e412ec9` | L1–L378 |
+| [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `cb10c9c40344` | L1–L380 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `44aa17391233` | L1–L263 |
 | [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f7fb58420a6c` | L1–L164 |
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
@@ -103,7 +103,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ops.py`](test_ops.py) | `8176210c71dd` | L1–L646 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `b6b6b5639978` | L1–L249 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
-| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `9a2e75439553` | L1–L339 |
+| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `572f1246a5ff` | L1–L375 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
@@ -120,8 +120,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_refund_stops.py`](test_refund_stops.py) | `d3e938dc54b7` | L1–L300 |
 | [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `9127c1f533b9` | L1–L407 |
 | [`tests/test_refund_verification.py`](test_refund_verification.py) | `ed4ad7569a51` | L1–L306 |
-| [`tests/test_refunds.py`](test_refunds.py) | `8c0b61cd7acd` | L1–L446 |
-| [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `821622ea365b` | L1–L194 |
+| [`tests/test_refunds.py`](test_refunds.py) | `835b910ba09b` | L1–L460 |
+| [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `87e5fd6ff010` | L1–L197 |
 | [`tests/test_request_body_budget.py`](test_request_body_budget.py) | `077979ed448c` | L1–L210 |
 | [`tests/test_review_regressions.py`](test_review_regressions.py) | `ddb1734435d0` | L1–L127 |
 | [`tests/test_schema_equivalence.py`](test_schema_equivalence.py) | `763478f8979b` | L1–L219 |
@@ -136,7 +136,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
-| [`tests/test_token_revocation.py`](test_token_revocation.py) | `4530ff5f9bd3` | L1–L237 |
+| [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
 | [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `fe4aa93c190a` | L1–L605 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `584738aeee86` | L1–L224 |

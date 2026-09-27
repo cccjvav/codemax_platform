@@ -128,6 +128,42 @@ async def test_cannot_confirm_order_through_a_different_channel(client, mock_mod
     assert await receipts() == []
 
 
+async def test_order_frozen_to_another_merchant_is_not_paid_by_current_merchant(client, notify_ready):
+    """R-02 / TD-300：换商户号后，旧订单冻结的是原商户；当前商户验签合法的成功通知也不能把它记为已付款。
+
+    回调入口只核对「通知商户 == 当前配置」，订单冻结快照的比对只在 settle 里。
+    此前删掉 settle 的商户/应用快照比对没有用例失败。"""
+    number = await make_order()
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == number))
+        order.merchant_id = '1900000999'  # synthetic: order created under the previous merchant
+        await db.commit()
+    response = await post_notify(client, *build_notify(txn(number)))
+    assert response.status_code == 409
+    assert (await fetch(number)).status == 'pending'
+    assert await receipts() == []
+
+
+@pytest.mark.parametrize('missing', ['actor', 'empty-evidence'])
+async def test_ledger_refuses_manual_receipt_without_admin_and_evidence(client, missing):
+    """R-02 / TD-300：人工收款必须带管理员与非空核账依据。路由层已经要求二者，这里钉住账本层自己的不变量
+    （将来新增调用方不能绕过）。缺管理员时数据库约束 ck_receipt_manual_evidence 也会拒绝；
+    但该约束只查 evidence IS NOT NULL，空字符串依据只有 settle 的检查拦得住——此前删掉它没有用例失败。"""
+    number = await make_order()
+    async with TestSession() as db:
+        order = await db.scalar(select(Order).where(Order.order_no == number))
+        order.payment_mode, order.merchant_id, order.app_id = 'manual', None, None
+        admin = User(username='ledger-admin', password='x', role=1)
+        db.add(admin)
+        await db.commit()
+        with pytest.raises(PaymentConflict):
+            await settle(db, order, source='manual', transaction_id='BANK-1',
+                         actor=None if missing == 'actor' else admin,
+                         evidence='' if missing == 'empty-evidence' else 'bank statement line 3')
+    assert (await fetch(number)).status == 'pending'
+    assert await receipts() == []
+
+
 async def test_manual_proof_is_required_and_first_actor_survives_retry(client, monkeypatch):
     monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'manual')
     buyer = await auth_headers(client)
