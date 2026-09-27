@@ -292,3 +292,142 @@ async def test_token_success_is_not_cacheable_and_authorize_errors_keep_their_sh
     # 授权页错误按用户决定保持原样（{"detail": {...}}），只有令牌端点换格式
     bad = await consent_page(client, headers, client_id="ghost")
     assert bad.status_code == 400 and bad.json()["detail"]["error"] == "invalid_client"
+
+
+# ---------------------------------------------------------------- R-02 / TD-301：变异检查补的缺口
+# 下面每条都对应一处「删掉或放宽这条判断后原有用例全部通过」的防线。
+
+
+async def _set_client(client_id="tools", **values):
+    async with TestSession() as s:
+        await s.execute(update(OAuthClient).where(OAuthClient.client_id == client_id).values(**values))
+        await s.commit()
+
+
+def _code_of(response) -> str:
+    assert response.status_code == 302, response.text
+    return response.headers["location"].split("code=")[1].split("&")[0]
+
+
+async def test_disabled_client_can_neither_render_consent_nor_redeem_a_code(client):
+    """停用的客户端：同意页 400 invalid_client，停用前已签发的授权码也换不出令牌。"""
+    headers = await register_and_login(client)
+    code = _code_of(await authorize(client, headers))
+    await _set_client(status=0)
+    page = await consent_page(client, headers)
+    assert page.status_code == 400 and page.json()["detail"]["error"] == "invalid_client"
+    r = await exchange_code(client, code)
+    assert r.status_code == 400 and r.json()["error"] == "invalid_client"
+
+
+async def test_code_issued_to_one_client_cannot_be_redeemed_by_another(client):
+    """授权码绑定签发时的客户端：另一个客户端即便凭证正确、回调地址也照抄，也换不出令牌。"""
+    headers = await register_and_login(client)
+    code = _code_of(await authorize(client, headers))
+    r = await exchange_code(client, code, client_id="shop", secret="codemax-shop-secret")
+    assert r.status_code == 400 and r.json()["error"] == "invalid_grant"
+    assert (await exchange_code(client, code)).status_code == 200, "被拒的尝试不能消费掉授权码"
+
+
+async def test_code_of_a_user_disabled_after_issue_is_not_redeemable(client):
+    """后台禁用账号只改 status、不递增凭据版本，所以令牌端点的状态检查是唯一一道。"""
+    headers = await register_and_login(client, username="soon_disabled")
+    code = _code_of(await authorize(client, headers))
+    async with TestSession() as s:
+        await s.execute(update(User).where(User.username == "soon_disabled").values(status=0))
+        await s.commit()
+    r = await exchange_code(client, code)
+    assert r.status_code == 400 and r.json()["error"] == "invalid_grant"
+
+
+@pytest.mark.parametrize("change", ["credential_version", "status"])
+async def test_consent_submit_rechecks_the_locked_user_row(client, monkeypatch, change):
+    """鉴权依赖读到用户之后、锁住用户行之前，凭据版本或状态被并发修改（改密、禁用）：不签发授权码。"""
+    import app.routers.oauth as oauth
+
+    real_lock = oauth.lock_user
+
+    async def lock_after_concurrent_change(db, user_id):
+        user = await real_lock(db, user_id)
+        if change == "credential_version":
+            user.credential_version += 1
+        else:
+            user.status = 0
+        return user
+
+    headers = await register_and_login(client)
+    page = await consent_page(client, headers)
+    sig = page.text.split('name="sig" value="')[1].split('"')[0]
+    monkeypatch.setattr(oauth, "lock_user", lock_after_concurrent_change)
+    r = await client.post("/oauth/authorize", headers=headers, follow_redirects=False, data={
+        "client_id": "tools", "redirect_uri": TOOLS_CB, "state": "xyz", "sig": sig, "approve": "1"})
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "invalid_grant"
+    async with TestSession() as s:
+        assert (await s.scalars(select(OAuthCode))).first() is None
+
+
+async def test_consent_signature_is_bound_to_the_credential_revision(client):
+    """改密前渲染的同意页，改密重新登录后不能再提交：签名里带凭据版本。"""
+    headers = await register_and_login(client, username="rotator")
+    page = await consent_page(client, headers)
+    old_sig = page.text.split('name="sig" value="')[1].split('"')[0]
+    rp = await client.post("/auth/password", headers=headers,
+                           json={"old_password": "secret123", "new_password": "newsecret456"})
+    new_headers = {"Authorization": f"Bearer {rp.json()['access_token']}"}
+    r = await client.post("/oauth/authorize", headers=new_headers, follow_redirects=False, data={
+        "client_id": "tools", "redirect_uri": TOOLS_CB, "state": "xyz", "sig": old_sig, "approve": "1"})
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "invalid_request"
+
+
+@pytest.mark.parametrize("approve", ["", "yes", "true", "01"])
+async def test_only_the_exact_approve_value_issues_a_code(client, approve):
+    """只有 approve=1 算同意；其它任何值都按拒绝处理，而不是「不是 0 就同意」。"""
+    headers = await register_and_login(client)
+    r = await sso_authorize(client, headers, approve=approve)
+    assert r.status_code == 302 and "error=access_denied" in r.headers["location"]
+    assert "code=" not in r.headers["location"]
+
+
+async def test_only_the_code_response_type_is_supported(client):
+    headers = await register_and_login(client)
+    r = await client.get("/oauth/authorize", headers=headers, params={
+        "response_type": "token", "client_id": "tools", "redirect_uri": TOOLS_CB})
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "unsupported_response_type"
+
+
+@pytest.mark.parametrize("registered", [
+    "https://tools.codemax.top/callback#frag",
+    "https://user:pw@tools.codemax.top/callback",
+    "javascript://tools.codemax.top/callback",
+    "https://tools.codemax.top:99999/callback",
+    "https:///callback",
+])
+async def test_registered_redirect_uri_must_itself_be_safe(client, registered):
+    """客户端只能经数据库管理登记，登记时不校验回调地址；所以即便请求与登记值完全相等，
+    不安全的回调地址（片段、内嵌凭据、非 http(s)、非法端口、无主机）也必须拒绝。"""
+    await _set_client(redirect_uri=registered)
+    headers = await register_and_login(client)
+    r = await consent_page(client, headers, redirect_uri=registered)
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "invalid_redirect_uri"
+
+
+async def test_production_refuses_a_plain_http_redirect_even_if_registered(client, monkeypatch):
+    from app.config import settings
+
+    await _set_client(redirect_uri="http://tools.codemax.top/callback")
+    headers = await register_and_login(client)
+    monkeypatch.setattr(settings, "ENV", "production")
+    monkeypatch.setattr(settings, "OAUTH_TRUSTED_CLIENT_IDS", ("tools",))
+    r = await consent_page(client, headers, redirect_uri="http://tools.codemax.top/callback")
+    assert r.status_code == 400 and r.json()["detail"]["error"] == "invalid_redirect_uri"
+
+
+@pytest.mark.parametrize("client_id", ["to\x00ols", "t" * 65])
+async def test_malformed_client_id_is_an_invalid_client_on_both_endpoints(client, client_id):
+    """含 NUL 或超长的 client_id 直接判 invalid_client，不进数据库查询
+    （PostgreSQL 的文本参数不能含 NUL，否则驱动报错成 500）。"""
+    headers = await register_and_login(client)
+    page = await consent_page(client, headers, client_id=client_id)
+    assert page.status_code == 400 and page.json()["detail"]["error"] == "invalid_client"
+    r = await exchange_code(client, "whatever", client_id=client_id)
+    assert r.status_code == 400 and r.json()["error"] == "invalid_client"
