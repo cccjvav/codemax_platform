@@ -88,3 +88,13 @@
 
 过程记录：变异运行器在首次运行时因脚本错误把一个变异留在了 `shop.py`，整体超时又把一个留在了 `delivery.py`；两次都当场从 git 恢复，并改为「写入变异也放进 try/finally」。之后每批结束都核对 `git status --short app` 为空。
 
+## 2026-09-27：R-02 第四部分——退款服务层（TD-303）
+
+范围：`app/refunds.py`、`app/refund_requests.py`、`app/refund_submissions.py`、`app/refund_verification.py`。阅读中未发现生产代码错误。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-18 | 94 个变异中 44 个在全部退款测试下仍存活，12 个是真实测试缺口。最重要的是：**核验领取 CAS 的 `attempts` 条件**（另一个 worker 在 SELECT 与 UPDATE 之间完成一整轮时唯一的保护，此前没有用例）；原收款凭证比对元组的流水号与商户/应用；冻结请求体的回调长度与原流水号格式；冻结字节的摘要复核；同一发送请求 ID 换内容重放；配置不完整时不查询；已核验任务不能接管。 | 已补测试（TD-303），逐个在变异下失败；领取竞争用例在 SQLite 与本机 PG 上都抓到变异。 |
+| RR-19 | 另 32 个判为等价、路由层先拦、双层或不可能状态（理由逐项写在 TD-303）。附带发现：账本接口的 `refund_prepare_allowed` 不调用 `original_receipt`，账本不一致时提示「可准备」而服务端返回 409。 | 不补测试。提示项不改：服务端 fail-closed，正常流程下收款结算一致写入订单与凭证，不会出现这种状态。 |
+
+过程记录：全量复跑用两个独立 worktree 并行，每批结束核对 `git status --short app` 为空后删除 worktree。

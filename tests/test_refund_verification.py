@@ -17,7 +17,7 @@ from app import db_admin
 from app import refund_verification as queue
 from app.models import Order, PaymentEvent, RefundVerificationJob, User
 from app.routers import refund_notify
-from app.wechat_pay import query_full_refund
+from app.wechat_pay import WeChatPayError, query_full_refund
 from tests.conftest import TestSession
 from tests.test_db_admin import isolated_pg as isolated_pg
 from tests.test_db_admin import legacy_0016, rows
@@ -304,3 +304,45 @@ async def test_cancel_after_claim_leaves_recoverable_lease(client, refund_case, 
     assert (await jobs())[0].state == 'running'
     assert await queue.claim(TestSession) is None
     assert await refunds() == []
+
+
+# R-02 (TD-303): a matching merchant is not enough; incomplete signing or callback credentials never query.
+@pytest.mark.parametrize('change', [{'private_key': ''}, {'api_v3_key': 'k' * 31}])
+async def test_unusable_configuration_never_queries(client, refund_case, monkeypatch, change):
+    await setup(client, refund_case)
+    calls = []
+    async def record(*a, **k):
+        calls.append(k)
+        raise WeChatPayError('synthetic; must never be reached')
+    monkeypatch.setattr(queue, 'query_full_refund', record)
+    assert await queue.run_once(TestSession, replace(CFG, **change), enabled=True)
+    job = (await jobs())[0]
+    assert calls == [] and (job.state, job.attempts) == ('retry', 1)
+
+
+# R-02 (TD-303): another worker finished a whole claim cycle between our SELECT and CAS UPDATE; the job is
+# still due, so only the attempts guard stops a second claim that would reuse the same attempt number.
+async def test_claim_refuses_job_whose_attempt_moved_between_select_and_update(client, refund_case):
+    await setup(client, refund_case)
+    raced = []
+
+    def factory():
+        session = TestSession()
+        original = session.scalar
+
+        async def scalar(*args, **kwargs):
+            value = await original(*args, **kwargs)
+            if isinstance(value, RefundVerificationJob) and not raced:
+                raced.append(value.attempts)
+                async with TestSession() as other:
+                    await other.execute(update(RefundVerificationJob).values(attempts=RefundVerificationJob.attempts + 1))
+                    await other.commit()
+            return value
+
+        session.scalar = scalar
+        return session
+
+    assert await queue.claim(factory) is None and raced == [0]
+    job = (await jobs())[0]
+    assert (job.state, job.attempts) == ('pending', 1)
+    assert (await queue.claim(TestSession)).attempt == 2

@@ -11887,7 +11887,7 @@
     },
     {
       "path": "tests/test_refund_requests.py",
-      "sha256": "76441d9fefa51a3748d7c58fcced8d9c43a7eb711f1e5b912e10c41dbbe4e396",
+      "sha256": "9454b47080356963ff97f1a1813ed79fdb2ca41a5060d87f7246118aebb2370c",
       "method": "manual",
       "blocks": [
         {
@@ -12004,6 +12004,11 @@
           "end": 320,
           "title": "test_audit_failure_rolls_back_preparation_as_one_transaction",
           "explanation": "给PaymentEvent的before_insert临时挂故障，仅prepared事件抛OperationalError。准备行此前已经flush，但事件失败仍503且两表为空；finally移除监听再原body重试成功各一行。专门抓先提交准备再单独写事件的错误。"
+        },
+        {
+          "end": 332,
+          "title": "test_order_receipt_mismatch_cannot_prepare",
+          "explanation": "R-02（TD-303）。把订单的流水号或应用ID改成与收款凭证不一致，服务端准备必须409且不写记录：original_receipt 比对元组里每一项都起作用，而不只是状态与凭证存在。账本里的 refund_prepare_allowed 只是界面提示的近似判断，不在这里断言（见 RR-19）。"
         }
       ]
     },
@@ -12118,108 +12123,123 @@
     },
     {
       "path": "tests/test_refund_submissions.py",
-      "sha256": "9127c1f533b95f09af27b492febf6149c1da6d10b325f62df2e9940dd320925c",
+      "sha256": "5beed0578472bda13c4e89c1c4f329439ddfb8c85e38e37832db5a1d353943cc",
       "method": "manual",
       "blocks": [
         {
-          "end": 31,
+          "end": 33,
           "title": "装配与边界",
           "explanation": "引入既有ORM/原付款/固定JSON/事务与时间工具，定义授权、开始、观察及60秒冷却。没有导入即发送/后台队列；测试只用假配置、真正合成签名与可丢弃库。"
         },
         {
-          "end": 43,
+          "end": 45,
           "title": "isolated_sender",
           "explanation": "autouse固定假CFG、测试回调域名且发送默认关，把真实渠道函数替换成合成失败。特定测试再装签名MockTransport，不准偷偷落到真实资金接口。"
         },
         {
-          "end": 47,
+          "end": 49,
           "title": "post",
           "explanation": "通过实际ASGI路径/管理员身份发送给定动作和body；不绕过路由权限。"
         },
         {
-          "end": 62,
+          "end": 64,
           "title": "setup",
           "explanation": "合成真实本地已付微信单及第八批准备，构造独立授权body；客户reason与内部依据明确不同，ID为新UUID。"
         },
         {
-          "end": 72,
+          "end": 74,
           "title": "authorized",
           "explanation": "调用实际authorize并要求200，从返回冻结ID/摘要拼send确认体；不是绕过授权直接构造数据库行。"
         },
         {
-          "end": 106,
+          "end": 108,
           "title": "signed_sender",
           "explanation": "MockTransport内独立连接看到STARTED，并能更新同一管理员证明网络无用户锁；用既有公钥helper验真实POST方法/路径/最终字节签名。应答实际用合成平台RSA签名，记录调用数与正文；可注入坏合同/撤角色等。"
         },
         {
-          "end": 129,
+          "end": 131,
           "title": "test_authorization_is_separate_immutable_and_retryable",
           "explanation": "先真实授权，核客户reason/全额/固定回调，无发送尝试。改当前域名后精确重放保留首笔，改依据/理由/金额/key拒绝；隔离ORM库删audit后摘要仍变。分页不丢授权，下载不变，无成功凭证。"
         },
         {
-          "end": 148,
+          "end": 150,
           "title": "test_authorization_rejects_invalid_or_caller_owned_fields",
           "explanation": "七种输入：超UTF-8字节、控制/空白/首尾空白原因、客户端回调/币种、bool金额均422且无授权行。"
         },
         {
-          "end": 168,
+          "end": 170,
           "title": "test_send_default_off_and_preparation_alone_not_authority",
           "explanation": "开关开但只有准备不可发送；有独立授权但开关关仍409且无STARTED；普通用户和外来源不获权限。"
         },
         {
-          "end": 192,
+          "end": 194,
           "title": "test_signed_submission_is_observation_only_and_exact_attempt_never_resends",
           "explanation": "四种签名状态均accepted观察，验原冻结字节；关闭开关后同attempt读回、再开关也拒绝新attempt，渠道只一次。申请SUCCESS也不撤下载；随后独立签名查询才撤权，之后旧尝试仍可恢复。"
         },
         {
-          "end": 215,
+          "end": 217,
           "title": "test_unknown_retry_keeps_original_bytes_and_waits",
           "explanation": "真实验签HTTP500保守unknown，同attempt零重发；立即新尝试409。只在隔离ORM库把开始时间移到61秒前，再显式新尝试，两个请求body逐字节相同。"
         },
         {
-          "end": 228,
+          "end": 230,
           "title": "test_concurrent_sends_have_one_network_effect",
           "explanation": "同/不同attempt并发分别都200或200/409，但只有一次签名外部HTTP；不靠共享单连接模拟并发。"
         },
         {
-          "end": 252,
+          "end": 254,
           "title": "test_start_commit_failure_never_calls_network_and_replay_does_not_resend",
           "explanation": "注入flush失败与真commit后丢ACK，第一次均503/零外网。恢复后原key：前者可首次发送，后者只读unknown（不能证明原本未发送）。"
         },
         {
-          "end": 270,
+          "end": 272,
           "title": "test_finish_failure_keeps_unknown_and_never_repeats_attempt",
           "explanation": "OBSERVED插入前抛SQL故障，渠道已调用一次但响应503；原attempt恢复仍unknown且不再发。finally去监听，避免污染后续测试。"
         },
         {
-          "end": 287,
+          "end": 289,
           "title": "test_authorization_and_event_rollback_together",
           "explanation": "授权事件插入故障后503，授权表无半笔；移除监听原body重试200，抓先commit授权再写audit反例。"
         },
         {
-          "end": 295,
+          "end": 297,
           "title": "test_package_requires_authorization_migration",
           "explanation": "只打包到0012的临时迁移目录必须被manifest拒绝，避免新代码在缺0013包下假通过。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。"
         },
         {
-          "end": 349,
+          "end": 351,
           "title": "test_real_pg_authorization_contract_and_append_only",
           "explanation": "真实非超级用户隔离库退0012，种合成原收款/准备，再migrate到0013无回填；绑定参数写部分金额、错交易、超字节原因/非法回调都拒绝。合法正文可写且UPDATE/DELETE拒绝，保留原字节，再migrate不重放。 第十批历史基线构造先拆停止表/函数和0014账本，原测试升级/保留数据断言不放松。 降级迁移测试先移除0015任务表/函数/账本版本，再测试旧迁移；不修改已发布历史SQL，不降低原业务断言。 第十三批造旧基线前先拆0016的系统trigger/function/CHECK/FK列，恢复actor非空并删0016账本；仅限可丢弃夹具，不是业务回退方案。 首先调用legacy_0016恢复前版本唯一约束/插入函数，再拆16及更早结构；只造可丢弃历史夹具，不允许业务降级。"
         },
         {
-          "end": 376,
+          "end": 378,
           "title": "test_untrusted_result_or_revoked_actor_cannot_settle",
           "explanation": "坏签名/错合同均unknown；网络期间撤角色仍保留渠道accepted事实但后续操作403。三类均不生成成功凭证、不撤下载。"
         },
         {
-          "end": 402,
+          "end": 404,
           "title": "test_send_rechecks_permissions_merchant_digest_and_intervening_activity",
           "explanation": "改摘要/原退款号/金额/授权ID、换商户、锁时凭据版本变动均拒绝；追加通知后也拒绝，渠道调用总数零。"
         },
         {
-          "end": 407,
+          "end": 409,
           "title": "test_invalid_callback_never_authorizes",
           "explanation": "五种坏配置包含括号、凭据、路径、非法端口及HTTP，实际API409，不将不可用回调冻结进授权。"
+        },
+        {
+          "end": 428,
+          "title": "test_frozen_body_refuses_unusable_callback_or_transaction",
+          "explanation": "R-02（TD-303）。直接调用纯函数 build_body：回调地址超过256字节、主机名含下划线（只有正则拦得住）、原流水号含非法字符或超过32位，都抛 PaymentConflict；同时确认正常输入产出固定回调路径。路由层的五种坏来源都被其他条件先拦下，测不到这几项。"
+        },
+        {
+          "end": 437,
+          "title": "test_send_attempt_id_cannot_be_replayed_with_different_evidence",
+          "explanation": "R-02（TD-303）。同一个发送请求ID首发成功后，换一段依据再提交必须409，渠道只被调用一次；原有重放用例都用完全相同的内容。"
+        },
+        {
+          "end": 451,
+          "title": "test_tampered_frozen_body_is_neither_sent_nor_stopped",
+          "explanation": "R-02（TD-303）。测试库没有生产的冻结触发器，直接改写已授权请求体（摘要不变），发送与停止都必须409且不发请求：代码侧对冻结字节的摘要复核在起作用。"
         }
       ]
     },
@@ -12465,7 +12485,7 @@
     },
     {
       "path": "tests/test_refund_verification.py",
-      "sha256": "ed4ad7569a51f80a2b2a2f6e98aaec9b6292be6a0ce024e9727c830e33430925",
+      "sha256": "c99136ba72affe3df172dccc81c4b2f306ec1a2d29153027fdd2c6d21b24f4a0",
       "method": "manual",
       "blocks": [
         {
@@ -12567,6 +12587,16 @@
           "end": 306,
           "title": "test_cancel_after_claim_leaves_recoverable_lease",
           "explanation": "挂起GET后取消任务，CancelledError传播，running租约保留，未到期不能重领，不捏造资金结果。"
+        },
+        {
+          "end": 322,
+          "title": "test_unusable_configuration_never_queries",
+          "explanation": "R-02（TD-303）。商户与应用都匹配但签名私钥为空（configured 为假）或APIv3密钥只有31字节（回调配置不可用）时，核验不发查询，任务记为 retry 并消耗一次预算。"
+        },
+        {
+          "end": 348,
+          "title": "test_claim_refuses_job_whose_attempt_moved_between_select_and_update",
+          "explanation": "R-02（TD-303）。在 claim 的 SELECT 之后用独立会话把 attempts 加一，模拟另一个worker在两步之间完成了一整轮；任务仍是可领取状态，只有 CAS 里的 attempts 条件能让这次领取失败，避免重复使用同一个尝试序号。SQLite 与 PG 上都能区分。"
         }
       ]
     },
@@ -12589,7 +12619,7 @@
     },
     {
       "path": "tests/test_verification_controls.py",
-      "sha256": "584738aeee865b38178e618d11cf76a475ae5fa22c18a9e5fa87dc62aad30fbd",
+      "sha256": "2075e6b5304607a80fc62486f8f08b331e3480816c38949393c074893be93469",
       "method": "manual",
       "blocks": [
         {
@@ -12666,6 +12696,11 @@
           "end": 224,
           "title": "test_audit_failure_rolls_back_job_update",
           "explanation": "审计add失败时整个任务更新回滚为pending，不接受先commit状态再补日志；解除注入后原请求可成功。"
+        },
+        {
+          "end": 236,
+          "title": "test_verified_job_cannot_be_held",
+          "explanation": "R-02（TD-303）。已核验成功的任务不能被接管（409，状态仍是 verified），应走独立的管理员按原号查询。"
         }
       ]
     },

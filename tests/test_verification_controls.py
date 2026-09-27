@@ -222,3 +222,15 @@ async def test_audit_failure_rolls_back_job_update(client, refund_case, monkeypa
         assert (await post(client, admin, number, body)).status_code == 503
     assert (await jobs())[0].state == 'pending'
     assert (await post(client, admin, number, body)).status_code == 200
+
+
+# R-02 (TD-303): a verified job must go through the independent administrator query, not be held.
+async def test_verified_job_cannot_be_held(client, refund_case):
+    _, admin, _, _ = refund_case
+    number, _ = await setup(client, refund_case)
+    async with TestSession() as db:
+        await db.execute(update(RefundVerificationJob).values(state='verified', attempts=1))
+        await db.commit()
+    body = await proof(client, admin, number)
+    assert (await post(client, admin, number, body)).status_code == 409
+    assert (await jobs())[0].state == 'verified'

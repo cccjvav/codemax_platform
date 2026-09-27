@@ -116,10 +116,10 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_refund_health.py`](test_refund_health.py) | `b4a1020ba64d` | L1–L407 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `c54e0c7ac6aa` | L1–L302 |
-| [`tests/test_refund_requests.py`](test_refund_requests.py) | `76441d9fefa5` | L1–L320 |
+| [`tests/test_refund_requests.py`](test_refund_requests.py) | `9454b4708035` | L1–L332 |
 | [`tests/test_refund_stops.py`](test_refund_stops.py) | `d3e938dc54b7` | L1–L300 |
-| [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `9127c1f533b9` | L1–L407 |
-| [`tests/test_refund_verification.py`](test_refund_verification.py) | `ed4ad7569a51` | L1–L306 |
+| [`tests/test_refund_submissions.py`](test_refund_submissions.py) | `5beed0578472` | L1–L451 |
+| [`tests/test_refund_verification.py`](test_refund_verification.py) | `c99136ba72af` | L1–L348 |
 | [`tests/test_refunds.py`](test_refunds.py) | `835b910ba09b` | L1–L460 |
 | [`tests/test_release_boundaries.py`](test_release_boundaries.py) | `c37988b5e45d` | L1–L215 |
 | [`tests/test_request_body_budget.py`](test_request_body_budget.py) | `077979ed448c` | L1–L210 |
@@ -139,7 +139,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
 | [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `fe4aa93c190a` | L1–L605 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
-| [`tests/test_verification_controls.py`](test_verification_controls.py) | `584738aeee86` | L1–L224 |
+| [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `f50d6a23e17e` | L1–L548 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `455b17c78af6` | L1–L475 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |

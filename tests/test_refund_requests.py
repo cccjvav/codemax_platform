@@ -318,3 +318,15 @@ async def test_audit_failure_rolls_back_preparation_as_one_transaction(client, r
         event.remove(PaymentEvent, 'before_insert', fail_audit)
     assert (await prepare(client, admin, number, body)).status_code == 200
     assert len(await records()) == len(await audits()) == 1
+
+
+# R-02 (TD-303): every field of the original_receipt tuple is load-bearing, not just status/receipt presence.
+@pytest.mark.parametrize('field', ['transaction_id', 'app_id'])
+async def test_order_receipt_mismatch_cannot_prepare(client, refund_case, field):
+    _, admin, create, _ = refund_case
+    number = await create('wechat')
+    async with TestSession() as db:
+        await db.execute(update(Order).where(Order.order_no == number).values({field: 'TAMPERED'}))
+        await db.commit()
+    # The ledger hint is a lighter approximation; the server-side original_receipt tuple is authoritative.
+    assert (await prepare(client, admin, number, proof(number))).status_code == 409 and await records() == []

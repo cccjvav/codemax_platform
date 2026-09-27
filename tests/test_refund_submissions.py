@@ -4,6 +4,7 @@ import asyncio
 import json
 import uuid
 from datetime import datetime, timedelta, timezone
+from types import SimpleNamespace
 
 import httpx
 import psycopg2
@@ -16,6 +17,7 @@ from app import db_admin
 from app import refund_submissions as flow
 from app.config import settings
 from app.models import PaymentEvent, RefundAuthorization, RefundRequest, User
+from app.payment_ledger import PaymentConflict
 from app.routers import admin_common, refunds_admin
 from app.wechat_pay import WeChatPayError, submit_full_refund
 from tests.conftest import TestSession
@@ -405,3 +407,45 @@ async def test_invalid_callback_never_authorizes(client, refund_case, monkeypatc
     _, admin, number, body = await setup(client, refund_case)
     monkeypatch.setattr(settings, 'SITE_BASE_URL', origin)
     assert (await post(client, admin, number, 'authorize', body)).status_code == 409
+
+
+# R-02 (TD-303): build_body is pure; exercise the checks that the route-level origin cases never isolate.
+@pytest.mark.parametrize('origin,transaction_id', [
+    ('https://' + 'a' * 240 + '.test', '4200000000000000000000000001'),  # callback URL > 256 bytes
+    ('https://refund_example.test', '4200000000000000000000000001'),  # host outside [A-Za-z0-9.-]
+    ('https://refund.example.test', '42000000.0000001'),  # transaction id character set
+    ('https://refund.example.test', '4' * 33),  # transaction id length
+])
+def test_frozen_body_refuses_unusable_callback_or_transaction(origin, transaction_id):
+    receipt = SimpleNamespace(transaction_id=transaction_id, amount=19900)
+    prepared = SimpleNamespace(out_refund_no='CMR' + '0' * 32, amount=19900)
+    good = json.loads(flow.build_body(SimpleNamespace(transaction_id='4' * 32, amount=19900), prepared, '客户确认取消',
+                                      'https://refund.example.test'))
+    assert good['notify_url'] == 'https://refund.example.test/shop/refunds/notify'
+    with pytest.raises(PaymentConflict):
+        flow.build_body(receipt, prepared, '客户确认取消', origin)
+
+
+async def test_send_attempt_id_cannot_be_replayed_with_different_evidence(client, refund_case, monkeypatch):
+    _, admin, number, body, _ = await authorized(client, refund_case)
+    monkeypatch.setattr(settings, 'WX_REFUND_SEND_ENABLED', True)
+    calls = await signed_sender(monkeypatch, number, refund_case[3])
+    assert (await post(client, admin, number, 'send', body)).status_code == 200
+    assert (await post(client, admin, number, 'send', {**body, 'evidence': '换一种说法的依据'})).status_code == 409
+    assert len(calls) == 1
+
+
+@pytest.mark.parametrize('action', ['send', 'stop'])
+async def test_tampered_frozen_body_is_neither_sent_nor_stopped(client, refund_case, monkeypatch, action):
+    # Production PG freezes refund_authorization by trigger; the digest recheck is the code-side guard.
+    _, admin, number, body, _ = await authorized(client, refund_case)
+    monkeypatch.setattr(settings, 'WX_REFUND_SEND_ENABLED', True)
+    calls = await signed_sender(monkeypatch, number, refund_case[3])
+    async with TestSession() as db:
+        row = await db.scalar(select(RefundAuthorization))
+        row.body = row.body.replace('客户确认取消', '客户确认退款')
+        await db.commit()
+    if action == 'stop':
+        body = {**body, 'request_id': uuid.uuid4().hex, 'evidence': '核对发现停办，保留原记录'}
+    assert (await post(client, admin, number, action, body)).status_code == 409
+    assert calls == []
