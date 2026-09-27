@@ -59,13 +59,14 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 
 | 子命令 | 作用 | 限制 |
 | --- | --- | --- |
-| `check PATH...` | 用当前源码重新生成每个 guided 块的 AST 语句导读，与已提交的逐行比较 | 只读；手写块与旧模板写法也会被报告，是提示而非错误 |
+| `check PATH...` | 用当前源码重新生成每个 guided 块的 AST 语句导读，与已提交的逐行比较；块标题对应定义而行范围不含该定义时报「块边界错位」 | 只读；未登记的手写块会被报告；已 `confirm` 且源码未变的手写块单独计数 |
 | `remap PATH... [--base REV]` | 按 difflib 把段界与行首 `Lnn` 从 REV（默认 HEAD）映射到当前行号，末块收到 EOF，更新 sha256 | 只移动行号，不改说明文字；改动很大的函数仍要 `regen` 并人工复核 |
 | `regen PATH TITLE... [--note TEXT]` | 重写指定块的 AST 段，可向第一段追加说明 | 标题必须对应源码里的定义 |
-| `add PATH TITLE --head TEXT` / `drop PATH TITLE` | 新建函数块（拆分所在块）/ 删除块并入前一块 | 第一段由 `--head` 人工提供 |
+| `add PATH TITLE --head TEXT` / `drop PATH TITLE` | 新建函数块（拆分所在块；新定义在原块自己的定义之前时新块取前半段）/ 删除块并入前一块 | 第一段由 `--head` 人工提供 |
+| `confirm PATH TITLE --reason TEXT` | 把与生成结果不同的块登记为人工核对过的手写块（记下块源码行的 sha256 与原因） | 源码一变 `check` 重新报出，须复核后再 confirm 或 regen；`regen` 会去掉登记 |
 | `init PATH --heads FILE` | 为新文件建 guided 条目，每个定义一块 | heads JSON 缺哪块就报错列出，不代写功能契约 |
 
-写法模板沿用现有导读；没有模板的语句类型、写在 if/for/try/with 里的定义会抛 NotImplementedError，而不是猜写法或静默漏讲。当前对仓库里带 AST 段的块约 97% 逐行复现，其余是旧模板写法或手写块。写入后运行 `tests/test_code_reading.py`、`tests/test_code_reading_narrate.py` 和 `check_docs_contract.py --write`。
+写法模板沿用现有导读；没有模板的语句类型、写在 if/for/try/with 里的定义会抛 NotImplementedError，而不是猜写法或静默漏讲。R-04（TD-305）之后，仓库里所有 Python 导读的 AST 段都与生成结果逐行一致，或是登记过的手写块（目前 4 块，原因写在各块的 `reviewed.reason`）；`tests/test_code_reading_narrate.py` 对每个有导读的 .py 文件运行 `check`。赋值/return 右侧超过 430 字符的表达式截断为「…（完整表达式见右侧源码）」，字面 U+FFFD 写成转义。写入后运行 `tests/test_code_reading.py`、`tests/test_code_reading_narrate.py` 和 `check_docs_contract.py --write`。
 
 ### check_schema_pg.mjs
 
@@ -80,7 +81,7 @@ build_docs_site.main 在数据提取/渲染前以 require_complete=True 调用 b
 | [`scripts/check_docs_contract.py`](check_docs_contract.py) | `2cf72c0d91d0` | L1–L154 |
 | [`scripts/check_schema_pg.mjs`](check_schema_pg.mjs) | `0246b7b3475a` | L1–L68 |
 | [`scripts/code_reading.py`](code_reading.py) | `71d0e456d341` | L1–L134 |
-| [`scripts/code_reading_narrate.py`](code_reading_narrate.py) | `7c8d9b48289c` | L1–L602 |
+| [`scripts/code_reading_narrate.py`](code_reading_narrate.py) | `b896a80d4db9` | L1–L690 |
 | [`scripts/probe_llm.py`](probe_llm.py) | `0ae5958877a2` | L1–L100 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

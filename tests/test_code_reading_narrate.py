@@ -105,6 +105,57 @@ def test_nested_definitions_and_module_statements_are_assigned_like_the_notes():
     assert [ln.split(" ")[0] for ln in _lines(SAMPLE, "", 1, 6)] == ["L2", "L4"]
 
 
+def test_long_right_hand_sides_are_cut_but_standalone_calls_are_not():
+    """TD-305：既有导读把超过 430 字符的赋值/return 右侧截断，独立表达式语句保留全文。"""
+    big = "(" + ", ".join(f"'item{i:03d}'" for i in range(60)) + ")"
+    src = f"def f(xs):\n    t = {big}\n    xs.append({big})\n    return {big}\n"
+    got = _lines(src, "f", 1, 4)
+    text = ast.unparse(ast.parse(big, mode="eval").body)
+    assert len(text) > crn.EXPR_MAX
+    assert got[0] == f"L2 计算右侧并赋给 `t`：{text[:crn.EXPR_MAX]}{crn.EXPR_CUT}。"
+    assert got[1] == f"L3 调用 xs.append({text})。"
+    assert got[2] == f"L4 结束当前函数，返回 {text[:crn.EXPR_MAX]}{crn.EXPR_CUT}；不会自动commit未提交事务。"
+    short = _lines("def g():\n    return (1, 2)\n", "g", 1, 2)
+    assert crn.EXPR_CUT not in short[0]
+
+
+def test_multiline_literal_summary_needs_real_newlines_and_html_wins_over_script():
+    src = (
+        "def test_x():\n"
+        "    page = \"\"\"\n<html><script>var a = 1;</script></html>\n\"\"\"\n"
+        "    js = \"\"\"\nconst a = 1;\n\"\"\"\n"
+        "    blob = (\n        'AAAA'\n        'BBBB'\n    )\n"
+        "    one = 'a\\nb'\n"
+    )
+    got = _lines(src, "test_x", 1, 13, test=True)
+    assert got[0].startswith("L2 把HTML模板/测试输入多行字面量存入 `page`")
+    assert got[1].startswith("L5 把测试JavaScript多行字面量存入 `js`")
+    # 隐式拼接的长单行串（密文、DDL）没有换行，照常展示原文；单行里的 \n 转义也不算多行
+    assert got[2] == "L8 计算右侧并赋给 `blob`：'AAAABBBB'。"
+    assert got[3] == "L12 计算右侧并赋给 `one`：'a\\nb'。"
+
+
+def test_first_block_may_be_a_definition_when_the_file_has_no_module_statements():
+    f = {"blocks": [{"title": "register", "end": 3}, {"title": "login", "end": 6}]}
+    src = "async def register(c):\n    return 1\n\n\ndef login(c):\n    return 2\n"
+    assert crn._title_key(src, f, 0) == "register" and crn._title_key(src, f, 1) == "login"
+    f["blocks"][0]["title"] = "模块装配"
+    assert crn._title_key(src, f, 0) == ""
+
+
+def test_replacement_character_is_written_as_an_escape():
+    got = _lines("def f(s):\n    return '\ufffd' in s\n", "f", 1, 2)
+    assert "\ufffd" not in got[0]
+    assert got[0] == "L2 结束当前函数，返回 '\\uFFFD（Unicode替换字符）' in s；不会自动commit未提交事务。"
+
+
+def test_flush_and_client_send_get_their_notes():
+    src = "async def test_x(client, db):\n    await db.flush()\n    r = await client.send(req)\n"
+    got = _lines(src, "test_x", 1, 3, test=True)
+    assert got[0].startswith("L2 await 调用 db.flush()：向数据库发送当前更改但尚未提交")
+    assert f"client.send(req)：{crn.CLIENT_NOTE}" in got[1]
+
+
 @pytest.fixture
 def repo(tmp_path, monkeypatch):
     """一个临时 git 仓库：sample.py + 与之一致的 guided 导读，工具的 ROOT/NOTES 指向它。"""
@@ -167,13 +218,94 @@ def test_remap_add_regen_drop_keep_the_notes_valid_after_a_source_edit(repo, cap
     assert [b["title"] for b in _validate(repo)["blocks"]] == ["模块装配", "outer", "outer.inner", "fetch"]
 
 
-# 近期用本工具维护的文件：生成结果必须与已提交的导读逐行一致。若有意手写不同写法，从名单里移除并说明。
-MAINTAINED = [
-    "app/tools/support.py", "app/tools/crawler.py", "app/tools/browser.py", "app/middleware.py",
-    "tests/test_politeness.py", "tests/test_support.py",
-]
+def test_add_before_an_existing_definition_keeps_block_ranges_aligned(repo, capsys):
+    """TD-305：remap 把插在 fetch 之前的新函数并进了 fetch 块；add 必须让新块取前半段，而不是让
+    fetch 的标题留在只剩空行的前半段（修复前 check 仍通过，但块范围与定义错位，校验器报乱序）。"""
+    src = SAMPLE.replace("\n\nasync def fetch", "\n\ndef early():\n    return 0\n\n\nasync def fetch")
+    (repo / "sample.py").write_text(src, encoding="utf-8")
+    assert crn.main(["remap", "sample.py"]) == 0
+    assert crn.main(["add", "sample.py", "early", "--head", "功能契约：返回 0。"]) == 0
+    entry = _validate(repo)
+    ranges = {b["title"]: (b["start"], b["end"]) for b in entry["blocks"]}
+    assert ranges["early"][0] <= src.splitlines().index("def early():") + 1 < ranges["fetch"][0]
+    assert ranges["fetch"][0] <= src.splitlines().index("async def fetch(client, url, *, retries: int = 2):") + 1
+    capsys.readouterr()
+    assert crn.main(["check", "sample.py"]) == 0, capsys.readouterr().out
 
 
-@pytest.mark.parametrize("rel", MAINTAINED)
-def test_generator_reproduces_the_committed_notes_of_maintained_files(rel, capsys):
+def test_add_splits_a_hand_titled_block_without_a_definition(repo):
+    """块标题不是定义名（如 app/delivery.py 的「校验缓存的状态与两条边界」）时，add 照常取后半段。"""
+    notes_path = repo / "docs" / "code_reading_notes.json"
+    assert crn.main(["drop", "sample.py", "fetch"]) == 0  # fetch 并入 outer.inner 块
+    data = json.loads(notes_path.read_text(encoding="utf-8"))
+    data["files"][0]["blocks"][2]["title"] = "内层与取数据的手写说明"
+    notes_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    assert crn.main(["add", "sample.py", "fetch", "--head", "功能契约：取数据。"]) == 0
+    blocks = _validate(repo)["blocks"]
+    assert [b["title"] for b in blocks][-2:] == ["内层与取数据的手写说明", "fetch"]
+    assert blocks[-1]["start"] == SAMPLE.splitlines().index("async def fetch(client, url, *, retries: int = 2):") + 1
+    # 手写块从该定义行开始时，拆分会留下空块：拒绝
+    data = json.loads(notes_path.read_text(encoding="utf-8"))
+    data["files"][0]["blocks"][3]["title"] = "只讲取数据"
+    notes_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with pytest.raises(SystemExit, match="拆分后会变空"):
+        crn.main(["add", "sample.py", "fetch", "--head", "功能契约：取数据。"])
+
+
+def test_check_reports_a_block_whose_range_misses_its_definition(repo, capsys):
+    notes_path = repo / "docs" / "code_reading_notes.json"
+    data = json.loads(notes_path.read_text(encoding="utf-8"))
+    blocks = data["files"][0]["blocks"]
+    blocks[2]["end"] += 3  # outer.inner 吞掉 fetch 的 def 行：导读文本不变，只有边界错位
+    notes_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    capsys.readouterr()
+    assert crn.main(["check", "sample.py"]) == 1
+    assert "fetch: 块行范围" in capsys.readouterr().out
+
+
+def test_confirm_registers_a_hand_written_block_until_its_source_changes(repo, capsys):
+    notes_path = repo / "docs" / "code_reading_notes.json"
+
+    def edit_fetch_note(fn):
+        data = json.loads(notes_path.read_text(encoding="utf-8"))
+        block = next(b for b in data["files"][0]["blocks"] if b["title"] == "fetch")
+        fn(block)
+        notes_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+        return block
+
+    # 与生成结果一致的块不需要登记
+    with pytest.raises(SystemExit, match="无需 confirm"):
+        crn.main(["confirm", "sample.py", "fetch", "--reason", "x"])
+    edit_fetch_note(lambda b: b.update(explanation=b["explanation"].replace("返回 r；", "返回响应 r；")))
+    capsys.readouterr()
+    assert crn.main(["check", "sample.py"]) == 1
+    with pytest.raises(SystemExit, match="reason"):
+        crn.main(["confirm", "sample.py", "fetch", "--reason", "  "])
+    assert crn.main(["confirm", "sample.py", "fetch", "--reason", "手写更清楚"]) == 0
+    capsys.readouterr()
+    assert crn.main(["check", "sample.py"]) == 0
+    assert "1 个为已核对手写块" in capsys.readouterr().out
+    # 块的源码一变，登记失效，必须复核
+    (repo / "sample.py").write_text(SAMPLE.replace("r = await client.get(url)", "r = await client.get(url, timeout=3)"),
+                                    encoding="utf-8")
+    assert crn.main(["check", "sample.py"]) == 1
+    assert "人工核对后源码已变（原因：手写更清楚）" in capsys.readouterr().out
+    # regen 按生成结果重写并去掉登记
+    assert crn.main(["regen", "sample.py", "fetch"]) == 0
+    assert "reviewed" not in edit_fetch_note(lambda b: None)
+    assert crn.main(["check", "sample.py"]) == 0
+
+
+# R-04（TD-305）之后所有 Python 导读都与生成器一致；有意保留的手写块用 confirm 登记（见 TD-305）。
+# 改了源码却没更新导读、或手写块的源码变了没复核，这里会失败。
+NOTED_PY = [f["path"] for f in json.loads((ROOT / "docs" / "code_reading_notes.json").read_text(encoding="utf-8"))["files"]
+            if f["path"].endswith(".py")]
+
+
+def test_every_python_file_with_notes_is_checked():
+    assert len(NOTED_PY) > 100 and "app/tools/support.py" in NOTED_PY and "database init/db_init.py" in NOTED_PY
+
+
+@pytest.mark.parametrize("rel", NOTED_PY)
+def test_generator_reproduces_the_committed_notes(rel, capsys):
     assert crn.main(["check", rel]) == 0, capsys.readouterr().out

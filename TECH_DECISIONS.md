@@ -1333,3 +1333,34 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 人工智能：1 个用例。
 - Word 标题：1 个用例。
 - robots：同站不同写法只拉一次（旧代码上失败），另加 5 个 `_origin` 纯函数用例。
+
+## TD-305：R-04 导读与生成器全仓对齐——补回截断规则、修三处生成器缺陷、登记手写块、检查块边界
+
+**状态**：已实施（2026-09-27）。只改导读维护工具、它的测试和 `docs/code_reading_notes.json`；不改业务代码、接口或数据库，无新依赖。
+
+**背景**：R-04 登记了 19 个 `check` 报告的不一致块。逐块核对时发现，大部分不是导读过时，而是生成器与写出这些导读的旧脚本不一致；另外 R-04 名单之外还有 26 处。之前那次"全仓 check"是在 shell 里拼路径列表，`database init/db_init.py` 按空格被拆开，`entry("database")` 直接退出，排在它后面的约 40 个文件根本没有检查到（RR-22）。
+
+**生成器修正**（`scripts/code_reading_narrate.py`）：
+- **截断**：旧导读把超过 430 字符的赋值/return 右侧写成开头 430 字符加「…（完整表达式见右侧源码）」，独立表达式语句不截断。TD-291 把脚本放进仓库时漏了这条规则，导致 `check` 对每个长元组、长模板都报不一致，`regen` 又会把整段 HTML 模板抄进导读。现在补回（`EXPR_MAX`/`EXPR_CUT`、`Narrator.expr`）。R-04 第一批里按"全文"重写过的 build_docs_site 6 块和 test_auth_cookie 1 块，按新规则重写后与 HEAD 完全相同，说明它们原本就没有过时。
+- **多行字面量**：只有在源码里跨行且值里有换行符的字符串才写成「多行字面量存入…」摘要；隐式拼接的长单行串（密文、DDL）照常展示原文。以 `<` 开头的算 HTML，即使里面有 `<script>`（原来 BLOG_HTML 被标成「测试JavaScript」）。
+- **首块是定义**：`_title_key` 原先把第 0 块一律当作模块块。tests/test_auth.py 没有模块级语句，第一块就是 `register`，生成结果一直为空；现在第 0 块标题是定义名时按定义处理。
+- **U+FFFD**：文档契约拒收字面替换字符，旧导读写成「\uFFFD（Unicode替换字符）」；生成器现在按同样写法输出。
+- **附注**：`db.flush` 加入 `CALL_NOTES`，`client.send` 加入测试客户端写法（两者全仓各一处，旧导读已带这两条说明）。
+- **`add` 拆块方向**：新定义插在所在块自己的定义之前（remap 会把插入的行并进后面的块）时，原来仍让原块保留前半段，结果原块标题落在只剩空行的范围里、新块拿走原定义。现在新块取前半段。所在块是非定义标题的手写块时照常取后半段；该块从新定义的起始行开始、拆分后会变空时拒绝。
+
+**手写块登记**：新增 `confirm PATH TITLE --reason TEXT`。块上记录 `reviewed = {src_sha256, reason}`，其中 sha256 取块源码行。源码不变时 `check` 把它计为「已核对手写块」；源码一变就重新报出，要求复核后再 confirm 或 regen；`regen` 会去掉登记。目前登记 4 块：
+- build_docs_site `_render_graph_page`：循环体里的嵌套定义 `bkey` 生成器不支持。原手写版漏讲了 L780–782，已按生成器写法补上。
+- test_ui_accessibility `_luminance`：嵌套函数 `channel` 就地讲解，没有单独成块。
+- test_wechat_notify `test_notify_rejection_precedence_and_paid_time`：L467/L469 的手写说明更清楚。
+- test_llm_response_bounds `test_error_status_bodies_are_not_read_either`：and 链里的 `status_code == 429`，生成器只识别首项是状态码的写法。
+
+**块边界检查**：只比文本查不出边界错位，因为生成按标题找语句，不看范围。`check` 现在还要求：块标题对应定义时，块的行范围必须包含该定义的起始行。第一次运行就在已提交导读里发现 5 处错位，都是 `end` 比实际晚了 1–4 行：app/delivery.py 3 块、test_download 1 块、test_refund_verification 1 块。现在把前一块的 `end` 改到该定义的前一行，说明文字不变。
+
+**其余处理**：
+- 真正过时的只有两块，都已重写：test_ratelimit `_clean` 漏了 `register_daily_limiter.reset()`，test_auth_crypto 模块装配漏了 `from pathlib import Path`。
+- 其余差异是旧模板写法（逗号与顿号、摘要与原文），直接 regen。
+- 所有 regen 的块都用脚本对照 HEAD 确认第一段（人写的功能契约/准备条件）未变。
+
+**防回退**：`tests/test_code_reading_narrate.py` 的 `MAINTAINED`（原 6 个文件）扩展为导读里的全部 .py 文件（`NOTED_PY`，142 个），另有一个用例确认名单覆盖全仓，包括带空格的路径。新增测试覆盖截断、多行字面量、首块为定义、U+FFFD、flush/send 附注、`add` 插在原定义之前（旧工具上失败）、`add` 拆分手写标题的块、块边界错位与 `confirm` 流程。
+
+**代价**：以后改任何有导读的 Python 源码，不更新导读就会让这个测试失败。AGENTS.md 本来就要求同步，所以这只是把既有规则落实成检查。`check` 全仓约 7 秒。

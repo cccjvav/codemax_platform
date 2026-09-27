@@ -107,3 +107,13 @@
 |---|---|---|
 | RR-20 | 复看 diff 时发现两处自己引入的问题：新加的寒暄词「早上好」同样会被子串命中（「早上好几次都打不开」被判为寒暄）；app/tools/README 里 `state_for` 一行仍写「按 scheme/netloc 分组」，与新的站点键不符。 | 已修：带「早」的问候全部改为整句匹配并补反例；README 改为规范化站点键。 |
 | RR-21 | 顺带检查同类子串匹配：转人工关键词「人工」会命中「人工智能」（已在 TD-304 修复）；中文技术词「超时」「异常」会把「支付超时」这类平台问题判成专业问题。 | 后者不改：走站内文章检索，检索不到相关内容时照常转人工，风险可接受；理由写入 TD-304。 |
+
+## 2026-09-27：R-04（TD-305）的本轮复审
+
+范围：本批 diff（`scripts/code_reading_narrate.py`、其测试、`docs/code_reading_notes.json` 的 29 块）。所有 regen 的块都用脚本对照 HEAD 核对，第一段未变；全仓 `check` 退出码为 0（142 个文件，4 个登记手写块）。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-22 | 本轮起初的"全仓 check"是在 shell 里拼路径列表，`database init/db_init.py` 按空格被拆开，`check` 在 `entry("database")` 处退出，后面约 40 个文件没有检查到。按正确列表重跑后，又发现 1 处不一致（test_llm_response_bounds）。 | 测试改为在 Python 里从导读 JSON 取全部 .py 路径参数化（`NOTED_PY`），另加一个用例确认名单包含带空格的路径；test_llm_response_bounds 那块已核对并登记为手写块。 |
+| RR-23 | 只比文本查不出块边界错位：已提交导读里有 5 块的 `end` 晚了 1–4 行（app/delivery.py 3 块、test_download、test_refund_verification），`add` 在新定义插到原定义之前时也会造成错位。本轮我在同一文件上按 HEAD 重复 remap，行号被平移两次；新检查在提交前就报了出来，已按 HEAD 重建这两个条目。 | `check` 增加"块范围必须包含其定义"检查，修正 5 处错位与 `add` 的拆块方向，并补测试（`add` 用例在旧工具上失败）。 |
+

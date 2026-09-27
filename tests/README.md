@@ -72,7 +72,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_checkout_concurrency.py`](test_checkout_concurrency.py) | `f17b4b3efb10` | L1–L220 |
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `76bcfd71fc58` | L1–L206 |
-| [`tests/test_code_reading_narrate.py`](test_code_reading_narrate.py) | `ad3fdae15c96` | L1–L179 |
+| [`tests/test_code_reading_narrate.py`](test_code_reading_narrate.py) | `812387e137aa` | L1–L311 |
 | [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
 | [`tests/test_crawler.py`](test_crawler.py) | `52d674f20ecc` | L1–L373 |
 | [`tests/test_db_admin.py`](test_db_admin.py) | `be852d825d0d` | L1–L254 |
@@ -157,7 +157,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 
 ### 精读机制回归
 
-`test_code_reading_narrate.py`（TD-291）验证导读维护工具的机械部分：语句写法沿用现有模板、嵌套定义与模块级语句的块归属、在临时 git 仓库里 init/remap/regen/add/drop 之后导读仍通过完整校验，以及 `MAINTAINED` 名单内文件的导读与生成结果逐行一致。它同样不判定中文说明的语义。
+`test_code_reading_narrate.py`（TD-291）验证导读维护工具的机械部分：语句写法沿用现有模板、嵌套定义与模块级语句的块归属、在临时 git 仓库里 init/remap/regen/add/drop 之后导读仍通过完整校验，以及每个有导读的 .py 文件的 `check` 都通过（TD-305 起由 `MAINTAINED` 名单扩展到全仓；另测截断、多行字面量、U+FFFD 转义、首块为定义、`add` 插在原定义之前、块边界错位与 `confirm` 登记）。它同样不判定中文说明的语义。
 
 `test_code_reading.py` 用隔离文件验证分段连续性、旧指纹即使主清单刷新后仍失败、未知/重复文件、非法段界、漏尾、占位文字、生成/空文件不能冒充精读、未补项可见和输出转义。另验证 docs CLI 在数据模式也拒绝过期/缺失说明、未知method被拒、guided不冒充认证、唯一notes自引用例外不会扩散到其他JSON。
 它不会给解释内容自动判真；业务含义仍需对照源码和对应业务回归。当前全部测试文件都有分段讲解：首批消息测试为人工段落，其余为人工测试边界说明＋每个函数的AST语句/断言导读，不是只列测试名。Node脚本与FakeLLM等属于测试替身；真实模型/浏览器/商户仍独立验收。`test_docs_site` 新增两种CLI缺Mistune的执行级错误测试，不再用顶层无import推定完整数据模式零依赖。

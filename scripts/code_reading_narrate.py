@@ -7,15 +7,20 @@
 子命令（都只处理命令行点名的文件，不会整库重生成）：
 
 - `check PATH...`：用当前源码重新生成每个 guided 块的「AST语句导读」，与已提交的逐行比较，
-  报告不一致的块。只读。手写块、旧模板写法的块会被报告为不一致，这是提示而非错误。
+  报告不一致的块。只读。未登记的手写块、旧模板写法的块会被报告为不一致，这是提示而非错误；
+  用 `confirm` 登记过且源码未变的手写块单独计数。块标题对应定义、行范围却不含该定义时报「块边界错位」。
 - `remap PATH... [--base REV]`：源码改动后，按 difflib 把块的 `end` 与正文里的 `Lnn`
   从 `REV`（默认 HEAD）版本映射到当前行号，最后一块收到文件末尾，并更新 sha256。
   只移动行号，不改写任何说明文字。
 - `regen PATH TITLE... [--note TEXT]`：用当前源码重写指定块的 AST 语句导读；`--note` 会追加到
   块的第一段（功能契约）末尾。块原本没有 AST 段时会补上。
 - `add PATH TITLE --head TEXT`：为 TITLE 对应的函数新建块（从 def/装饰器行开始），
-  拆分它所在的原块。`--head` 是第一段（「功能契约：…」或测试的准备条件），必须由人来写。
+  拆分它所在的原块（新定义在原块自己的定义之前时，新块取前半段）。`--head` 是第一段
+  （「功能契约：…」或测试的准备条件），必须由人来写。
 - `drop PATH TITLE`：删除一个块，行范围并入前一块（函数被删除或合并时用）。
+- `confirm PATH TITLE --reason TEXT`：把一个与生成结果不同的块登记为「人工核对过的手写块」
+  （生成器不支持的嵌套定义、手写说明比生成的更准确等）。登记记下该块源码行的 sha256；源码不变时
+  `check` 不再把它报为不一致，源码一变就重新报出，必须人工复核后再 confirm 或 regen。
 - `init PATH --heads FILE`：为还没有导读的新文件建 guided 条目，每个定义一块；FILE 是
   `{标题: 第一段}` 的 JSON（模块块的键为 ""），缺哪块就报哪块，不会代写。
 
@@ -59,6 +64,7 @@ CALL_NOTES = {
     "db.commit": "提交当前事务，之后其他事务才可见已提交变化",
     "session.commit": "提交当前事务，之后其他事务才可见已提交变化",
     "db.refresh": "从数据库重读对象，不是提交",
+    "db.flush": "向数据库发送当前更改但尚未提交，可在这里触发约束错误",
     "db.add": "把ORM对象加入会话，尚未完成持久提交",
     "run_in_threadpool": "把同步工作转入线程池，不占事件循环执行长计算",
     "subprocess.run": "运行外部命令并等待，returncode是否检查要看后面的断言",
@@ -68,9 +74,12 @@ CALL_NOTES = {
     "db.execute": "执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定",
     "json.dumps": "序列化成JSON字符串，不自动发送HTTP或写文件",
 }
+# 赋值/return 右侧表达式超过 EXPR_MAX 字符时截断（与既有导读一致：长元组/模板字符串只讲开头）
+EXPR_MAX = 430
+EXPR_CUT = "…（完整表达式见右侧源码）"
 JS_RE = re.compile(r"\b(const|let|var|require|import|function)\b")
 CLIENT_NOTE = "通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接"
-CLIENT_RE = re.compile(r"^(client|ac|c|http|anon|api)\.(get|post|put|patch|delete|request|head|options)$")
+CLIENT_RE = re.compile(r"^(client|ac|c|http|anon|api)\.(get|post|put|patch|delete|request|head|options|send)$")
 
 
 # ------------------------------------------------------------------ 语句 → 导读行
@@ -93,15 +102,21 @@ class Narrator:
             return "：" + CLIENT_NOTE
         return ""
 
-    def rhs(self, v: ast.expr) -> str:
+    @staticmethod
+    def expr(v: ast.expr, cut: bool) -> str:
+        """表达式原文；cut=True（赋值/return 右侧）时过长的大段字面量/模板截断，导读不重抄右侧源码。"""
+        text = ast.unparse(v)
+        return text if not cut or len(text) <= EXPR_MAX else text[:EXPR_MAX] + EXPR_CUT
+
+    def rhs(self, v: ast.expr, cut: bool = True) -> str:
         if isinstance(v, ast.Await):
             inner = v.value
             note = self.call_note(inner) if isinstance(inner, ast.Call) else ""
-            text = ast.unparse(inner)
+            text = self.expr(inner, cut)
             return f"await 调用 {text}{note}{AWAIT_TAIL}" if isinstance(inner, ast.Call) else f"await {text}{AWAIT_TAIL}"
         if isinstance(v, ast.Call):
-            return f"调用 {ast.unparse(v)}{self.call_note(v)}"
-        return ast.unparse(v)
+            return f"调用 {self.expr(v, cut)}{self.call_note(v)}"
+        return self.expr(v, cut)
 
     @staticmethod
     def target(t: ast.expr) -> str:
@@ -113,7 +128,8 @@ class Narrator:
     def lines(self, stmts: list[ast.stmt]) -> list[str]:
         out: list[str] = []
         self._stmts(stmts, out)
-        return out
+        # 文档契约拒收字面 U+FFFD（乱码标志）：源码里检查替换字符的表达式改写成可读转义
+        return [line.replace("\ufffd", "\\uFFFD（Unicode替换字符）") for line in out]
 
     def _stmts(self, stmts, out, nested: bool = False):
         for s in stmts:
@@ -130,8 +146,10 @@ class Narrator:
         if isinstance(s, ast.Assign):
             v = s.value
             names = ", ".join(self.target(t) for t in s.targets)
-            if self.test and isinstance(v, ast.Constant) and isinstance(v.value, str) and v.end_lineno > v.lineno:
-                kind = "测试JavaScript" if JS_RE.search(v.value) else "HTML模板/测试输入"
+            if (self.test and isinstance(v, ast.Constant) and isinstance(v.value, str)
+                    and v.end_lineno > v.lineno and "\n" in v.value):  # 真正的多行文本；隐式拼接的长单行串照常展示
+                is_js = JS_RE.search(v.value) and not v.value.lstrip().startswith("<")  # HTML 里带 <script> 仍算 HTML
+                kind = "测试JavaScript" if is_js else "HTML模板/测试输入"
                 out.append(L + f"把{kind}多行字面量存入 `{names}`（{len(v.value)}字符）；此时只是数据，只有后面的执行/解析调用才运行。"
                            "完整内容见源码；不以这段字符串存在作为测试通过证据。")
             else:
@@ -219,7 +237,7 @@ class Narrator:
             elif isinstance(v, ast.Await) and not isinstance(v.value, ast.Call):
                 out.append(L + f"求值表达式 {ast.unparse(v)}；结果未被保存。")
             else:
-                out.append(L + self.rhs(v) + "。")
+                out.append(L + self.rhs(v, cut=False) + "。")  # 独立表达式语句不截断（既有导读如此）
         else:
             raise NotImplementedError(f"{type(s).__name__} at L{s.lineno}")
 
@@ -381,13 +399,25 @@ def narrator_for(rel: str, f: dict | None = None) -> Narrator:
     return Narrator(test=test, annotate=annotate)
 
 
-def _title_key(f: dict, i: int) -> str:
-    return "" if i == 0 else f["blocks"][i]["title"]
+def _title_key(src: str, f: dict, i: int) -> str:
+    """第 0 块通常是自由标题的模块级块（键 ""）；没有模块级语句的文件第 0 块直接就是某个定义。"""
+    title = f["blocks"][i]["title"]
+    return "" if i == 0 and title not in units(src)[0] else title
 
 
 def generated(rel: str, f: dict, i: int) -> list[str] | None:
-    stmts = block_stmts((ROOT / rel).read_text(encoding="utf-8"), _title_key(f, i), *block_range(f, i))
+    src = (ROOT / rel).read_text(encoding="utf-8")
+    stmts = block_stmts(src, _title_key(src, f, i), *block_range(f, i))
     return None if stmts is None else narrator_for(rel, f).lines(stmts)
+
+
+REVIEWED = "reviewed"  # 块字段：{"src_sha256": 块源码行的 sha256, "reason": 为什么保留手写}
+
+
+def block_source_sha(rel: str, f: dict, i: int) -> str:
+    lo, hi = block_range(f, i)
+    lines = (ROOT / rel).read_text(encoding="utf-8").splitlines()[lo - 1:hi]
+    return hashlib.sha256("\n".join(lines).encode("utf-8")).hexdigest()
 
 
 # ------------------------------------------------------------------ 子命令
@@ -398,15 +428,32 @@ def cmd_check(paths: list[str]) -> int:
     bad = 0
     for rel in paths:
         f = entry(data, rel)
-        ok = total = 0
+        ok = total = manual = 0
+        src = (ROOT / rel).read_text(encoding="utf-8")
+        defs = units(src)[0]
         for i, b in enumerate(f["blocks"]):
+            key = _title_key(src, f, i)
+            lo, hi = block_range(f, i)
+            if key and key in defs and not lo <= defs[key][0] <= hi:
+                bad += 1
+                print(f"  {rel} :: {b['title']}: 块行范围 L{lo}–L{hi} 不含其定义（L{defs[key][0]}），块边界错位")
             have = ast_section(b["explanation"])
             if have is None:
+                continue
+            reviewed = b.get(REVIEWED)
+            if reviewed is not None:
+                total += 1
+                if reviewed.get("src_sha256") == block_source_sha(rel, f, i):
+                    manual += 1
+                else:
+                    bad += 1
+                    print(f"  {rel} :: {b['title']}: 人工核对后源码已变（原因：{reviewed.get('reason', '')}），复核后重新 confirm 或 regen")
                 continue
             try:
                 want = generated(rel, f, i)
             except NotImplementedError as e:
                 total += 1
+                bad += 1
                 print(f"  {rel} :: {b['title']}: 生成器不支持 {e}")
                 continue
             if want is None:
@@ -420,7 +467,8 @@ def cmd_check(paths: list[str]) -> int:
                 print(f"  {rel} :: {b['title']}: 与当前源码生成结果不同")
                 for ln in diff[:6]:
                     print("      " + ln[:160])
-        print(f"{rel}: {ok}/{total} 个带 AST 段的块与生成结果一致")
+        extra = f"，{manual} 个为已核对手写块" if manual else ""
+        print(f"{rel}: {ok}/{total} 个带 AST 段的块与生成结果一致{extra}")
     return 1 if bad else 0
 
 
@@ -473,6 +521,7 @@ def cmd_regen(rel: str, titles: list[str], note: str | None) -> int:
             raise SystemExit(f"{rel} 的源码里找不到 {title}")
         b = f["blocks"][i]
         b["explanation"] = replace_section(b["explanation"], lines)
+        b.pop(REVIEWED, None)  # 已按生成结果重写，不再是手写块
         if note:
             head, sep, rest = b["explanation"].partition("\n\n")
             b["explanation"] = head + " " + note.strip() + sep + rest
@@ -537,15 +586,48 @@ def cmd_add(rel: str, title: str, head: str) -> int:
     start, node, _own = u[title]
     i = next(k for k, b in enumerate(f["blocks"]) if b["end"] >= start)
     prev = f["blocks"][i]
-    stmts = block_stmts(src, title, start, prev["end"])
-    new = {"end": prev["end"], "title": title, "explanation": compose(head, node, narrator_for(rel, f).lines(stmts))}
-    prev["end"] = start - 1
-    f["blocks"].insert(i + 1, new)
-    # 被拆分的原块只保留 start 之前的语句
+    key = _title_key(src, f, i)
+    own_start = u[key][0] if key in u else None  # 模块块（键 ""，起始 1）或非定义标题的手写块不会走前插分支
+    if own_start is not None and own_start > start:
+        # 新定义插在原块自己的定义之前（remap 把插入的行并进了后面的块）：
+        # 新块取原块开头到原定义前一行，原块从自己的定义开始，保留其后的语句
+        lo = block_range(f, i)[0]
+        stmts = block_stmts(src, title, lo, own_start - 1)
+        f["blocks"].insert(i, {"end": own_start - 1, "title": title,
+                               "explanation": compose(head, node, narrator_for(rel, f).lines(stmts))})
+        keep_lo, keep_hi = own_start, prev["end"]
+    else:
+        if start <= block_range(f, i)[0]:
+            raise SystemExit(f"{rel} 的块 {prev['title']!r} 从 {title} 的定义行开始，拆分后会变空；改块标题或用 regen")
+        stmts = block_stmts(src, title, start, prev["end"])
+        new = {"end": prev["end"], "title": title, "explanation": compose(head, node, narrator_for(rel, f).lines(stmts))}
+        prev["end"] = start - 1
+        f["blocks"].insert(i + 1, new)
+        keep_lo, keep_hi = 1, start - 1
+    # 被拆分的原块只保留仍在自己行范围里的语句
     if ast_section(prev["explanation"]) is not None:
-        prev_lines = [ln for ln in (ast_section(prev["explanation"]) or []) if int(ln.split(" ", 1)[0][1:]) < start]
+        prev_lines = [ln for ln in (ast_section(prev["explanation"]) or []) if keep_lo <= int(ln.split(" ", 1)[0][1:]) <= keep_hi]
         prev["explanation"] = replace_section(prev["explanation"], prev_lines)
     f["sha256"] = hashlib.sha256((ROOT / rel).read_bytes()).hexdigest()
+    save(data)
+    return 0
+
+
+def cmd_confirm(rel: str, title: str, reason: str) -> int:
+    data = load()
+    f = entry(data, rel)
+    i = _block_index(f, title)
+    b = f["blocks"][i]
+    if ast_section(b["explanation"]) is None:
+        raise SystemExit(f"{rel} :: {title} 没有 AST 语句导读，check 本来就不比较，无需 confirm")
+    try:
+        if generated(rel, f, i) == ast_section(b["explanation"]):
+            raise SystemExit(f"{rel} :: {title} 与生成结果一致，无需 confirm")
+    except NotImplementedError:
+        pass
+    if not reason.strip():
+        raise SystemExit("--reason 不能为空：写明为什么保留手写")
+    b[REVIEWED] = {"src_sha256": block_source_sha(rel, f, i), "reason": reason.strip()}
     save(data)
     return 0
 
@@ -581,6 +663,10 @@ def main(argv: list[str] | None = None) -> int:
     d = sub.add_parser("drop")
     d.add_argument("path")
     d.add_argument("title")
+    k = sub.add_parser("confirm")
+    k.add_argument("path")
+    k.add_argument("title")
+    k.add_argument("--reason", required=True)
     n = sub.add_parser("init")
     n.add_argument("path")
     n.add_argument("--heads", required=True)
@@ -593,6 +679,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_regen(ns.path, ns.titles, ns.note)
     if ns.cmd == "add":
         return cmd_add(ns.path, ns.title, ns.head)
+    if ns.cmd == "confirm":
+        return cmd_confirm(ns.path, ns.title, ns.reason)
     if ns.cmd == "init":
         return cmd_init(ns.path, ns.heads)
     return cmd_drop(ns.path, ns.title)
