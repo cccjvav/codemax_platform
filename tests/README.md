@@ -107,7 +107,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `d905dcad0de1` | L1–L602 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `a0993502354d` | L1–L618 |
 | [`tests/test_perf.py`](test_perf.py) | `4c839be0364b` | L1–L398 |
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
@@ -137,7 +137,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `94606e806042` | L1–L742 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `f55250993601` | L1–L797 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `f50d6a23e17e` | L1–L548 |
@@ -344,3 +344,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-28 截图复核后的界面整理（TD-306）
 
 `test_ui_accessibility.py` 末尾新增六条：textarea 默认正文字体且只有 `class="code"` 等宽（DDL 输入框点名、自然语言输入不点名、`support.css` 不再改字体）；统一控件规则用 `:where()`、不写字体、边框色 `--control-border` 在白底与 `#f8fafc` 上 ≥3:1；ER/类图按钮行在 `.form-actions` 里；商城订单号标题可换行；三个列表都用 `button.item` 并设/清 `aria-current`；Node 真跑客服页源码与产物（管理员未选会话时的标题、只有当前会话带 `aria-current` 且刷新后保留、消息时间「2026/09/28 09:49」、退出后游客按钮打开登录浮层）。改前的源码下这组用例会失败（标题、列表 class、时间格式都不同）；另把「中文时间」「刷新后保留标记」两处改回旧写法做过变异核对，用例随之变红。
+
+## 2026-09-28 R-06 界面小问题（TD-307）
+
+- `test_payments_frontend.py` 新增 `state-labels` 场景（源码与产物各一）：列表第一行全文、未知状态原样显示、合同区状态文字；渠道值 `constructor` 用来确认查表只认自有属性（把查表改成 `labels[code] !== undefined` 时用例变红）。
+- `test_ui_accessibility.py` 新增 `test_login_dialog_marks_the_current_tab`（Node 真跑 auth.js 源码与产物，打开与切换后 `aria-pressed` 和标题同步）与 `test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it`（渐隐与占位只在窄屏段）。

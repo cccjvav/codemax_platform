@@ -321,6 +321,15 @@ if(scenario.startsWith('close-')){
  const selected={detail:el('detail').hidden,hint:el('detail-hint').hidden};
  await auth.listener(null);await tick();
  console.log(JSON.stringify({before,selected,after:{detail:el('detail').hidden,hint:el('detail-hint').hidden}}));
+}else if(scenario==='state-labels'){
+ const row=(no,status,payment_mode)=>({order_no:no,username:'u',user_id:1,product_name:'P',amount:100,status,payment_mode});
+ impl=async(url)=>{
+  if(url.includes('/ledger')){const d=ledger('ORDER1');d.order.status='paid';d.order.payment_mode='constructor';return d}
+  return {orders:[row('ORDER1','pending','manual'),row('ORDER2','refunding','legacy')],next_cursor:null}};
+ start();await tick();
+ const rows=el('list').children.map(li=>li.children[0].textContent);
+ await clickOrder();
+ console.log(JSON.stringify({rows,contract:el('contract').textContent}));
 }else if(scenario==='lost-response'){
  start();await tick();await clickOrder();input();
  impl=async(url,opt)=>{if(opt.method==='POST'){paid=true;throw Error('response lost')}return ledger('ORDER1')};
@@ -336,7 +345,7 @@ if(scenario.startsWith('close-')){
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
                                      'mutation-account-race', 'lost-response', 'query', 'binding',
                                      'review-retry', 'review-stale', 'review-switch', 'review-filter',
-                                     'empty-list', 'detail-visibility'])
+                                     'empty-list', 'detail-visibility', 'state-labels'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
                             text=True, capture_output=True, check=True, timeout=20)
@@ -371,6 +380,13 @@ def test_workbench_browser_logic(folder, scenario):
         assert data['before'] == {'detail': True, 'hint': False}
         assert data['selected'] == {'detail': False, 'hint': True}
         assert data['after'] == {'detail': True, 'hint': False}
+    elif scenario == 'state-labels':
+        # TD-307：状态与渠道显示成「中文（原值）」，订单号单独一行；未列出的值原样显示。
+        # 'constructor' 是对象原型上的键：查表若不限自有属性，会显示出 Object 构造函数的源码。
+        first, second = data['rows']
+        assert first == 'ORDER1\nu (#1) · P · 100 分（¥1.00） · 待付款（pending） / 人工收款（manual）'
+        assert second.endswith(' · refunding / 历史合同（legacy）')
+        assert '状态：已付款（paid） / constructor\n' in data['contract']
     elif scenario == 'review-filter':
         assert 'bucket=reviewed' in data['urls'][1] and 'before=' not in data['urls'][1]
         assert 'before=100' in data['urls'][2]

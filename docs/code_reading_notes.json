@@ -369,7 +369,7 @@
     },
     {
       "path": "app/frontend/auth.js",
-      "sha256": "46a0279989531a9b67af3973faf30a14addde331c7642100d2db36f98d9a8c9e",
+      "sha256": "c0695653885cfc3ac0315c9811e4367eabf30cc3467a422ee81884f07385dae4",
       "blocks": [
         {
           "end": 35,
@@ -387,37 +387,37 @@
           "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。 TD-272：paint 额外同步 #admin-entry 的可见性（已登录且 role≠1 时隐藏）。这是导航整洁，不是权限：角色仍由服务端 require_admin 查库判断。 TD-272 追加：判定改为 `adminEntry.hidden = !(on && user.role === 1)` —— 入口默认隐藏，只有管理员才显示（页脚保留常驻入口）。 TD-273：notify 增加 reason 参数（默认 'sync'），sessionExpired 传 'expired' —— 订阅页据此区分「凭证过期」与「用户主动退出」，到期时不再清掉用户没提交的内容；只用一个参数的旧回调不受影响。 TD-280：#auth-who 现在是按钮（打开修改密码），paint 同时写 ariaLabel =「用户名（修改密码）」——可见文字仍包含在可访问名称里（WCAG 2.5.3）；user 为空（退出/到期）时顺手关掉改密浮层，它属于刚离开的账号。"
         },
         {
-          "end": 112,
+          "end": 117,
           "title": "登录浮层与事件绑定",
-          "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。 TD-263：open 记住 document.activeElement 为 opener；close 只在焦点仍在浮层内（或落回 body）时把焦点还给 opener，用户已点到别处就不抢；mask.onkeydown 捕获 Escape 关闭并 stopPropagation。ARIA 属性在 base.html。 （TD-278 段界重排：本段现为 L61–L96，含 setMode/open/close 与按钮、遮罩、Esc 绑定。） TD-280：焦点归还抽成 returnFocus(box, from)，登录与改密两个浮层共用同一条规则；本段只含登录浮层（setMode/open/close 与按钮、遮罩、Esc 绑定），改密浮层在下一段。"
+          "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。 TD-263：open 记住 document.activeElement 为 opener；close 只在焦点仍在浮层内（或落回 body）时把焦点还给 opener，用户已点到别处就不抢；mask.onkeydown 捕获 Escape 关闭并 stopPropagation。ARIA 属性在 base.html。 （TD-278 段界重排：本段现为 L61–L96，含 setMode/open/close 与按钮、遮罩、Esc 绑定。） TD-280：焦点归还抽成 returnFocus(box, from)，登录与改密两个浮层共用同一条规则；本段只含登录浮层（setMode/open/close 与按钮、遮罩、Esc 绑定），改密浮层在下一段。 TD-307：setMode 同时给 #tab-login / #tab-register 设 aria-pressed（当前为 true、另一个 false），base.html 按它高亮当前标签；可选调用 setAttribute，部分 Node 测试替身没有它。"
         },
         {
-          "end": 168,
+          "end": 173,
           "title": "修改密码浮层：前端先挡、401 交给到期处理",
           "explanation": "TD-280 / V-06：后端 POST /auth/password（TD-70）早就有，但整站没有入口。点顶栏用户名 → openPassword：未登录则改开登录浮层；清空三个密码框、把当前用户名填进隐藏的 username 字段（让密码管理器把新密码存到对的账号）、记住 opener 并聚焦原密码。closePassword 同样清空并按 returnFocus 归还焦点；遮罩点击与 Esc 与登录浮层一致。提交：两次不一致、新旧相同在前端拦下（服务端也会挡，前端先挡是为了不消耗改密限流额度）；原密码错是 400，显示服务端文案；401 只可能是会话本身到期，先关改密浮层再交给 sessionExpired；其余非 2xx 的 res.json() 容忍非 JSON。成功时服务端已吊销旧 token 并给本会话换新 cookie，所以不 refresh、用户快照不变；清空输入、提示其他设备需重新登录，取消按钮改为「关闭」并获焦。pwSubmit.disabled 防重复提交，finally 恢复。"
         },
         {
-          "end": 178,
+          "end": 183,
           "title": "退出为什么先等服务器",
           "explanation": "POST /auth/logout 成功后才清 user 并通知；seq 过期则丢弃响应。网络失败不能假装退出完成，显示错误让用户重试。credentials=same-origin 允许带同源 Cookie，但 JS 不读取 Cookie 内容。 （TD-278 段界重排：L97–L106 即 btnLogout.onclick 整个函数。）"
         },
         {
-          "end": 201,
+          "end": 206,
           "title": "表单提交的注册阶段",
           "explanation": "preventDefault 阻止浏览器整页表单导航；disabled 挡住重复点击，finally 会恢复按钮。注册用 application/json 和 JSON.stringify；失败兼容非 JSON 响应。成功注册只创建用户，所以接下来还要走登录，不是已经有会话。 （TD-278 复核段界：此前多次编辑后段界漂移，本段实际落在登录浮层/退出代码中间；已按函数边界重排为 L107–L129，只含表单入口与注册请求。）"
         },
         {
-          "end": 220,
+          "end": 225,
           "title": "登录阶段与异常恢复",
           "explanation": "登录用 application/x-www-form-urlencoded 和 URLSearchParams，与注册格式不同。成功后 refresh 查 /auth/me，再关浮层；不把返回 token 存 localStorage。网络错误显示提示，finally 恢复提交按钮。此处不是所有 await 都有独立的操作序号检查，不能泛称彻底消除了所有前端竞态。 TD-278：登录成功后先把 #auth-pass 清空再 refresh/close —— 浮层只是隐藏、DOM 还在，否则明文密码一直留在页面里，退出后再打开浮层还原样填着；用户名保留方便同一账号重登。"
         },
         {
-          "end": 236,
+          "end": 241,
           "title": "refresh 的序号防旧结果覆盖",
           "explanation": "每次调用增加 authSeq；非成功响应当未登录，成功 JSON 至少要有对象和 username。若更晚的认证动作已开始，则不写回旧 user。异常时只有当前序号可清本地状态，并重新抛给调用方处理。 （TD-278 段界重排：L149–L164 为 refresh 函数本体；首次调用与其兜底在下一段。）"
         },
         {
-          "end": 276,
+          "end": 281,
           "title": "启动检查、订阅与 getter",
           "explanation": "初次 refresh 的 rejection 有兜底提示。onChange 返回退订函数，调用方不必保留回调引用；getter 每次读取当前闭包里的 user。它返回可用状态接口，不是把页面永远绑定到第一次加载时的旧对象。 TD-270：新增 sessionExpired(status)——数据接口回 401 且本地仍有用户时清快照、paint/notify、弹登录浮层并写\"登录已过期\"；返回 true 表示已处理。各页在 401 处调用它。 TD-273：本块覆盖会期到期的处理与会话 API 的导出（notify 原因、sessionExpired、onChange 退订、user getter 与 refresh 的竞态序号）。 TD-273 追加：settled 在 refresh 的成功与失败两条路径上都置 true，并通过 getter 暴露给页面。"
         }
@@ -1897,7 +1897,7 @@
     },
     {
       "path": "app/templates/base.html",
-      "sha256": "a4043a423d1322a13ed0876d4d7180e0a53809faeb17f3674c663b4cd1fa5cde",
+      "sha256": "95808b92e7da01ea197a998754b3e3e127b2115833f3308e8766ba37ee6bcd80",
       "method": "manual",
       "blocks": [
         {
@@ -1906,22 +1906,22 @@
           "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。 TD-272：新增站点图标 link（/static/favicon.svg）—— 此前没有图标文件，浏览器对每个页面都会多打一次 /favicon.ico 并拿到 404。"
         },
         {
-          "end": 154,
+          "end": 162,
           "title": "全站 CSS：盒模型、导航和工具布局",
-          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。"
+          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。 TD-307：窄屏导航行加右缘 28px 渐隐（mask-image，含 -webkit- 前缀）与同宽 ::after 占位，提示还能横向滑动、滑到最右时最后一个链接不被遮；登录浮层当前标签 [aria-pressed=\"true\"] 浅蓝底、加粗、底部 3px 色条。"
         },
         {
-          "end": 180,
+          "end": 188,
           "title": "导航与可选身份控件",
           "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。 TD-272：管理员入口改为**默认 hidden**、只有 role===1 才由 auth.js 显示（页脚另有一个常驻入口，管理员登录前也找得到）；导航加 aria-label；正文前新增指向 #main 的跳过导航链接。隐藏只是导航整洁，权限仍由 require_admin 读库判断。 TD-278：「站内客服 / 管理员入口 / 商品」从 .actions 移进 nav（.nav-end 在桌面推到右侧，视觉与改版前一致；商品链接 .cta-link 绿色加粗），.actions 只剩登录态控件；nav aria-label 改为「站点导航」。窄屏据此变成两行：站点名 + 登录态 / 整组导航横向滚动。 TD-280：#auth-who 从 span 改为 type=button 的 ghost 按钮（aria-haspopup=dialog、title=修改密码），点它打开修改密码浮层。窄屏第一行只放得下站点名 + 两个控件，另加按钮会把站点名挤成省略号（390px 实测顶栏仍 88px）。"
         },
         {
-          "end": 243,
+          "end": 251,
           "title": "登录表单必须先于页面脚本",
           "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。 浮层容器带 role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\"（TD-263）；Esc 与焦点归还在 auth.js。 TD-280：登录浮层之后新增修改密码浮层 #pw-mask（同样 role=dialog/aria-modal，标题 #pw-title）：隐藏只读的 username 字段 + 原密码（current-password）+ 新密码/再输一次（new-password，minlength 6 / maxlength 64 与 PasswordChangeIn 一致）；#pw-error role=alert、#pw-done role=status。两个浮层都在 auth.js 之前，auth_ui 为假时都不输出。"
         },
         {
-          "end": 258,
+          "end": 266,
           "title": "模板插槽与页脚",
           "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。 TD-272：<main> 增加 id=main 作为跳过导航的落点；页脚导航补一个常驻的管理员入口，并同步获得窄屏命中区内边距。"
         }
@@ -9348,7 +9348,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "94606e8060429a6f6942545d49dafe7a74b20ad8188f1e0b188bf361250013d5",
+      "sha256": "f55250993601ca2cf472dd62404d3020337c6ddbc4b51b29247b0758442a5976",
       "method": "guided",
       "blocks": [
         {
@@ -9556,9 +9556,19 @@
           "explanation": "TD-306：三个列表（管理页订单、客服会话、我的订单）都用 button.item 并设/清 aria-current，管理页订单号单独一行。改前失败（都是实心主按钮、没有选中标记）。下方的 _SUPPORT_LIST_HARNESS 是下一条用例的 Node 桩：假元素记录属性，fetch 返回两条会话和一条消息。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL668 计算右侧并赋给 `style`：调用 _base_style()。\nL669 核对 `re.search('button\\\\.item \\\\{[^}]*background: #fff;[^}]*white-space: pre-line;', style)`：此条件为假即测试失败；不是生产输入校验。\nL670 核对 `'button.item[aria-current=\"true\"] {' in style`：此条件为假即测试失败；不是生产输入校验。\nL671 计算右侧并赋给 `frontend`：ROOT / 'app' / 'frontend'。\nL672 逐项遍历 `('payments-admin.js', 'support-page.js', 'shop-page.js')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL673 计算右侧并赋给 `js`：调用 (frontend / name).read_text(encoding='utf-8')。\nL674 核对 `'button.className = \"item\";' in js`：此条件为假即测试失败；不是生产输入校验。\nL675 核对 `'button.setAttribute?.(\"aria-current\", \"true\");' in js and 'removeAttribute?.(\"aria-current\")' in js`：此条件为假即测试失败；不是生产输入校验。\nL676 计算右侧并赋给 `admin`：调用 (frontend / 'payments-admin.js').read_text(encoding='utf-8')。\nL677 核对 `'button.textContent = `${row.order_no}\\\\n${row.username}' in admin`：此条件为假即测试失败；不是生产输入校验。\nL680 把测试JavaScript多行字面量存入 `_SUPPORT_LIST_HARNESS`（2441字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 742,
+          "end": 768,
           "title": "test_support_inbox_marks_the_open_conversation_and_formats_time_in_chinese",
-          "explanation": "TD-306：Node 真跑客服页源码与构建产物：管理员未选会话时标题提示选择；只有当前会话带 aria-current，刷新列表后仍保留；消息时间固定中文 24 小时制；退出后游客按钮打开登录浮层。改前失败（标题是「我的留言」、无 class/标记、时间跟随系统语言）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL729 计算右侧并赋给 `harness`：tmp_path / 'support-list.cjs'。\nL730 调用 harness.write_text(_SUPPORT_LIST_HARNESS, encoding='utf-8')。\nL731 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL732 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL733 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL735 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL736 核对 `result['initialTitle'] == '请先选择一个客户会话'`：此条件为假即测试失败；不是生产输入校验。\nL737 核对 `result['classes'] == ['item', 'item']`：此条件为假即测试失败；不是生产输入校验。\nL738 核对 `result['marks'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL739 核对 `result['afterRefresh'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL740 核对 `result['meta'] == '客户 · 2026/09/28 09:49'`：此条件为假即测试失败；不是生产输入校验。\nL741 核对 `result['guestTitle'] == '我的留言' and result['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL742 核对 `result['opened'] == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：Node 真跑客服页源码与构建产物：管理员未选会话时标题提示选择；只有当前会话带 aria-current，刷新列表后仍保留；消息时间固定中文 24 小时制；退出后游客按钮打开登录浮层。改前失败（标题是「我的留言」、无 class/标记、时间跟随系统语言）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL729 计算右侧并赋给 `harness`：tmp_path / 'support-list.cjs'。\nL730 调用 harness.write_text(_SUPPORT_LIST_HARNESS, encoding='utf-8')。\nL731 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL732 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL733 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL735 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL736 核对 `result['initialTitle'] == '请先选择一个客户会话'`：此条件为假即测试失败；不是生产输入校验。\nL737 核对 `result['classes'] == ['item', 'item']`：此条件为假即测试失败；不是生产输入校验。\nL738 核对 `result['marks'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL739 核对 `result['afterRefresh'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL740 核对 `result['meta'] == '客户 · 2026/09/28 09:49'`：此条件为假即测试失败；不是生产输入校验。\nL741 核对 `result['guestTitle'] == '我的留言' and result['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL742 核对 `result['opened'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL747 把测试JavaScript多行字面量存入 `_TABS_HARNESS`（1246字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 786,
+          "title": "test_login_dialog_marks_the_current_tab",
+          "explanation": "TD-307：Node 真跑 auth.js 源码与产物：open(\"register\") 与两次切换后，当前标签 aria-pressed=\"true\"、另一个 \"false\"，标题同步；base.html 有按它高亮的规则。改前失败（两个标签都没有 aria-pressed）。上方的 _TABS_HARNESS 是它的 Node 桩：假元素记录 setAttribute。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL774 计算右侧并赋给 `harness`：tmp_path / 'tabs.cjs'。\nL775 调用 harness.write_text(_TABS_HARNESS, encoding='utf-8')。\nL776 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL777 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL778 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL780 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL781 核对 `result['register'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL782 核对 `result['login'] == ['true', 'false', '登录']`：此条件为假即测试失败；不是生产输入校验。\nL783 核对 `result['back'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL784 核对 `'.modal .tabs button[aria-pressed=\"true\"] {' in _base_style()`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 797,
+          "title": "test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it",
+          "explanation": "TD-307：窄屏段里导航行有右缘 28px 渐隐（含 -webkit- 前缀）和同宽 ::after 占位，桌面段没有 mask-image。改前失败（没有渐隐）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL791 计算右侧并赋给 `style`：调用 _base_style()。\nL792 计算右侧并赋给 `mobile`：style.split('@media (max-width: 900px) {')[1].split('\\n      }\\n')[0]。\nL793 计算右侧并赋给 `fade`：'linear-gradient(to right, #000 calc(100% - 28px), transparent)'。\nL794 核对 `f'-webkit-mask-image: {fade};' in mobile and f'mask-image: {fade};' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL795 核对 `'header nav::after { content: \"\"; flex: 0 0 28px; }' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL796 计算右侧并赋给 `desktop`：调用 style.replace(mobile, '')。\nL797 核对 `'mask-image' not in desktop`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -10877,41 +10887,41 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "62e9dc58d5c2228e1d743e1f34df0b53217d0dbe6e35aba53db4ab96363b584b",
+      "sha256": "dc066728bce3dd3f1067d5fd20064b6a729459e8b61552b4f843ec8f62981fd9",
       "method": "manual",
       "blocks": [
         {
-          "end": 22,
+          "end": 29,
           "title": "状态与身份标签",
-          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pending[\"refund-request\"]。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pending[\"refund-authorize\"]/pending[\"refund-send\"]和原退款号/全额/客户reason；仍只有内存状态。 新增pending[\"refund-stop\"]，停止与发送不共用幂等key。 加入verificationJobs/pending[\"verification-control\"]及第十一类表单；手输任务ID属于公共清理字段。 第十四批增加第十二类refund-reauthorize表单及仅内存pending[\"refund-reauthorize\"]。 新增第十三类channel-close表单及channelClose/pending[\"channel-close\"]内存状态、close-amount输入。 TD-299：八个 pending 变量合并为一个按表单类型索引的 pending 对象；RESUMABLE 列出可「按原请求体恢复」的八类表单（manual/query/binding/两类退款核验不在其中）。"
+          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pending[\"refund-request\"]。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pending[\"refund-authorize\"]/pending[\"refund-send\"]和原退款号/全额/客户reason；仍只有内存状态。 新增pending[\"refund-stop\"]，停止与发送不共用幂等key。 加入verificationJobs/pending[\"verification-control\"]及第十一类表单；手输任务ID属于公共清理字段。 第十四批增加第十二类refund-reauthorize表单及仅内存pending[\"refund-reauthorize\"]。 新增第十三类channel-close表单及channelClose/pending[\"channel-close\"]内存状态、close-amount输入。 TD-299：八个 pending 变量合并为一个按表单类型索引的 pending 对象；RESUMABLE 列出可「按原请求体恢复」的八类表单（manual/query/binding/两类退款核验不在其中）。 TD-307：STATE_LABELS / MODE_LABELS 与 orderState(row) 把订单状态和收款渠道显示成「中文（原值）」；只查自有属性（hasOwnProperty.call），未列出的值原样显示，不猜含义。"
         },
         {
-          "end": 49,
+          "end": 56,
           "title": "清屏与旧会话隔离",
           "explanation": "clearDetail清currentRequest/pending[\"refund-request\"]/通知/复核/合同/凭证/金额和所有输入，禁用两个填号按钮并递增视图代次。reset另递增账号/列表代次、abort旧请求，普通用户隐藏工作区；不会因此撤销服务器已经提交的准备。 同时清授权/尝试/客户原因，新账号不继承待发送body；不能取消已发生网络。 清pending[\"refund-stop\"]与stop-view，不把前端清屏当网络取消。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 账户/选单变化清空任务列表、待确认控制、动作选择与最近控制文字。 同时清authorization-history与未知重新授权body，旧账号内容不得回填。 清除关单正文/金额/未知key，跨账号旧响应不得复活。 TD-278：clearDetail 同时隐藏 #finance-detail、显示 #finance-detail-hint（回到「请选择订单」提示）；reset 额外隐藏列表空状态段落。 TD-299：clearDetail 用一句 pending = {} 清空全部未知请求体，不再逐个置空；换单后回到原单也不会复用旧 request_id（submit-switch 场景）。"
         },
         {
-          "end": 63,
+          "end": 70,
           "title": "HTTP与错误归属",
           "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。"
         },
         {
-          "end": 97,
+          "end": 104,
           "title": "订单发现",
-          "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。 TD-278：空结果提示改写进列表外的 #finance-list-empty（role=status），不再往 <ul> 的 textContent 里写字 —— 那违反列表结构（axe-core `list`，serious，管理页实测命中）；每次列表刷新先隐藏它。 TD-306：列表按钮 className=\"item\"（base.html 的浅色列表行），文字是「订单号\\n其余信息」，靠 pre-line 分两行，仍只用 textContent；点击先清其他行的 aria-current 再标记本行（setAttribute/removeAttribute 可选调用，测试替身没有这两个方法）。"
+          "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。 TD-278：空结果提示改写进列表外的 #finance-list-empty（role=status），不再往 <ul> 的 textContent 里写字 —— 那违反列表结构（axe-core `list`，serious，管理页实测命中）；每次列表刷新先隐藏它。 TD-306：列表按钮 className=\"item\"（base.html 的浅色列表行），文字是「订单号\\n其余信息」，靠 pre-line 分两行，仍只用 textContent；点击先清其他行的 aria-current 再标记本行（setAttribute/removeAttribute 可选调用，测试替身没有这两个方法）。 TD-307：列表第二行的状态与渠道改用 orderState。"
         },
         {
-          "end": 164,
+          "end": 171,
           "title": "冻结合同与收款历史",
-          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 当前任务带snapshot供后续明确确认；latest_control为首次操作展示，匹配原pending key才清除待确认。控件仅当前列表有任务时显示，所有文本以textContent插入。 核验提示按AUTO_RECORD区分允许系统登记或仍待人工；不发POST，不证明worker在线。 成功凭证按recorded_by显示系统非管理员代办/真实人及verification_event_id，继续textContent不拼HTML，首次归属来自服务端而非客户端推断。 新history只用textContent显示有界版本/前版/正文/摘要/首次人/stop，读到原key才清未知请求；reauthorize_allowed只决定显示，非真实权限。 展示最新channel_close为纯文本，允许新动作或仍有pending[\"channel-close\"]时显示，不能把GET/状态变化当自动关单。 TD-278：detail 一开始就显示 #finance-detail、隐藏提示段落（选单前整块隐藏，见模板）。 TD-299：「GET 读到同一 request_id 才清除」统一为 settle(kind, id)；重新授权按历史列表里是否出现该 ID 判断，仍单独写。"
+          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 当前任务带snapshot供后续明确确认；latest_control为首次操作展示，匹配原pending key才清除待确认。控件仅当前列表有任务时显示，所有文本以textContent插入。 核验提示按AUTO_RECORD区分允许系统登记或仍待人工；不发POST，不证明worker在线。 成功凭证按recorded_by显示系统非管理员代办/真实人及verification_event_id，继续textContent不拼HTML，首次归属来自服务端而非客户端推断。 新history只用textContent显示有界版本/前版/正文/摘要/首次人/stop，读到原key才清未知请求；reauthorize_allowed只决定显示，非真实权限。 展示最新channel_close为纯文本，允许新动作或仍有pending[\"channel-close\"]时显示，不能把GET/状态变化当自动关单。 TD-278：detail 一开始就显示 #finance-detail、隐藏提示段落（选单前整块隐藏，见模板）。 TD-299：「GET 读到同一 request_id 才清除」统一为 settle(kind, id)；重新授权按历史列表里是否出现该 ID 判断，仍单独写。 TD-307：合同区「状态：」一行改用 orderState，与列表一致。"
         },
         {
-          "end": 316,
+          "end": 323,
           "title": "显式确认与不可取消的服务端边界",
           "explanation": "operate先核选单/可见/busy、手填单号及无C0/C1控制字符依据。十类显式操作中，refund-request要求全额安全整数与160字依据；未知pending[\"refund-request\"]不许改内容，重试整个原body含原request_id。确认后才保存pending并POST本地准备；成功清pending，失败保留并刷新。复核仍用快照/CAS与稳定nonce；两个退款核验仍按原流水/时间。账号/view变化丢弃结果，后端继续独立授权。 authorize/send另手输原CMR号/全额；reason按TextEncoder最多80字节。两个pending保留完整body阻止改未知请求，授权不连发send；发送确认明确真实转款。send重放键保留以读回；新尝试按钮另明确确认才清键。 stop分支手输原号/全额/单号，传原授权/摘要与停办依据；独立pending[\"refund-stop\"]保留未知body并拒绝修改，明确确认只停新本站尝试，POST只走stop而非send。 verification-control按手输任务ID匹配当前列表，确认框显示原退款号/只暂停此任务/不清零。未知请求保留原body/key/snapshot，修改动作/任务/依据拒绝；503不丢pending，409已知冲突才解除并让人刷新后重确认，成功只说动作已记录。不会POST退款或自动查询。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 reauthorize需原号/全额/客户原因、前版ID/摘要及独立确认；未知body/key冻结，不按新详情悄悄改内容，POST只到reauthorize而不调用send；成功仍须另行发送。 关单独立手动全额与原单确认；pending[\"channel-close\"]固定query/key/body，刷新新query不改旧命令，改未知依据拒绝；取消零POST，同key恢复只读提示。成功清pending再刷新但不自动查微信。 TD-299：确认后 RESUMABLE 内的类型一律 pending[kind] = body；成功后除 refund-send 外都删除（发送保留键，再点只读回同一尝试，submit-resend 场景守住）；成功提示从长三元表达式改为 DONE 查表，文案未变。"
         },
         {
-          "end": 341,
+          "end": 348,
           "title": "事件入口",
           "explanation": "request-prefill仅当前管理员/有效prepared/非busy/可见区时填查询号，不提交或代填依据。通知填号保持原规则。登录/查询/分页/刷新/十表单事件统一绑定；切账号重置后只为新管理员读取。 send-new-attempt只清内存发送key，不POST；隐藏/非管理员/busy不操作，服务器仍检查60秒和既有观察。 TD-299：send-new-attempt 改为 delete pending[\"refund-send\"]。"
         }
@@ -11177,71 +11187,71 @@
     },
     {
       "path": "tests/test_payments_frontend.py",
-      "sha256": "d905dcad0de1daedc86e9606b2dd2fac9c2f5c7cc118bc0d41c098d33f2d9dcf",
+      "sha256": "a0993502354dca3ad014506d374a4bee28e6eb2450f758100bfc84b1c39fe5fc",
       "method": "manual",
       "blocks": [
         {
-          "end": 333,
+          "end": 342,
           "title": "装配与验证边界",
-          "explanation": "Node VM构造可控DOM/认证/fetch并执行实际源码和bundle。新增prepare场景控制提交前未知、提交后丢ACK可读、改未知内容、取消、换账号后延迟应答及只填号；记录body、POST数量、可见性和提示。原通知/核验/复核/付款场景保留，不模拟真实浏览器布局/商户。 第九批VM加入TextEncoder与六种授权/发送场景；执行实际源码及bundle，不用字符串存在性代替行为。 新stop五场景使用真JS及TextEncoder/可控fetch，不造浏览器验收结论。 核验任务场景对照生产JS和bundle，检查只读文本、同号已有凭证提示、换账号清屏及迟到响应不回填，所有场景零POST。 control-*六种场景执行真实脚本：未知重试刷新了snapshot仍复用原body；改依据不再发；取消无POST；切账号迟到无残留；丢ACK读回首笔；409后重新确认使用新摘要。模拟DOM不是浏览器。 system-on/off/race装配系统凭证及事件123，检查无POST、开关文案、textContent与切账号丢迟到响应；用含script的纯文本actor检呈现，不执行HTML。 reapprove五场景构造已停止叶子/历史，模拟保存、丢应答、未知后改原因、隐藏和账号迟到；不调用真实浏览器。 close六场景执行保存/未知/改内容/禁止/取消/账号迟到；未知后模拟查询attempt变化，仍须原body重放。 TD-278：HARNESS 新增 empty-list（空结果只写进 #finance-list-empty、<ul> 保持无文字）与 detail-visibility（选单前/选单后/退出三个时刻的详情与提示显隐）两个场景。 TD-299：submit 组 HARNESS 增加 submit-resend（成功后再提交）与 submit-switch（丢应答→切单→回原单→重新填写提交）。"
+          "explanation": "Node VM构造可控DOM/认证/fetch并执行实际源码和bundle。新增prepare场景控制提交前未知、提交后丢ACK可读、改未知内容、取消、换账号后延迟应答及只填号；记录body、POST数量、可见性和提示。原通知/核验/复核/付款场景保留，不模拟真实浏览器布局/商户。 第九批VM加入TextEncoder与六种授权/发送场景；执行实际源码及bundle，不用字符串存在性代替行为。 新stop五场景使用真JS及TextEncoder/可控fetch，不造浏览器验收结论。 核验任务场景对照生产JS和bundle，检查只读文本、同号已有凭证提示、换账号清屏及迟到响应不回填，所有场景零POST。 control-*六种场景执行真实脚本：未知重试刷新了snapshot仍复用原body；改依据不再发；取消无POST；切账号迟到无残留；丢ACK读回首笔；409后重新确认使用新摘要。模拟DOM不是浏览器。 system-on/off/race装配系统凭证及事件123，检查无POST、开关文案、textContent与切账号丢迟到响应；用含script的纯文本actor检呈现，不执行HTML。 reapprove五场景构造已停止叶子/历史，模拟保存、丢应答、未知后改原因、隐藏和账号迟到；不调用真实浏览器。 close六场景执行保存/未知/改内容/禁止/取消/账号迟到；未知后模拟查询attempt变化，仍须原body重放。 TD-278：HARNESS 新增 empty-list（空结果只写进 #finance-list-empty、<ul> 保持无文字）与 detail-visibility（选单前/选单后/退出三个时刻的详情与提示显隐）两个场景。 TD-299：submit 组 HARNESS 增加 submit-resend（成功后再提交）与 submit-switch（丢应答→切单→回原单→重新填写提交）。 TD-307：新增 state-labels 场景：列表两行（已知与未知状态）和合同区的状态文字；渠道值 'constructor' 用来确认查表只认自有属性。"
         },
         {
-          "end": 392,
+          "end": 408,
           "title": "test_workbench_browser_logic",
-          "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。 TD-278：参数化加入 empty-list 与 detail-visibility，并分别断言精确结果；两者在改前的前端上都失败。"
+          "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。 TD-278：参数化加入 empty-list 与 detail-visibility，并分别断言精确结果；两者在改前的前端上都失败。 TD-307：state-labels 断言列表第一行全文（订单号单独一行、「待付款（pending） / 人工收款（manual）」），未知状态 refunding 原样显示，合同区「已付款（paid） / constructor」。"
         },
         {
-          "end": 399,
+          "end": 415,
           "title": "test_hidden_css_and_no_html_interpolation",
           "explanation": "静态补充检查强制hidden样式避免grid覆盖UA隐藏，并禁止管理脚本innerHTML和localStorage。主要行为仍由上方VM执行，不只做源码字符串存在性检查。"
         },
         {
-          "end": 410,
+          "end": 426,
           "title": "test_html_patterns_use_browser_unicode_sets",
           "explanation": "提取管理HTML的两个pattern，Node以浏览器使用的v标志真正构造完整匹配正则，再验证安全订单号和BANK斜线/连字符参考号能匹配、点路径与空格不匹配。旧普通JS字符类会SyntaxError，不能靠pattern字符串存在或VM不模拟表单校验而漏掉。未安装Node时明确skip，不声称浏览器通过。"
         },
         {
-          "end": 430,
+          "end": 446,
           "title": "test_refund_controls_in_actual_source_and_bundle",
           "explanation": "源码/提交bundle各跑退款人工、查询、已退款展示三个Node VM场景，取消不发POST、字段映射准确、切账号清敏感字段，退款依据按文本显示，已退人工表单隐藏。不代表浏览器或商户验收。"
         },
         {
-          "end": 443,
+          "end": 459,
           "title": "test_refund_notice_only_refills_and_never_submits_or_leaks",
           "explanation": "分别执行源码和bundle的全额通知/部分通知/迟到详情三种Node场景。断言展示明确非本地凭证、POST为零、确认号/依据未代填、账号切换后摘要和退款号清空；仅全额能填号，部分按钮禁用，标题回请选择订单。模拟DOM不验证CSS布局或真实商户。"
         },
         {
-          "end": 468,
+          "end": 484,
           "title": "test_preparation_ui_preserves_request_and_never_sends_money",
           "explanation": "两份实际JS各执行六场景：未知重试两个body完全相同/32位ID；丢ACK后GET隐藏表单不重发；改未确认内容拦截；取消零POST；换账号迟到结果不回填；填号不POST/不代填确认，另号成功则禁用。断言文本明确非发送授权，不冒充浏览器/商户验收。"
         },
         {
-          "end": 492,
+          "end": 508,
           "title": "test_explicit_submission_ui_is_not_automatic",
           "explanation": "源码/bundle六场景：发送/授权未知重试同完整body和32位key；开关关、取消及超字节原因零POST；换账号后旧应答不回填。所有场景敏感字段清空，不冒充真实浏览器/商户验收。 TD-299 补两个场景：submit-resend 发送成功后再点，两次请求体完全相同（同 request_id，服务端只读回，不会第二次转款）；submit-switch 第一次丢应答后切到别单再回来，第二次必须换新 request_id、其余字段不变。两者在重构前后的源码上都通过；把「成功后保留发送键」或「清屏清空 pending」去掉时分别失败。"
         },
         {
-          "end": 525,
+          "end": 541,
           "title": "停止发送与只读任务展示回归",
           "explanation": "源码/bundle五场景：未知同body重试，改未知依据不发第二次，取消零POST，账号迟到清屏，丢ACK后GET隐藏发送及停止。所有POST必须stop路径，绝不能误发真实send；不替代浏览器验收。 同段后续核验展示三场景另验证原退款号/结果用文本呈现、最多50条截断提示、已有成功凭证标签与换账号迟到清空；只读展示零POST。"
         },
         {
-          "end": 546,
+          "end": 562,
           "title": "test_verification_control_immutable_unknown_request_and_account_isolation",
           "explanation": "源码和bundle分别执行六种控制场景，断言唯一控制端点、确认边界、取消无POST、原key/body恢复、409新摘要及账号清空。"
         },
         {
-          "end": 561,
+          "end": 577,
           "title": "test_system_receipt_identity_and_authority_display",
           "explanation": "源码/bundle×开关开/关/迟到六场景，断言零POST及清屏；正常显示系统非管理员代办、首笔actor文本与事件123；迟到不填旧详情。Node VM不是浏览器签收。"
         },
         {
-          "end": 583,
+          "end": 599,
           "title": "test_reauthorization_ui_frozen_unknown_and_no_automatic_send",
           "explanation": "源码/bundle各五场景。保存只POST reauthorize且确认文案不发送，未知重试body/key逐字相同，改原因不发第二次；禁止/迟到零POST且历史/输入清空。纯文本script样例不执行HTML。"
         },
         {
-          "end": 602,
+          "end": 618,
           "title": "test_channel_close_explicit_unknown_frozen_and_account_isolation",
           "explanation": "源码和提交bundle各六场景，共12；禁止/取消/迟到零POST，账户清空；正常仅close-channel，unknown两次body/key/query逐字相等，变更依据不发第二次。纯文本script不当HTML，弹窗明确不是退款。"
         }

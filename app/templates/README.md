@@ -25,7 +25,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `a4043a423d13` | L1–L258 |
+| [`app/templates/base.html`](base.html) | `95808b92e7da` | L1–L266 |
 | [`app/templates/drawio.html`](drawio.html) | `c47bd70936d8` | L1–L47 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
@@ -154,3 +154,9 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 - **客服页**：游客提示 `#support-login` 旁加「登录 / 注册」按钮 `#support-login-btn`（原来只有一句话，要自己去顶栏找）。
 
 截图时注入的 Noto Sans SC 以 "Microsoft YaHei" 名义声明，并把雅黑排在 `system-ui` 之前（这台无头 Chromium 里 `system-ui` 在前时中文整段空白，属于截图环境问题，站点字体栈未改）。回归见 `tests/test_ui_accessibility.py` 末尾 TD-306 一组。
+
+## 2026-09-28 R-06 三项界面小问题（TD-307）
+
+- **登录浮层当前标签**：`.modal .tabs button[aria-pressed="true"]` 浅蓝底、加粗、底部 3px 色条；`aria-pressed` 由 `auth.js` 的 `setMode` 设置。原来「登录 / 注册」两个标签外观相同。
+- **手机导航可滚动提示**：900px 以下导航行加右缘 28px 渐隐（`mask-image`，含 `-webkit-` 前缀），末尾 `header nav::after` 占同宽，滑到最右时最后一个链接完整可读。原有 `header nav { grid-column … }` 规则未动；旧内核不支持 mask 时只是没有渐隐。
+- 管理页状态文字见 `app/frontend/README.md` 同日一节。

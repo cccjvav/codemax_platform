@@ -25,7 +25,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/architecture-7GRP2DOG.js`](js/architecture-7GRP2DOG.js) | `509d093d6593` | 生成物，见模块构建说明 |
 | [`app/static/js/architectureDiagram-5GKGNRK7.js`](js/architectureDiagram-5GKGNRK7.js) | `d662d68bd83b` | 生成物，见模块构建说明 |
 | [`app/static/js/array.js`](js/array.js) | `63126646dbf6` | 生成物，见模块构建说明 |
-| [`app/static/js/auth.js`](js/auth.js) | `c1872e5784d3` | 生成物，见模块构建说明 |
+| [`app/static/js/auth.js`](js/auth.js) | `966a7f77efae` | 生成物，见模块构建说明 |
 | [`app/static/js/blockDiagram-I7D4REHJ.js`](js/blockDiagram-I7D4REHJ.js) | `306f38f17142` | 生成物，见模块构建说明 |
 | [`app/static/js/c4Diagram-7LVT6UL2.js`](js/c4Diagram-7LVT6UL2.js) | `3c7c024dd767` | 生成物，见模块构建说明 |
 | [`app/static/js/channel.js`](js/channel.js) | `d881e73b015d` | 生成物，见模块构建说明 |
@@ -93,7 +93,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `a14219a2e586` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `04cb12a3656d` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `81e9d6cff794` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `bc6c0614a828` | 生成物，见模块构建说明 |
@@ -187,3 +187,7 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 
 - `support.css`：`#support-body`、`#support-ask-text` 不再单独写 `font-family: inherit` —— base.html 起 textarea 默认就是正文字体，这里只保留 1.6 行高；会话列表按钮的宽度/对齐交给 base.html 的 `button.item`，这里只留上间距；新增 `.support-login`（游客提示与登录按钮同一行，窄屏换行）。
 - `js/payments-admin.js`、`js/shop-page.js`、`js/support-page.js` 由 `npm run build` 从对应源码重建（列表行 class、`aria-current`、客服消息中文时间）。
+
+## 2026-09-28 重建（TD-307）
+
+- `js/auth.js`、`js/payments-admin.js` 由 `npm run build` 从源码重建（登录标签 `aria-pressed`、管理页状态中文标签）。

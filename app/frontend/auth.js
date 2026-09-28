@@ -73,6 +73,11 @@ window.CodeMaxAuth = (function () {
 
   function setMode(m) {
     mode = m;
+    // 当前标签要看得出来（TD-307）：两个标签原来外观相同，只能靠下面的标题判断。
+    // aria-pressed 同时供读屏与 CSS 使用；可选调用：部分 Node 测试替身没有 setAttribute。
+    for (const [id, on] of [["tab-login", m === "login"], ["tab-register", m !== "login"]]) {
+      document.getElementById(id).setAttribute?.("aria-pressed", String(on));
+    }
     title.textContent = m === "login" ? "登录" : "注册新账号";
     submit.textContent = m === "login" ? "登录" : "注册";
     hint.hidden = m !== "register";

@@ -15,6 +15,13 @@
   const nonce = () => globalThis.crypto?.randomUUID ? globalThis.crypto.randomUUID().replaceAll("-", "") : Array.from({length: 16}, () => Math.floor(Math.random() * 256).toString(16).padStart(2, "0")).join("");
   const inputs = ["order-no", "confirm-no", "evidence", "reference", "amount", "source", "refund-no", "refund-reference", "refund-amount", "refund-time", "request-amount", "send-number", "send-amount", "customer-reason", "verify-job", "close-amount"];
   const money = (cents) => `${cents} 分（¥${(cents / 100).toFixed(2)}）`;
+  // 订单状态与收款渠道显示成「中文（原值）」（TD-307）：原来列表和合同区只有 pending / manual 这样的原值；
+  // 原值保留在括号里，便于与日志、数据库和文档对照。取值见 app/order_state.py 的 STATES 与
+  // payments_admin 的 payment_mode（空值按 legacy 返回）；未列出的值原样显示，不猜含义。
+  const STATE_LABELS = { pending: "待付款", paid: "已付款", downloaded: "已下载", closed: "已关闭" };
+  const MODE_LABELS = { wechat: "微信支付", manual: "人工收款", mock: "模拟收银台", legacy: "历史合同" };
+  const labelled = (labels, code) => Object.prototype.hasOwnProperty.call(labels, code) ? `${labels[code]}（${code}）` : String(code ?? "");
+  const orderState = (row) => `${labelled(STATE_LABELS, row.status)} / ${labelled(MODE_LABELS, row.payment_mode)}`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
   const message = (text) => { el("message").textContent = text; };
   const ledgerURL = (number) => `/shop/admin/orders/${encodeURIComponent(number)}/ledger`;
@@ -77,7 +84,7 @@
         const li = document.createElement("li"), button = document.createElement("button");
         // 列表行（TD-306）：订单号单独一行，其余信息第二行（button.item 是 pre-line）；选中项标 aria-current
         button.type = "button"; button.className = "item";
-        button.textContent = `${row.order_no}\n${row.username} (#${row.user_id}) · ${row.product_name} · ${money(row.amount)} · ${row.status} / ${row.payment_mode}`;
+        button.textContent = `${row.order_no}\n${row.username} (#${row.user_id}) · ${row.product_name} · ${money(row.amount)} · ${orderState(row)}`;
         button.onclick = () => {
           if (busy) { message("请先等待当前操作完成；离开页面不会撤销已提交操作。"); return; }
           for (const item of el("list").children || []) item.children?.[0]?.removeAttribute?.("aria-current");
@@ -110,7 +117,7 @@
       el("review-status").textContent = review ? `${labels[review.state]}${review.new_facts ? "；有新进展或记录需重新核对" : ""}\n异常记录 ${review.issues}；超时无结果尝试 ${review.orphans}\n${review.actor || "尚无复核人"} · ${review.time || ""}\n${review.note || ""}` : "复核状态未加载";
       el("review").hidden = !review;
       el("title").textContent = `订单 ${number}`;
-      el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${contract.status} / ${contract.payment_mode}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;
+      el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${orderState(contract)}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;
       channelClose = data.channel_close || null;
       el("channel-close-view").textContent = channelClose ? `${channelClose.enabled ? "渠道关单门禁已开" : "渠道关单默认关闭"} · 本地closed不等于微信已关闭\n${channelClose.latest ? JSON.stringify(channelClose.latest) : "尚无渠道关单尝试"}\n须先独立查原单，最新可信NOTPAY有效5分钟；未知不能当未付款，204也不替代后续查单。` : "渠道关单状态未加载";
       el("channel-close").hidden = !channelClose?.allowed && !pending["channel-close"];

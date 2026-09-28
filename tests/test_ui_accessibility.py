@@ -740,3 +740,58 @@ def test_support_inbox_marks_the_open_conversation_and_formats_time_in_chinese(t
     assert result["meta"] == "客户 · 2026/09/28 09:49", result
     assert result["guestTitle"] == "我的留言" and result["loginHidden"] is False, result
     assert result["opened"] == 1, result
+
+
+# ---------------------------------------------------------------- TD-307：R-06 三项界面小问题
+
+_TABS_HARNESS = r"""
+const path = process.argv[2];
+const els = {};
+const mkEl = (id) => { const attrs = {}; return { id, attrs, value: "", textContent: "", hidden: false, disabled: false,
+  classList: { add() {}, remove() {}, contains() { return false; } }, setAttribute(k, v) { attrs[k] = String(v); },
+  focus() {}, contains() { return false; }, addEventListener() {}, appendChild() {}, click() {} }; };
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t), activeElement: null, body: mkEl("body") };
+global.window = global; global.addEventListener = () => {};
+global.fetch = async () => ({ ok: false, status: 401, json: async () => ({}) });
+require(path);
+(async () => {
+  await new Promise((r) => setImmediate(r));
+  const get = (id) => global.document.getElementById(id);
+  const state = () => [get("tab-login").attrs["aria-pressed"], get("tab-register").attrs["aria-pressed"], get("auth-title").textContent];
+  global.CodeMaxAuth.open("register"); const register = state();
+  get("tab-login").onclick(); const login = state();
+  get("tab-register").onclick(); const back = state();
+  console.log(JSON.stringify({ register, login, back }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/auth.js", "app/static/js/auth.js"])
+def test_login_dialog_marks_the_current_tab(tmp_path, path):
+    """登录浮层的「登录 / 注册」两个标签原来外观相同，只能看下面的标题判断当前模式（RR-25 ①）。
+    setMode 给当前标签 aria-pressed="true"、另一个 "false"，CSS 按它高亮；打开与切换都要同步。"""
+    harness = tmp_path / "tabs.cjs"
+    harness.write_text(_TABS_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    result = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result["register"] == ["false", "true", "注册新账号"], result
+    assert result["login"] == ["true", "false", "登录"], result
+    assert result["back"] == ["false", "true", "注册新账号"], result
+    assert '.modal .tabs button[aria-pressed="true"] {' in _base_style()
+
+
+def test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it():
+    """390px 下「站内客服」「毕设服务」在导航行右侧之外，原来看不出还能滑（RR-25 ③）。
+    右缘 28px 渐隐作提示；末尾同宽的 ::after 占位让滑到最右时最后一个链接离开渐隐区。
+    两条都只在窄屏段里，桌面导航不渐隐；原有的 `header nav { grid-column … }` 规则保持不变。"""
+    style = _base_style()
+    mobile = style.split("@media (max-width: 900px) {")[1].split("\n      }\n")[0]
+    fade = "linear-gradient(to right, #000 calc(100% - 28px), transparent)"
+    assert f"-webkit-mask-image: {fade};" in mobile and f"mask-image: {fade};" in mobile
+    assert 'header nav::after { content: ""; flex: 0 0 28px; }' in mobile
+    desktop = style.replace(mobile, "")
+    assert "mask-image" not in desktop, "渐隐只用于窄屏的横向滚动导航"

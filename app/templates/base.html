@@ -68,6 +68,12 @@
                      -webkit-overflow-scrolling: touch; scrollbar-width: thin; }
         header nav a { white-space: nowrap; }
         nav .nav-end { margin-left: 0; }
+        /* 可滚动提示（TD-307）：390px 下「站内客服」「毕设服务」在屏幕右侧之外，原来没有任何迹象表明还能往左滑。
+           右缘 28px 渐隐；末尾的 ::after 占位同宽，滑到最右时最后一个链接落在渐隐区之外、完整可读。
+           蒙版只作用于导航这一行的可视框，不影响命中区；旧内核不支持 mask 时只是没有渐隐。 */
+        header nav { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
+                     mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent); }
+        header nav::after { content: ""; flex: 0 0 28px; }
       }
       footer { border-top: 1px solid #e2e8f0; padding: 14px var(--edge); color: #64748b; font-size: var(--fs-small); }
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
@@ -133,6 +139,8 @@
       .modal { background: #fff; border-radius: 10px; padding: 22px; width: 360px; max-width: calc(100vw - 32px); }
       .modal h2 { margin: 0 0 12px; font-size: 19px; }
       .modal .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
+      /* 当前标签（TD-307）：auth.js 的 setMode 设 aria-pressed；原来两个标签一模一样，只能看下面的标题 */
+      .modal .tabs button[aria-pressed="true"] { background: #eff6ff; font-weight: 600; box-shadow: inset 0 -3px 0 #2563eb; }
       .modal label { display: block; margin-bottom: 10px; color: #475569; font-size: var(--fs-small); }
       .modal input { width: 100%; padding: 7px 9px; border: 1px solid var(--control-border); border-radius: 6px;
                      font: inherit; margin-top: 3px; }
