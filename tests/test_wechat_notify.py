@@ -328,6 +328,32 @@ async def test_notify_rejects_tampered_body(client, notify_ready):
     assert (await fetch(order_no)).status == "pending"
 
 
+SIGNATURE_HEADERS = ["Wechatpay-Serial", "Wechatpay-Signature", "Wechatpay-Timestamp", "Wechatpay-Nonce"]
+
+
+@pytest.mark.parametrize("header", SIGNATURE_HEADERS)
+async def test_notify_rejects_duplicate_signature_header(client, notify_ready, header):
+    """TD-312：同名签名头出现两次一律 401，即使两个值都是真的 —— 以前 .get 只取第一个就放行了。
+    与退款通知、API 应答同一套规则。"""
+    order_no = await make_order()
+    raw, headers = build_notify(txn(order_no))
+    r = await client.post("/shop/pay/notify", content=raw,
+                          headers=[*headers.items(), (header, headers[header]), ("Content-Type", "application/json")])
+    assert r.status_code == 401 and r.json()["code"] == "FAIL"
+    assert header in r.json()["message"]
+    assert (await fetch(order_no)).status == "pending"
+
+
+@pytest.mark.parametrize("header", SIGNATURE_HEADERS)
+async def test_notify_rejects_missing_signature_header(client, notify_ready, header):
+    order_no = await make_order()
+    raw, headers = build_notify(txn(order_no))
+    headers.pop(header)
+    r = await post_notify(client, raw, headers)
+    assert r.status_code == 401 and header in r.json()["message"]
+    assert (await fetch(order_no)).status == "pending"
+
+
 async def test_notify_marks_order_paid(client, notify_ready):
     order_no = await make_order()
     raw, headers = build_notify(txn(order_no, txid="TX-REAL-001"))

@@ -113,9 +113,7 @@ async def test_log_fields_are_bounded_and_control_characters_escaped(client, cap
 @pytest.fixture
 def callback_stub(monkeypatch):
     monkeypatch.setattr(shop, 'pay_config', lambda: SimpleNamespace(notify_ready=True, platform_cert='test', api_v3_key='test', appid='test', mchid='test'))
-    monkeypatch.setattr(shop, 'assert_notify_fresh', lambda value: None)
-    monkeypatch.setattr(shop, 'assert_notify_identity', lambda *args: None)
-    monkeypatch.setattr(shop, 'verify_notify_signature', lambda *args, **kw: None)
+    monkeypatch.setattr(shop, 'verify_signed_message', lambda *args: None)  # TD-312：三步认证合为一个入口
     monkeypatch.setattr(shop, 'decrypt_resource', lambda *args, **kw: {})
 
 

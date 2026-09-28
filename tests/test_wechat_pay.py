@@ -32,6 +32,7 @@ from app.wechat_pay import (
     native_prepay,
     new_order_no,
     sign,
+    verify_signed_message,
 )
 from tests.conftest import TestSession
 from tests.test_wechat_notify import _KEY as PLATFORM_KEY
@@ -303,3 +304,17 @@ async def test_wechat_failure_preserves_pending_order_for_same_number_retry(clie
     assert (await client.post("/shop/orders", headers=h)).status_code == 502
     assert attempts == [rows[0].order_no, rows[0].order_no]
     assert len(await orders_in_db()) == 1, "未知服务商结果必须保留稳定本地订单，不能重试制造孤儿单"
+
+
+@pytest.mark.parametrize("name,limit", [("Wechatpay-Serial", 128), ("Wechatpay-Timestamp", 12),
+                                        ("Wechatpay-Nonce", 128), ("Wechatpay-Signature", 1024)])
+def test_signed_message_header_bounds(name, limit):
+    """TD-312：三处入口共用的签名头上限。恰好到上限的值通过头检查、在后面的步骤失败；多一个字符就在头检查失败。"""
+    cfg = PayConfig(appid="", mchid="", serial_no="", private_key="", api_v3_key="", notify_url="",
+                    platform_cert="", platform_key_id="")
+    base = {"Wechatpay-Serial": "S", "Wechatpay-Timestamp": "1", "Wechatpay-Nonce": "n", "Wechatpay-Signature": "s"}
+    for value, header_rejected in (("1" * limit, False), ("1" * (limit + 1), True), ("", True)):
+        headers = httpx.Headers({**base, name: value})
+        with pytest.raises(WeChatPayError) as caught:
+            verify_signed_message(cfg, headers.get_list, "{}")
+        assert (str(caught.value) == f"{name} 签名头缺失、重复或超长") is header_rejected

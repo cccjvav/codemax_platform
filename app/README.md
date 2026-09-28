@@ -127,7 +127,7 @@ pending → closed → paid
 | [`app/payment_review.py`](payment_review.py) | `a26a38f6658e` | L1–L144 |
 | [`app/ratelimit.py`](ratelimit.py) | `ade83df887d6` | L1–L202 |
 | [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
-| [`app/refund_notifications.py`](refund_notifications.py) | `e3d334a30b60` | L1–L209 |
+| [`app/refund_notifications.py`](refund_notifications.py) | `3a0774246bff` | L1–L200 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `fb4b59cc4e4d` | L1–L316 |
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
@@ -140,7 +140,7 @@ pending → closed → paid
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
 | [`app/wechat_bills.py`](wechat_bills.py) | `a1abd9c07ad8` | L1–L259 |
-| [`app/wechat_pay.py`](wechat_pay.py) | `c874e73c7a0d` | L1–L476 |
+| [`app/wechat_pay.py`](wechat_pay.py) | `fa32830812ee` | L1–L494 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -292,3 +292,8 @@ wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_js
 - `wechat_bills._Col`：`parse_bill` 读取的 15 个明细列号，每个都写成 `DETAIL_HEADER.index('表头名')`；表头改动时名字对不上会在导入时报错。
 - `wechat_bills.AMOUNT_NAMES`：逐行累加、与尾部汇总比对的六个金额列名，`TOTAL_COLUMNS` 由它生成（取值不变）。
 - `parse_bill` 里六个金额拆成 `settlement` / `refunded` / `coupon_refunded` / `_fee` / `order_total` / `refund_applied`；校验顺序、报错文字、`BillRow` 字段不变。
+
+## 2026-09-28：微信签名认证三处合一（TD-312）
+
+- `wechat_pay.verify_signed_message(cfg, header_values, body)`：支付回调、退款通知、API 应答共用的认证。`SIGNATURE_HEADERS` 定义四个 `Wechatpay-*` 头及上限，每个必须恰好一个、非空、不超长，然后查新鲜度、平台身份、RSA 验签。`header_values` 传 Starlette 的 `headers.getlist` 或 httpx 的 `headers.get_list`；失败抛 `WeChatPayError`，状态码由调用方决定。
+- `wechat_pay.assert_response_signature`、`refund_notifications.parse_notice` 改为调用它，对外行为不变。

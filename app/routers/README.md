@@ -105,7 +105,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `915b93faedc0` | L1–L330 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `a93590872183` | L1–L301 |
-| [`app/routers/shop.py`](shop.py) | `c0020edd04bf` | L1–L762 |
+| [`app/routers/shop.py`](shop.py) | `16639f1b56e3` | L1–L749 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
@@ -235,3 +235,7 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 - `payment_ledger`（`GET /shop/admin/orders/{order_no}/ledger`）连同 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed` 从 `shop.py` 移到 `payments_admin.py` 末尾，与订单清单 `orders` 放在一起。上文历史批次里写的 `shop.payment_ledger` 现在就是 `payments_admin.payment_ledger`，行为不变。
 - `payments_admin` 的路由没有 prefix，装饰器写全路径；OpenAPI 标签由「商业平台」变为「订单管理」。
 - `shop.py` 现在只剩顾客侧（下单、查单、历史、下载、模拟收银台）、支付回调，以及两个管理写接口（人工确认收款、历史订单绑定——测试经 `shop` 模块替换它们用到的属性，见 TD-288）。
+
+## 2026-09-28：支付回调的签名头检查改用共用实现（TD-312）
+
+- `shop._verify_notify_headers` 只包一层 `wechat_pay.verify_signed_message`，失败仍是 401。同名签名头重复以前取第一个放行，现在 401；报错点名是哪个头。

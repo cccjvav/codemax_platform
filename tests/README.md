@@ -65,7 +65,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/conftest.py`](conftest.py) | `bc1e7693175a` | L1–L259 |
 | [`tests/test_admin_ingest.py`](test_admin_ingest.py) | `7aec5a7104ca` | L1–L366 |
 | [`tests/test_agnes_integration.py`](test_agnes_integration.py) | `f697c9b6d36a` | L1–L179 |
-| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `bcb6bbe584a2` | L1–L300 |
+| [`tests/test_audit_20260915.py`](test_audit_20260915.py) | `9e16fe49e2d0` | L1–L298 |
 | [`tests/test_auth.py`](test_auth.py) | `81d2a2d26326` | L1–L67 |
 | [`tests/test_auth_cookie.py`](test_auth_cookie.py) | `cb10c9c40344` | L1–L380 |
 | [`tests/test_auth_crypto.py`](test_auth_crypto.py) | `44aa17391233` | L1–L263 |
@@ -141,8 +141,8 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
-| [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `455b17c78af6` | L1–L475 |
-| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
+| [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `1243c4534687` | L1–L501 |
+| [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `c18c57773ac9` | L1–L320 |
 | [`tests/test_word_export.py`](test_word_export.py) | `8bfbb5850a11` | L1–L108 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -363,3 +363,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_wechat_bills.py::test_strict_parser_rejects_bad_or_ambiguous_whole_file` 新增 `duplicate-payment-id`、`duplicate-refund-id`、`payment-coupon-refund`：只重复微信侧标识、付款行带充值券退款金额。原有的两个重复用例是整行相同，去掉任一标识的去重都不会失败。
 - 新增 `test_column_numbers_come_from_unique_header_names`：表头名不重复，`TOTAL_COLUMNS` 正好指向 `AMOUNT_NAMES`。
+
+## 2026-09-28 微信签名认证三处合一（TD-312）
+
+- `test_wechat_notify.py`：`test_notify_rejects_duplicate_signature_header`、`test_notify_rejects_missing_signature_header`，对四个签名头各跑一遍。重复用例在改之前的代码上返回 200。
+- `test_wechat_pay.py::test_signed_message_header_bounds`：四个头的长度上限边界。
+- `test_audit_20260915.py::callback_stub` 改为替换 `shop.verify_signed_message` 一个入口，原来替换三个函数。

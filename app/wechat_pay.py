@@ -38,6 +38,7 @@ import json
 import re
 import secrets
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date, datetime, timezone
 from urllib.parse import quote, urlencode, urlsplit
@@ -284,6 +285,34 @@ def assert_notify_configuration(cfg: PayConfig) -> None:
     assert_notify_identity(cfg, serial)
 
 
+SIGNATURE_HEADERS = (('Wechatpay-Serial', 128), ('Wechatpay-Timestamp', 12),
+                     ('Wechatpay-Nonce', 128), ('Wechatpay-Signature', 1024))
+
+
+def verify_signed_message(cfg: PayConfig, header_values: Callable[[str], list[str]], body: str) -> None:
+    """微信平台签名的统一认证（TD-312），支付回调、退款通知、API 应答三处共用，不通过抛 WeChatPayError。
+
+    顺序：四个签名头各恰好一个、非空、不超长 → 时间戳新鲜 → 平台证书/公钥标识 → 验签。
+    - `header_values(name)` 返回该头的全部取值：Starlette 请求头传 `headers.getlist`，
+      httpx 应答头传 `headers.get_list`（两个库的方法名不同）。同名头出现两次时 `.get` 只取第一个，
+      这里一律拒绝，不猜哪个是真的。
+    - `body` 是按 UTF-8 严格解码的原始报文，由调用方解码。
+    - 先查新鲜度再验签（P1-3）：抓到的真实回调原样重放时签名一直合法，只有时间戳能暴露它，
+      放在前面还能省一次 RSA 运算。
+    转成什么状态码或报错由调用方决定。
+    """
+    values = {}
+    for name, limit in SIGNATURE_HEADERS:
+        found = header_values(name)
+        if len(found) != 1 or not 1 <= len(found[0]) <= limit:
+            raise WeChatPayError(f'{name} 签名头缺失、重复或超长')
+        values[name] = found[0]
+    assert_notify_fresh(values['Wechatpay-Timestamp'])
+    assert_notify_identity(cfg, values['Wechatpay-Serial'])
+    verify_notify_signature(cfg.platform_cert, timestamp=values['Wechatpay-Timestamp'],
+                            nonce=values['Wechatpay-Nonce'], body=body, signature=values['Wechatpay-Signature'])
+
+
 async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", *, transport=None, empty_success=False) -> dict:
     """Bounded APIv3 exchange: exact request bytes, no redirects/compression, authenticated response.
 
@@ -331,18 +360,7 @@ async def _request_json(cfg: PayConfig, method: str, path: str, body: str = "", 
 def assert_response_signature(cfg: PayConfig, headers: httpx.Headers, raw: bytes, status: int) -> None:
     """Verify raw UTF-8 response with exactly one bounded value for each authentication header."""
     try:
-        values = {}
-        for name, limit in [('Wechatpay-Serial', 128), ('Wechatpay-Timestamp', 12),
-                            ('Wechatpay-Nonce', 128), ('Wechatpay-Signature', 1024)]:
-            candidates = headers.get_list(name)
-            if len(candidates) != 1 or not 1 <= len(candidates[0]) <= limit:
-                raise WeChatPayError('Missing, duplicate or oversized signature header')
-            values[name] = candidates[0]
-        assert_notify_fresh(values['Wechatpay-Timestamp'])
-        assert_notify_identity(cfg, values['Wechatpay-Serial'])
-        verify_notify_signature(cfg.platform_cert, timestamp=values['Wechatpay-Timestamp'],
-                                nonce=values['Wechatpay-Nonce'], body=raw.decode('utf-8'),
-                                signature=values['Wechatpay-Signature'])
+        verify_signed_message(cfg, headers.get_list, raw.decode('utf-8'))
     except (WeChatPayError, UnicodeError):
         raise WeChatPayError(f'微信支付应答验签失败（HTTP {status}）；结果不可信') from None
 

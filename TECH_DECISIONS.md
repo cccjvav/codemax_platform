@@ -1501,3 +1501,39 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **测试**：
 - `test_strict_parser_rejects_bad_or_ambiguous_whole_file` 新增 `duplicate-payment-id`、`duplicate-refund-id`、`payment-coupon-refund` 三种，分别在上述变异下失败，在重构前的代码上也通过。
 - 新增 `test_column_numbers_come_from_unique_header_names`：钉住表头名不重复（`index` 只返回第一个），以及 `TOTAL_COLUMNS` 正好指向 `AMOUNT_NAMES` 六列。
+
+## TD-312：微信签名认证三处合一，支付回调改为同名签名头必须唯一
+
+**状态**：已实施（2026-09-28），优化阶段重构批次。
+
+**问题**：同一套「微信平台签名」认证在仓库里写了三份：
+- `wechat_pay.assert_response_signature`：API 应答；
+- `refund_notifications.parse_notice`：退款通知；
+- `shop._verify_notify_headers`：支付回调。
+
+步骤都是「取四个 `Wechatpay-*` 头 → 时间戳新鲜度 → 平台证书/公钥标识 → RSA 验签」，但严格程度不同：
+
+| | 同名头重复 | 空值 | 长度上限 |
+|---|---|---|---|
+| 应答、退款通知（较晚写的） | 拒绝（`get_list`/`getlist` 必须恰好一个） | 拒绝 | 四个头都有 |
+| 支付回调（最早写的） | `headers.get` 取第一个，照样放行 | 留给后面的步骤失败 | 只有 Nonce、Signature |
+
+改之前的代码上实测：把真实的签名头原样再加一次，支付回调返回 200 并把订单标成已付款。这不能用来伪造付款，因为第一个值仍然要通过真实的 RSA 验签。但它和另外两处的规则不一致，而且拿不准第二个值是什么时一律拒绝，才是验签该有的姿态（RR-35）。
+
+**决定**：
+- `wechat_pay.verify_signed_message(cfg, header_values, body)` 成为唯一实现：`SIGNATURE_HEADERS` 定义四个头及上限（Serial 128、Timestamp 12、Nonce 128、Signature 1024），每个头必须恰好一个、非空、不超长，然后依次查新鲜度、平台身份、验签。
+- `header_values` 是「头名 → 全部取值」的函数，因为 Starlette 请求头只有 `getlist`、httpx 应答头只有 `get_list`。调用方负责按 UTF-8 严格解码原文。
+- 失败一律抛 `WeChatPayError`，状态码仍由各入口决定：支付回调 401、退款通知 400、应答转成「结果不可信」。三者对外的状态码和文字都不变。
+- 头检查失败的报错点名是哪个头，例如「Wechatpay-Nonce 签名头缺失、重复或超长」。支付回调会把这句回给微信；另外两处不外露具体原因。
+- 退款通知里 UTF-8 解码移到了头检查之前。路由把两类失败转成同一个 400 和固定文字，对外看不出顺序。
+
+**行为变化**：只影响支付回调。
+- 同名签名头重复：以前 200 并入账，现在 401。
+- 签名头缺失或为空、Serial/Timestamp 超长：以前也是 401（后面的步骤会失败），现在在头检查这一步就失败，报错点名是哪个头。
+
+真实微信回调每个头只有一个，不受影响。
+
+**测试**：
+- `test_wechat_notify.py` 新增 `test_notify_rejects_duplicate_signature_header`、`test_notify_rejects_missing_signature_header`，对四个头各跑一遍，共 8 个用例。在改之前的代码上 7 个失败：4 个重复用例都返回 200，3 个缺失用例的报错不含头名。
+- `test_wechat_pay.py` 新增 `test_signed_message_header_bounds`：四个上限的边界，把 Nonce 上限改成 129 后失败。
+- `test_audit_20260915.py` 的 `callback_stub` 夹具原来分别替换 `shop` 上的时间、平台 ID、签名三个函数，改为替换 `shop.verify_signed_message` 一个入口。这两个用例测的是认证之后的报文形状，断言不变。

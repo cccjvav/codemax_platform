@@ -24,10 +24,8 @@ from .timeutil import as_utc
 from .wechat_pay import (
     PayConfig,
     WeChatPayError,
-    assert_notify_fresh,
-    assert_notify_identity,
     decrypt_resource,
-    verify_notify_signature,
+    verify_signed_message,
 )
 
 NOTICE_KIND = 'refund_notify_signal'
@@ -79,21 +77,14 @@ def parse_notice(cfg: PayConfig, headers: Headers, raw: bytes) -> RefundNotice:
     Only the three documented event types are accepted. Strict integer monetary bounds apply
     even though this inbox cannot settle refunds. No payer account or full ciphertext is saved.
     """
-    values = {}
-    for name, limit in [('Wechatpay-Serial', 128), ('Wechatpay-Timestamp', 12),
-                        ('Wechatpay-Nonce', 128), ('Wechatpay-Signature', 1024)]:
-        found = headers.getlist(name)
-        if len(found) != 1 or not 1 <= len(found[0]) <= limit:
-            raise WeChatPayError('退款通知签名头缺失、重复或超长')
-        values[name] = found[0]
-    assert_notify_fresh(values['Wechatpay-Timestamp'])
-    assert_notify_identity(cfg, values['Wechatpay-Serial'])
     try:
         body = raw.decode('utf-8')
-        verify_notify_signature(cfg.platform_cert, timestamp=values['Wechatpay-Timestamp'],
-                                nonce=values['Wechatpay-Nonce'], body=body, signature=values['Wechatpay-Signature'])
+    except UnicodeError:
+        raise WeChatPayError('退款通知签名或JSON无效') from None
+    verify_signed_message(cfg, headers.getlist, body)  # TD-312：与支付回调、API 应答同一套认证
+    try:
         envelope = json.loads(body)
-    except (UnicodeError, ValueError, RecursionError):
+    except (ValueError, RecursionError):
         raise WeChatPayError('退款通知签名或JSON无效') from None
     if (not isinstance(envelope, dict) or envelope.get('resource_type') != 'encrypt-resource'
             or envelope.get('event_type') not in tuple('REFUND.' + state for state in STATES)):

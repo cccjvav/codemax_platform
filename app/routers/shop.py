@@ -40,13 +40,11 @@ from ..storage import StorageError, build_storage, verify_download
 from ..wechat_pay import (
     WeChatPayError,
     assert_notify_configuration,
-    assert_notify_fresh,
-    assert_notify_identity,
     decrypt_resource,
     native_prepay,
     new_order_no,
     pay_config,
-    verify_notify_signature,
+    verify_signed_message,
 )
 
 router = APIRouter(prefix="/shop", tags=["商业平台"])
@@ -601,20 +599,9 @@ async def _read_notify_body(request: Request) -> str:
 
 
 def _verify_notify_headers(cfg, headers, body: str) -> None:
+    """与退款通知、API 应答同一套认证（TD-312）；任何一步不符都是 401。"""
     try:
-        # P1-3：先查新鲜度再验签。抓到真实回调原样重放时签名一直是合法的，
-        # 只有时间戳能暴露它 —— 放在验签之前还能省掉一次 RSA 运算。
-        if len(headers.get("Wechatpay-Nonce", "")) > 128 or len(headers.get("Wechatpay-Signature", "")) > 1024:
-            raise WeChatPayError("回调签名头过长")
-        assert_notify_fresh(headers.get("Wechatpay-Timestamp", ""))
-        assert_notify_identity(cfg, headers.get("Wechatpay-Serial", ""))
-        verify_notify_signature(
-            cfg.platform_cert,
-            timestamp=headers.get("Wechatpay-Timestamp", ""),
-            nonce=headers.get("Wechatpay-Nonce", ""),
-            body=body,
-            signature=headers.get("Wechatpay-Signature", ""),
-        )
+        verify_signed_message(cfg, headers.getlist, body)
     except WeChatPayError as e:
         raise _NotifyReject(401, str(e)) from e
 
