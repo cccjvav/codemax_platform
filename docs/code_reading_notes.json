@@ -425,68 +425,68 @@
     },
     {
       "path": "app/frontend/drawio-page.js",
-      "sha256": "d5b627abb6d8fecac90a32569a9345097567648c85cef0022f2930e5f45f9796",
+      "sha256": "462e8b4acdfaac6906f741997c0a43726c76c428c68b540b8ff213a6d3567e9c",
       "method": "manual",
       "blocks": [
         {
-          "end": 17,
+          "end": 22,
           "title": "外部编辑器与三类版本",
-          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。 TD-272：新增 identityReady，用来区分「尚未同步身份」与「同步过、当前是访客」—— identity 初值 undefined 与 null 不相等，会让首次 syncAuth(null) 也走重建分支。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
+          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。 TD-272：新增 identityReady，用来区分「尚未同步身份」与「同步过、当前是访客」—— identity 初值 undefined 与 null 不相等，会让首次 syncAuth(null) 也走重建分支。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。 R-08：dirty 表示编辑器里有既没保存到云端、也没下载到本地的改动；discardOk() 在 dirty 时用 window.confirm 询问「继续会丢弃这些改动」，没改过直接放行，不打扰。"
         },
         {
-          "end": 26,
+          "end": 31,
           "title": "send / load / validXml：消息和输入边界",
           "explanation": "send 将对象序列化，只发当前 frame。load 在 loading 时不发送，并启 autosave:1；autosave 仅缓存 XML。validXml 拒空/超 500000 字符、DOCTYPE、解析错误和非允许根名；本地文件另用字节大小检查，前后端界限不能混同。"
         },
         {
-          "end": 34,
+          "end": 39,
           "title": "resetEditor：使旧文档消息失效",
           "explanation": "递增 epoch，清 ready/saving；取消 pending 定时器并 reject 等待者。克隆替换 iframe 产生新 browsing context，旧窗口即使 origin 相同也因 event.source 不同被拒。不是仅把文本变量设空。"
         },
         {
-          "end": 45,
+          "end": 50,
           "title": "exportXml：明确取当前内容再保存",
           "explanation": "未 ready 或已有 pending 立即拒绝；Promise 保存 requestId、epoch、resolve/reject，10 秒无回复清 pending 并报“未保存”。发 export format=xml，等回包中 message.requestId 对应，不直接拿最近 autosave 当最新。 TD-270：api() 对非 2xx 先问 CodeMaxAuth.sessionExpired，到期抛\"登录已过期，请重新登录后再保存\"。"
         },
         {
-          "end": 57,
+          "end": 62,
           "title": "api：Cookie、JSON 与 ETag",
           "explanation": "同源Cookie请求，按需JSON编码body/headers；204无正文，其他响应解析失败转null。成功但无有效JSON给固定可读错误；412保留冲突提示，其他失败交给auth.errorText，返回data与ETag。仍需调用方验证各业务响应字段。"
         },
         {
-          "end": 71,
+          "end": 76,
           "title": "message 回调：只接当前编辑器协议",
-          "explanation": "先同时核 origin/source，再 JSON.parse；init 发送 load，load 标就绪。export 必须匹配 pending id/epoch，清 timer 后校验 XML 再 resolve；autosave 只更新缓存，save 事件仍调用 save 获取明确导出。"
+          "explanation": "先同时核 origin/source，再 JSON.parse；init 发送 load，load 标就绪。export 必须匹配 pending id/epoch，清 timer 后校验 XML 再 resolve；autosave 只更新缓存，save 事件仍调用 save 获取明确导出。 R-08：收到 autosave 同时置 dirty。外部编辑器只在内容变化时发 autosave（含网格、背景等页面设置），刚载入文档不会发，所以打开一张图不会被误判成已修改。"
         },
         {
-          "end": 85,
+          "end": 90,
           "title": "refreshList：拒绝迟到的列表",
           "explanation": "仅登录时请求 /diagrams，记录 epoch 与列表序号；两者仍匹配才更新 option。name 用 textContent，错误也只写当前代际。不是用服务器名字拼 HTML。"
         },
         {
-          "end": 102,
+          "end": 107,
           "title": "save：导出→POST/PUT→保存版本",
-          "explanation": "未登录/重复保存拒绝；await exportXml 后和 HTTP 返回后都核 epoch。已有 id 用 PUT+If-Match，新图 POST；缺 id/ETag 不假报成功，提示刷新确认。若导出之后编辑器又变，提示有新改动；finally 仅给当前代际清 saving。"
+          "explanation": "未登录/重复保存拒绝；await exportXml 后和 HTTP 返回后都核 epoch。已有 id 用 PUT+If-Match，新图 POST；缺 id/ETag 不假报成功，提示刷新确认。若导出之后编辑器又变，提示有新改动；finally 仅给当前代际清 saving。 R-08：保存成功后 dirty = xml !== content：保存期间编辑器又发过 autosave 就仍算未保存，与状态栏「编辑器还有新改动」同一判据。"
         },
         {
-          "end": 117,
+          "end": 124,
           "title": "打开/新建：请求期间重置编辑上下文",
-          "explanation": "保存按钮只绑定函数。列表选择先 loading=true 并重建 iframe，读取云端内容、ETag/name 后再重建一次，以免请求途中初始化拿到旧 XML。新建清 id/etag，保持本地空白而不自动 POST。"
+          "explanation": "保存按钮只绑定函数。列表选择先 loading=true 并重建 iframe，读取云端内容、ETag/name 后再重建一次，以免请求途中初始化拿到旧 XML。新建清 id/etag，保持本地空白而不自动 POST。 R-08：打开列表里的另一张图、新建之前先 discardOk()；取消打开时列表选中项回到当前的图，不发请求。成功载入或新建后 dirty 清零；打开失败不清零，因为 resetEditor 会把编辑器重载成原来的 xml，改动还在。"
         },
         {
-          "end": 138,
+          "end": 146,
           "title": "下载/导入：本地文件与云端对象分离",
-          "explanation": "下载也明确 export 当前 XML，Blob URL 点链接后延时 revoke。导入通过隐藏 file-input：先限字节、异步读文本、再校验 XML/epoch；清云 id/etag 避免覆盖原文件，导入完清 input 允许再次选同文件。"
+          "explanation": "下载也明确 export 当前 XML，Blob URL 点链接后延时 revoke。导入通过隐藏 file-input：先限字节、异步读文本、再校验 XML/epoch；清云 id/etag 避免覆盖原文件，导入完清 input 允许再次选同文件。 R-08：下载成功与保存同样处理（本地已有副本，不会丢）；导入在弹出文件选择之前询问，导入成功后清零。"
         },
         {
-          "end": 169,
+          "end": 178,
           "title": "syncAuth：保留游客草稿但不跨账号带走资产",
-          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。"
+          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。 R-08：换账号时清空上一个账号的图并把 dirty 清零，不询问：退出与换账号无法取消。游客首次登录保留草稿，dirty 也随之保留。"
         },
         {
-          "end": 203,
+          "end": 215,
           "title": "manage / action：回收站、恢复与永久删",
-          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。"
+          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。 R-08：把正在编辑的图移到回收站会清空编辑器，所以同样先 discardOk()。段尾注册 beforeunload：dirty 时 preventDefault 并设 returnValue，浏览器显示它自己的通用离开提示（页面无法自定义文字）。"
         }
       ]
     },
@@ -14330,6 +14330,23 @@
           "end": 33,
           "title": "confirmed_order",
           "explanation": "功能契约：管理员手输的确认单号必须与路径单号完全一致，否则 409；再按单号取订单，不存在 404。不加锁、不判断支付或退款状态，锁订单由调用方或后续服务负责。\n\n输入签名：db: AsyncSession, order_no: str, confirm_order_no: str；异步调用需await才推进。 返回类型标注：Order。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL28 判断 `confirm_order_no != order_no`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL29 抛出 HTTPException(409, '确认单号与目标不一致')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL30 计算右侧并赋给 `order`：await 调用 db.scalar(select(Order).where(Order.order_no == order_no))：执行查询并取一个标量/对象；等待期间可让出事件循环，恢复后才执行下一句。\nL31 判断 `order is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL32 抛出 HTTPException(404, '订单不存在')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL33 结束当前函数，返回 order；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_drawio_unsaved_changes.py",
+      "sha256": "18a81ee178a9078523dfcc18343adbd06158368a8db4be0de796d77c6b48d796",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 124,
+          "title": "模块装配",
+          "explanation": "R-08 的行为测试。_HARNESS 是一段 Node 脚本：假 DOM 里的 iframe 每次重建都换成新对象（与真实页面一样，旧编辑器发来的消息会被拒收），window.confirm 记录询问文字并按 answer 作答，fetch 桩提供列表、打开一号图（可切换成 500）、新建保存和移到回收站。脚本按顺序走一遍：没改过时新建；改过后取消新建、取消打开、取消导入；保存；保存期间又改；打开失败；打开成功；取消与确认移到回收站；下载；换账号。每一步记录是否询问、状态栏文字，以及 beforeunload 是否拦截离开。回应导出请求时只回应新请求：编辑器没就绪时页面不发请求，保存会如实失败，而不是让桩崩溃。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL7 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL16 把测试JavaScript多行字面量存入 `_HARNESS`（6302字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 157,
+          "title": "test_unsaved_changes_are_confirmed_before_they_are_discarded",
+          "explanation": "源码与构建产物各跑一遍 _HARNESS，逐段断言。没改过：新建不询问、离开不拦。改过：新建、打开、导入、移走正在编辑的图都先问，取消后名称、列表选中项不变，不发请求、不弹文件选择。保存成功或下载后不再算未保存；保存期间又改过仍算未保存，与状态栏「编辑器还有新改动」一致。打开失败时编辑器重载成含改动的内容，所以仍算未保存。换账号无法取消，不询问，上一个账号的改动按账号隔离清掉。下载和换账号两段先确认此时确实是「未保存」，免得断言空过。改之前的代码在「改过后离开页面应被拦截」一条就失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：source；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL128 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', _HARNESS, str(ROOT / source)], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL129 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL130 计算右侧并赋给 `out`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL132 核对 `out['cleanNew'] == {'confirms': 0, 'status': '已新建空白流程图', 'leaving': False}`：此条件为假即测试失败；不是生产输入校验。\nL134 核对 `out['dirtyLeaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL135 核对 `out['newCancelled'] == {'confirms': 1, 'name': '草稿', 'status': '已新建空白流程图'}`：此条件为假即测试失败；不是生产输入校验。\nL136 核对 `out['openCancelled'] == {'list': '', 'fetched': False}`：此条件为假即测试失败；不是生产输入校验。\nL137 核对 `out['importCancelled'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL138 核对 `out['confirmText'] == '当前流程图有未保存的改动，继续会丢弃这些改动。确定吗？'`：此条件为假即测试失败；不是生产输入校验。\nL140 核对 `out['afterSave'] == {'leaving': False, 'status': '已保存到云端（#7）'}`：此条件为假即测试失败；不是生产输入校验。\nL141 核对 `out['newAfterSave'] == {'asked': 0, 'status': '已新建空白流程图'}`：此条件为假即测试失败；不是生产输入校验。\nL143 核对 `out['editedDuringSave']['leaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL144 核对 `'编辑器还有新改动' in out['editedDuringSave']['status']`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `out['openFailed']['leaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL147 核对 `out['openFailed']['reloaded'] == '<mxfile>NEWER_THAN_SNAPSHOT</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL148 核对 `'服务暂时不可用' in out['openFailed']['status']`：此条件为假即测试失败；不是生产输入校验。\nL149 核对 `out['opened'] == {'leaving': False, 'status': '已打开 #1'}`：此条件为假即测试失败；不是生产输入校验。\nL151 核对 `out['trashCancelled'] == {'deleted': False, 'leaving': True}`：此条件为假即测试失败；不是生产输入校验。\nL152 核对 `out['trashed'] == {'deleted': True, 'leaving': False, 'name': ''}`：此条件为假即测试失败；不是生产输入校验。\nL154 核对 `out['beforeDownload'] is True and out['afterDownload'] is False`：此条件为假即测试失败；不是生产输入校验。\nL156 核对 `out['beforeSwitch'] is True`：此条件为假即测试失败；不是生产输入校验。\nL157 核对 `out['accountSwitch'] == {'asked': 0, 'leaving': False}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     }

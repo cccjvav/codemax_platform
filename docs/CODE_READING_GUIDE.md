@@ -175,7 +175,7 @@ AbortController 只尝试取消浏览器侧请求，不会自动回滚已提交�
 | OAuth/SSO | [oauth 路由](../app/routers/oauth.py) → security/deps → OAuthClient/OAuthCode → oauth_consent 模板 | 客户端不等于用户；回调精确匹配；同意表单如何绑定用户；授权码如何一次性兑换；改密后旧码为什么不能续签 |
 | ER 与 Word | [tools 路由](../app/routers/tools.py) → [sql_ddl](../app/tools/sql_ddl.py) / [word](../app/tools/word.py) → [cpu_pool](../app/cpu_pool.py) → er-page/er-layout | 字符串中的逗号/括号与语法符号如何区分；不同 schema 同名表；纯解析与 DOM 布局；超时为何不等于任务终止 |
 | Mermaid | tools.mermaid → llm.generate_mermaid → LLMClient.chat → mermaid-page | 输入/输出体量，模型错误映射，代码围栏清理，strict 渲染；不要把模型输出当作可信 HTML |
-| Drawio 云端 | drawio-page → [diagrams 路由](../app/routers/diagrams.py) → SysDiagram/lock_user | iframe origin/source，export 关联当前 XML，ETag/CAS，删除/恢复/永久删，各类配额，旧账号异步结果隔离 |
+| Drawio 云端 | drawio-page → [diagrams 路由](../app/routers/diagrams.py) → SysDiagram/lock_user | iframe origin/source，export 关联当前 XML，ETag/CAS，删除/恢复/永久删，各类配额，旧账号异步结果隔离，丢弃未保存改动前先确认（TD-316） |
 | 商城付款与下载 | shop-page → [shop 路由](../app/routers/shop.py) → [order_state](../app/order_state.py) / [wechat_pay](../app/wechat_pay.py) / [storage](../app/storage.py) | 单位为分，pending 并发唯一，回调核验和幂等，closed 后仍可能收款，领链接不等于收完文件，短时签名与购买权益分开 |
 | 文章采集 | [admin 路由](../app/routers/admin.py) → crawler/politeness → extract → Article | 管理员入口、DNS/IP 固定、robots/节流、大小/重定向边界、字段宽度和 upsert；dynamic 目前停用 |
 | 智能客服 | [support 路由](../app/routers/support.py) → tools/support → intent/faq/llm | 规则、FAQ、语义索引和文章检索的先后条件；缓存何时失效；未命中与不可用区别；转人工入口不等于留言已送达 |

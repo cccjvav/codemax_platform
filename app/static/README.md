@@ -66,7 +66,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `1373a7498fea` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `372dc41eec58` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `9ce881417fe4` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `94d8c525720d` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `ae05bf314f9d` | 生成物，见模块构建说明 |
 | [`app/static/js/er-page.js`](js/er-page.js) | `88e2205ca5c4` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `cc19e69b836a` | 生成物，见模块构建说明 |

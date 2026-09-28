@@ -47,7 +47,7 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/frontend/auth.js`](auth.js) | `4cb99a94dd67` | L1–L291 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `d5b627abb6d8` | L1–L203 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `462e8b4acdfa` | L1–L215 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
 | [`app/frontend/er-page.js`](er-page.js) | `d03a734f8b36` | L1–L218 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `1095b1f64e82` | L1–L108 |
@@ -224,3 +224,8 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - `auth.js` 导出 `failureText(e)`：`fetch` 的网络层失败（`TypeError` 且文字是 Failed to fetch / NetworkError… / Load failed）显示「网络连接失败，请检查网络后重试」，其余原样。
 - 各页用一行 `failure = (e) => CodeMaxAuth.failureText?.(e) ?? e.message` 显示错误，不直接拼 `e.message`，由 `test_frontend_pages_never_show_raw_exception_text` 守护。
 - `support-page` 的 `errorText` 委托 `auth.errorText`（原来是逐字相同的副本）；`er-page` 的「导出 Word」请求期间禁用；`drawio-page` 的 `manage()` 检查列表是数组。
+
+## 2026-09-28：流程图页未保存改动确认（TD-316）
+
+- `drawio-page.js` 用 `dirty` 记「既没保存到云端、也没下载到本地的改动」：收到 `autosave` 置位；保存或下载成功且期间没再改、打开/新建/导入成功、换账号时清零。
+- 打开、新建、导入、移走正在编辑的图之前经 `discardOk()` 询问；`beforeunload` 在 `dirty` 时拦截关闭页面。由 `tests/test_drawio_unsaved_changes.py` 守护。

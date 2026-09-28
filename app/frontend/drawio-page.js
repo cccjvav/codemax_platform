@@ -14,6 +14,11 @@
   // 于是首次 syncAuth(null) 也会走重建分支，把模板刚加载好的 iframe 换掉 —— 加上登录态异步返回
   // 再换一次，外部编辑器首屏被下载 2～3 次（TD-272 用 Node 桩实测）。首次只记录身份。
   let identity, identityReady = false, loggedIn = false, ready = false, saving = false, pending = null, loading = false;
+  // R-08：dirty = 编辑器里有既没保存到云端、也没下载到本地的改动。外部编辑器只在内容变化时发 autosave，
+  // 所以收到 autosave 就置位；保存/下载成功且期间没有新改动、打开/新建/导入成功、换账号时清零。
+  // 打开失败会把编辑器重载成原来的 xml（含未保存的改动），所以 resetEditor 本身不清零。
+  let dirty = false;
+  const discardOk = () => !dirty || window.confirm("当前流程图有未保存的改动，继续会丢弃这些改动。确定吗？");
 
   function send(message) { frame.contentWindow.postMessage(JSON.stringify(message), ORIGIN); }
   function load() { if (loading) return; send({ action: "load", xml, autosave: 1 }); }
@@ -66,7 +71,7 @@
       const job = pending; pending = null; clearTimeout(job.timer);
       try { xml = validXml(message.xml); job.resolve(xml); } catch (e) { job.reject(e); }
     }
-    if (message.event === "autosave" && ready && typeof message.xml === "string") xml = message.xml;
+    if (message.event === "autosave" && ready && typeof message.xml === "string") { xml = message.xml; dirty = true; }
     if (message.event === "save" && ready) save();
   });
   async function refreshList() {
@@ -94,7 +99,7 @@
         { name: name.value.trim() || "未命名流程图", content }, currentId ? { "If-Match": etag } : {});
       if (stamp !== epoch) return;
       if (!result.data?.id || !result.etag) throw new Error("保存响应缺少标识或版本，请刷新列表确认");
-      currentId = result.data.id; etag = result.etag;
+      currentId = result.data.id; etag = result.etag; dirty = xml !== content;  // 保存期间又改过就仍算未保存
       status.textContent = `已保存到云端（#${currentId}）${xml !== content ? "，编辑器还有新改动" : ""}`;
       await refreshList();
     } catch (e) { if (stamp === epoch) status.textContent = `未保存：${failure(e)}`; }
@@ -103,35 +108,38 @@
   document.getElementById("btn-save").onclick = save;
   list.onchange = async () => {
     if (!list.value) return;
+    if (!discardOk()) { list.value = currentId ? String(currentId) : ""; return; }  // 取消：列表回到当前打开的图
     const id = list.value; loading = true; resetEditor(); const stamp = epoch;
     try {
       const { data, etag: tag } = await api(`/diagrams/${id}`);
       if (stamp !== epoch) return;
-      xml = validXml(data.content); currentId = data.id; etag = tag; name.value = data.name;
+      xml = validXml(data.content); dirty = false; currentId = data.id; etag = tag; name.value = data.name;
       // The iframe may have initialized during the fetch. Restart with the fetched document only.
       loading = false; resetEditor(); status.textContent = `已打开 #${data.id}`;
     } catch (e) { if (stamp === epoch) { loading = false; resetEditor(); status.textContent = failure(e); } }
   };
   document.getElementById("btn-new").onclick = () => {
-    loading = false; xml = BLANK; currentId = null; etag = null; name.value = ""; list.value = ""; resetEditor(); status.textContent = "已新建空白流程图";
+    if (!discardOk()) return;
+    loading = false; xml = BLANK; dirty = false; currentId = null; etag = null; name.value = ""; list.value = ""; resetEditor(); status.textContent = "已新建空白流程图";
   };
   document.getElementById("btn-download").onclick = async () => {
     const stamp = epoch;
     try {
       const content = await exportXml(); if (stamp !== epoch) return;
+      dirty = xml !== content;  // 已下载到本地副本，与保存到云端同样视为不会丢
       const url = URL.createObjectURL(new Blob([content], { type: "application/xml" }));
       const a = document.createElement("a"); a.href = url; a.download = `${name.value.trim() || "diagram"}.drawio`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
     } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   };
-  document.getElementById("btn-import").onclick = () => document.getElementById("file-input").click();
+  document.getElementById("btn-import").onclick = () => { if (discardOk()) document.getElementById("file-input").click(); };
   document.getElementById("file-input").onchange = async (event) => {
     const file = event.target.files[0]; if (!file) return;
     const stamp = epoch;
     try {
       if (file.size > 500000) throw new Error("文件超过 500000 字节，请缩小后导入");
       const content = validXml(await file.text()); if (stamp !== epoch) return;
-      xml = content; currentId = null; etag = null; name.value = file.name.replace(/\.(drawio|xml)$/i, "");
+      xml = content; dirty = false; currentId = null; etag = null; name.value = file.name.replace(/\.(drawio|xml)$/i, "");
       resetEditor(); status.textContent = `已导入：${file.name}`;
     } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
     finally { event.target.value = ""; }
@@ -158,7 +166,8 @@
       if (user) await refreshList();
       return;
     }
-    if (identity) xml = BLANK; // guest work may be kept on first login, account-owned work never is
+    // guest work may be kept on first login, account-owned work never is（换账号无法取消，不询问）
+    if (identity) { xml = BLANK; dirty = false; }
     document.getElementById("diagram-manage").innerHTML = "";
     loading = false; identity = next; currentId = null; etag = null; name.value = ""; list.innerHTML = ""; resetEditor();
     if (user) await refreshList();
@@ -178,12 +187,13 @@
             const button = document.createElement("button"); button.type = "button"; button.textContent = label;
             button.onclick = async () => {
               if (permanent && !window.confirm("永久删除后无法恢复，确定吗？")) return;
+              if (!deleted && currentId === row.id && !discardOk()) return;  // 移走正在编辑的图会清空编辑器
               const actionEpoch = epoch;
               try {
                 await api(path, method, undefined, permanent ? { "If-Match": `"${row.version}"` } : {});
                 if (actionEpoch !== epoch) return;
                 if (!deleted && currentId === row.id) {
-                  xml = BLANK; currentId = null; etag = null; name.value = ""; resetEditor();
+                  xml = BLANK; dirty = false; currentId = null; etag = null; name.value = ""; resetEditor();
                 }
                 status.textContent = `${label}成功`;
                 await refreshList(); await manage();
@@ -199,5 +209,7 @@
     } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   }
   document.getElementById("btn-manage").onclick = manage;
+  // 关闭或刷新页面时同样会丢掉未保存的改动；浏览器只显示它自己的通用提示文字。
+  window.addEventListener("beforeunload", (event) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
   CodeMaxAuth.onChange(syncAuth); syncAuth(CodeMaxAuth.user);
 })();

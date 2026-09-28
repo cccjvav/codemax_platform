@@ -84,6 +84,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_docs_site.py`](test_docs_site.py) | `08d17b62423a` | L1–L473 |
 | [`tests/test_download.py`](test_download.py) | `532509f67572` | L1–L386 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
+| [`tests/test_drawio_unsaved_changes.py`](test_drawio_unsaved_changes.py) | `18a81ee178a9` | L1–L157 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `fbba314e78b4` | L1–L320 |
@@ -386,3 +387,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_ui_accessibility.py::test_network_failures_are_shown_in_chinese`：Node 真跑 `auth.js` + `support-page.js`（源码与产物），覆盖三种浏览器的网络失败文字、脚本错误原样、登录表单、客服页读取与助手 422。
 - `test_ui_accessibility.py::test_frontend_pages_never_show_raw_exception_text`：源码扫描护栏。
 - `test_er_page.py::test_word_export_button_is_disabled_while_exporting`：源码断言导出期间禁用按钮。
+
+## 2026-09-28 流程图页未保存改动（TD-316）
+
+- `test_drawio_unsaved_changes.py`：Node 真跑 `drawio-page.js`（源码与产物），检查打开、新建、导入、移到回收站前的询问与取消，保存、下载、保存期间又改、打开失败、换账号时「未保存」的变化，以及 `beforeunload`。
