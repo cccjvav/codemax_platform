@@ -100,7 +100,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `404c8385f38f` | L1–L287 |
 | [`tests/test_oauth.py`](test_oauth.py) | `367d3c3c7b7d` | L1–L433 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
-| [`tests/test_ops.py`](test_ops.py) | `8176210c71dd` | L1–L646 |
+| [`tests/test_ops.py`](test_ops.py) | `19dcb2d9c987` | L1–L658 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `a4652243679f` | L1–L279 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `00dcd0f86ab2` | L1–L428 |
@@ -112,7 +112,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
-| [`tests/test_ratelimit.py`](test_ratelimit.py) | `f83386373f6b` | L1–L386 |
+| [`tests/test_ratelimit.py`](test_ratelimit.py) | `73ae8c780609` | L1–L402 |
 | [`tests/test_refund_health.py`](test_refund_health.py) | `b4a1020ba64d` | L1–L407 |
 | [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `c54e0c7ac6aa` | L1–L302 |
@@ -369,3 +369,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_wechat_notify.py`：`test_notify_rejects_duplicate_signature_header`、`test_notify_rejects_missing_signature_header`，对四个签名头各跑一遍。重复用例在改之前的代码上返回 200。
 - `test_wechat_pay.py::test_signed_message_header_bounds`：四个头的长度上限边界。
 - `test_audit_20260915.py::callback_stub` 改为替换 `shop.verify_signed_message` 一个入口，原来替换三个函数。
+
+## 2026-09-28 可信代理地址段只解析一处（TD-313）
+
+- `test_ratelimit.py::test_malformed_proxy_cidrs_trust_nobody_consistently`：畸形地址段下 HSTS/链接判定与限流身份一致地不信任代理；合法配置下跳过可信中间代理；XFF 链有畸形项时退回直接对端。
+- `test_ops.py::test_malformed_trusted_proxy_cidrs_in_production_is_rejected`：四种写错方式在生产环境各报一条；`_clean_prod` 显式设置默认地址段。

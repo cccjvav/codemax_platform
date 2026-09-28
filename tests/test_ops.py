@@ -282,6 +282,7 @@ def _clean_prod(monkeypatch, **over):
         "SECRET_KEY": "a-real-long-random-secret-with-32-chars-min",
         "RATE_LIMIT_ENABLED": True,
         "TRUST_PROXY_HEADERS": True,
+        "TRUSTED_PROXY_CIDRS": "127.0.0.1/32,::1/128",
         "DB_PASSWORD": "not-empty",
         "DATABASE_URL": "",
         "SITE_BASE_URL": "https://codemax.top",
@@ -340,6 +341,17 @@ def test_insecure_site_base_url_in_production_is_rejected(monkeypatch):
 
     _clean_prod(monkeypatch, SITE_BASE_URL="http://codemax.top")
     assert any("SITE_BASE_URL" in x for x in check_production_settings())
+
+
+def test_malformed_trusted_proxy_cidrs_in_production_is_rejected(monkeypatch):
+    """TD-313：地址段写错时不报错、只是整体不信任代理，后果是全体用户共用代理这一个限流身份，所以启动时拦下。"""
+    for bad in ("10.0.0.1/8", "10.0.0.0/8,", "10.0.0.0/33", "proxy.internal"):
+        _clean_prod(monkeypatch, TRUSTED_PROXY_CIDRS=bad)
+        problems = check_production_settings()
+        assert len(problems) == 1 and "TRUSTED_PROXY_CIDRS" in problems[0], bad
+
+    _clean_prod(monkeypatch, TRUSTED_PROXY_CIDRS="10.0.0.0/8, 172.16.0.0/12,::1/128")
+    assert check_production_settings() == []
 
 
 def test_local_storage_backend_warns_but_does_not_block(monkeypatch, caplog):

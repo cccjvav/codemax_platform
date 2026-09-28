@@ -1537,3 +1537,33 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - `test_wechat_notify.py` 新增 `test_notify_rejects_duplicate_signature_header`、`test_notify_rejects_missing_signature_header`，对四个头各跑一遍，共 8 个用例。在改之前的代码上 7 个失败：4 个重复用例都返回 200，3 个缺失用例的报错不含头名。
 - `test_wechat_pay.py` 新增 `test_signed_message_header_bounds`：四个上限的边界，把 Nonce 上限改成 129 后失败。
 - `test_audit_20260915.py` 的 `callback_stub` 夹具原来分别替换 `shop` 上的时间、平台 ID、签名三个函数，改为替换 `shop.verify_signed_message` 一个入口。这两个用例测的是认证之后的报文形状，断言不变。
+
+## TD-313：可信代理地址段只解析一处，生产环境写错拒绝启动
+
+**状态**：已实施（2026-09-28），优化阶段重构批次。
+
+**问题**：`TRUSTED_PROXY_CIDRS` 在两处各自解析，每次请求都重新解析一遍：
+- `middleware.trusted_proxy`：决定 HSTS 和开发环境对外链接是否采信 `X-Forwarded-*`；
+- `ratelimit.client_key`：决定限流身份取 XFF 里的客户端地址，还是直接对端。
+
+配置里有一段写错时，两处结论不一致。以「10.0.0.0/8,bad」为例，来自代理 10.x 的请求：
+- `trusted_proxy` 用 `any()` 逐段比对，第一段先匹配上就短路返回 True，请求被当作可信；
+- `client_key` 先把整串解析成列表，遇到 `bad` 抛 `ValueError`，退回代理地址。
+
+结果是代理后的全体用户共用一个限流身份（登录、注册等配额），而配置写错不会有任何报错。生产环境已经因为同样的后果硬性要求 `TRUST_PROXY_HEADERS=true`（TD-142 / O-15），但地址段本身写错时没有检查。
+
+**决定**：
+- `middleware.trusted_proxy_networks()` 成为唯一解析处，按配置字符串 `lru_cache` 缓存；任何一段畸形就抛 `ValueError`，异常不进缓存。
+- `trusted_proxy` 和 `client_key` 都从这里取：配置畸形时两者一致地不信任任何代理。`client_key` 在 `trusted_proxy` 为真后直接使用解析结果；XFF 链里有畸形项时仍退回直接对端，与原来相同。
+- `check_production_settings` 新增一项硬检查：生产环境 `TRUSTED_PROXY_CIDRS` 解析失败就拒绝启动，报错给出解析异常和正确写法示例。常见写错方式有：主机位非零（`10.0.0.1/8`）、末尾多逗号、前缀超范围、写主机名。
+- 顺带：开发环境 `/docs`、`/redoc` 的 CSP 例外原来每次请求现拼，改为模块常量 `DOCS_CONTENT_SECURITY_POLICY`，已确认内容逐字相同。
+
+**行为变化**：
+- 配置合法时没有任何变化。
+- 配置畸形时，`trusted_proxy` 从「前面的段匹配上就信任」改为一律不信任。
+- 生产环境配置畸形时从静默降级改为拒绝启动，DEPLOY.md 的启动检查表和 `.env.example` 已注明。
+
+**测试**：
+- `test_ratelimit.py::test_malformed_proxy_cidrs_trust_nobody_consistently`：畸形配置下 `trusted_proxy` 为 False、限流身份是直接对端；改成合法配置后恢复采信、跳过可信中间代理；链里有畸形项时退回直接对端。
+- `test_ops.py::test_malformed_trusted_proxy_cidrs_in_production_is_rejected`：四种写错方式各只报一条，带空格的多段合法写法不报。`_clean_prod` 显式设置默认地址段，不依赖环境。
+- 两条新用例在改之前的代码上都失败。

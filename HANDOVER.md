@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-28，TD-313 / 优化阶段：可信代理地址段只解析一处）**：`TRUSTED_PROXY_CIDRS` 原来在 `middleware.trusted_proxy` 和 `ratelimit.client_key` 各解析一次，配置有一段写错时两边结论不一致，限流会把代理后的全体用户当成一个 IP（RR-36）。现在统一由 `middleware.trusted_proxy_networks()` 解析，生产环境写错直接拒绝启动。见 TD-313 和 DEPLOY.md 启动检查表。
+
 **接手状态（2026-09-28，TD-312 / 优化阶段：微信签名认证三处合一）**：支付回调、退款通知、API 应答原来各写一份「四个签名头 → 新鲜度 → 平台身份 → 验签」，现在统一为 `wechat_pay.verify_signed_message`。唯一的行为变化：支付回调遇到重复的签名头，从放行改为 401（RR-35），各入口的状态码不变。见 TD-312。
 
 **接手状态（2026-09-28，TD-311 / 优化阶段：账单解析按表头名取列）**：`wechat_bills.parse_bill` 原来用 `cells[14:16]`、`amounts[4]` 这类裸数字取列，现在列号一律写成 `DETAIL_HEADER.index('表头名')`（`_Col`），六个金额拆成有名字的变量。新旧解析器 4 万份随机账单差分结果一致。复审补了三条原来没有测试的校验（RR-33）。见 TD-311。

@@ -11,6 +11,7 @@ import logging
 from urllib.parse import urlsplit
 
 from .config import settings
+from .middleware import trusted_proxy_networks
 
 DEFAULT_SECRET = "dev-secret-change-me"
 
@@ -61,6 +62,16 @@ def check_production_settings() -> list[str]:
             "在反向代理之后关闭它，限流会把所有用户当成同一个 IP；"
             "直连公网时开启同样安全 —— 是否采信 X-Forwarded-* 由 TRUSTED_PROXY_CIDRS "
             "单独决定（默认只信任回环地址），请把代理地址段写进 TRUSTED_PROXY_CIDRS"
+        )
+    # TD-313：可信代理地址段写错（多了空段、主机位非零如 10.0.0.1/8、拼写错误）时不报错，
+    # 只是整体不信任任何代理 —— 后果与上一项相同：全体用户共享代理这一个限流身份。
+    try:
+        trusted_proxy_networks()
+    except ValueError as exc:
+        problems.append(
+            f"TRUSTED_PROXY_CIDRS={settings.TRUSTED_PROXY_CIDRS!r} 无法解析（{exc}）："
+            "应为逗号分隔的 CIDR（如 10.0.0.0/8,::1/128），主机位须为 0；"
+            "解析失败时不信任任何代理，限流会把所有用户当成代理这一个 IP"
         )
     # A-12：DB_PASSWORD 为空。默认值就是 ""，`.env` 漏一行就是空。真库若开了 trust
     # 认证会**静默连上**一个没设密码的库；没开则是等用户下单时才连接失败。

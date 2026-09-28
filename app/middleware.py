@@ -8,6 +8,7 @@ HSTS 与对外链接生成均使用可信直接代理规则；安全头与日志
 沿用路由内 64 KiB 流式上限。它不替代反向代理的 `client_max_body_size`，也不限制响应大小。"""
 from __future__ import annotations
 
+import functools
 import ipaddress
 import logging
 import re
@@ -42,6 +43,13 @@ CONTENT_SECURITY_POLICY = "; ".join(
     ]
 )
 
+# 开发环境 /docs、/redoc 的例外（生产不注册这两个端点）：Swagger/ReDoc 需要 CDN 脚本、内联脚本和字体。
+DOCS_CONTENT_SECURITY_POLICY = CONTENT_SECURITY_POLICY.replace(
+    "script-src 'self'", f"script-src 'self' 'unsafe-inline' {_CDN}"
+).replace(
+    "style-src 'self' 'unsafe-inline'", f"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com"
+) + "; font-src 'self' https://fonts.gstatic.com data:"
+
 # 安全头是常量，预先编码成 ASGI 要的 (bytes, bytes) 形式，省掉每次请求重复编码
 _STATIC_SECURITY_HEADERS: list[tuple[bytes, bytes]] = [
     (b"x-content-type-options", b"nosniff"),  # 禁止 MIME 嗅探
@@ -59,6 +67,24 @@ def _header(scope: dict, name: bytes) -> str:
     return ""
 
 
+@functools.lru_cache(maxsize=8)
+def _parse_networks(text: str) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    return tuple(ipaddress.ip_network(c.strip()) for c in text.split(","))
+
+
+def trusted_proxy_networks() -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """`TRUSTED_PROXY_CIDRS` 的唯一解析处（TD-313），按配置字符串缓存；任何一段畸形就抛 ValueError。
+
+    `trusted_proxy`（HSTS、对外链接）和 `ratelimit.client_key`（限流身份）都从这里取，
+    畸形配置下两者一致地「谁都不信任」。以前各自解析：前面的段先匹配上时 `trusted_proxy`
+    短路返回 True，限流却因解析失败退回代理地址，代理后的全体用户共用一个限流桶。
+    生产环境由 `startup_checks` 在启动时拒绝畸形值。
+    """
+    from .config import settings
+
+    return _parse_networks(settings.TRUSTED_PROXY_CIDRS)
+
+
 def trusted_proxy(scope: dict) -> bool:
     from .config import settings
 
@@ -66,7 +92,7 @@ def trusted_proxy(scope: dict) -> bool:
         return False
     try:
         peer = ipaddress.ip_address(scope["client"][0])
-        return any(peer in ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(","))
+        return any(peer in net for net in trusted_proxy_networks())
     except ValueError:
         return False  # malformed configuration never becomes trust-all
 
@@ -129,10 +155,7 @@ class SecurityHeadersMiddleware:
                 for k, v in _STATIC_SECURITY_HEADERS:
                     headers.setdefault(k.decode(), v.decode())
                 if scope.get("path") in ("/docs", "/redoc"):
-                    headers["content-security-policy"] = CONTENT_SECURITY_POLICY.replace(
-                        "script-src 'self'", f"script-src 'self' 'unsafe-inline' {_CDN}"
-                    ).replace("style-src 'self' 'unsafe-inline'",
-                              f"style-src 'self' 'unsafe-inline' {_CDN} https://fonts.googleapis.com") + "; font-src 'self' https://fonts.gstatic.com data:"
+                    headers["content-security-policy"] = DOCS_CONTENT_SECURITY_POLICY
                 if not scope.get("path", "").startswith("/static/"):
                     headers.setdefault("cache-control", "no-store")
                 else:

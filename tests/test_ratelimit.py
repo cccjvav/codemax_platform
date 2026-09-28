@@ -212,6 +212,22 @@ def test_forwarded_ipv6_client_is_also_aggregated(monkeypatch):
     assert a == b == "2001:db8:9::/64"
 
 
+def test_malformed_proxy_cidrs_trust_nobody_consistently(monkeypatch):
+    """TD-313：可信代理地址段有一段写错时，HSTS/对外链接用的 trusted_proxy 与限流用的 client_key 必须一致地不信任代理。
+    以前前面的段先匹配上时 trusted_proxy 返回 True，限流却因为解析失败退回代理地址。"""
+    from app.middleware import trusted_proxy
+
+    monkeypatch.setattr(settings, "TRUST_PROXY_HEADERS", True)
+    monkeypatch.setattr(settings, "TRUSTED_PROXY_CIDRS", "127.0.0.1/32,not-a-cidr")
+    assert trusted_proxy({"type": "http", "client": ("127.0.0.1", 1234)}) is False
+    assert _key_for("127.0.0.1", {"X-Forwarded-For": "203.0.113.7"}) == "127.0.0.1"
+
+    monkeypatch.setattr(settings, "TRUSTED_PROXY_CIDRS", "127.0.0.1/32,10.0.0.0/8")
+    assert trusted_proxy({"type": "http", "client": ("127.0.0.1", 1234)}) is True
+    assert _key_for("127.0.0.1", {"X-Forwarded-For": "203.0.113.7, 10.1.2.3"}) == "203.0.113.7", "跳过可信的中间代理"
+    assert _key_for("127.0.0.1", {"X-Forwarded-For": "junk, 10.1.2.3"}) == "127.0.0.1", "链里有畸形项时不猜，退回直接对端"
+
+
 async def test_two_addresses_in_one_64_share_the_quota_end_to_end(enabled):
     """ASGI 全链路：同一 /64 内换地址不能刷新配额；不同 /64 各有各的配额。"""
 

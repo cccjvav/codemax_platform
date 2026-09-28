@@ -119,13 +119,13 @@ pending → closed → paid
 | [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
 | [`app/delivery.py`](delivery.py) | `0ba21151ff54` | L1–L154 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
-| [`app/middleware.py`](middleware.py) | `3dd5cca800bc` | L1–L361 |
+| [`app/middleware.py`](middleware.py) | `42cb9a6a1dc9` | L1–L384 |
 | [`app/models.py`](models.py) | `8ed02718fa39` | L1–L359 |
 | [`app/order_closures.py`](order_closures.py) | `a87abe733ba1` | L1–L99 |
 | [`app/order_state.py`](order_state.py) | `9ee748300c73` | L1–L100 |
 | [`app/payment_ledger.py`](payment_ledger.py) | `06b421e1a65b` | L1–L85 |
 | [`app/payment_review.py`](payment_review.py) | `a26a38f6658e` | L1–L144 |
-| [`app/ratelimit.py`](ratelimit.py) | `ade83df887d6` | L1–L202 |
+| [`app/ratelimit.py`](ratelimit.py) | `986c13547bf0` | L1–L201 |
 | [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
 | [`app/refund_notifications.py`](refund_notifications.py) | `3a0774246bff` | L1–L200 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
@@ -136,7 +136,7 @@ pending → closed → paid
 | [`app/schemas.py`](schemas.py) | `0c9ee37dce43` | L1–L153 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
-| [`app/startup_checks.py`](startup_checks.py) | `cb2e081a4545` | L1–L160 |
+| [`app/startup_checks.py`](startup_checks.py) | `3d1a1a6900e8` | L1–L171 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
 | [`app/wechat_bills.py`](wechat_bills.py) | `a1abd9c07ad8` | L1–L259 |
@@ -297,3 +297,9 @@ wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_js
 
 - `wechat_pay.verify_signed_message(cfg, header_values, body)`：支付回调、退款通知、API 应答共用的认证。`SIGNATURE_HEADERS` 定义四个 `Wechatpay-*` 头及上限，每个必须恰好一个、非空、不超长，然后查新鲜度、平台身份、RSA 验签。`header_values` 传 Starlette 的 `headers.getlist` 或 httpx 的 `headers.get_list`；失败抛 `WeChatPayError`，状态码由调用方决定。
 - `wechat_pay.assert_response_signature`、`refund_notifications.parse_notice` 改为调用它，对外行为不变。
+
+## 2026-09-28：可信代理地址段只解析一处（TD-313）
+
+- `middleware.trusted_proxy_networks()`：`TRUSTED_PROXY_CIDRS` 的唯一解析处，按配置字符串缓存；任何一段畸形就抛 `ValueError`。`trusted_proxy` 与 `ratelimit.client_key` 都从这里取，畸形配置下一致地不信任任何代理。
+- `startup_checks.check_production_settings`：生产环境地址段解析失败时拒绝启动。
+- `middleware.DOCS_CONTENT_SECURITY_POLICY`：开发 `/docs`、`/redoc` 的 CSP 例外改为模块常量，内容不变。

@@ -32,7 +32,7 @@ from typing import NamedTuple
 from fastapi import HTTPException, Request
 
 from .config import settings
-from .middleware import trusted_proxy
+from .middleware import trusted_proxy, trusted_proxy_networks
 
 logger = logging.getLogger("codemax.ratelimit")
 
@@ -162,15 +162,14 @@ def client_key(request: Request) -> str:
     """限流用的客户端标识。默认取 socket 对端地址，见模块 docstring 关于 XFF 与 /64 的说明。"""
     peer = request.client.host if request.client else "unknown"
     if trusted_proxy(request.scope):
-        chain = request.headers.get("x-forwarded-for", "").split(",")
-        try:
-            networks = [ipaddress.ip_network(c.strip()) for c in settings.TRUSTED_PROXY_CIDRS.split(",")]
-            for item in reversed(chain):
+        networks = trusted_proxy_networks()  # trusted_proxy 为真，说明配置可解析（TD-313）
+        for item in reversed(request.headers.get("x-forwarded-for", "").split(",")):
+            try:
                 address = ipaddress.ip_address(item.strip())
-                if not any(address in net for net in networks):
-                    return _identity(address)
-        except ValueError:
-            return _identity(peer)
+            except ValueError:
+                return _identity(peer)  # 链里有畸形项：不猜，退回直接对端
+            if not any(address in net for net in networks):
+                return _identity(address)
     return _identity(peer)
 
 
