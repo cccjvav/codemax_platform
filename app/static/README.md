@@ -66,9 +66,9 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/diagram-VX7I27RA.js`](js/diagram-VX7I27RA.js) | `1373a7498fea` | 生成物，见模块构建说明 |
 | [`app/static/js/diagram-Z3DM3KII.js`](js/diagram-Z3DM3KII.js) | `372dc41eec58` | 生成物，见模块构建说明 |
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
-| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `94d8c525720d` | 生成物，见模块构建说明 |
+| [`app/static/js/drawio-page.js`](js/drawio-page.js) | `0a2ee8bdafbd` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `ae05bf314f9d` | 生成物，见模块构建说明 |
-| [`app/static/js/er-page.js`](js/er-page.js) | `7bfda52e3ea4` | 生成物，见模块构建说明 |
+| [`app/static/js/er-page.js`](js/er-page.js) | `abe1c4578db1` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `cc19e69b836a` | 生成物，见模块构建说明 |
 | [`app/static/js/eventmodeling-NTZA5JFV.js`](js/eventmodeling-NTZA5JFV.js) | `6d880858817b` | 生成物，见模块构建说明 |
 | [`app/static/js/flowDiagram-HODETNUW.js`](js/flowDiagram-HODETNUW.js) | `5018e3a596bc` | 生成物，见模块构建说明 |
@@ -85,7 +85,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/katex.js`](js/katex.js) | `57d7eb6dbbc3` | 生成物，见模块构建说明 |
 | [`app/static/js/line.js`](js/line.js) | `655f21b5e91d` | 生成物，见模块构建说明 |
 | [`app/static/js/linear.js`](js/linear.js) | `78c6a0ccd56b` | 生成物，见模块构建说明 |
-| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `84b9986cf19c` | 生成物，见模块构建说明 |
+| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `73139a5ac261` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid-parser.core.js`](js/mermaid-parser.core.js) | `7146f3a0e00e` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid.core.js`](js/mermaid.core.js) | `1fb816f0fe83` | 生成物，见模块构建说明 |
 | [`app/static/js/mindmap-definition-YA3MSWOX.js`](js/mindmap-definition-YA3MSWOX.js) | `7b724282b151` | 生成物，见模块构建说明 |
@@ -113,7 +113,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `a53c367355a3` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `f315d7564845` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `0a895c65d0b0` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `24b062312da4` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `99cd3de777d0` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `6f2a01973e9c` | 生成物，见模块构建说明 |

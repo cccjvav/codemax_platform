@@ -316,3 +316,11 @@
 | 编号 | 发现 | 处理 |
 |---|---|---|
 | RR-54 | 自审 TD-325：① emoji 检查的字符集取 Unicode Emoji_Presentation（默认彩色显示），不含 ⚠ 这类默认文字显示的符号，所以不会误伤模拟收银台横幅；扫描前去掉 HTML、Jinja、JS 注释，注释里的 ⚠ 不算。② 空列表规则：真 Chromium 实测空时外边距 0、`aria-live` 仍在、display 为 block；发送第一条后外边距恢复 15px。③ 支付成功标题改动不影响脚本：脚本只切换 `#st-paid` 的 hidden，不读标题文字（grep 确认）。 | 无需改动。 |
+
+## 2026-09-28：第四轮截图复核（TD-326）的本轮复审
+
+范围：TD-326 的 diff（`er-page.js`、`mermaid-page.js`、`support-page.js`、`drawio-page.js` 及产物，`base.html`、`drawio.html`、`support-center.html`，三个测试文件）。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-55 | 自审 TD-326：① 类图页原打算在「渲染组件下载失败」分支也清空预览区，复查发现到不了：渲染器加载成功后被缓存，下载失败只可能发生在从没画出过图的时候，那时预览区本来就是空的 —— 删掉这行，免得注释声称一件不会发生的事。② 「有没有上一次的结果」的判断：第一版从元素状态反推（类图页看源码框是否 hidden，ER 页看 `#er-tools`），全量测试时另外两组执行器（`test_llm_concurrency.py`、`test_frontend_supply_chain.py`）的假 DOM 源码框初始不是 hidden、元素没有 `setAttribute`，5 条失败 —— 说明这个判断依赖页面初始状态，不稳。改为显式状态（类图页 `hasResult` 在拿到源码时置位；ER 页 `hasDiagram` 在渲染成功时置位、`clearCanvas` 时清零），`setAttribute` 按仓库已有约定用可选调用；那两组测试不用改。③ 类图页原先 200 非 JSON 时先打开源码框再抛错，新判断若不补就会误报「仍是上一次的结果」，已补 `!data` 判断并有用例。④ `word-break: keep-all` 只加在 `button.item` 上：三处用法都是「字段 · 字段」；成段中文（客服消息、助手回答）不受影响。⑤ 真 Chromium 复拍：ER 与类图调暗后 opacity 0.45，下次成功恢复为 1；订单、管理端两个列表、Drawio 390px 均无横向溢出。 | ① 已删除；② 已改为显式状态；其余无需改动。 |

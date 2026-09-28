@@ -171,6 +171,33 @@ function fail(msg) {
   error.textContent = msg;
 }
 
+// 新一次生成失败时（TD-326），画布上可能还是上一次的图，和输入框里现在的 DDL 对不上，原来照常显示、
+// 看不出已经过时。请求阶段失败（DDL 有误、断网、网关错误）时图本身完好：调暗（data-stale，样式见
+// base.html）并在错误提示里说明，下次成功生成时恢复。「有没有上一次的图」用显式状态 hasDiagram 记，
+// 不从元素的 hidden 反推；setAttribute 用可选调用（部分测试替身没有这个方法，与其他页面脚本同一约定）。
+const canvas = document.getElementById("er-canvas");
+const tools = document.getElementById("er-tools");
+let hasDiagram = false;
+
+function setStale(on) {
+  if (on) canvas.setAttribute?.("data-stale", "");
+  else canvas.removeAttribute?.("data-stale");
+}
+
+function failKeepingPrevious(msg) {
+  setStale(hasDiagram);
+  fail(hasDiagram ? `${msg.replace(/[。.]$/, "")}；当前显示的仍是上一次的结果` : msg);
+}
+
+// 绘制阶段失败时画布可能只画了一半（renderEr 先清空再逐层画）：清空并回到「尚未生成」的空状态
+function clearCanvas() {
+  canvas.replaceChildren();
+  canvas.setAttribute("aria-label", "ER 图（生成后显示）");
+  tools.hidden = true;
+  hasDiagram = false;
+  setStale(false);
+}
+
 document.getElementById("er-sample").onclick = () => {
   input.value = SAMPLE;
 };
@@ -209,12 +236,19 @@ form.onsubmit = async (ev) => {
   try {
     const res = await post("/tools/er-diagram", { ddl: input.value });
     const data = await res.json().catch(() => null);
-    if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
-    if (!data) return fail("请求失败：服务器返回的不是 JSON");
+    if (!res.ok) return failKeepingPrevious(window.CodeMaxAuth.errorText(data, res.status));
+    if (!data) return failKeepingPrevious("请求失败：服务器返回的不是 JSON");
     stage = "渲染失败";
     renderEr("#er-canvas", data);
+    hasDiagram = true;
+    setStale(false);
   } catch (e) {
-    fail(`${stage}：${failure(e)}`);
+    if (stage === "渲染失败") {
+      clearCanvas();
+      fail(`${stage}：${failure(e)}`);
+    } else {
+      failKeepingPrevious(`${stage}：${failure(e)}`);
+    }
   } finally {
     submit.disabled = false;
   }

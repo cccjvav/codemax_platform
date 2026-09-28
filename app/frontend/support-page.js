@@ -91,6 +91,7 @@
       const rows = await request("/support/conversations" + (more && inboxCursor ? `?before=${inboxCursor}` : ""));
       if (stamp !== epoch || serial !== inboxSeq) return;
       if (!more) el("inbox").replaceChildren();
+      if (!more) el("inbox-empty").hidden = rows.length > 0;  // 空状态只看第一页：「更多会话」拿到空页不代表列表为空（TD-326）
       for (const row of rows) {
         const button = document.createElement("button");
         button.type = "button"; button.className = "item";
@@ -208,7 +209,7 @@
     if (user && user.role !== 1 && handoffDraft) { fillDraft(handoffDraft); handoffDraft = null; }
     // 回答显示之后换了账号：管理员是回复方，隐藏「留言给管理员」；换回普通用户或退出后按原回答恢复
     renderAnswer(user);
-    el("inbox").replaceChildren(); el("inbox-more").hidden = true;
+    el("inbox").replaceChildren(); el("inbox-more").hidden = true; el("inbox-empty").hidden = true;
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;
     const isAdmin = user?.role === 1;

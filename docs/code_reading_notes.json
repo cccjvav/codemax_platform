@@ -425,7 +425,7 @@
     },
     {
       "path": "app/frontend/drawio-page.js",
-      "sha256": "462e8b4acdfaac6906f741997c0a43726c76c428c68b540b8ff213a6d3567e9c",
+      "sha256": "b3accf2c441ec47662311678874228cc326d95165eb6e0022b74ba1a9578b896",
       "method": "manual",
       "blocks": [
         {
@@ -484,9 +484,9 @@
           "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。 R-08：换账号时清空上一个账号的图并把 dirty 清零，不询问：退出与换账号无法取消。游客首次登录保留草稿，dirty 也随之保留。"
         },
         {
-          "end": 215,
+          "end": 216,
           "title": "manage / action：回收站、恢复与永久删",
-          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。 R-08：把正在编辑的图移到回收站会清空编辑器，所以同样先 discardOk()。段尾注册 beforeunload：dirty 时 preventDefault 并设 returnValue，浏览器显示它自己的通用离开提示（页面无法自定义文字）。"
+          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。 R-08：把正在编辑的图移到回收站会清空编辑器，所以同样先 discardOk()。段尾注册 beforeunload：dirty 时 preventDefault 并设 returnValue，浏览器显示它自己的通用离开提示（页面无法自定义文字）。 TD-326：行内操作按钮设 className=\"ghost\"（描边）：原来每行一个实心主按钮，列表里最醒目的是破坏性操作。"
         }
       ]
     },
@@ -549,7 +549,7 @@
     },
     {
       "path": "app/frontend/er-page.js",
-      "sha256": "ff0461e269314adb3c236f26221c6c06c08514daf4ad2a3edc87918206919ece",
+      "sha256": "c1bcd12651233e6f67e541429ea54525a11e4c421d47ac1695c569dad792809b",
       "method": "manual",
       "blocks": [
         {
@@ -573,20 +573,20 @@
           "explanation": "SAMPLE 只是按钮填入的 SQL，不会自动执行服务器操作。post 发 JSON，fail 显示文本错误；元素 ID 必须与 er.html 同步。"
         },
         {
-          "end": 202,
+          "end": 229,
           "title": "示例 / Word 下载",
-          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。 TD-315：导出期间 wordButton 禁用，结束后在 finally 里恢复（含失败与提前 return 的路径），连点不再发出多次导出、下载多份相同文件。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
+          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。 TD-315：导出期间 wordButton 禁用，结束后在 finally 里恢复（含失败与提前 return 的路径），连点不再发出多次导出、下载多份相同文件。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。 TD-326：本块开头新增生成失败时的旧图处理：setStale 切换画布的 data-stale；failKeepingPrevious 在 hasDiagram 为真（渲染成功时置位、clearCanvas 时清零，不从元素 hidden 反推）时调暗画布并在提示末尾加「；当前显示的仍是上一次的结果」，没画过就只显示原提示；clearCanvas 清空画布、恢复读屏标签「ER 图（生成后显示）」、藏起 #er-tools（空状态提示随之出现）并去掉调暗。"
         },
         {
-          "end": 221,
+          "end": 255,
           "title": "提交 ER：避免默认跳页和重复点击",
-          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。 TD-318：catch 按阶段说明：stage 起始为「请求失败」，调用 renderEr 前改为「渲染失败」，提示为「阶段：原因」；非 JSON 应答显示「请求失败：服务器返回的不是 JSON」。原来断网也显示「渲染失败」。"
+          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。 TD-318：catch 按阶段说明：stage 起始为「请求失败」，调用 renderEr 前改为「渲染失败」，提示为「阶段：原因」；非 JSON 应答显示「请求失败：服务器返回的不是 JSON」。原来断网也显示「渲染失败」。 TD-326：请求阶段的失败（非成功状态、200 非 JSON、网络异常）改走 failKeepingPrevious，上一次的图保留并调暗；渲染成功后置 hasDiagram 并 setStale(false)；绘制阶段失败时先 clearCanvas（画布可能只画了一半）再提示「渲染失败：…」。"
         }
       ]
     },
     {
       "path": "app/frontend/mermaid-page.js",
-      "sha256": "4c9ee202d8a8edf191072bfa67396dbe1e300289cbc77d4d497eb03e3f6fafef",
+      "sha256": "e4c3018936342074f70c8fbf29c4ed1156b278ca8cb8433e54ae49c064dfa2b1",
       "method": "manual",
       "blocks": [
         {
@@ -595,19 +595,19 @@
           "explanation": "Mermaid 从锁定 npm 依赖打包，本页显式 strict、startOnLoad=false：把不可信模型输出交安全渲染器，非允许任意点击回调的 loose 模式。SAMPLE 和各元素匹配 mermaid.html。 TD-280：改为按需加载——loadMermaid() 在第一次需要时 import(\"mermaid\")，then 里做 initialize（strict 与 startOnLoad=false 不变）并缓存 promise；下载失败时把缓存清掉，下一次点击会重新下载，而不是永远拿到同一个失败结果。仍是 package-lock 锁定的本地包，由 Vite 拆成同源分块。页面首屏从约 669 KiB（16 个文件）降到约 3.5 KiB。 TD-318：initialize 增加 suppressErrorRendering: true。不加时 Mermaid 11 解析失败会先往预览区画一张「Syntax error in text」炸弹图再抛错，页面随后的中文提示与这张英文错误图同时出现。"
         },
         {
-          "end": 49,
+          "end": 67,
           "title": "示例与 fail",
-          "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。 TD-318：本块之后新增 renderFailure(e)：只取 failure(e) 的第一行（去空白、最多 120 字），拼成「无法绘制模型生成的图（Mermaid 提示：…）。下方是模型给出的源码…」。解析器提示后面几行是指向出错位置的字符画，放进一行提示里无法阅读。"
+          "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。 TD-318：本块之后新增 renderFailure(e)：只取 failure(e) 的第一行（去空白、最多 120 字），拼成「无法绘制模型生成的图（Mermaid 提示：…）。下方是模型给出的源码…」。解析器提示后面几行是指向出错位置的字符画，放进一行提示里无法阅读。 TD-326：fail 之后新增 setStale（源码框与预览区一起切换 data-stale）与 failKeepingPrevious：hasResult 为真（拿到过模型源码，显式状态，不从源码框 hidden 反推）时调暗两者并在提示末尾加「；当前显示的仍是上一次的结果」，否则只显示原提示。不清掉旧结果：模型生成耗配额、再生成结果也不同。"
         },
         {
-          "end": 90,
+          "end": 108,
           "title": "503 自动重试一次：requestDiagram",
           "explanation": "503 是本站模型并发闸门已满（TD-264），带 Retry-After，不是上游故障。requestDiagram 最多重试 MAX_BUSY_RETRIES=1 次：等待秒数取 Retry-After，不可解析退回 5，钳在 1–30 秒，等待期间用 fail 显示\"服务繁忙，N 秒后自动重试…\"；第二次仍 503 或任何非 503 状态原样返回给调用方，不无限打转。setTimeout 由测试桩接管，Node 里不真等。 TD-272：新增 serverMessage()，把 502 且 detail 含 LLM_API_KEY 的服务端文案替换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 与其它 502 文案不变。"
         },
         {
-          "end": 125,
+          "end": 147,
           "title": "文本→模型接口→Mermaid 渲染",
-          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。 TD-318：catch 按阶段说明。stage 起始为 request，在清 data-processed 之前改为 render：请求阶段（含断网）显示「请求失败：…」，渲染阶段清空预览区（里面还是刚放进去的源码原文）并显示 renderFailure(e)。原来整个 try 共用「渲染失败：」，断网也被说成渲染失败。上次成功的图在新请求失败时仍保留，与 ER 页一致。渲染组件下载失败的提示也把「上方是…源码」改成「下方是」：源码框在错误提示之后。"
+          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。 TD-318：catch 按阶段说明。stage 起始为 request，在清 data-processed 之前改为 render：请求阶段（含断网）显示「请求失败：…」，渲染阶段清空预览区（里面还是刚放进去的源码原文）并显示 renderFailure(e)。原来整个 try 共用「渲染失败：」，断网也被说成渲染失败。上次成功的图在新请求失败时仍保留，与 ER 页一致。渲染组件下载失败的提示也把「上方是…源码」改成「下方是」：源码框在错误提示之后。 TD-326：非成功状态与请求阶段异常改走 failKeepingPrevious；新增 200 但不是 JSON 的判断（原来读 data.mermaid 时才抛 TypeError，源码框已被打开成空白）；成功后先 setStale(false) 再换上新源码并置 hasResult。渲染组件下载失败的分支不清预览区：渲染器加载成功后会被缓存，这个分支只会在从没画出过图时走到。"
         }
       ]
     },
@@ -694,7 +694,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "c1177cf0a5b79d3c86c6a04e9f1175dc5c6166b78b98abd0aa171c3509541f0c",
+      "sha256": "dcd5a7ee2892cae03276604e8995f863bd123ed014511f0634ab3a78b44ba233",
       "blocks": [
         {
           "end": 19,
@@ -722,24 +722,24 @@
           "explanation": "currentUser 和 polling 防匿名/重叠读取；用 newest 请求 after 增量，首次取最近页。每次 await 后比较 epoch。失败可显示可重试提示；finally 只有当前代次能排 4 秒后的轮询，不是每四秒无条件叠加请求。"
         },
         {
-          "end": 119,
+          "end": 120,
           "title": "管理员列表与更早消息",
-          "explanation": "inbox只让管理员读取；epoch与单独inboxSeq共同拒绝晚到列表，more控制游标分页。选择客户先reset旧会话，再设置target并启用发送/开始轮询。更早消息使用before与当前epoch；管理与消息游标不共用。 TD-306：会话按钮 className=\"item\"；点击时清其他会话的 aria-current 并标记本条，重建列表时按当前 target 重新标记，刷新不丢选中状态。游客提示里的 #support-login-btn 绑定 auth.open()。"
+          "explanation": "inbox只让管理员读取；epoch与单独inboxSeq共同拒绝晚到列表，more控制游标分页。选择客户先reset旧会话，再设置target并启用发送/开始轮询。更早消息使用before与当前epoch；管理与消息游标不共用。 TD-306：会话按钮 className=\"item\"；点击时清其他会话的 aria-current 并标记本条，重建列表时按当前 target 重新标记，刷新不丢选中状态。游客提示里的 #support-login-btn 绑定 auth.open()。 TD-326：inbox() 读第一页时按是否为空切换 #support-inbox-empty；「更多会话」拿到空页不算列表为空。"
         },
         {
-          "end": 139,
+          "end": 140,
           "title": "发送重试：为什么不能把 POST id 当读取进度",
           "explanation": "未登录唤起登录；sending阻止重叠，管理员target为空时明确拒绝并提示。正文非空后在try内创建/复用pending.body与client_nonce，网络不确认时保留同nonce重试，防重复写入。成功不跳读游标到POST id，避免漏管理员回复；epoch变更丢弃旧回包，finally只恢复本上下文按钮。"
         },
         {
-          "end": 202,
+          "end": 203,
           "title": "先问智能助手：公开 /support/ask，独立于会话代次",
           "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 记入 lastEscalated。R-03：固定转人工答案（source=human）是写给所有 /support/ask 调用方的「登录站内客服页留言」，人已在客服页，renderAnswer 按访客/普通用户/管理员换成 HUMAN_ANSWERS 里的页内说法，其他来源原样显示；它同时决定转人工按钮（管理员不显示），onUser 换账号时重新渲染。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
         },
         {
-          "end": 224,
+          "end": 225,
           "title": "onUser 与离开页面",
-          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。 R-03：这一步改由 renderAnswer(user) 完成，同时把固定转人工答案刷新成新身份对应的页内文案。 TD-306：管理员登录后、选会话之前标题写「请先选择一个客户会话」（原来是没有内容可看的「我的留言」）；普通用户仍是「我的留言」。"
+          "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。 R-03：这一步改由 renderAnswer(user) 完成，同时把固定转人工答案刷新成新身份对应的页内文案。 TD-306：管理员登录后、选会话之前标题写「请先选择一个客户会话」（原来是没有内容可看的「我的留言」）；普通用户仍是「我的留言」。 TD-326：换账号或退出时同时收起 #support-inbox-empty。"
         }
       ]
     },
@@ -1877,7 +1877,7 @@
     },
     {
       "path": "app/templates/base.html",
-      "sha256": "a43c79902b689741d700ca08a7f05972b16eef6379f5735b65cfa28abaa66b8f",
+      "sha256": "0575420a61e7dcfbc40743ff0de9545b6372ffa28393b214ce2d402200991897",
       "method": "manual",
       "blocks": [
         {
@@ -1886,22 +1886,22 @@
           "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。 TD-272：新增站点图标 link（/static/favicon.svg）—— 此前没有图标文件，浏览器对每个页面都会多打一次 /favicon.ico 并拿到 404。"
         },
         {
-          "end": 170,
+          "end": 178,
           "title": "全站 CSS：盒模型、导航和工具布局",
-          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。 TD-307：窄屏导航行加右缘 28px 渐隐（mask-image，含 -webkit- 前缀）与同宽 ::after 占位，提示还能横向滑动、滑到最右时最后一个链接不被遮；登录浮层当前标签 [aria-pressed=\"true\"] 浅蓝底、加粗、底部 3px 色条。 TD-317：新增 --fs-subtitle（17px），并给没写样式的 h2 / h3 加元素级规则（h2 用 --fs-title、h3 用 --fs-subtitle）。元素选择器特异性最低，.card h2、.modal h2、页面里的 .box h3 等规则照常生效；截图里原来的浏览器默认字号（22.5 / 24px 的 h2、17.55 / 18.72px 的 h3）因此消失。页脚规则之后加了窄屏 row-gap: 0：链接已有 8px 上下内边距，行距不必再加 gap；这条必须写在 footer .fnav 之后才不会被它的 gap 盖掉。"
+          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。 TD-307：窄屏导航行加右缘 28px 渐隐（mask-image，含 -webkit- 前缀）与同宽 ::after 占位，提示还能横向滑动、滑到最右时最后一个链接不被遮；登录浮层当前标签 [aria-pressed=\"true\"] 浅蓝底、加粗、底部 3px 色条。 TD-317：新增 --fs-subtitle（17px），并给没写样式的 h2 / h3 加元素级规则（h2 用 --fs-title、h3 用 --fs-subtitle）。元素选择器特异性最低，.card h2、.modal h2、页面里的 .box h3 等规则照常生效；截图里原来的浏览器默认字号（22.5 / 24px 的 h2、17.55 / 18.72px 的 h3）因此消失。页脚规则之后加了窄屏 row-gap: 0：链接已有 8px 上下内边距，行距不必再加 gap；这条必须写在 footer .fnav 之后才不会被它的 gap 盖掉。 TD-326：select 设 max-width:100%（长选项不再撑宽页面）；button.item 加 word-break:keep-all（列表行只在空格与标点处断行，overflow-wrap:anywhere 仍兜底超长字段）；#er-canvas、#mermaid-preview、#mermaid-source 带 data-stale 时 opacity .45（生成失败时的旧结果）。"
         },
         {
-          "end": 196,
+          "end": 204,
           "title": "导航与可选身份控件",
           "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。 TD-272：管理员入口改为**默认 hidden**、只有 role===1 才由 auth.js 显示（页脚另有一个常驻入口，管理员登录前也找得到）；导航加 aria-label；正文前新增指向 #main 的跳过导航链接。隐藏只是导航整洁，权限仍由 require_admin 读库判断。 TD-278：「站内客服 / 管理员入口 / 商品」从 .actions 移进 nav（.nav-end 在桌面推到右侧，视觉与改版前一致；商品链接 .cta-link 绿色加粗），.actions 只剩登录态控件；nav aria-label 改为「站点导航」。窄屏据此变成两行：站点名 + 登录态 / 整组导航横向滚动。 TD-280：#auth-who 从 span 改为 type=button 的 ghost 按钮（aria-haspopup=dialog、title=修改密码），点它打开修改密码浮层。窄屏第一行只放得下站点名 + 两个控件，另加按钮会把站点名挤成省略号（390px 实测顶栏仍 88px）。"
         },
         {
-          "end": 259,
+          "end": 267,
           "title": "登录表单必须先于页面脚本",
           "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。 浮层容器带 role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\"（TD-263）；Esc 与焦点归还在 auth.js。 TD-280：登录浮层之后新增修改密码浮层 #pw-mask（同样 role=dialog/aria-modal，标题 #pw-title）：隐藏只读的 username 字段 + 原密码（current-password）+ 新密码/再输一次（new-password，minlength 6 / maxlength 64 与 PasswordChangeIn 一致）；#pw-error role=alert、#pw-done role=status。两个浮层都在 auth.js 之前，auth_ui 为假时都不输出。"
         },
         {
-          "end": 274,
+          "end": 282,
           "title": "模板插槽与页脚",
           "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。 TD-272：<main> 增加 id=main 作为跳过导航的落点；页脚导航补一个常驻的管理员入口，并同步获得窄屏命中区内边距。"
         }
@@ -1909,26 +1909,26 @@
     },
     {
       "path": "app/templates/drawio.html",
-      "sha256": "c47bd70936d8d20c16a421a097b6053b6259539489df596b419e3d2cee7f1484",
+      "sha256": "d36b5b843d42fb7afde28f6098e492b60266b1799e8a090f72c5f006cdbc0c8c",
       "method": "manual",
       "blocks": [
         {
-          "end": 13,
+          "end": 16,
           "title": "继承壳与编辑区域样式",
-          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。 TD-272：新增 .page-heading（20px）与 page_heading 的 h2 渲染。 TD-278：.page-heading 样式移到 base.html（ER/Mermaid 页此前落回浏览器默认 h2）；工具条输入框去掉 font: inherit —— base 已统一，这里再写会以更高特异性盖掉手机 16px。 TD-306：工具条输入框/下拉框的边框规则删去，改由 base.html 的全站控件规则统一（下拉框原来仍是浏览器灰底）。"
+          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。 TD-272：新增 .page-heading（20px）与 page_heading 的 h2 渲染。 TD-278：.page-heading 样式移到 base.html（ER/Mermaid 页此前落回浏览器默认 h2）；工具条输入框去掉 font: inherit —— base 已统一，这里再写会以更高特异性盖掉手机 16px。 TD-306：工具条输入框/下拉框的边框规则删去，改由 base.html 的全站控件规则统一（下拉框原来仍是浏览器灰底）。 TD-326：#diagram-manage 的行与行内按钮加间距（回收站行「恢复」「永久删除」原来紧贴）。"
         },
         {
-          "end": 26,
+          "end": 29,
           "title": "登录提示：复用一个身份源",
           "explanation": "保留按钮仅唤共享登录浮层，auth-status 由 drawio-page 更新；不另建第二套密码字段或 token 存储。 TD-278：说明文字与登录按钮包进 #drawio-login-prompt，登录后由 drawio-page.js 整段隐藏；#auth-status 在包裹外，状态文字始终可见。"
         },
         {
-          "end": 43,
+          "end": 46,
           "title": "工具条与回收站",
           "explanation": "name/list、保存/本地下载/导入/新建都按固定 ID 绑定；file input hidden+accept 只改善选择体验，JS/后端仍验证 XML。回收站提示永久删除不可恢复并计总预算。 TD-272：流程图名称输入与「我的流程图」下拉补 aria-label —— axe-core 报下拉框没有可访问名称。"
         },
         {
-          "end": 47,
+          "end": 50,
           "title": "iframe 协议与本站桥接脚本",
           "explanation": "embed=1/proto=json 配 JSON postMessage；src 外域须能联网，&amp; 是 HTML 属性转义。本站经典 drawio-page 脚本在 iframe 元素之后，auth.js 已由 base 先装配；不是把云端文件直接放 URL query。"
         }
@@ -2043,7 +2043,7 @@
     },
     {
       "path": "app/templates/support-center.html",
-      "sha256": "954df4986259d89d5c7d5dd5d0deeba297edf539a252e1009c0949310aaecb72",
+      "sha256": "202c15e1fc2c53f9c860ecaa8296152e7df6080d1fa93ee6e956011b2dc0ee11",
       "blocks": [
         {
           "end": 6,
@@ -2061,17 +2061,17 @@
           "explanation": "support-login 是未登录时的私人留言提示，登录后由脚本隐藏；support-error 的 role=alert 用于辅助技术获知错误，不是服务器错误处理逻辑。 TD-306：support-login 里加「登录 / 注册」按钮 #support-login-btn（由 support-page.js 绑定 auth.open），原来只有一句提示。"
         },
         {
-          "end": 40,
+          "end": 42,
           "title": "管理员会话区先隐藏",
-          "explanation": "workspace 和 inbox-panel 默认 hidden，JS 得知登录/角色后再显示。各个 support-* ID 是 support-page.js 的定位契约，改名要同步脚本；隐藏本身不能保护 API 数据。"
+          "explanation": "workspace 和 inbox-panel 默认 hidden，JS 得知登录/角色后再显示。各个 support-* ID 是 support-page.js 的定位契约，改名要同步脚本；隐藏本身不能保护 API 数据。 TD-326：会话列表后加 #support-inbox-empty 空状态（role=status，默认 hidden），由脚本在第一页为空时显示。"
         },
         {
-          "end": 53,
+          "end": 55,
           "title": "消息列表与表单",
           "explanation": "ol 的 aria-live=polite 用于适度提示新增内容；textarea 的 required/maxlength 是浏览器校验，后端 MessageIn 仍要再验。form submit 由 JS 拦截为 fetch；页面里没有把客户历史直接渲染成公开 HTML。"
         },
         {
-          "end": 55,
+          "end": 57,
           "title": "加载的是构建产物",
           "explanation": "script 请求 /static/js/support-page.js，不直接访问 app/frontend 源码。它依赖 base.html 先提供的 window.CodeMaxAuth；修改源文件后需 npm run build，否则浏览器仍可能拿旧产物。"
         }
@@ -5750,7 +5750,7 @@
     },
     {
       "path": "tests/test_er_page.py",
-      "sha256": "91c2fd8d783ba7a7e302dcf78c21a7d729debf8eb1417592a7873614d82adaa7",
+      "sha256": "ce5bf99908f07323772c2c7092e09a4a631a474f01def1ff8d02d2f147436c2c",
       "method": "guided",
       "blocks": [
         {
@@ -5834,9 +5834,44 @@
           "explanation": "ER 页提交按阶段报错（源码检查，页面脚本依赖 d3，跑不了 Node 桩）：请求阶段含断网是「请求失败」，只有 renderEr 之后才是「渲染失败」；非 JSON 应答也归到请求失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL325 计算右侧并赋给 `source`：调用 (ROOT / 'app' / 'frontend' / 'er-page.js').read_text(encoding='utf-8')。\nL326 计算右侧并赋给 `submit`：source[source.index('form.onsubmit'):]。\nL327 核对 `'let stage = \"请求失败\";' in submit`：此条件为假即测试失败；不是生产输入校验。\nL328 核对 `submit.index('stage = \"渲染失败\";') < submit.index('renderEr(\"#er-canvas\", data);')`：此条件为假即测试失败；不是生产输入校验。\nL329 核对 `submit.index('post(\"/tools/er-diagram\"') < submit.index('stage = \"渲染失败\";')`：此条件为假即测试失败；不是生产输入校验。\nL330 核对 `'fail(`${stage}：${failure(e)}`)' in submit`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 375,
+          "end": 427,
           "title": "test_long_names_are_truncated_in_linear_time_with_the_same_cut_point",
-          "explanation": "TD-320：块首的 _FIT_HARNESS 在 Node 里跑真实的 fitText 与 layoutEr。按定义核对截断：结果是加上省略号仍放得下的最长前缀加省略号，再多一个字就放不下（3000 个随机串，含中文、emoji、粗体）；再给一张表名和列类型各 19900 字符的表计时：改之前要 10 秒以上（本机 21 秒），现在几毫秒，上限 1.5 秒。完整文字仍保留给悬停提示。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL333 把测试JavaScript多行字面量存入 `_FIT_HARNESS`（1540字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL367 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _FIT_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL369 计算右侧并赋给 `r`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL370 核对 `r['bad'] == []`：此条件为假即测试失败；不是生产输入校验。\nL371 核对 `r['headerFull'] == 19900`：此条件为假即测试失败；不是生产输入校验。\nL372 核对 `r['rowFull'] == len('PK id: ') + 19900`：此条件为假即测试失败；不是生产输入校验。\nL373 核对 `r['header'] < 60 and r['row'] < 60 and (r['w'] <= 340)`：此条件为假即测试失败；不是生产输入校验。\nL375 核对 `r['ms'] < 1500`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-320：块首的 _FIT_HARNESS 在 Node 里跑真实的 fitText 与 layoutEr。按定义核对截断：结果是加上省略号仍放得下的最长前缀加省略号，再多一个字就放不下（3000 个随机串，含中文、emoji、粗体）；再给一张表名和列类型各 19900 字符的表计时：改之前要 10 秒以上（本机 21 秒），现在几毫秒，上限 1.5 秒。完整文字仍保留给悬停提示。 TD-326：本块范围末尾还包含页面装配执行器 _PAGE_HARNESS 与 ER_PAGE_JS、STALE 两个常量（见 _run_page）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL333 把测试JavaScript多行字面量存入 `_FIT_HARNESS`（1540字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL367 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _FIT_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL369 计算右侧并赋给 `r`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL370 核对 `r['bad'] == []`：此条件为假即测试失败；不是生产输入校验。\nL371 核对 `r['headerFull'] == 19900`：此条件为假即测试失败；不是生产输入校验。\nL372 核对 `r['rowFull'] == len('PK id: ') + 19900`：此条件为假即测试失败；不是生产输入校验。\nL373 核对 `r['header'] < 60 and r['row'] < 60 and (r['w'] <= 340)`：此条件为假即测试失败；不是生产输入校验。\nL375 核对 `r['ms'] < 1500`：此条件为假即测试失败；不是生产输入校验。\nL383 把测试JavaScript多行字面量存入 `_PAGE_HARNESS`（2674字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL424 计算右侧并赋给 `ER_PAGE_JS`：ROOT / 'app' / 'frontend' / 'er-page.js'。\nL425 计算右侧并赋给 `STALE`：'；当前显示的仍是上一次的结果'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 434,
+          "title": "_run_page",
+          "explanation": "TD-326：用 node 执行页面装配执行器，按逗号分隔的步骤依次提交，返回每一步后的页面状态（错误提示、data-stale、#er-tools、画布是否清空、读屏标签）。\n\n输入签名：scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：list[dict]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL429 计算右侧并赋给 `proc`：调用 subprocess.run([shutil.which('node'), '-e', _PAGE_HARNESS, str(ER_PAGE_JS), scenario], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL431 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL432 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 450,
+          "title": "test_failed_regeneration_dims_the_previous_diagram_and_says_so",
+          "explanation": "TD-326：先成功再失败（DDL 有误 422、断网）：上一次的图保留、调暗，提示末尾说明「当前显示的仍是上一次的结果」，按钮恢复。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：failure, message；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL443 计算右侧并赋给 `(ok, failed)`：调用 _run_page(f'ok,{failure}')。\nL444 核对 `ok == {'error': None, 'stale': False, 'tools': True, 'cleared': False, 'label': 'ER 图（生成后显示）', 'submitEnabled': True}`：此条件为假即测试失败；不是生产输入校验。\nL446 核对 `failed['error'] == message + STALE`：此条件为假即测试失败；不是生产输入校验。\nL447 核对 `failed['stale'] is True and failed['tools'] is True and (failed['cleared'] is False)`：此条件为假即测试失败；不是生产输入校验。\nL448 核对 `failed['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 456,
+          "title": "test_next_success_clears_the_stale_marking_on_the_diagram",
+          "explanation": "TD-326：失败之后再成功一次，调暗与错误提示都去掉。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL453 计算右侧并赋给 `(*_, last)`：调用 _run_page('ok,offline,ok')。\nL454 核对 `last['stale'] is False and last['error'] is None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 463,
+          "title": "test_first_failure_does_not_claim_a_previous_diagram",
+          "explanation": "TD-326 守卫：从没生成过就失败时不说「仍是上一次的结果」，不调暗，#er-tools 仍隐藏。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：failure；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL460 计算右侧并赋给 `(out,)`：调用 _run_page(failure)。\nL461 核对 `STALE not in out['error'] and out['stale'] is False and (out['tools'] is False)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 473,
+          "title": "test_render_failure_clears_the_half_drawn_canvas_back_to_the_empty_state",
+          "explanation": "TD-326：绘制阶段失败（布局桩抛错）时清空画布、藏起 #er-tools、读屏标签回到模板原文，提示只说「渲染失败：…」。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL468 计算右侧并赋给 `(_, out)`：调用 _run_page('ok,boom')。\nL469 核对 `out['error'] == '渲染失败：layout exploded'`：此条件为假即测试失败；不是生产输入校验。\nL470 核对 `out['cleared'] is True and out['tools'] is False and (out['stale'] is False)`：此条件为假即测试失败；不是生产输入校验。\nL471 核对 `out['label'] == 'ER 图（生成后显示）'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 478,
+          "title": "test_er_bundle_carries_the_stale_handling",
+          "explanation": "TD-326：构建产物里有新文案与 data-stale（忘了 npm run build 会失败）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL475 计算右侧并赋给 `bundle`：调用 (ROOT / 'app' / 'static' / 'js' / 'er-page.js').read_text(encoding='utf-8')。\nL476 核对 `'当前显示的仍是上一次的结果' in bundle and 'data-stale' in bundle`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 485,
+          "title": "test_stale_style_covers_every_element_the_pages_mark",
+          "explanation": "TD-326：base.html 的 data-stale 调暗规则覆盖 ER 画布、类图预览区与源码框三个元素，且确实设了 opacity。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL481 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'templates' / 'base.html').read_text(encoding='utf-8')。\nL482 计算右侧并赋给 `rule`：调用 re.search('([^{}]*\\\\[data-stale\\\\][^{}]*)\\\\{([^}]*)\\\\}', css)。\nL483 核对 `rule and 'opacity' in rule.group(2)`：此条件为假即测试失败；不是生产输入校验。\nL484 逐项遍历 `('#er-canvas[data-stale]', '#mermaid-preview[data-stale]', '#mermaid-source[data-stale]')`，绑定 `sel`；循环体按缩进执行，break可提前结束。\nL485 核对 `sel in rule.group(1)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -6756,7 +6791,7 @@
     },
     {
       "path": "tests/test_mermaid.py",
-      "sha256": "209a0657889510f0aa8f8d0ff4be71f4ec0c1eb04aa73841156fba493e48dcdb",
+      "sha256": "d836ada04f4415ceaf6e038c35d37c4dabc3708c8e6b50da7bbc7b37951f1dda",
       "method": "guided",
       "blocks": [
         {
@@ -6860,34 +6895,54 @@
           "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL163 计算右侧并赋给 `r`：await 调用 client.get('/tools/mermaid')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL164 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL165 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL166 核对 `'id=\"text-input\"' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL172 核对 `'/static/js/mermaid-page.js' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL173 计算右侧并赋给 `js`：MERMAID_PAGE_JS。\nL174 计算右侧并赋给 `urls`：调用 re.findall('[\"\\\\\\'](/tools/[\\\\w-]+)[\"\\\\\\']', js)。\nL175 核对 `urls`：此条件为假即测试失败；不是生产输入校验。\nL176 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL177 核对 `set(urls) <= registered`：此条件为假即测试失败；不是生产输入校验。\nL179 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: FakeLLM('classDiagram\\nclass A')。\nL180 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL181 计算右侧并赋给 `payload`：调用 (await client.post('/tools/mermaid', json={'text': 'x'})).json()。\nL183 调用 app.dependency_overrides.pop(get_llm, None)。\nL184 逐项遍历 `payload`，绑定 `key`；循环体按缩进执行，break可提前结束。\nL185 核对 `f'data.{key}' in js`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 228,
+          "end": 245,
           "title": "_run_stage",
-          "explanation": "TD-318 的 Node 桩与运行器：块首的 _STAGE_HARNESS 把页面脚本里的 import(\"mermaid\") 换成可控的假渲染器，fetch 也由场景决定（断网或返回一段画不出来的源码），跑完读回错误提示、源码框、预览区和提交按钮的状态；_run_stage 用 node 执行它并解析最后一行 JSON。调用它的用例在没有 node 时整条跳过。\n\n输入签名：scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL190 把测试JavaScript多行字面量存入 `_STAGE_HARNESS`（1942字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL223 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', _STAGE_HARNESS, str(Path(__file__).resolve().parents[1] / 'app/frontend/mermaid-page.js'), scenario], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL225 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL226 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-318 的 Node 桩与运行器：块首的 _STAGE_HARNESS 把页面脚本里的 import(\"mermaid\") 换成可控的假渲染器，fetch 也由场景决定（断网或返回一段画不出来的源码），跑完读回错误提示、源码框、预览区和提交按钮的状态；_run_stage 用 node 执行它并解析最后一行 JSON。调用它的用例在没有 node 时整条跳过。 TD-326：_STAGE_HARNESS 改为按逗号分隔的多步提交（ok / parse-error / offline / 502 / html200），假 DOM 的源码框与错误提示按模板初始 hidden，setAttribute 记录属性；输出最后一步的状态并附 steps 列表。\n\n输入签名：scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL190 把测试JavaScript多行字面量存入 `_STAGE_HARNESS`（2992字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL240 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', _STAGE_HARNESS, str(Path(__file__).resolve().parents[1] / 'app/frontend/mermaid-page.js'), scenario], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL242 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL243 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 236,
+          "end": 253,
           "title": "test_network_failure_is_reported_as_a_request_failure_not_a_render_failure",
-          "explanation": "fetch 本身失败（断网）时提示必须是「请求失败：…」的中文网络提示。改之前整个 try 共用一句「渲染失败」，断网也被说成渲染失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL232 计算右侧并赋给 `out`：调用 _run_stage('offline')。\nL233 核对 `out['error'] == '请求失败：网络连接失败，请检查网络后重试'`：此条件为假即测试失败；不是生产输入校验。\nL234 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "fetch 本身失败（断网）时提示必须是「请求失败：…」的中文网络提示。改之前整个 try 共用一句「渲染失败」，断网也被说成渲染失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL249 计算右侧并赋给 `out`：调用 _run_stage('offline')。\nL250 核对 `out['error'] == '请求失败：网络连接失败，请检查网络后重试'`：此条件为假即测试失败；不是生产输入校验。\nL251 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 251,
+          "end": 268,
           "title": "test_unrenderable_model_output_gets_a_chinese_explanation_and_keeps_the_source",
-          "explanation": "模型给的源码画不出来时：只取解析器英文提示的第一行，放进一句中文说明；源码框保留原文，预览区清空，不再留着源码原文或 Mermaid 的炸弹错误图。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL241 计算右侧并赋给 `out`：调用 _run_stage('parse-error')。\nL242 核对 `out['config']['suppressErrorRendering'] is True`：此条件为假即测试失败；不是生产输入校验。\nL243 核对 `out['config']['securityLevel'] == 'strict'`：此条件为假即测试失败；不是生产输入校验。\nL244 核对 `out['error'] == '无法绘制模型生成的图（Mermaid 提示：Parse error on line 3:）。下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。'`：此条件为假即测试失败；不是生产输入校验。\nL246 核对 `'Expecting' not in out['error'] and '^' not in out['error']`：此条件为假即测试失败；不是生产输入校验。\nL247 核对 `out['sourceShown'] and out['source'].startswith('classDiagram')`：此条件为假即测试失败；不是生产输入校验。\nL248 核对 `out['preview'] == ''`：此条件为假即测试失败；不是生产输入校验。\nL249 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模型给的源码画不出来时：只取解析器英文提示的第一行，放进一句中文说明；源码框保留原文，预览区清空，不再留着源码原文或 Mermaid 的炸弹错误图。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL258 计算右侧并赋给 `out`：调用 _run_stage('parse-error')。\nL259 核对 `out['config']['suppressErrorRendering'] is True`：此条件为假即测试失败；不是生产输入校验。\nL260 核对 `out['config']['securityLevel'] == 'strict'`：此条件为假即测试失败；不是生产输入校验。\nL261 核对 `out['error'] == '无法绘制模型生成的图（Mermaid 提示：Parse error on line 3:）。下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。'`：此条件为假即测试失败；不是生产输入校验。\nL263 核对 `'Expecting' not in out['error'] and '^' not in out['error']`：此条件为假即测试失败；不是生产输入校验。\nL264 核对 `out['sourceShown'] and out['source'].startswith('classDiagram')`：此条件为假即测试失败；不是生产输入校验。\nL265 核对 `out['preview'] == ''`：此条件为假即测试失败；不是生产输入校验。\nL266 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 257,
+          "end": 289,
+          "title": "test_failed_regeneration_dims_the_previous_result_and_says_so",
+          "explanation": "TD-326：先成功再失败（502、断网、200 非 JSON）：源码框与预览区都保留并调暗，提示末尾说明是上一次的结果。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：failure, message；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL269 计算右侧并赋给 `STALE`：'；当前显示的仍是上一次的结果'。\nL281 计算右侧并赋给 `out`：调用 _run_stage(f'ok,{failure}')。\nL282 计算右侧并赋给 `(first, second)`：out['steps']。\nL283 核对 `first['stale'] == [] and first['shown'] is False and first['preview'].startswith('<svg>')`：此条件为假即测试失败；不是生产输入校验。\nL284 核对 `second['error'] == message + STALE`：此条件为假即测试失败；不是生产输入校验。\nL285 核对 `second['stale'] == ['mermaid-source', 'mermaid-preview']`：此条件为假即测试失败；不是生产输入校验。\nL286 核对 `second['source'] == first['source'] and second['preview'] == first['preview']`：此条件为假即测试失败；不是生产输入校验。\nL287 核对 `second['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 297,
+          "title": "test_next_success_clears_the_stale_marking",
+          "explanation": "TD-326：失败之后再成功，调暗去掉、提示隐藏，源码与预览换成新结果。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL292 计算右侧并赋给 `out`：调用 _run_stage('ok,502,ok')。\nL293 计算右侧并赋给 `(first, _, third)`：out['steps']。\nL294 核对 `third['stale'] == [] and third['shown'] is False`：此条件为假即测试失败；不是生产输入校验。\nL295 核对 `third['source'] != first['source'] and third['preview'] == '<svg>' + third['source']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 307,
+          "title": "test_first_failure_does_not_claim_a_previous_result",
+          "explanation": "TD-326 守卫：首次就失败时不说「仍是上一次的结果」、不调暗、不打开源码框（200 非 JSON 原来会打开一个空白源码框）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：failure；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL303 计算右侧并赋给 `out`：调用 _run_stage(failure)。\nL304 核对 `STALE not in out['error'] and out['stale'] == []`：此条件为假即测试失败；不是生产输入校验。\nL305 核对 `out['sourceShown'] is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 314,
+          "title": "test_render_failure_after_a_success_is_not_marked_stale",
+          "explanation": "TD-326：成功后遇到画不出来的源码：源码框已是新源码、预览区已清空，不标过时。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL311 计算右侧并赋给 `out`：调用 _run_stage('ok,parse-error')。\nL312 核对 `out['stale'] == [] and STALE not in out['error'] and (out['preview'] == '')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 321,
           "title": "test_source_and_bundle_agree_on_render_failure_handling",
-          "explanation": "构建产物与源码一致：产物里必须有 suppressErrorRendering、新的中文说明和「请求失败：」，防止改了源码忘了 npm run build。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL254 计算右侧并赋给 `bundle`：调用 (Path(__file__).resolve().parents[1] / 'app/static/js/mermaid-page.js').read_text(encoding='utf-8')。\nL255 核对 `'suppressErrorRendering' in bundle and '无法绘制模型生成的图' in bundle and ('请求失败：' in bundle)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "构建产物与源码一致：产物里必须有 suppressErrorRendering、新的中文说明和「请求失败：」，防止改了源码忘了 npm run build。 TD-326：产物还须带「当前显示的仍是上一次的结果」与 data-stale。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL317 计算右侧并赋给 `bundle`：调用 (Path(__file__).resolve().parents[1] / 'app/static/js/mermaid-page.js').read_text(encoding='utf-8')。\nL318 核对 `'suppressErrorRendering' in bundle and '无法绘制模型生成的图' in bundle and ('请求失败：' in bundle)`：此条件为假即测试失败；不是生产输入校验。\nL319 核对 `'当前显示的仍是上一次的结果' in bundle and 'data-stale' in bundle`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 269,
+          "end": 333,
           "title": "test_error_messages_point_at_the_source_box_where_it_actually_is",
-          "explanation": "方位词与模板一致：源码框在错误提示之后，两条提示（画不出来、渲染组件下载失败）都应说「下方是…源码」。原来写的是「上方」，是在真浏览器截图里发现的。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL261 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL262 计算右侧并赋给 `template`：调用 (root / 'app' / 'templates' / 'mermaid.html').read_text(encoding='utf-8')。\nL263 核对 `template.index('id=\"mermaid-error\"') < template.index('id=\"mermaid-source\"')`：此条件为假即测试失败；不是生产输入校验。\nL264 逐项遍历 `(root / 'app' / 'frontend' / 'mermaid-page.js', root / 'app' / 'static' / 'js' / 'mermaid-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL265 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL266 核对 `'上方是' not in text`：此条件为假即测试失败；不是生产输入校验。\nL267 核对 `text.count('下方是') == 2`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "方位词与模板一致：源码框在错误提示之后，两条提示（画不出来、渲染组件下载失败）都应说「下方是…源码」。原来写的是「上方」，是在真浏览器截图里发现的。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL325 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL326 计算右侧并赋给 `template`：调用 (root / 'app' / 'templates' / 'mermaid.html').read_text(encoding='utf-8')。\nL327 核对 `template.index('id=\"mermaid-error\"') < template.index('id=\"mermaid-source\"')`：此条件为假即测试失败；不是生产输入校验。\nL328 逐项遍历 `(root / 'app' / 'frontend' / 'mermaid-page.js', root / 'app' / 'static' / 'js' / 'mermaid-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL329 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL330 核对 `'上方是' not in text`：此条件为假即测试失败；不是生产输入校验。\nL331 核对 `text.count('下方是') == 2`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 280,
+          "end": 344,
           "title": "test_prompt_marks_keys_in_a_form_mermaid_displays",
-          "explanation": "TD-321：类图提示词规则 4 必须给出 +int id PK、+int userId FK 与 PK FK 三种写法，<< 只能出现在「不要用」之后。<<PK>> 在 Mermaid 类图里是整个类的注解，写在属性上会被当成标签去掉，这是真 Chromium 实测结论；CI 没有浏览器，所以只钉提示词。旧提示词本条失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL274 导入 from app.tools.llm import SYSTEM_PROMPT；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL276 计算右侧并赋给 `rule`：调用 next((line for line in SYSTEM_PROMPT.splitlines() if '主键' in line))。\nL277 核对 `'`+int id PK`' in rule and '`+int userId FK`' in rule and ('PK FK' in rule)`：此条件为假即测试失败；不是生产输入校验。\nL278 逐项遍历 `SYSTEM_PROMPT.splitlines()`，绑定 `line`；循环体按缩进执行，break可提前结束。\nL279 逐项遍历 `re.finditer('<<', line)`，绑定 `m`；循环体按缩进执行，break可提前结束。\nL280 核对 `'不要用' in line[:m.start()]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-321：类图提示词规则 4 必须给出 +int id PK、+int userId FK 与 PK FK 三种写法，<< 只能出现在「不要用」之后。<<PK>> 在 Mermaid 类图里是整个类的注解，写在属性上会被当成标签去掉，这是真 Chromium 实测结论；CI 没有浏览器，所以只钉提示词。旧提示词本条失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL338 导入 from app.tools.llm import SYSTEM_PROMPT；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL340 计算右侧并赋给 `rule`：调用 next((line for line in SYSTEM_PROMPT.splitlines() if '主键' in line))。\nL341 核对 `'`+int id PK`' in rule and '`+int userId FK`' in rule and ('PK FK' in rule)`：此条件为假即测试失败；不是生产输入校验。\nL342 逐项遍历 `SYSTEM_PROMPT.splitlines()`，绑定 `line`；循环体按缩进执行，break可提前结束。\nL343 逐项遍历 `re.finditer('<<', line)`，绑定 `m`；循环体按缩进执行，break可提前结束。\nL344 核对 `'不要用' in line[:m.start()]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -9428,7 +9483,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "1318e323463d43fd90e20d105ff9d60f0422cede7406725f2acb9bb4eb7d0a18",
+      "sha256": "4305629d264b14e90cba3889a9bbf1ac8351ec279aa7222632d3f5d6eaf164be",
       "method": "guided",
       "blocks": [
         {
@@ -9696,9 +9751,39 @@
           "explanation": "TD-325：支付成功页标题原来是「✅ 支付成功」，没有彩色 emoji 字体的系统画成方框。模块常量 _EMOJI_PRESENTATION 列出默认以 emoji 显示的字符（Unicode Emoji_Presentation 的 BMP 码位加 U+1F000 起的图形平面）；本条扫模板与前端脚本里用户看得见的部分（去掉 HTML、Jinja、JS 注释），不许出现这些字符。⚠ 这类默认文字显示的符号不算，中文字体自带字形。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL938 计算右侧并赋给 `found`：[]。\nL939 逐项遍历 `sorted((ROOT / 'app' / 'templates').glob('*.html')) + sorted((ROOT / 'app' / 'frontend').glob('*.js'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL940 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL941 判断 `path.suffix == '.html'`，为真进入当前缩进分支，为假进入else/elif。\nL942 计算右侧并赋给 `text`：调用 re.sub('<!--.*?-->|\\\\{#.*?#\\\\}', '', text, flags=re.S)。\nL944 计算右侧并赋给 `text`：调用 re.sub('/\\\\*.*?\\\\*/', '', text, flags=re.S)。\nL945 计算右侧并赋给 `text`：调用 re.sub('(^|\\\\s)//[^\\\\n]*', '\\\\1', text)。\nL946 累积修改 `found`：执行 `found += [f'{path.name}: {ch} U+{ord(ch):04X}' for ch in _EMOJI_PRESENTATION.findall(text)]`，新值供下一轮/后续分支使用。\nL947 核对 `not found`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 957,
+          "end": 991,
           "title": "test_empty_support_thread_leaves_no_gap_but_stays_a_live_region",
-          "explanation": "TD-325：还没有留言时空的 #support-messages 只收外边距（margin: 0），不许用 display 隐藏 —— 它是 aria-live 区域，隐藏会移出无障碍树。另钉住模板里的 <ol> 内部没有空白，否则 :empty 不成立。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL953 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'static' / 'support.css').read_text(encoding='utf-8')。\nL954 计算右侧并赋给 `rule`：调用 re.search('#support-messages:empty\\\\s*\\\\{([^}]*)\\\\}', css)。\nL955 核对 `rule and 'margin: 0' in rule.group(1) and ('display' not in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL956 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL957 核对 `'<ol id=\"support-messages\" aria-live=\"polite\" aria-label=\"会话消息\"></ol>' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-325：还没有留言时空的 #support-messages 只收外边距（margin: 0），不许用 display 隐藏 —— 它是 aria-live 区域，隐藏会移出无障碍树。另钉住模板里的 <ol> 内部没有空白，否则 :empty 不成立。 TD-326：本块范围末尾还包含管理员会话列表执行器 _INBOX_HARNESS（见 _run_inbox）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL953 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'static' / 'support.css').read_text(encoding='utf-8')。\nL954 计算右侧并赋给 `rule`：调用 re.search('#support-messages:empty\\\\s*\\\\{([^}]*)\\\\}', css)。\nL955 核对 `rule and 'margin: 0' in rule.group(1) and ('display' not in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL956 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL957 核对 `'<ol id=\"support-messages\" aria-live=\"polite\" aria-label=\"会话消息\"></ol>' in html`：此条件为假即测试失败；不是生产输入校验。\nL962 把测试JavaScript多行字面量存入 `_INBOX_HARNESS`（2147字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1002,
+          "title": "_run_inbox",
+          "explanation": "TD-326：执行真实 auth.js + support-page.js（/auth/me 返回管理员，会话接口按场景返回空列表或一条），返回加载后与点「退出」后的空状态。\n\n输入签名：tmp_path, scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL993 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL995 计算右侧并赋给 `harness`：tmp_path / 'inbox.cjs'。\nL996 调用 harness.write_text(_INBOX_HARNESS, encoding='utf-8')。\nL997 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js'), scenario], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL999 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL1000 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1013,
+          "title": "test_admin_inbox_says_so_when_there_are_no_conversations",
+          "explanation": "TD-326：管理员没有客户会话时显示空状态；有会话时不显示；退出后收起。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1007 计算右侧并赋给 `empty`：调用 _run_inbox(tmp_path, 'empty')。\nL1008 核对 `empty['loaded'] == {'empty': True, 'rows': 0, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\nL1009 核对 `empty['afterLogout']['empty'] is False`：此条件为假即测试失败；不是生产输入校验。\nL1010 计算右侧并赋给 `rows`：调用 _run_inbox(tmp_path, 'rows')。\nL1011 核对 `rows['loaded'] == {'empty': False, 'rows': 1, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1020,
+          "title": "test_inbox_empty_state_is_announced_and_hidden_by_default",
+          "explanation": "TD-326：#support-inbox-empty 默认 hidden、role=status，位于会话列表与「更多会话」之间。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1015 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/support-center.html').read_text(encoding='utf-8')。\nL1016 计算右侧并赋给 `tag`：调用 re.search('<p id=\"support-inbox-empty\"[^>]*>', html)。\nL1017 核对 `tag and 'hidden' in tag.group(0) and ('role=\"status\"' in tag.group(0))`：此条件为假即测试失败；不是生产输入校验。\nL1018 核对 `html.index('id=\"support-inbox\"') < html.index('id=\"support-inbox-empty\"') < html.index('id=\"support-inbox-more\"')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1029,
+          "title": "test_list_rows_break_between_fields_not_inside_chinese_words",
+          "explanation": "TD-326：button.item 同时有 word-break:keep-all（不在中文词中间断行）与 overflow-wrap:anywhere（超长单字段不撑出横向滚动）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1025 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1026 计算右侧并赋给 `rule`：调用 re.search('button\\\\.item\\\\s*\\\\{([^}]*)\\\\}', css).group(1)。\nL1027 核对 `'word-break: keep-all' in rule and 'overflow-wrap: anywhere' in rule`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1035,
+          "title": "test_select_never_grows_wider_than_its_container",
+          "explanation": "TD-326：base.html 的 select 设 max-width:100%，长选项不再撑宽整页。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1032 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1033 核对 `re.search('(?m)^\\\\s*select\\\\s*\\\\{[^}]*max-width:\\\\s*100%', css)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1042,
+          "title": "test_drawio_row_actions_are_outline_buttons",
+          "explanation": "TD-326：Drawio 文件管理的行内按钮在源码与产物里都是 ghost（描边），drawio.html 给按钮设了间距。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1038 逐项遍历 `(ROOT / 'app/frontend/drawio-page.js', ROOT / 'app/static/js/drawio-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL1039 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL1040 核对 `re.search('className\\\\s*=\\\\s*[\"`]ghost[\"`]', text)`：此条件为假即测试失败；不是生产输入校验。\nL1041 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/drawio.html').read_text(encoding='utf-8')。\nL1042 核对 `re.search('#diagram-manage button\\\\s*\\\\{[^}]*margin', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

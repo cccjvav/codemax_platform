@@ -101,6 +101,9 @@
          这里不写 font / font-size —— 手机 16px 规则（样式表最后一条）照常生效。 */
       :where(input:not([type="checkbox"], [type="radio"], [type="file"], [type="range"], [type="color"]), select) {
         padding: 6px 9px; border: 1px solid var(--control-border); border-radius: 6px; background: #fff; color: inherit; }
+      /* 下拉框按最长选项定宽（TD-326）：drawio「我的流程图」列表里有一个长文件名，手机上下拉框就撑到 615px，
+         整页横向滚动（真 Chromium 截图核对）。封顶为容器宽度，选项文字过长时浏览器自行截断显示。 */
+      select { max-width: 100%; }
       /* 表单按钮行（TD-306）：按钮原来靠行内空白隔开，只有约 4px，看起来挤在一起 */
       .form-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 12px 0; }
       button { padding: 6px 14px; border: 1px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
@@ -111,9 +114,12 @@
       button.ghost:disabled { background: #f1f5f9; }
       /* 列表项按钮（TD-306）：订单列表、客服会话列表原来是一排实心主按钮，与「查询 / 刷新」等操作按钮
          长得一样，也看不出当前选中的是哪一条。改为浅色列表行，选中项由脚本设 aria-current 并高亮；
-         pre-line 让脚本用换行把主标识（订单号 / 用户名）与次要信息分成两行。 */
+         pre-line 让脚本用换行把主标识（订单号 / 用户名）与次要信息分成两行。
+         keep-all（TD-326）：三处列表行都是「字段 · 字段」，不是成段中文。默认中文任意两字之间可断行，
+         窄栏里状态被拆成「可重新 / 下载」「已关 / 闭（closed）」；改为只在空格与标点处断开，字段整体换行。
+         比一行还长的单个字段仍由 overflow-wrap:anywhere 强制断开，不会撑出横向滚动。 */
       button.item { display: block; width: 100%; text-align: left; background: #fff; color: inherit;
-                    border-color: var(--control-border); white-space: pre-line; overflow-wrap: anywhere; line-height: 1.5; }
+                    border-color: var(--control-border); white-space: pre-line; overflow-wrap: anywhere; word-break: keep-all; line-height: 1.5; }
       button.item:hover { border-color: #2563eb; }
       button.item[aria-current="true"] { background: #eff6ff; border-color: #2563eb; box-shadow: inset 3px 0 0 #2563eb; }
       /* 键盘焦点环：只在键盘导航时显示（:focus-visible），鼠标点击不出现 */
@@ -136,6 +142,8 @@
       #mermaid-preview { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 12px; min-height: 300px; overflow: auto; }
       /* 空状态提示（TD-287）：生成前右侧只是一块空框，看不出该做什么。纯 CSS，结果一写入就自动消失。 */
       #mermaid-preview:empty::before { content: "描述你的系统（或点「填入示例」）后点「生成类图」，结果显示在这里"; color: #64748b; }
+      /* 新一次生成失败时，上一次的结果调暗显示、错误提示里说明它已过时（TD-326，ER 与类图页共用） */
+      #er-canvas[data-stale], #mermaid-preview[data-stale], #mermaid-source[data-stale] { opacity: .45; }
 
       /* ---- 登录/注册浮层 ----
          为什么用浮层而不是独立页面：转化路径上每多一次页面跳转就少一批人。

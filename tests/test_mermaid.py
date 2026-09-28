@@ -189,32 +189,49 @@ async def test_mermaid_page_served_and_wired(client):
 
 _STAGE_HARNESS = r"""
 const [path, scenario] = process.argv.slice(1);
+// scenario 可以是逗号分隔的多步（TD-326）：每一步点一次「生成类图」。
+//   ok = 请求成功且画得出；parse-error = 请求成功但画不出；offline = 断网；502 = 网关错误；html200 = 200 但不是 JSON
+const steps = scenario.split(",");
+let step = "";
 const els = {}, errors = [];
 let config = null;
-const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false, onclick: null, onsubmit: null,
-  removeAttribute() {}, setAttribute() {} });
+// 源码框与错误提示在模板里带 hidden（mermaid.html），假 DOM 保持一致
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: ["mermaid-source", "mermaid-error"].includes(id), disabled: false,
+  onclick: null, onsubmit: null, attrs: {},
+  removeAttribute(k) { delete this.attrs[k]; }, setAttribute(k, v) { this.attrs[k] = String(v); } });
 global.document = { getElementById: (id) => (els[id] ||= mkEl(id)) };
 global.window = global;
 global.CodeMaxAuth = { errorText: (d, s) => (d && d.detail) || `请求失败（${s}）`,
   failureText: (e) => (e.name === "TypeError" && /failed to fetch/i.test(e.message) ? "网络连接失败，请检查网络后重试" : e.message) };
 global.setTimeout = (fn) => { fn(); return 1; };
+let calls = 0;
 global.fetch = async () => {
-  if (scenario === "offline") throw new TypeError("Failed to fetch");
-  return { ok: true, status: 200, json: async () => ({ mermaid: "classDiagram\nclass Order {\n  +int id\n" }), headers: { get: () => null } };
+  calls++;
+  if (step === "offline") throw new TypeError("Failed to fetch");
+  if (step === "502") return { ok: false, status: 502, json: async () => ({ detail: "上游模型服务出错" }), headers: { get: () => null } };
+  if (step === "html200") return { ok: true, status: 200, json: async () => { throw new SyntaxError("Unexpected token <"); }, headers: { get: () => null } };
+  const body = step === "ok" ? `classDiagram\nclass Order${calls}` : "classDiagram\nclass Order {\n  +int id\n";
+  return { ok: true, status: 200, json: async () => ({ mermaid: body }), headers: { get: () => null } };
 };
 // Mermaid 11 解析失败时抛出的是多行英文：第一行说哪一行出错，后面是指向出错位置的字符画和期望的记号。
 const parseError = new Error("Parse error on line 3:\n...s Order {  +int id\n----------------------^\nExpecting 'STRUCT_STOP', got 'EOF'");
-const stub = `Promise.resolve({ default: { initialize(c) { config = c; }, run: async () => { throw parseError; } } })`;
+const stub = `Promise.resolve({ default: { initialize(c) { config = c; }, run: async ({ nodes }) => { if (step !== "ok") throw parseError; nodes[0].textContent = "<svg>" + nodes[0].textContent; } } })`;
 const code = require("fs").readFileSync(path, "utf8").replace(/import\(\s*"mermaid"\s*\)/, stub);
 (async () => {
   require("vm").runInThisContext(code, { filename: path });
   const error = els["mermaid-error"];
   Object.defineProperty(error, "textContent", { set(v) { errors.push(v); }, get() { return errors.at(-1) || ""; } });
   els["text-input"].value = "订单";
-  await els["mermaid-form"].onsubmit({ preventDefault() {} });
-  console.log(JSON.stringify({ error: errors.at(-1), shown: !error.hidden, source: els["mermaid-source"].textContent,
+  const snap = () => ({ error: errors.at(-1), shown: !error.hidden, source: els["mermaid-source"].textContent,
     sourceShown: !els["mermaid-source"].hidden, preview: els["mermaid-preview"].textContent, config,
-    submitEnabled: !els["mermaid-submit"].disabled }));
+    submitEnabled: !els["mermaid-submit"].disabled,
+    stale: ["mermaid-source", "mermaid-preview"].filter((id) => "data-stale" in els[id].attrs) });
+  const history = [];
+  for (step of steps) {
+    await els["mermaid-form"].onsubmit({ preventDefault() {} });
+    history.push(snap());
+  }
+  console.log(JSON.stringify({ ...history.at(-1), steps: history }));
 })().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
 """
 
@@ -249,10 +266,57 @@ def test_unrenderable_model_output_gets_a_chinese_explanation_and_keeps_the_sour
     assert out["submitEnabled"] is True
 
 
+STALE = "；当前显示的仍是上一次的结果"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize(("failure", "message"), [
+    ("502", "上游模型服务出错"),
+    ("offline", "请求失败：网络连接失败，请检查网络后重试"),
+    ("html200", "请求失败：服务器返回的不是 JSON"),
+], ids=["502", "offline", "html200"])
+def test_failed_regeneration_dims_the_previous_result_and_says_so(failure, message):
+    """TD-326：真 Chromium 里先生成成功、再遇到网关错误，源码框和预览区照常显示上一次的类图，
+    和输入框里现在的描述对不上，看不出已经过时。不清掉（模型结果耗配额且不可复现），调暗并在提示里说明。"""
+    out = _run_stage(f"ok,{failure}")
+    first, second = out["steps"]
+    assert first["stale"] == [] and first["shown"] is False and first["preview"].startswith("<svg>")
+    assert second["error"] == message + STALE
+    assert second["stale"] == ["mermaid-source", "mermaid-preview"], "源码框与预览区都要调暗"
+    assert second["source"] == first["source"] and second["preview"] == first["preview"], "上一次的结果原样保留"
+    assert second["submitEnabled"] is True
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_next_success_clears_the_stale_marking():
+    out = _run_stage("ok,502,ok")
+    first, _, third = out["steps"]
+    assert third["stale"] == [] and third["shown"] is False
+    assert third["source"] != first["source"] and third["preview"] == "<svg>" + third["source"]
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("failure", ["502", "offline", "html200"])
+def test_first_failure_does_not_claim_a_previous_result(failure):
+    """没生成过就失败：不能说「仍是上一次的结果」，也不打开空白的源码框。
+    html200 原来在读 data.mermaid 时才抛 TypeError，源码框已被打开成空白。"""
+    out = _run_stage(failure)
+    assert STALE not in out["error"] and out["stale"] == []
+    assert out["sourceShown"] is False
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_render_failure_after_a_success_is_not_marked_stale():
+    """画不出来时源码框里已经是**新**源码、预览区已清空（TD-318），没有过时的内容可调暗。"""
+    out = _run_stage("ok,parse-error")
+    assert out["stale"] == [] and STALE not in out["error"] and out["preview"] == ""
+
+
 def test_source_and_bundle_agree_on_render_failure_handling():
     """产物把 Mermaid 整个打了进来，Node 里跑不了；核对不会被压缩改写的字面量。"""
     bundle = (Path(__file__).resolve().parents[1] / "app/static/js/mermaid-page.js").read_text(encoding="utf-8")
     assert "suppressErrorRendering" in bundle and "无法绘制模型生成的图" in bundle and "请求失败：" in bundle, "忘了 npm run build？"
+    assert "当前显示的仍是上一次的结果" in bundle and "data-stale" in bundle, "忘了 npm run build？（TD-326）"
 
 
 def test_error_messages_point_at_the_source_box_where_it_actually_is():

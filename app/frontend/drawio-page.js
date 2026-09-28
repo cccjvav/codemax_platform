@@ -184,7 +184,8 @@
         for (const row of rows) {
           const li = document.createElement("li"); li.textContent = `${row.name} · ${deleted ? "回收站" : "云端"} `;
           function action(label, path, method, permanent = false) {
-            const button = document.createElement("button"); button.type = "button"; button.textContent = label;
+            // 行内操作用描边按钮（TD-326）：原来每行一个实心主按钮，列表里最醒目的是「移至回收站」这类破坏性操作
+            const button = document.createElement("button"); button.type = "button"; button.className = "ghost"; button.textContent = label;
             button.onclick = async () => {
               if (permanent && !window.confirm("永久删除后无法恢复，确定吗？")) return;
               if (!deleted && currentId === row.id && !discardOk()) return;  // 移走正在编辑的图会清空编辑器

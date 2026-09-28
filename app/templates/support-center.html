@@ -36,6 +36,8 @@
       <h3>客户会话</h3>
       <button type="button" id="support-inbox-refresh">刷新会话</button>
       <div id="support-inbox"></div>
+      {# 空状态（TD-326）：原来没有客户留言时刷新后什么也不显示，看不出是加载完了还是没加载 #}
+      <p id="support-inbox-empty" class="support-assistant-note" role="status" hidden>暂无客户会话；客户留言后点「刷新会话」查看。</p>
       <button type="button" id="support-inbox-more" hidden>更多会话</button>
     </aside>
     <section>

@@ -373,3 +373,113 @@ def test_long_names_are_truncated_in_linear_time_with_the_same_cut_point():
     assert r["header"] < 60 and r["row"] < 60 and r["w"] <= 340, "框内只放截断后的文字"
     # 改之前这张表（两处 19900 字符）要 10 秒以上；改之后几毫秒。上限留足 CI 机器的波动。
     assert r["ms"] < 1500, f"布局耗时 {r['ms']:.0f} ms，截断又变成平方级了？"
+
+
+# ---------------------------------------------------------------- TD-326：生成失败时上一次的图调暗并说明
+#
+# 页面装配（er-page.js）import 了 d3，CI 上没有 node_modules；这里把两行 import 换成桩再在 node 里执行：
+# d3 换成「任何调用都返回自己」的链式桩（renderEr 对 d3 只有链式调用），layoutEr 返回空图、
+# 收到 {"boom": true} 时抛错模拟绘制阶段失败。页面状态（#er-tools、data-stale、错误提示）全是真实代码算出来的。
+_PAGE_HARNESS = r"""
+const [path, scenario] = process.argv.slice(1);
+const steps = scenario.split(",");  // ok / bad-ddl（422）/ offline / boom（绘制失败）
+let step = "";
+const els = {};
+// #er-error、#er-tools、#er-fit 在模板里带 hidden（er.html），假 DOM 保持一致
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: ["er-error", "er-tools", "er-fit"].includes(id), disabled: false,
+  clientWidth: 800, clientHeight: 600, attrs: { "aria-label": "ER 图（生成后显示）" }, children: 1,
+  setAttribute(k, v) { this.attrs[k] = String(v); }, removeAttribute(k) { delete this.attrs[k]; },
+  replaceChildren() { this.children = 0; } });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), querySelector: (sel) => (els[sel.slice(1)] ||= mkEl(sel.slice(1))) };
+global.window = global;
+global.CodeMaxAuth = { errorText: (d, s) => (d && d.detail) || `请求失败（${s}）`,
+  failureText: (e) => (e.name === "TypeError" && /failed to fetch/i.test(e.message) ? "网络连接失败，请检查网络后重试" : e.message) };
+global.fetch = async () => {
+  if (step === "offline") throw new TypeError("Failed to fetch");
+  if (step === "bad-ddl") return { ok: false, status: 422, json: async () => ({ detail: "未解析到任何 CREATE TABLE 语句" }) };
+  return { ok: true, status: 200, json: async () => (step === "boom" ? { boom: true } : { tables: [], edges: [] }) };
+};
+const chain = new Proxy(function () {}, { get: (_, k) => (k === "then" ? undefined : chain), apply: () => chain });
+const stubs = `const d3 = chain;
+const layoutEr = (g) => { if (g.boom) throw new Error("layout exploded"); return { nodes: [], links: [] }; };
+const initialView = () => ({ x: 0, y: 0, k: 1, fits: true, fitK: 1 });`;
+let code = require("fs").readFileSync(path, "utf8");
+code = code.replace(/^import \* as d3 from "d3";$/m, "").replace(/^import \{ initialView, layoutEr \} from "\.\/er-layout\.js";$/m, stubs);
+if (!code.includes("const d3 = chain")) throw new Error("er-page.js 的 import 行变了，更新桩替换");
+(async () => {
+  require("vm").runInThisContext(`(function (chain) {\n${code}\n})`, { filename: path })(chain);
+  const history = [];
+  for (step of steps) {
+    await els["er-form"].onsubmit({ preventDefault() {} });
+    const get = document.getElementById, c = get("er-canvas"), e = get("er-error");
+    history.push({ error: e.hidden ? null : e.textContent, stale: "data-stale" in c.attrs, tools: !get("er-tools").hidden,
+      cleared: c.children === 0, label: c.attrs["aria-label"], submitEnabled: !els["er-submit"].disabled });
+    c.children = 1;
+    if (step === "ok") c.attrs["aria-label"] = "ER 图：已画出";  // renderEr 经 d3 设置读屏标签，桩里 d3 不落地，这里代为模拟
+  }
+  console.log(JSON.stringify(history));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+ER_PAGE_JS = ROOT / "app" / "frontend" / "er-page.js"
+STALE = "；当前显示的仍是上一次的结果"
+
+
+def _run_page(scenario: str) -> list[dict]:
+    proc = subprocess.run([shutil.which("node"), "-e", _PAGE_HARNESS, str(ER_PAGE_JS), scenario],
+                          capture_output=True, text=True, timeout=20)
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize(("failure", "message"), [
+    ("bad-ddl", "未解析到任何 CREATE TABLE 语句"),
+    ("offline", "请求失败：网络连接失败，请检查网络后重试"),
+], ids=["bad-ddl", "offline"])
+def test_failed_regeneration_dims_the_previous_diagram_and_says_so(failure, message):
+    """真 Chromium 里先画出一张图、再提交有误的 DDL（或断网），错误提示下面照常显示上一次的图，
+    和输入框里的 DDL 对不上。请求阶段失败时图本身完好：保留、调暗、提示里说明。"""
+    ok, failed = _run_page(f"ok,{failure}")
+    assert ok == {"error": None, "stale": False, "tools": True, "cleared": False, "label": "ER 图（生成后显示）",
+                  "submitEnabled": True}
+    assert failed["error"] == message + STALE
+    assert failed["stale"] is True and failed["tools"] is True and failed["cleared"] is False
+    assert failed["submitEnabled"] is True
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_next_success_clears_the_stale_marking_on_the_diagram():
+    *_, last = _run_page("ok,offline,ok")
+    assert last["stale"] is False and last["error"] is None
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("failure", ["bad-ddl", "offline"])
+def test_first_failure_does_not_claim_a_previous_diagram(failure):
+    (out,) = _run_page(failure)
+    assert STALE not in out["error"] and out["stale"] is False and out["tools"] is False
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_render_failure_clears_the_half_drawn_canvas_back_to_the_empty_state():
+    """绘制阶段失败时画布可能只画了一半：清空、藏起 #er-tools（er.html 的空状态提示据此重新出现）、
+    读屏标签回到模板原文，不说「仍是上一次的结果」。"""
+    _, out = _run_page("ok,boom")
+    assert out["error"] == "渲染失败：layout exploded"
+    assert out["cleared"] is True and out["tools"] is False and out["stale"] is False
+    assert out["label"] == "ER 图（生成后显示）"
+
+
+def test_er_bundle_carries_the_stale_handling():
+    bundle = (ROOT / "app" / "static" / "js" / "er-page.js").read_text(encoding="utf-8")
+    assert "当前显示的仍是上一次的结果" in bundle and "data-stale" in bundle, "忘了 npm run build？（TD-326）"
+
+
+def test_stale_style_covers_every_element_the_pages_mark():
+    """两页用 data-stale 标记的元素（ER 画布、类图源码框与预览区）在 base.html 里都要有调暗样式。"""
+    css = (ROOT / "app" / "templates" / "base.html").read_text(encoding="utf-8")
+    rule = re.search(r"([^{}]*\[data-stale\][^{}]*)\{([^}]*)\}", css)
+    assert rule and "opacity" in rule.group(2)
+    for sel in ("#er-canvas[data-stale]", "#mermaid-preview[data-stale]", "#mermaid-source[data-stale]"):
+        assert sel in rule.group(1), sel

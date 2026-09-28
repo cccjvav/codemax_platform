@@ -47,6 +47,24 @@ function fail(msg) {
   error.textContent = msg;
 }
 
+// 新一次生成失败时（TD-326），源码框与预览区里可能还是上一次的结果，和输入框里现在的描述对不上，
+// 原来照常显示、看不出已经过时。不清掉它：模型生成耗配额、再生成结果也不同，一次网络抖动就丢掉一份
+// 好结果不划算。改为调暗（data-stale，样式见 base.html）并在错误提示里说明；下次成功生成时恢复。
+// 「有没有上一次的结果」用显式状态 hasResult 记（拿到模型源码时置位），不从元素的 hidden 反推。
+// setAttribute 用可选调用：部分测试替身的元素没有这个方法（与本仓库其他页面脚本同一约定）。
+let hasResult = false;
+function setStale(on) {
+  for (const el of [source, preview]) {
+    if (on) el.setAttribute?.("data-stale", "");
+    else el.removeAttribute?.("data-stale");
+  }
+}
+
+function failKeepingPrevious(msg) {
+  setStale(hasResult);
+  fail(hasResult ? `${msg.replace(/[。.]$/, "")}；当前显示的仍是上一次的结果` : msg);
+}
+
 // 服务端把「本站没配 LLM_API_KEY」原样返回（那是给运维看的），对访客是开发者术语。
 // 只改这一条的**展示**文案，不改服务端 detail（运维/测试仍按原文判断），也不隐藏其它错误。
 function serverMessage(res, data) {
@@ -97,11 +115,15 @@ form.onsubmit = async (ev) => {
   let stage = "request";
   try {
     const { res, data } = await requestDiagram(input.value);
-    if (!res.ok) return fail(serverMessage(res, data));
+    if (!res.ok) return failKeepingPrevious(serverMessage(res, data));
+    // 200 却不是 JSON（代理的 HTML 页）：原来在下面读 data.mermaid 时才抛 TypeError，源码框已被打开成空白（TD-326，与 ER 页一致）
+    if (!data) return failKeepingPrevious("请求失败：服务器返回的不是 JSON");
     error.hidden = true;
+    setStale(false);
     // 先给出 Mermaid 源码（在错误提示下方）：就算渲染器下载失败，用户也拿到了结果，可以复制到别处渲染
     source.hidden = false;
     source.textContent = data.mermaid;
+    hasResult = true;
     let mermaid;
     try {
       mermaid = await renderer;
@@ -117,7 +139,7 @@ form.onsubmit = async (ev) => {
       preview.textContent = "";  // 画失败时预览区里还是刚放进去的源码原文，与源码框重复
       fail(renderFailure(e));
     } else {
-      fail(`请求失败：${failure(e)}`);
+      failKeepingPrevious(`请求失败：${failure(e)}`);
     }
   } finally {
     submit.disabled = false;

@@ -25,8 +25,8 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `a43c79902b68` | L1–L274 |
-| [`app/templates/drawio.html`](drawio.html) | `c47bd70936d8` | L1–L47 |
+| [`app/templates/base.html`](base.html) | `0575420a61e7` | L1–L282 |
+| [`app/templates/drawio.html`](drawio.html) | `d36b5b843d42` | L1–L50 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
@@ -34,7 +34,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `db8d977abafa` | L1–L23 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `4beb6794c03c` | L1–L172 |
 | [`app/templates/shop.html`](shop.html) | `b66e42843b44` | L1–L124 |
-| [`app/templates/support-center.html`](support-center.html) | `954df4986259` | L1–L55 |
+| [`app/templates/support-center.html`](support-center.html) | `202c15e1fc2c` | L1–L57 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -179,3 +179,9 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 - `shop.html`：支付成功标题去掉 `✅`（无彩色 emoji 字体的系统显示成方框），与其余几态一致。
 - `app/static/support.css`：`#support-messages:empty { margin: 0; }`，还没有留言时标题与留言框之间不再有空白；不隐藏，保留 aria-live 区域。
+
+## 2026-09-28 第四轮截图复核（TD-326）
+
+- `base.html`：`#er-canvas`、`#mermaid-preview`、`#mermaid-source` 带 `data-stale` 时调暗（生成失败时上一次的结果）；`button.item` 加 `word-break: keep-all`（列表行只在空格与标点处断行）；`select { max-width: 100%; }`（长选项不再撑宽页面）。
+- `support-center.html`：`#support-inbox-empty` 空状态（`role="status"`，默认 hidden），管理员没有客户会话时由脚本显示。
+- `drawio.html`：文件管理列表的行与行内按钮加间距。

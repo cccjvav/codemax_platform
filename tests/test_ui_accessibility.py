@@ -955,3 +955,88 @@ def test_empty_support_thread_leaves_no_gap_but_stays_a_live_region():
     assert rule and "margin: 0" in rule.group(1) and "display" not in rule.group(1)
     html = (ROOT / "app" / "templates" / "support-center.html").read_text(encoding="utf-8")
     assert '<ol id="support-messages" aria-live="polite" aria-label="会话消息"></ol>' in html, "模板里不能有空白，否则 :empty 不成立"
+
+
+# ---------------------------------------------------------------- TD-326：第四轮真 Chromium 截图（使用中的状态）
+
+_INBOX_HARNESS = r"""
+const [authPath, supportPath, scenario] = [process.argv[2], process.argv[3], process.argv[4]];
+const els = {};
+const mkEl = (id) => { const classes = new Set(); return { id, value: "", textContent: "", hidden: false, disabled: false, children: [],
+  classList: { add(c) { classes.add(c); }, remove(c) { classes.delete(c); }, contains(c) { return classes.has(c); }, toggle(c, on) { on ? classes.add(c) : classes.delete(c); } },
+  focus() {}, contains() { return false; }, setAttribute() {}, removeAttribute() {},
+  append(...xs) { this.children.push(...xs); }, appendChild(x) { this.children.push(x); }, prepend() {},
+  replaceChildren(...xs) { this.children = xs; }, addEventListener() {}, click() {} }; };
+// 模板里空状态提示带 hidden（support-center.html），假 DOM 保持一致
+global.document = { getElementById: (id) => (els[id] ||= Object.assign(mkEl(id), { hidden: id === "support-inbox-empty" })),
+  createElement: (t) => mkEl(t), body: mkEl("body"), activeElement: null, addEventListener() {} };
+global.window = global; global.addEventListener = () => {}; global.setTimeout = () => 1; global.clearTimeout = () => {};
+global.AbortController = class { constructor() { this.signal = {}; } abort() {} };
+global.fetch = async (url) => {
+  const body = url === "/auth/me" ? { username: "admin", role: 1 }
+    : url.startsWith("/support/conversations") ? (scenario === "rows" ? [{ id: 1, customer_id: 7, username: "student2", awaiting_admin: true }] : [])
+    : [];
+  return { ok: true, status: 200, json: async () => body, headers: { get: () => null } };
+};
+require(authPath);
+(async () => {
+  const tick = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setImmediate(r)); };
+  await tick(); require(supportPath); await tick();
+  const loaded = { empty: !els["support-inbox-empty"].hidden, rows: els["support-inbox"].children.length, panel: !els["support-inbox-panel"].hidden };
+  await els["btn-logout"].onclick(); await tick();  // 顶栏「退出」：auth.js 通知订阅页 onUser(null)
+  console.log(JSON.stringify({ loaded, afterLogout: { empty: !els["support-inbox-empty"].hidden } }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+def _run_inbox(tmp_path, scenario: str) -> dict:
+    import json
+
+    harness = tmp_path / "inbox.cjs"
+    harness.write_text(_INBOX_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / "app/frontend/auth.js"), str(ROOT / "app/frontend/support-page.js"), scenario],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_admin_inbox_says_so_when_there_are_no_conversations(tmp_path):
+    """真 Chromium 截图：管理员没有客户会话时，「客户会话 / 刷新会话」下面什么也没有，
+    看不出是加载完了还是没加载。现在显示空状态；有会话时不显示；退出后收起。"""
+    empty = _run_inbox(tmp_path, "empty")
+    assert empty["loaded"] == {"empty": True, "rows": 0, "panel": True}
+    assert empty["afterLogout"]["empty"] is False
+    rows = _run_inbox(tmp_path, "rows")
+    assert rows["loaded"] == {"empty": False, "rows": 1, "panel": True}
+
+
+def test_inbox_empty_state_is_announced_and_hidden_by_default():
+    html = (ROOT / "app/templates/support-center.html").read_text(encoding="utf-8")
+    tag = re.search(r'<p id="support-inbox-empty"[^>]*>', html)
+    assert tag and "hidden" in tag.group(0) and 'role="status"' in tag.group(0)
+    assert html.index('id="support-inbox"') < html.index('id="support-inbox-empty"') < html.index('id="support-inbox-more"')
+
+
+def test_list_rows_break_between_fields_not_inside_chinese_words():
+    """真 Chromium 截图（390px）：订单列表的状态被拆成「可重新 / 下载」「已全额 / 退款」，
+    管理端订单列表拆成「已关 / 闭（closed）」。button.item 三处用法都是「字段 · 字段」，用 keep-all
+    只在空格与标点处断行；overflow-wrap:anywhere 必须同时保留，否则超长单字段会撑出横向滚动。"""
+    css = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+    rule = re.search(r"button\.item\s*\{([^}]*)\}", css).group(1)
+    assert "word-break: keep-all" in rule and "overflow-wrap: anywhere" in rule
+
+
+def test_select_never_grows_wider_than_its_container():
+    """真 Chromium 截图（390px）：drawio「我的流程图」里有一个长文件名，下拉框按最长选项撑到 615px，整页横向滚动。"""
+    css = (ROOT / "app/templates/base.html").read_text(encoding="utf-8")
+    assert re.search(r"(?m)^\s*select\s*\{[^}]*max-width:\s*100%", css)
+
+
+def test_drawio_row_actions_are_outline_buttons():
+    """文件管理列表每行的「移至回收站 / 恢复 / 永久删除」原来是实心主按钮，破坏性操作成了列表里最醒目的东西。"""
+    for path in (ROOT / "app/frontend/drawio-page.js", ROOT / "app/static/js/drawio-page.js"):
+        text = path.read_text(encoding="utf-8")
+        assert re.search(r'className\s*=\s*["`]ghost["`]', text), f"{path.name}：忘了 npm run build？"
+    html = (ROOT / "app/templates/drawio.html").read_text(encoding="utf-8")
+    assert re.search(r"#diagram-manage button\s*\{[^}]*margin", html)

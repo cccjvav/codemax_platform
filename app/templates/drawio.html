@@ -6,6 +6,9 @@
      select 的边框，下拉框仍是浏览器默认灰底，与旁边的输入框不一致。 */
   #drawio-frame { width: 100%; height: 74vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; }
   #drawio-status { color: #64748b; }
+  /* 文件管理列表（TD-326）：行内按钮原来紧贴文字、回收站行的「恢复」「永久删除」之间没有间隔 */
+  #diagram-manage li { margin: 6px 0; overflow-wrap: anywhere; }
+  #diagram-manage button { margin: 4px 8px 0 0; }
   .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
 </style>
 

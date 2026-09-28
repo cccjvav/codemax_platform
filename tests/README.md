@@ -87,7 +87,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_drawio_unsaved_changes.py`](test_drawio_unsaved_changes.py) | `18a81ee178a9` | L1–L157 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
-| [`tests/test_er_page.py`](test_er_page.py) | `91c2fd8d783b` | L1–L375 |
+| [`tests/test_er_page.py`](test_er_page.py) | `ce5bf99908f0` | L1–L485 |
 | [`tests/test_extract.py`](test_extract.py) | `51ad80685f7f` | L1–L318 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
@@ -97,7 +97,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `c7c6f8df0def` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
-| [`tests/test_mermaid.py`](test_mermaid.py) | `209a06578895` | L1–L280 |
+| [`tests/test_mermaid.py`](test_mermaid.py) | `d836ada04f44` | L1–L344 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `404c8385f38f` | L1–L287 |
 | [`tests/test_oauth.py`](test_oauth.py) | `367d3c3c7b7d` | L1–L433 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
@@ -139,7 +139,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `1318e323463d` | L1–L957 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `4305629d264b` | L1–L1042 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -429,3 +429,10 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-28 第三轮截图复核（TD-325）
 
 - `test_ui_accessibility.py` 的 `test_visible_text_has_no_emoji_only_characters`：模板与前端脚本里用户看得见的部分（去掉注释）不许出现默认以 emoji 显示的字符。`test_empty_support_thread_leaves_no_gap_but_stays_a_live_region`：空留言列表只收外边距、不隐藏，模板里 `<ol>` 内部没有空白。两条在改前的文件上都失败。
+
+## 2026-09-28 第四轮截图复核（TD-326）
+
+- `test_mermaid.py`：执行器支持逗号分隔的多步提交（ok / parse-error / offline / 502 / html200），假 DOM 按模板初始 hidden、记录属性。新增成功后失败调暗并说明（三种失败）、下次成功恢复、首次失败不说过时（含 200 非 JSON 不打开空白源码框）、画不出来时不标过时；产物检查加上新文案与 `data-stale`。
+- `test_er_page.py`：新增页面装配执行器，把 `er-page.js` 的 import 换成 d3 链式桩与布局桩后在 node 里执行；覆盖成功后失败调暗并说明（DDL 有误、断网）、下次成功恢复、首次失败不说过时、绘制失败清空画布回到空状态；另有产物检查与 `data-stale` 样式覆盖三个元素的检查。
+- `test_ui_accessibility.py`：管理员空会话（执行真实 `auth.js` + `support-page.js`）、空状态元素属性与位置、`button.item` 的 keep-all 与 overflow-wrap、`select` 的 max-width、Drawio 行内按钮为描边。
+- 改前代码上 15 条失败；「首次失败不说过时」是守卫，改前也通过。

@@ -47,15 +47,15 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/frontend/auth.js`](auth.js) | `4cb99a94dd67` | L1–L291 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `462e8b4acdfa` | L1–L215 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `b3accf2c441e` | L1–L216 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `a2a6d4769b38` | L1–L318 |
-| [`app/frontend/er-page.js`](er-page.js) | `ff0461e26931` | L1–L221 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `4c9ee202d8a8` | L1–L125 |
+| [`app/frontend/er-page.js`](er-page.js) | `c1bcd1265123` | L1–L255 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `e4c301893634` | L1–L147 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `bd9383a44d83` | L1–L404 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `cab919d15ed0` | L1–L376 |
-| [`app/frontend/support-page.js`](support-page.js) | `c1177cf0a5b7` | L1–L224 |
+| [`app/frontend/support-page.js`](support-page.js) | `dcd5a7ee2892` | L1–L225 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -243,3 +243,9 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 ## 2026-09-28：事件历史中文名称（TD-323 / R-09）
 
 - `payments-admin.js`：新增冻结的 `EVENT_LABELS`（35 种事件，措辞经用户确认），事件历史每行经 `labelled` 显示成「中文（原值）」，未登记的种类与原型上的键原样显示。只有 `query_success`、`refund_query_success`、`refund_manual_success` 三种名称里能出现「成功」；已验签的非成功观察写明「不是成功」。表与后端写入点是否一致由 `tests/test_payment_event_labels.py` 从语法树核对，后端增删事件种类而这里没跟上时测试失败。
+
+## 2026-09-28：生成失败时标明旧结果（TD-326）
+
+- `er-page.js`、`mermaid-page.js`：请求阶段失败（接口报错、断网、200 非 JSON）时，若页面上已有上一次的结果，给结果元素加 `data-stale` 并在提示末尾加「；当前显示的仍是上一次的结果」，下次成功生成时去掉；从没生成过就失败时不加。ER 页绘制阶段失败时清空画布、藏起 `#er-tools`、恢复读屏标签。类图页补上 200 非 JSON 的判断。
+- `support-page.js`：管理员会话列表第一页为空时显示 `#support-inbox-empty`，换账号或退出时收起。
+- `drawio-page.js`：文件管理的行内操作按钮为 `ghost`（描边）。
