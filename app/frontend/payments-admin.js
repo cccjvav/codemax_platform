@@ -180,6 +180,126 @@
     "refund-request": () => "本地准备已保存，未发送或批准自动退款，下载权未改变。请核对固定商户退款号。",
     "review": () => "复核记录已保存，资金/下载权未改变。请刷新左侧清单。",
   };
+  // 结果未知的请求只能原样恢复（TD-308）：same 里每个字段都要与保存的请求体一致，否则返回 null 由调用方拒绝；
+  // 没有保存的请求才调用 fresh() 新建（新 request_id）。各表单比较哪些字段沿用原来的规则。
+  const resume = (kind, same, fresh) => {
+    const prior = pending[kind];
+    if (!prior) return fresh();
+    return Object.keys(same).every((key) => same[key] === prior[key]) ? prior : null;
+  };
+  // 独立授权 / 重新授权 / 发送 / 停止共用一套核对：原准备号、全额、依据，授权类另加客户可见原因。
+  const refundAttempt = (kind) => (number, evidence) => {
+    const amount = Number(el("send-amount").value), numberConfirmed = el("send-number").value.trim();
+    if (!currentRequest || numberConfirmed !== currentRequest.out_refund_no || amount !== currentRequest.amount ||
+        !Number.isSafeInteger(amount) || evidence.length > 160) {
+      return "手动输入原准备商户退款号、全额整数分和最多160字内部依据。";
+    }
+    const base = {confirm_order_no: number, amount, out_refund_no: numberConfirmed, evidence};
+    const isReauth = kind === "refund-reauthorize", isAuth = kind === "refund-authorize", isStop = kind === "refund-stop";
+    if (isAuth || isReauth) {
+      const reason = el("customer-reason").value.trim();
+      if (!reason || new TextEncoder().encode(reason).length > 80 || /[\x00-\x1f\x7f-\x9f]/.test(reason)) {
+        return "客户可见退款原因须为1–80 UTF-8字节单行；不是内部核账依据。";
+      }
+      base.reason = reason;
+    }
+    if (!isAuth) {
+      if (!submission) return null;
+      base.authorization_id = submission.authorization_id; base.digest = submission.digest;
+    }
+    const body = resume(kind, base, () => ({...base, request_id: nonce()}));
+    if (!body) return "上次结果未知或已记录，请按原内容恢复；不可覆盖未知尝试。";
+    return {
+      body,
+      url: `/shop/admin/orders/${encodeURIComponent(number)}/refunds/${isReauth ? "reauthorize" : isAuth ? "authorize" : isStop ? "stop" : "send"}`,
+      summary: isReauth ? `替代已停止且从未开始发送的授权 ${submission.authorization_id}，重新冻结客户原因：${base.reason}及当前正式回调地址。原号/全额不变，旧版/停止永久保留。本次只授权不发送，确认？` : isStop ? "永久停止此授权的新的本站发送，并保存当前纠错/停办依据；不能撤回已开始或已送达微信的请求，不改退款号/正文/金额/下载权益。确认停止？" : isAuth ? `冻结并授权全额退款请求，客户会看到原因：${base.reason}。此按钮仅保存，之后仍需单独确认发送。` :
+        `即将真实向微信申请全额退款 ${money(amount)}，商户退款号 ${numberConfirmed}，摘要 ${submission.digest}。首次点击可能转出资金；同尝试恢复不会重发。确认发送？`,
+    };
+  };
+  // 每类表单的专属校验与请求（TD-308）。返回字符串 = 校验失败的提示；null = 静默放弃；
+  // 否则返回 {url, body, summary}。单号与 3–500 字依据的公共校验已在 operate 里先做。
+  const BUILD = {
+    manual(number, evidence) {
+      const body = {evidence, amount: Number(el("amount").value), reference: el("reference").value.trim()};
+      if (!Number.isSafeInteger(body.amount) || body.amount <= 0 || body.amount !== contract.amount || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(body.reference)) {
+        return "实际到账分数须与合同一致，且必须有真实、有效的流水号。";
+      }
+      return {body, url: `/shop/orders/${encodeURIComponent(number)}/confirm`,
+        summary: `已在真实收款记录核实 ${money(body.amount)}，流水 ${body.reference}？`};
+    },
+    query(number, evidence) {
+      return {body: {evidence, confirm_order_no: number}, url: `/shop/admin/orders/${encodeURIComponent(number)}/reconcile`,
+        summary: "向原商户查询；可信成功结果可能补记收款。是否继续？"};
+    },
+    binding(number, evidence) {
+      const body = {evidence, payment_mode: el("mode").value, source_key: el("source").value.trim()};
+      if (!body.source_key) return "请核实并填写原交付文件路径。";
+      return {body, url: `/shop/orders/${encodeURIComponent(number)}/legacy-binding`,
+        summary: `永久绑定渠道 ${body.payment_mode} 与原文件 ${body.source_key}；不可改写。是否已核实？`};
+    },
+    "channel-close"(number, evidence) {
+      const amount = Number(el("close-amount").value);
+      if (!Number.isSafeInteger(amount) || amount !== contract.amount || evidence.length > 160) return "手动确认原合同金额整数分及3–160字依据。";
+      const resuming = Boolean(pending["channel-close"]);
+      const base = {confirm_order_no: number, amount, evidence};
+      const body = resume("channel-close", base, () => ({...base, query_attempt_id: channelClose.query_attempt_id, request_id: nonce()}));
+      if (!body) return "未知关单必须按原内容恢复，不覆盖原请求。";
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/close-channel`,
+        summary: resuming ? "按原关单尝试读取首次结果，不重新发送；是否恢复？" : "向原微信商户关闭此已在本站关闭的未支付订单；会使旧二维码不可支付。不是退款，不撤销迟到到账权益，之后仍需独立查单。确认？"};
+    },
+    "refund-query"(number, evidence) {
+      if (evidence.length > 160) return "退款核验依据须为3–160字。";
+      const body = {evidence, confirm_order_no: number, out_refund_no: el("refund-no").value.trim()};
+      if (!/^[A-Za-z0-9_\-|*@]{1,64}$/.test(body.out_refund_no)) return "请填写原渠道的商户退款单号。";
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/refunds/query`,
+        summary: "只查询既有全额原路退款；成功凭证入库后，此订单旧/新链接均停止下载。不会发起退款。是否继续？"};
+    },
+    "refund-manual"(number, evidence) {
+      if (evidence.length > 160) return "退款核验依据须为3–160字。";
+      const body = {evidence, confirm_order_no: number, amount: Number(el("refund-amount").value),
+        reference: el("refund-reference").value.trim(), completed_at: el("refund-time").value.trim()};
+      if (!Number.isSafeInteger(body.amount) || body.amount !== contract.amount || body.amount <= 0 ||
+          !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(body.reference) ||
+          !/(Z|[+-]\d{2}:\d{2})$/.test(body.completed_at) || !Number.isFinite(Date.parse(body.completed_at))) {
+        return "填写实际全额退款分数、真实退款流水及带时区的成功时间；不是收款流水或退款申请时间。";
+      }
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/refunds/manual`,
+        summary: `已在真实记录核实全额退款 ${money(body.amount)}，退款流水 ${body.reference}？保存不可覆盖，会停止此订单后续下载。`};
+    },
+    "refund-request"(number, evidence) {
+      const amount = Number(el("request-amount").value);
+      if (evidence.length > 160 || !Number.isSafeInteger(amount) || amount <= 0 || amount !== contract.amount) {
+        return "准备金额必须等于原合同全额整数分，依据须为3–160字。";
+      }
+      const body = resume("refund-request", {evidence, amount}, () => ({request_id: nonce(), confirm_order_no: number, amount, evidence}));
+      if (!body) return "上次准备结果未知，请先刷新或用原内容重试，不能换号、改金额或依据。";
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/refunds/requests`,
+        summary: "保存不可覆盖的全额退款准备与固定商户退款号。不是发送或自动退款授权，不停止下载；一单不能换号再建。是否继续？"};
+    },
+    "refund-authorize": refundAttempt("refund-authorize"),
+    "refund-reauthorize": refundAttempt("refund-reauthorize"),
+    "refund-send": refundAttempt("refund-send"),
+    "refund-stop": refundAttempt("refund-stop"),
+    "verification-control"(number, evidence) {
+      const jobId = Number(el("verify-job").value), action = el("verify-action").value;
+      const job = verificationJobs.find(j => j.id === jobId);
+      if (!job || !["hold", "retry"].includes(action) || evidence.length > 160) return "输入当前列表中的任务ID，核对原退款号，依据须为3–160字。";
+      const body = resume("verification-control", {job_id: jobId, action, evidence},
+        () => ({confirm_order_no: number, request_id: nonce(), job_id: jobId, action, snapshot: job.snapshot, evidence}));
+      if (!body) return "上次核验操作结果未知，请按原内容重试或刷新核对，不覆盖原请求。";
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/refunds/verification/control`,
+        summary: `任务 ${jobId} / 原退款号 ${job.refund_no || "须核对原通知"}：${action === "hold" ? "人工接管此任务，停止其自动调度；已领取尝试（即使还未发出HTTP）仍可能继续GET，不停止其他通知任务" : "重新排队，仅使用8次上限内剩余次数；开关关闭时不会执行，耗尽/已核验需人工查询"}。不发退款、不改变下载权，确认？`};
+    },
+    review(number, evidence) {
+      if (!review || evidence.length > 160) return "复核说明须为3–160字，请先刷新进度。";
+      const action = el("review-action").value;
+      const body = resume("review", {action, evidence}, () => ({evidence, action, snapshot: review.snapshot,
+        expected_version: review.version, confirm_order_no: number, request_id: nonce()}));
+      if (!body) return "上次复核结果未确认，请先用原内容重试，或重新选单核对历史后再发起新操作。";
+      return {body, url: `/shop/admin/orders/${encodeURIComponent(number)}/review`,
+        summary: `保存复核进度 ${action}；不代表到账或退款完成，也不改变下载权。是否继续？`};
+    },
+  };
   async function operate(kind, event) {
     event.preventDefault();
     if (!user || !selected || !contract || busy || el("operations").hidden || el(kind).hidden) return;
@@ -188,116 +308,10 @@
     if (el("confirm-no").value.trim() !== number || evidence.length < 3 || evidence.length > 500 || /[\x00-\x1f\x7f-\x9f]/.test(evidence)) {
       message("请手动输入与当前订单一致的完整单号，以及3–500字的单行核查依据。"); return;
     }
-    let url, body = {evidence}, summary;
-    if (kind === "manual") {
-      body.amount = Number(el("amount").value); body.reference = el("reference").value.trim();
-      if (!Number.isSafeInteger(body.amount) || body.amount <= 0 || body.amount !== contract.amount || !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(body.reference)) {
-        message("实际到账分数须与合同一致，且必须有真实、有效的流水号。"); return;
-      }
-      url = `/shop/orders/${encodeURIComponent(number)}/confirm`;
-      summary = `已在真实收款记录核实 ${money(body.amount)}，流水 ${body.reference}？`;
-    } else if (kind === "query") {
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/reconcile`;
-      body.confirm_order_no = number; summary = "向原商户查询；可信成功结果可能补记收款。是否继续？";
-    } else if (kind === "binding") {
-      url = `/shop/orders/${encodeURIComponent(number)}/legacy-binding`;
-      body.payment_mode = el("mode").value; body.source_key = el("source").value.trim();
-      if (!body.source_key) { message("请核实并填写原交付文件路径。"); return; }
-      summary = `永久绑定渠道 ${body.payment_mode} 与原文件 ${body.source_key}；不可改写。是否已核实？`;
-    }
-    if (kind === "channel-close") {
-      const amount = Number(el("close-amount").value);
-      if (!Number.isSafeInteger(amount) || amount !== contract.amount || evidence.length > 160) { message("手动确认原合同金额整数分及3–160字依据。"); return; }
-      const base = {confirm_order_no: number, amount, evidence};
-      if (pending[kind] && Object.keys(base).some(key => base[key] !== pending[kind][key])) { message("未知关单必须按原内容恢复，不覆盖原请求。"); return; }
-      body = pending[kind] || {...base, query_attempt_id: channelClose.query_attempt_id, request_id: nonce()};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/close-channel`;
-      summary = pending[kind] ? "按原关单尝试读取首次结果，不重新发送；是否恢复？" : "向原微信商户关闭此已在本站关闭的未支付订单；会使旧二维码不可支付。不是退款，不撤销迟到到账权益，之后仍需独立查单。确认？";
-    }
-    if (kind === "refund-query" || kind === "refund-manual") {
-      if (evidence.length > 160) { message("退款核验依据须为3–160字。"); return; }
-      body.confirm_order_no = number;
-      if (kind === "refund-query") {
-        body.out_refund_no = el("refund-no").value.trim();
-        if (!/^[A-Za-z0-9_\-|*@]{1,64}$/.test(body.out_refund_no)) { message("请填写原渠道的商户退款单号。"); return; }
-        url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/query`;
-        summary = "只查询既有全额原路退款；成功凭证入库后，此订单旧/新链接均停止下载。不会发起退款。是否继续？";
-      } else {
-        body.amount = Number(el("refund-amount").value); body.reference = el("refund-reference").value.trim();
-        body.completed_at = el("refund-time").value.trim();
-        if (!Number.isSafeInteger(body.amount) || body.amount !== contract.amount || body.amount <= 0 ||
-            !/^[A-Za-z0-9][A-Za-z0-9._:/-]{0,63}$/.test(body.reference) ||
-            !/(Z|[+-]\d{2}:\d{2})$/.test(body.completed_at) || !Number.isFinite(Date.parse(body.completed_at))) {
-          message("填写实际全额退款分数、真实退款流水及带时区的成功时间；不是收款流水或退款申请时间。"); return;
-        }
-        url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/manual`;
-        summary = `已在真实记录核实全额退款 ${money(body.amount)}，退款流水 ${body.reference}？保存不可覆盖，会停止此订单后续下载。`;
-      }
-    }
-    if (kind === "refund-request") {
-      const amount = Number(el("request-amount").value);
-      if (evidence.length > 160 || !Number.isSafeInteger(amount) || amount <= 0 || amount !== contract.amount) {
-        message("准备金额必须等于原合同全额整数分，依据须为3–160字。"); return;
-      }
-      if (pending[kind] && (pending[kind].evidence !== evidence || pending[kind].amount !== amount)) {
-        message("上次准备结果未知，请先刷新或用原内容重试，不能换号、改金额或依据。"); return;
-      }
-      body = pending[kind] || {request_id: nonce(), confirm_order_no: number, amount, evidence};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/requests`;
-      summary = "保存不可覆盖的全额退款准备与固定商户退款号。不是发送或自动退款授权，不停止下载；一单不能换号再建。是否继续？";
-    }
-    if (["refund-authorize", "refund-reauthorize", "refund-send", "refund-stop"].includes(kind)) {
-      const amount = Number(el("send-amount").value), numberConfirmed = el("send-number").value.trim();
-      if (!currentRequest || numberConfirmed !== currentRequest.out_refund_no || amount !== currentRequest.amount ||
-          !Number.isSafeInteger(amount) || evidence.length > 160) {
-        message("手动输入原准备商户退款号、全额整数分和最多160字内部依据。"); return;
-      }
-      const base = {confirm_order_no: number, amount, out_refund_no: numberConfirmed, evidence};
-      const isReauth = kind === "refund-reauthorize", isAuth = kind === "refund-authorize", isStop = kind === "refund-stop";
-      if (isAuth || isReauth) {
-        const reason = el("customer-reason").value.trim();
-        if (!reason || new TextEncoder().encode(reason).length > 80 || /[\x00-\x1f\x7f-\x9f]/.test(reason)) {
-          message("客户可见退款原因须为1–80 UTF-8字节单行；不是内部核账依据。"); return;
-        }
-        base.reason = reason;
-      }
-      if (!isAuth) {
-        if (!submission) return;
-        base.authorization_id = submission.authorization_id; base.digest = submission.digest;
-      }
-      const prior = pending[kind];
-      if (prior && Object.keys(base).some(key => base[key] !== prior[key])) {
-        message("上次结果未知或已记录，请按原内容恢复；不可覆盖未知尝试。"); return;
-      }
-      body = prior || {...base, request_id: nonce()};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/${isReauth ? "reauthorize" : isAuth ? "authorize" : isStop ? "stop" : "send"}`;
-      summary = isReauth ? `替代已停止且从未开始发送的授权 ${submission.authorization_id}，重新冻结客户原因：${base.reason}及当前正式回调地址。原号/全额不变，旧版/停止永久保留。本次只授权不发送，确认？` : isStop ? "永久停止此授权的新的本站发送，并保存当前纠错/停办依据；不能撤回已开始或已送达微信的请求，不改退款号/正文/金额/下载权益。确认停止？" : isAuth ? `冻结并授权全额退款请求，客户会看到原因：${base.reason}。此按钮仅保存，之后仍需单独确认发送。` :
-        `即将真实向微信申请全额退款 ${money(amount)}，商户退款号 ${numberConfirmed}，摘要 ${submission.digest}。首次点击可能转出资金；同尝试恢复不会重发。确认发送？`;
-    }
-    if (kind === "verification-control") {
-      const jobId = Number(el("verify-job").value), action = el("verify-action").value;
-      const job = verificationJobs.find(j => j.id === jobId);
-      if (!job || !["hold", "retry"].includes(action) || evidence.length > 160) {
-        message("输入当前列表中的任务ID，核对原退款号，依据须为3–160字。"); return;
-      }
-      if (pending[kind] && (pending[kind].job_id !== jobId || pending[kind].action !== action || pending[kind].evidence !== evidence)) {
-        message("上次核验操作结果未知，请按原内容重试或刷新核对，不覆盖原请求。"); return;
-      }
-      body = pending[kind] || {confirm_order_no: number, request_id: nonce(), job_id: jobId, action, snapshot: job.snapshot, evidence};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/refunds/verification/control`;
-      summary = `任务 ${jobId} / 原退款号 ${job.refund_no || "须核对原通知"}：${action === "hold" ? "人工接管此任务，停止其自动调度；已领取尝试（即使还未发出HTTP）仍可能继续GET，不停止其他通知任务" : "重新排队，仅使用8次上限内剩余次数；开关关闭时不会执行，耗尽/已核验需人工查询"}。不发退款、不改变下载权，确认？`;
-    }
-    if (kind === "review") {
-      if (!review || evidence.length > 160) { message("复核说明须为3–160字，请先刷新进度。"); return; }
-      const action = el("review-action").value;
-      if (pending[kind] && (pending[kind].action !== action || pending[kind].evidence !== evidence)) {
-        message("上次复核结果未确认，请先用原内容重试，或重新选单核对历史后再发起新操作。"); return;
-      }
-      body = pending[kind] || {evidence, action, snapshot: review.snapshot, expected_version: review.version,
-        confirm_order_no: number, request_id: nonce()};
-      url = `/shop/admin/orders/${encodeURIComponent(number)}/review`;
-      summary = `保存复核进度 ${action}；不代表到账或退款完成，也不改变下载权。是否继续？`;
-    }
+    const form = BUILD[kind](number, evidence);
+    if (typeof form === "string") { message(form); return; }
+    if (!form) return;
+    const {url, body, summary} = form;
     if (!window.confirm(`订单 ${number} / 客户ID ${contract.user_id}\n${summary}`)) return;
     if (RESUMABLE.includes(kind)) pending[kind] = body;
     busy = true;

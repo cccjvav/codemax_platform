@@ -61,6 +61,7 @@
 | R-04 | 导读笔记中既有的生成结果不一致 | shop.py 6 块、test_manual_pay 1 块、test_second_review_regressions 1 块、llm.py `LLMClient._call`、scripts/build_docs_site.py 7 块（其中 `_render_graph_page` 含生成器不支持的嵌套定义）、test_auth_cookie `test_authed_get_routes_are_read_only`、test_mock_pay「模块装配」与 `test_page_context_is_the_single_source_of_base_template_fields._Req`、test_checkout_concurrency `BlockingProvider.__init__`：逐块核对后 regen 或确认保留手写 | **已完成（2026-09-27，TD-305）**：名单内多数块只是生成器与旧脚本的写法不同，补回截断规则并修三处生成器缺陷后重写；真正过时的两块（test_ratelimit `_clean`、test_auth_crypto 模块装配）已重写；4 块确需手写的用新增的 `confirm` 登记；新增块边界检查，修了 5 处已有错位。全仓 142 个 Python 导读现由测试逐个 `check`。来自 RR-06、RR-09、RR-13、RR-17；复审见 RR-22～23 |
 | R-06 | 界面小问题（TD-306 截图时看到，未在本批处理） | ① 登录浮层当前标签要有可见的选中态（并设 `aria-selected` 或 `aria-pressed`）；② 管理页订单列表的状态码 `pending / manual` 改为与详情区一致的中文；③ 手机顶栏横向滚动的导航加上可滚动的提示（例如右侧渐隐），或确认现状可以接受 | **已完成（2026-09-28，TD-307）**：① 当前标签设 `aria-pressed` 并高亮；② 列表和合同区都显示「中文（原值）」（RR-25 说详情区已有中文，不准确，见 RR-26）；③ 右缘渐隐加末尾占位，导航顺序不变。来自 RR-25，复审见 RR-26～27 |
 | R-05 | 早先记下未修的复核小问题 | word.py 结尾句点；intent.py 关键词子串匹配（可能误命中）；politeness `_origin` 未统一主机名大小写 | **已完成（2026-09-27，TD-304）**：三项全部复现并修复（另修同类的「人工智能」误转人工）。接手以来的审查笔记，逐项复现后决定修或关闭 |
+| R-07 | 模拟收银台失败提示 | `app/frontend/mock-pay-page.js` 的失败文字改用 `auth.errorText`（与其他页面一致），非 JSON 应答不再显示成「失败 502：{}」；加用例，重建产物 | 待办（2026-09-28）。来自 RR-30；只影响开发/演示的 mock 模式 |
 
 ## G2：有边界的发布验收（和代码修复分开签收）
 

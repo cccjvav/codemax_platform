@@ -107,7 +107,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `a0993502354d` | L1–L618 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `cc79e0fdbeda` | L1–L627 |
 | [`tests/test_perf.py`](test_perf.py) | `4c839be0364b` | L1–L398 |
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
@@ -349,3 +349,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_payments_frontend.py` 新增 `state-labels` 场景（源码与产物各一）：列表第一行全文、未知状态原样显示、合同区状态文字；渠道值 `constructor` 用来确认查表只认自有属性（把查表改成 `labels[code] !== undefined` 时用例变红）。
 - `test_ui_accessibility.py` 新增 `test_login_dialog_marks_the_current_tab`（Node 真跑 auth.js 源码与产物，打开与切换后 `aria-pressed` 和标题同步）与 `test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it`（渐隐与占位只在窄屏段）。
+
+## 2026-09-28 管理页写操作构造重构（TD-308）
+
+- `test_payments_frontend.py` 新增 `review-change`（复核应答丢失后改说明再提交）与 `control-change-job`（核验控制结果未知后改选另一个任务）两个场景，源码与产物各一：都必须只发出一次请求并显示拒绝提示。它们补的是原有缺口：把复核比较里的「说明」、控制比较里的「任务」去掉时，此前没有用例失败。
+- 控制场景的输出多了 `notice`（页面提示），复核场景多了 `message`；原有断言不变。

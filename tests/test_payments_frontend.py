@@ -100,7 +100,7 @@ if(scenario.startsWith('close-')){
   if(opt.method==='POST'){
    const b=JSON.parse(opt.body);tries++;
    if(scenario==='control-race')return new Promise(r=>release=r);
-   if(tries===1 && ['control-retry','control-change','control-stale'].includes(scenario)){
+   if(tries===1 && ['control-retry','control-change','control-change-job','control-stale'].includes(scenario)){
     snapshot='b'.repeat(64);
     if(scenario==='control-stale')return {httpStatus:409};
     throw Error('unknown');
@@ -110,7 +110,7 @@ if(scenario.startsWith('close-')){
    return {control:latest};
   }
   if(!url.includes('/ledger'))return rows();
-  const d=ledger('ORDER1');d.refund_verification={jobs:[{id:9,state:'attention',attempts:2,refund_no:'ORIGINAL',snapshot}],latest_control:latest};return d;
+  const d=ledger('ORDER1');d.refund_verification={jobs:[{id:9,state:'attention',attempts:2,refund_no:'ORIGINAL',snapshot},...(scenario==='control-change-job'?[{id:10,state:'attention',attempts:1,refund_no:'ORIGINAL',snapshot}]:[])],latest_control:latest};return d;
  };
  start();await tick();await clickOrder();input();el('verify-job').value='9';
  const act=()=>el('verification-control').onsubmit({preventDefault(){}});
@@ -119,11 +119,12 @@ if(scenario.startsWith('close-')){
  if(scenario==='control-race'){auth.listener(null);release({control:{actor:'OLD'}})}
  await first;await tick();
  if(scenario==='control-change')el('evidence').value='更改未知依据';
- if(['control-retry','control-change','control-stale'].includes(scenario))await act();
+ if(scenario==='control-change-job')el('verify-job').value='10';
+ if(['control-retry','control-change','control-change-job','control-stale'].includes(scenario))await act();
  const sent=posts().map(x=>({url:x.url,body:JSON.parse(x.options.body)}));
- const text=el('verification-control-view').textContent;
+ const text=el('verification-control-view').textContent,notice=el('message').textContent;
  auth.listener(null);
- console.log(JSON.stringify({sent,text,confirmations,cleared:el('verification-control-view').textContent===''&&el('verify-job').value===''&&el('message').textContent===''}));
+ console.log(JSON.stringify({sent,text,notice,confirmations,cleared:el('verification-control-view').textContent===''&&el('verify-job').value===''&&el('message').textContent===''}));
 }else if(scenario.startsWith('verify-')){
  let release;
  impl=async(url,opt)=>{
@@ -290,7 +291,7 @@ if(scenario.startsWith('close-')){
  impl=async()=>({...rows(),next_cursor:100});start();await tick();el('bucket').value='reviewed';
  await el('next').onclick();await tick();await el('next').onclick();await tick();
  console.log(JSON.stringify({urls:requests.map(r=>r.url)}));
-}else if(scenario==='review-retry'||scenario==='review-stale'||scenario==='review-switch'){
+}else if(scenario==='review-retry'||scenario==='review-stale'||scenario==='review-switch'||scenario==='review-change'){
  start();await tick();await clickOrder();input();el('review-action').value='close';let tries=0,release;
  impl=async(url,opt)=>{
   if(opt.method==='POST'){
@@ -306,8 +307,9 @@ if(scenario.startsWith('close-')){
   await auth.listener(null);release({saved:true});await first;await tick();
   console.log(JSON.stringify({hidden:el('workspace').hidden,note:el('review-status').textContent,evidence:el('evidence').value}));
  }else{
-  await first;await el('review').onsubmit({preventDefault(){}});await tick();
-  console.log(JSON.stringify({bodies:posts().map(x=>JSON.parse(x.options.body)),url:posts()[0].url,text:el('review-status').textContent}));
+  await first;if(scenario==='review-change')el('evidence').value='另一条复核说明';
+  await el('review').onsubmit({preventDefault(){}});await tick();
+  console.log(JSON.stringify({bodies:posts().map(x=>JSON.parse(x.options.body)),url:posts()[0].url,text:el('review-status').textContent,message:el('message').textContent}));
  }
 }else if(scenario==='empty-list'){
  impl=async()=>({orders:[],next_cursor:null});
@@ -344,7 +346,7 @@ if(scenario.startsWith('close-')){
 @pytest.mark.parametrize('folder', ['app/frontend', 'app/static/js'])
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
                                      'mutation-account-race', 'lost-response', 'query', 'binding',
-                                     'review-retry', 'review-stale', 'review-switch', 'review-filter',
+                                     'review-retry', 'review-stale', 'review-switch', 'review-change', 'review-filter',
                                      'empty-list', 'detail-visibility', 'state-labels'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
@@ -393,6 +395,9 @@ def test_workbench_browser_logic(folder, scenario):
     elif scenario.startswith('review-'):
         if scenario == 'review-switch':
             assert data == {'hidden': True, 'note': '', 'evidence': ''}
+        elif scenario == 'review-change':
+            # 应答丢失后改了复核说明：必须拒绝并提示，不能带着新说明另发一次（TD-308）
+            assert len(data['bodies']) == 1 and '上次复核结果未确认' in data['message']
         else:
             first, second = data['bodies']
             assert data['url'] == '/shop/admin/orders/ORDER1/review' and first['action'] == 'close'
@@ -540,7 +545,8 @@ def test_read_only_verification_queue_and_account_isolation(path, scenario):
 
 
 @pytest.mark.parametrize('path', ['app/frontend/payments-admin.js', 'app/static/js/payments-admin.js'])
-@pytest.mark.parametrize('scenario', ['control-retry', 'control-change', 'control-cancel', 'control-race', 'control-lost-ack', 'control-stale'])
+@pytest.mark.parametrize('scenario', ['control-retry', 'control-change', 'control-change-job', 'control-cancel', 'control-race',
+                                      'control-lost-ack', 'control-stale'])
 def test_verification_control_immutable_unknown_request_and_account_isolation(path, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / path), scenario],
                             text=True, capture_output=True, timeout=15, check=True)
@@ -554,6 +560,9 @@ def test_verification_control_immutable_unknown_request_and_account_isolation(pa
         assert len(data['sent']) == 2 and data['sent'][0] == data['sent'][1]
     elif scenario == 'control-stale':
         assert len(data['sent']) == 2 and data['sent'][0]['body']['snapshot'] != data['sent'][1]['body']['snapshot']
+    elif scenario == 'control-change-job':
+        # 结果未知后改选列表里的另一个任务：必须拒绝并提示，不能对新任务另发（TD-308）
+        assert len(data['sent']) == 1 and data['sent'][0]['body']['job_id'] == 9 and '结果未知' in data['notice']
     else:
         assert len(data['sent']) == 1
     if scenario in ('control-retry', 'control-lost-ack', 'control-stale'):

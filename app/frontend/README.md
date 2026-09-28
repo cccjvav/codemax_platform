@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `dc066728bce3` | L1–L348 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `a27401684caf` | L1–L362 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `757c86711e23` | L1–L375 |
 | [`app/frontend/support-page.js`](support-page.js) | `18f7afffc55f` | L1–L226 |
 
@@ -208,3 +208,9 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 
 - `payments-admin.js`：`STATE_LABELS`（pending/paid/downloaded/closed，对应 `app/order_state.py` 的 `STATES`）与 `MODE_LABELS`（wechat/manual/mock/legacy）经 `orderState(row)` 显示成「中文（原值）」，订单列表与合同区共用。原值保留在括号里，便于对照日志和数据库；查表只认自有属性，未列出的值原样显示。
 - `auth.js`：`setMode` 给当前标签 `aria-pressed="true"`、另一个 `"false"`，读屏与 CSS 共用。
+
+## 2026-09-28：写操作按表单类型构造请求（TD-308）
+
+- `payments-admin.js`：`BUILD[kind](number, evidence)` 负责各类表单的专属校验与请求：返回字符串表示校验失败（`operate` 显示为提示），返回 `null` 表示静默放弃，否则返回 `{url, body, summary}`。授权、重新授权、发送、停止四类由 `refundAttempt(kind)` 生成。
+- 结果未知的请求统一经 `resume(kind, same, fresh)`：`same` 中的字段须与保存的请求体一致，否则拒绝；没有保存的才新建。各表单比较的字段沿用原规则。
+- `operate` 只做公共校验（选单、可见、busy、手填单号、3–500 字依据）、确认、保存 pending、POST 与结算。新增一类写操作时：在 `forms` 里登记、在 `BUILD` 里加构造函数；结果未知时需要原样重发的，再加进 `RESUMABLE`。
