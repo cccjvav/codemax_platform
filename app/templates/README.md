@@ -33,7 +33,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mock_pay.html`](mock_pay.html) | `cbc2de375cf3` | L1–L32 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `db8d977abafa` | L1–L23 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `4beb6794c03c` | L1–L172 |
-| [`app/templates/shop.html`](shop.html) | `69fe791c95a0` | L1–L122 |
+| [`app/templates/shop.html`](shop.html) | `b66e42843b44` | L1–L124 |
 | [`app/templates/support-center.html`](support-center.html) | `954df4986259` | L1–L55 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -174,3 +174,8 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 ## 2026-09-28 事件历史换行（TD-323）
 
 - `payments-admin.html`：`#finance-events li` 设 `white-space:pre-line`。脚本一直用换行把每条事件分成「时间 · 事件 · 操作人 / 尝试号 / 依据」三行，但原来 li 没有这条规则，三行挤成一段，操作人、尝试号和依据 JSON 连在一起（真 Chromium 截图核对，1280px 与 390px 各一张，改后无横向溢出）。
+
+## 2026-09-28 第三轮截图复核（TD-325）
+
+- `shop.html`：支付成功标题去掉 `✅`（无彩色 emoji 字体的系统显示成方框），与其余几态一致。
+- `app/static/support.css`：`#support-messages:empty { margin: 0; }`，还没有留言时标题与留言框之间不再有空白；不隐藏，保留 aria-live 区域。

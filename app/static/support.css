@@ -6,6 +6,10 @@
 /* 会话列表项用 base.html 的 button.item 列表行样式（TD-306），这里只管间距 */
 #support-inbox button { margin-top: 8px; }
 #support-messages { list-style: none; padding: 0; max-height: 55vh; overflow: auto; }
+/* 还没有消息时不占位（TD-325）：空的 <ol> 带默认上下外边距，在「我的留言」标题和留言框之间留出一段空白，
+   看起来像加载失败（真 Chromium 截图核对）。只收掉外边距而不用 display:none —— 它是 aria-live 区域，
+   隐藏后会移出无障碍树，第一条消息出现时读屏可能不播报。有消息时脚本 append 进来，:empty 自动失效。 */
+#support-messages:empty { margin: 0; }
 #support-messages li { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f5f9; padding: 12px; margin: 8px 0; border-radius: 8px; }
 #support-messages li.admin { background: #eff6ff; border-left: 3px solid #2563eb; }
 #support-messages small { display: block; color: #475569; }  /* TD-272：11.7px 的 #64748b 落在气泡底色上只有 4.34:1，

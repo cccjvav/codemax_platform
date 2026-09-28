@@ -130,7 +130,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_schema_sync.py`](test_schema_sync.py) | `70e23dab4d56` | L1–L75 |
 | [`tests/test_second_frontend_regressions.py`](test_second_frontend_regressions.py) | `36a6e0f2fdf0` | L1–L151 |
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `8e3792de0465` | L1–L341 |
-| [`tests/test_shop_page.py`](test_shop_page.py) | `7989136535c4` | L1–L737 |
+| [`tests/test_shop_page.py`](test_shop_page.py) | `8ec8ac8cdc47` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `7770054a44c9` | L1–L375 |
@@ -139,7 +139,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `651a9f70f98d` | L1–L922 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `1318e323463d` | L1–L957 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -426,3 +426,6 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_payment_event_labels.py` 的 `test_every_kind_the_backend_reads_is_one_it_writes`：后端按字符串读取的事件种类（`x.kind == / !=`、`x.kind.in_(...)`，含导入的 `ISSUES` 与 `*` 展开）必须都是后端会写入的种类。人为把 `overdue_start` 的 `prepay_unknown` 拼错时现有相关用例全部通过，本条失败并指出文件和行。
 
+## 2026-09-28 第三轮截图复核（TD-325）
+
+- `test_ui_accessibility.py` 的 `test_visible_text_has_no_emoji_only_characters`：模板与前端脚本里用户看得见的部分（去掉注释）不许出现默认以 emoji 显示的字符。`test_empty_support_thread_leaves_no_gap_but_stays_a_live_region`：空留言列表只收外边距、不隐藏，模板里 `<ol>` 内部没有空白。两条在改前的文件上都失败。

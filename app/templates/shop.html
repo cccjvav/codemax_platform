@@ -97,7 +97,9 @@
 
   <!-- ③ 已支付 / 已下载态（downloaded 同样渲染这里，可重新领取短时链接） -->
   <section id="st-paid" class="pay" hidden>
-    <h2>✅ 支付成功</h2>
+    <!-- 标题不带 emoji（TD-325）：没有彩色 emoji 字体的系统（常见于 Linux 桌面）会显示成方框「☒ 支付成功」，
+         真 Chromium 截图核对；其余几态的标题也都不带图标，成功感由下面的绿色下载按钮承担。 -->
+    <h2>支付成功</h2>
     <p class="muted">订单 <span id="d-no"></span></p>
     <p><button type="button" class="cta buy" id="btn-download">下载交付物</button></p>
     <div class="warn">

@@ -589,7 +589,7 @@ def test_an_owned_latest_order_opens_its_status_instead_of_repurchase():
     """**V-05 主断言之一**：最新一张就是已购单时，打开 /shop 直接显示那一单。
 
     这是「返回商城恢复订单状态」的自动恢复路径（收银台不带 `?order=` 时也成立）：
-    用户看到的是「✅ 支付成功」和取链接按钮，而不是一个能再下一单的「立即购买」。
+    用户看到的是「支付成功」和取链接按钮，而不是一个能再下一单的「立即购买」。
     """
     out = _run_owned_scenario(
         "paid",

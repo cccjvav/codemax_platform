@@ -920,3 +920,38 @@ def test_oauth_redirect_uri_wraps_inside_the_card():
     line = next(x for x in consent.splitlines() if "{{ redirect_uri }}</code>" in x)
     assert "overflow-wrap: anywhere" in line
 
+
+
+# 默认以彩色 emoji 显示的字符（Unicode Emoji_Presentation）：BMP 里的这些码位，加上 U+1F000 起的图形平面。
+# 它们没有普通文字字形可退，没有彩色 emoji 字体的系统（常见于 Linux 桌面）只能画方框。
+# ⚠（U+26A0）这类默认文字显示的符号不在其中：中文字体自带字形，截图核对正常。
+_EMOJI_PRESENTATION = re.compile(
+    "[\u231a\u231b\u23e9-\u23ec\u23f0\u23f3\u25fd\u25fe\u2614\u2615\u2648-\u2653\u267f\u2693\u26a1\u26aa\u26ab"
+    "\u26bd\u26be\u26c4\u26c5\u26ce\u26d4\u26ea\u26f2\u26f3\u26f5\u26fa\u26fd\u2705\u270a\u270b\u2728\u274c\u274e"
+    "\u2753-\u2755\u2757\u2795-\u2797\u27b0\u27bf\u2b1b\u2b1c\u2b50\u2b55\U0001F000-\U0001FAFF]"
+)
+
+
+def test_visible_text_has_no_emoji_only_characters():
+    """TD-325：支付成功页标题原来是「✅ 支付成功」，真 Chromium（无彩色 emoji 字体）截图里显示成「☒ 支付成功」。
+    扫模板与前端脚本里用户看得见的部分（去掉 HTML / Jinja / JS 注释），不许出现只能以 emoji 显示的字符。"""
+    found = []
+    for path in sorted((ROOT / "app" / "templates").glob("*.html")) + sorted((ROOT / "app" / "frontend").glob("*.js")):
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".html":
+            text = re.sub(r"<!--.*?-->|\{#.*?#\}", "", text, flags=re.S)
+        else:
+            text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+            text = re.sub(r"(^|\s)//[^\n]*", r"\1", text)
+        found += [f"{path.name}: {ch} U+{ord(ch):04X}" for ch in _EMOJI_PRESENTATION.findall(text)]
+    assert not found, found
+
+
+def test_empty_support_thread_leaves_no_gap_but_stays_a_live_region():
+    """TD-325：还没有留言时，空的 #support-messages 带默认外边距，在「我的留言」和留言框之间留一段空白，像加载失败。
+    只收外边距、不隐藏：它是 aria-live 区域，display:none 会移出无障碍树，第一条消息出现时读屏可能不播报。"""
+    css = (ROOT / "app" / "static" / "support.css").read_text(encoding="utf-8")
+    rule = re.search(r"#support-messages:empty\s*\{([^}]*)\}", css)
+    assert rule and "margin: 0" in rule.group(1) and "display" not in rule.group(1)
+    html = (ROOT / "app" / "templates" / "support-center.html").read_text(encoding="utf-8")
+    assert '<ol id="support-messages" aria-live="polite" aria-label="会话消息"></ol>' in html, "模板里不能有空白，否则 :empty 不成立"

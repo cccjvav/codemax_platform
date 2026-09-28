@@ -1814,7 +1814,7 @@
     },
     {
       "path": "app/static/support.css",
-      "sha256": "c2c68415af57c879e655f5ace10258619023722261a35d4f2c4a21c88dd36ad0",
+      "sha256": "78989865b954d5229875c710391ba430b0748e9bec812cc6ae779fe85702f7b8",
       "blocks": [
         {
           "end": 5,
@@ -1822,12 +1822,12 @@
           "explanation": "父容器限宽居中；默认单列网格。:has 发现可见 aside 才增加管理员侧栏列，minmax(0,1fr) 允许正文收缩；[hidden] 显式 display:none，避免其他 display 规则把未登录区域显示出来。CSS 控制布局，不授予权限。 两栏改由 .with-inbox class 触发（support-page.js 按管理员角色切换），不再用 :has()——旧内核不支持时管理员只剩单栏（TD-263）。"
         },
         {
-          "end": 17,
+          "end": 21,
           "title": "列表可读性",
-          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。 TD-272：消息时间色 #64748b → #475569：11.7px 小字落在 #f1f5f9 气泡上只有 4.34:1（axe-core 实测），#475569 为 6.92/6.96:1。 TD-278：#support-body 改用正文字体族（base 给 textarea 的等宽字体是为 DDL 准备的）；只改 font-family，不改字号，手机 16px 规则照常生效。 TD-306：会话按钮的满宽/左对齐交给 base.html 的 button.item，这里只留上间距；TD-278 那条 #support-body 字体规则已删 —— base.html 起 textarea 默认就是正文字体，这里只把 #support-body 与 #support-ask-text 的行高放到 1.6；新增 .support-login 让游客提示与登录按钮同一行（窄屏换行）。"
+          "explanation": "会话按钮满宽左对齐；消息区域限高并滚动。pre-wrap 保留正文换行，overflow-wrap 允许长词折行；管理员配色仅是视觉区分，真实身份来自后端 sender_role。small 字号/颜色用于元信息。 管理员消息左边线改 #2563eb。 TD-272：消息时间色 #64748b → #475569：11.7px 小字落在 #f1f5f9 气泡上只有 4.34:1（axe-core 实测），#475569 为 6.92/6.96:1。 TD-278：#support-body 改用正文字体族（base 给 textarea 的等宽字体是为 DDL 准备的）；只改 font-family，不改字号，手机 16px 规则照常生效。 TD-306：会话按钮的满宽/左对齐交给 base.html 的 button.item，这里只留上间距；TD-278 那条 #support-body 字体规则已删 —— base.html 起 textarea 默认就是正文字体，这里只把 #support-body 与 #support-ask-text 的行高放到 1.6；新增 .support-login 让游客提示与登录按钮同一行（窄屏换行）。 TD-325：#support-messages:empty 收掉外边距，还没有留言时「我的留言」标题与留言框之间不再留一段像加载失败的空白；不用 display:none，因为它是 aria-live 区域。"
         },
         {
-          "end": 24,
+          "end": 28,
           "title": "助手卡片",
           "explanation": "TD-295：.support-assistant 浅底 #f8fafc、细边框、圆角卡片，与下方私人留言区分开；辅助文字 .support-assistant-note 用 #475569 与 var(--fs-small)（#64748b 在浅底上只有约 4.5:1）。问题框用正文字体族；答案 pre-wrap 保留换行并允许长词折行；参考列表只调缩进。 TD-306：问题框的字体规则已删（base.html 的 textarea 默认正文字体），行高并入上一段。"
         }
@@ -2011,7 +2011,7 @@
     },
     {
       "path": "app/templates/shop.html",
-      "sha256": "69fe791c95a07a21df96813cd107047e5ff49db2abf3fecf1c40e1c85c34d9ff",
+      "sha256": "b66e42843b44b7cd7bcd2913008bc1260e5d8a94c3da7c1ac54755ca2db16ca5",
       "method": "manual",
       "blocks": [
         {
@@ -2035,9 +2035,9 @@
           "explanation": "历史列表和游标由JS装配；st-refunded独立说明全额退款不可下载并链接站内客服，原closed/expired继续区分本地状态与时间。取消只回商品页，不发起远端关单/退款。 TD-278：「我的订单」区块已移到状态区之后（见最后一段），本段只剩退款/关闭说明与待付区域。 TD-281：st-closed 新增「订单 #x-no」一行（上方注释说明原因）：用户找客服核对时要报这个号。 TD-317：待支付态与支付成功、已关闭两态一致：标题「等待支付」说状态，订单号放在下面的 .muted 灰字行。原来订单号在标题里，390px 宽折成三行，比状态文字和付款按钮还显眼。.muted 同样带 overflow-wrap: anywhere，订单号仍可换行。"
         },
         {
-          "end": 122,
+          "end": 124,
           "title": "已付/领过链接：都能继续下载",
-          "explanation": "st-paid保留主动下载和错误提示，未退款downloaded同样可重领；refunded优先进入独立区域。末尾经典shop-page依赖base先加载auth，生成bundle需同步。 TD-278：「我的订单」区块移到这里 —— 所有状态区之后。它原先夹在落地区与状态区之间，付完款回到 /shop 时 390px 实测「我的订单」在上、「支付成功」在下，且 h3 先于状态区 h2（axe heading-order）。历史列表和游标仍由 JS 装配。 TD-281：删除了从不显示的 st-downloaded（它的 #x-no 移到 st-closed）；③ 注释注明 downloaded 同样渲染本区、可重新领取短时链接。"
+          "explanation": "st-paid保留主动下载和错误提示，未退款downloaded同样可重领；refunded优先进入独立区域。末尾经典shop-page依赖base先加载auth，生成bundle需同步。 TD-278：「我的订单」区块移到这里 —— 所有状态区之后。它原先夹在落地区与状态区之间，付完款回到 /shop 时 390px 实测「我的订单」在上、「支付成功」在下，且 h3 先于状态区 h2（axe heading-order）。历史列表和游标仍由 JS 装配。 TD-281：删除了从不显示的 st-downloaded（它的 #x-no 移到 st-closed）；③ 注释注明 downloaded 同样渲染本区、可重新领取短时链接。 TD-325：标题由「✅ 支付成功」改为「支付成功」，没有彩色 emoji 字体的系统原来显示成方框；其余几态的标题本来就不带图标。"
         }
       ]
     },
@@ -8583,7 +8583,7 @@
     },
     {
       "path": "tests/test_shop_page.py",
-      "sha256": "7989136535c4a90f090a17c94ddfb2086f0b0552cd0f3e1579ed2f79ef4b5f70",
+      "sha256": "8ec8ac8cdc47f92aaabe2f9470701b76c2632a6ab08fe263fa563752f84132a0",
       "method": "guided",
       "blocks": [
         {
@@ -9428,7 +9428,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "651a9f70f98df4c8641c8d7541a702355dc03d8ef86626341dbe6b29e35938c4",
+      "sha256": "1318e323463d43fd90e20d105ff9d60f0422cede7406725f2acb9bb4eb7d0a18",
       "method": "guided",
       "blocks": [
         {
@@ -9686,9 +9686,19 @@
           "explanation": "TD-317：窄屏页脚链接的上下内边距加上 14px 行间 gap，两行之间空出约 30px。钉住 row-gap: 0 的媒体查询存在，且排在 footer .fnav 的 gap 规则之后（排在前面会被盖掉，这正是不能直接写进上方 900px 媒体块的原因）。"
         },
         {
-          "end": 922,
+          "end": 934,
           "title": "test_oauth_redirect_uri_wraps_inside_the_card",
           "explanation": "TD-317：回调地址是没有空格的长 URL，390px 截图里越过授权卡片右边框。页面本身没变宽，所以横向滚动检查发现不了。钉住回调地址所在行带 overflow-wrap: anywhere。"
+        },
+        {
+          "end": 949,
+          "title": "test_visible_text_has_no_emoji_only_characters",
+          "explanation": "TD-325：支付成功页标题原来是「✅ 支付成功」，没有彩色 emoji 字体的系统画成方框。模块常量 _EMOJI_PRESENTATION 列出默认以 emoji 显示的字符（Unicode Emoji_Presentation 的 BMP 码位加 U+1F000 起的图形平面）；本条扫模板与前端脚本里用户看得见的部分（去掉 HTML、Jinja、JS 注释），不许出现这些字符。⚠ 这类默认文字显示的符号不算，中文字体自带字形。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL938 计算右侧并赋给 `found`：[]。\nL939 逐项遍历 `sorted((ROOT / 'app' / 'templates').glob('*.html')) + sorted((ROOT / 'app' / 'frontend').glob('*.js'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL940 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL941 判断 `path.suffix == '.html'`，为真进入当前缩进分支，为假进入else/elif。\nL942 计算右侧并赋给 `text`：调用 re.sub('<!--.*?-->|\\\\{#.*?#\\\\}', '', text, flags=re.S)。\nL944 计算右侧并赋给 `text`：调用 re.sub('/\\\\*.*?\\\\*/', '', text, flags=re.S)。\nL945 计算右侧并赋给 `text`：调用 re.sub('(^|\\\\s)//[^\\\\n]*', '\\\\1', text)。\nL946 累积修改 `found`：执行 `found += [f'{path.name}: {ch} U+{ord(ch):04X}' for ch in _EMOJI_PRESENTATION.findall(text)]`，新值供下一轮/后续分支使用。\nL947 核对 `not found`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 957,
+          "title": "test_empty_support_thread_leaves_no_gap_but_stays_a_live_region",
+          "explanation": "TD-325：还没有留言时空的 #support-messages 只收外边距（margin: 0），不许用 display 隐藏 —— 它是 aria-live 区域，隐藏会移出无障碍树。另钉住模板里的 <ol> 内部没有空白，否则 :empty 不成立。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL953 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'static' / 'support.css').read_text(encoding='utf-8')。\nL954 计算右侧并赋给 `rule`：调用 re.search('#support-messages:empty\\\\s*\\\\{([^}]*)\\\\}', css)。\nL955 核对 `rule and 'margin: 0' in rule.group(1) and ('display' not in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL956 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL957 核对 `'<ol id=\"support-messages\" aria-live=\"polite\" aria-label=\"会话消息\"></ol>' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
