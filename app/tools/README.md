@@ -31,7 +31,7 @@
 | `LLMClient.chat(system, user)` | OpenAI 兼容 chat/completions → 非空字符串，最多 100,000 字符 | 缺 key、闸门满、网络/HTTP 异常、响应超过 1 MiB、总时限超时、响应结构/JSON 错误都抛 LLMError（category：configuration/busy/network/http/oversize/response）；busy 时请求未发往提供方；不证明模型内容事实正确 |
 | `LLMClient.embeddings(texts)` | 文本列表 → 与输入顺序对应的向量列表；空输入返回 [] | 检查 data 是对象数组、条数、index `type is int`（拒绝 bool/float/字符串）且完整唯一、维度一致、非空及有限数值；同样受闸门/1 MiB/总时限约束；不允许错位向量进入检索 |
 | `get_llm()` | 返回默认客户端，供 FastAPI 注入 | 默认客户端在导入时从 settings 构造；运行中改 settings 不会自动重建它；测试用 dependency_overrides |
-| `generate_mermaid` / `_strip_fence` | 用户描述 → 去围栏的 Mermaid 文本 | 首关键字检查不是完整 Mermaid 解析；实际渲染仍可能报语法错。前端 strict 模式也不能替代后端响应结构校验 |
+| `generate_mermaid` / `_strip_fence` | 用户描述 → 去围栏的 Mermaid 文本 | 系统提示要求主键/外键写在属性名后（`+int userId FK`），不用 `<<PK>>`（TD-321）；首关键字检查不是完整 Mermaid 解析；实际渲染仍可能报语法错。前端 strict 模式也不能替代后端响应结构校验 |
 
 兼容 API 需要分别确认对话与 embedding 模型，不能承诺任意供应商只改 URL 就能工作。密钥不得进入日志或前端。
 
@@ -57,7 +57,7 @@
 | 入口 | 输入 → 输出 | 失败、写入与约束 |
 | --- | --- | --- |
 | `identify_selectors` / `_parse_selectors` | DOM 骨架或模型回复 → title/author/published_at/content 选择器字典 | 解析 JSON/围栏并验证键和值；模型调用错包为 ExtractError，保留 LLMError 原因以便路由映射 502 |
-| `extract_fields` | 原始 HTML + 选择器 → 字段文本 | BeautifulSoup 选择器提取真实页面文本，不让模型直接编正文；选择器无效或必需字段为空抛 ExtractError |
+| `extract_fields` | 原始 HTML + 选择器 → 字段文本 | BeautifulSoup 选择器提取真实页面文本，不让模型直接编正文；正文由 `_block_text` 按块分行、每段文字只取一次，排除脚本、样式、noscript、注释（TD-322）；选择器无效或必需字段为空抛 ExtractError |
 | `parse_page` | 最终 URL、HTML → ParsedArticle | 骨架 → 选择器 → 文本；补 source_site，保留来源日期字符串；不写库 |
 | `parse_article` | URL → ParsedArticle | 先 fetch 再 parse_page，使用重定向后 URL；有网络/模型副作用但不提交事务 |
 | `save_article` | 会话、ParsedArticle → Article | URL 原子 upsert；同 URL 更新原行，保留原创建时间；自己 commit 并重新查询，不适合直接嵌入调用者更大原子事务 |
@@ -90,10 +90,10 @@
 | [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
 | [`app/tools/browser.py`](browser.py) | `96e3646fac38` | L1–L89 |
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
-| [`app/tools/extract.py`](extract.py) | `8ab4fbdb9855` | L1–L179 |
+| [`app/tools/extract.py`](extract.py) | `8b5300779881` | L1–L224 |
 | [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
 | [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
-| [`app/tools/llm.py`](llm.py) | `8090e7eb24ae` | L1–L249 |
+| [`app/tools/llm.py`](llm.py) | `a693ee96005a` | L1–L252 |
 | [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `cbbc14b5b759` | L1–L494 |
 | [`app/tools/support.py`](support.py) | `7b0d616fe445` | L1–L359 |

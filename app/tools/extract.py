@@ -20,6 +20,7 @@ from urllib.parse import urlparse
 
 import httpx
 from bs4 import BeautifulSoup
+from bs4.element import CData, NavigableString, Tag
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -90,6 +91,53 @@ def _parse_selectors(reply: str) -> dict[str, str]:
     return {k: (data.get(k) or "").strip() for k in FIELDS}
 
 
+# 块级元素：进出都换行。表格单元格之间补空格，其余行内元素原样拼接（`<b>加</b>粗` 仍是「加粗」）
+_BLOCK_TAGS = frozenset({
+    "address", "article", "aside", "blockquote", "br", "caption", "dd", "details", "dialog", "div", "dl", "dt", "fieldset", "figcaption", "figure", "footer", "form", "h1", "h2", "h3", "h4",
+    "h5", "h6", "header", "hr", "li", "main", "nav", "ol", "p", "pre", "section", "summary", "table", "tbody", "tfoot", "thead", "tr", "ul",
+})
+_SKIP_TAGS = frozenset({"script", "style", "noscript", "template"})
+_LINE_BREAK = object()
+
+
+def _block_text(node: Tag) -> str:
+    """正文容器的全部可见文字，每个块一行、行内空白压成一个空格。
+
+    原来是 `node.find_all(["p", "li", "h2", "h3", "pre"])` 逐个取文字（TD-322）：嵌套块会重复入库
+    （`<li><p>x</p></li>` 的 li 和 p 各出一行 x），而容器里只要有一个 p，h4、表格、`<br>` 分行的
+    散文字就整段丢失。这里对文字节点只走一遍，所以每段文字恰好出现一次；注释、脚本、样式不算正文。
+    用显式栈而不是递归：2 MB 的页面可以嵌套到超过 Python 的递归上限。"""
+    lines: list[str] = []
+    buf: list[str] = []
+
+    def flush() -> None:
+        line = " ".join("".join(buf).split())
+        if line:
+            lines.append(line)
+        buf.clear()
+
+    stack: list[object] = list(reversed(node.contents))
+    while stack:
+        item = stack.pop()
+        if item is _LINE_BREAK:
+            flush()
+        elif isinstance(item, Tag):
+            if item.name in _SKIP_TAGS:
+                continue
+            block = item.name in _BLOCK_TAGS
+            if block:
+                stack.append(_LINE_BREAK)
+            stack.extend(reversed(item.contents))
+            if block:
+                stack.append(_LINE_BREAK)
+            elif item.name in ("td", "th"):
+                buf.append(" ")
+        elif type(item) in (NavigableString, CData):
+            buf.append(str(item))
+    flush()
+    return "\n".join(lines)
+
+
 def extract_fields(html: str, selectors: dict[str, str]) -> dict[str, str]:
     """按选择器提取字段。匹配不到就报错 —— 这是"该重试/该报警"的信号，不能静默留空。"""
     soup = BeautifulSoup(html, "html.parser")
@@ -106,10 +154,7 @@ def extract_fields(html: str, selectors: dict[str, str]) -> dict[str, str]:
         if node is None:
             raise ExtractError(f"选择器 {sel!r}（字段 {name}）在页面上匹配不到任何节点")
         if name == "content":
-            # 正文按块级换行，保留段落结构；其余字段压成单行
-            out[name] = "\n".join(
-                line for line in (" ".join(p.get_text().split()) for p in node.find_all(["p", "li", "h2", "h3", "pre"]) or [node]) if line
-            ) or " ".join(node.get_text().split())
+            out[name] = _block_text(node)  # 正文按块级换行，保留段落结构；其余字段压成单行
         else:
             out[name] = " ".join(node.get_text().split())
     return out

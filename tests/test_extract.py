@@ -158,6 +158,30 @@ def test_extract_without_optional_selector_gives_empty():
     assert got["title"] == "毕业设计的开题报告怎么写"
 
 
+def test_extract_content_keeps_every_text_exactly_once():
+    """TD-322：原来按 p/li/h2/h3/pre 逐个取文字 —— 嵌套块重复入库（li 里的 p、li 里的 pre 各出两行），
+    容器里只要有 p，h4、表格、<br> 分行的散文字就整段丢失。"""
+    html = (
+        "<div class='c'><p>导语<!-- 注释 --><b>加</b>粗</p>"
+        "<ul><li><p>第一步：安装依赖</p></li><li>第二步<pre>pip install x</pre></li></ul>"
+        "<blockquote><p>引用</p></blockquote><h4>小节</h4>"
+        "<table><tr><th>列A</th><th>列B</th></tr><tr><td>1</td><td>2</td></tr></table>"
+        "散文字一<br>散文字二<script>var x=1</script><style>p{}</style><noscript>请开启 JS</noscript></div>"
+    )
+    got = extract_fields(html, {"title": "", "content": ".c"})["content"]
+    assert got.split("\n") == [
+        "导语加粗", "第一步：安装依赖", "第二步", "pip install x", "引用", "小节", "列A 列B", "1 2", "散文字一", "散文字二",
+    ]
+
+
+def test_extract_content_survives_nesting_deeper_than_recursion_limit():
+    import sys
+
+    depth = sys.getrecursionlimit() * 2
+    html = "<div class='c'>" + "<div>" * depth + "深处的正文" + "</div>" * depth + "</div>"
+    assert extract_fields(html, {"title": "", "content": ".c"})["content"] == "深处的正文"
+
+
 def test_extract_content_falls_back_to_container_text():
     html = "<body><div class='c'>没有 p 标签的正文</div></body>"
     assert extract_fields(html, {"title": ".c", "content": ".c"})["content"] == "没有 p 标签的正文"

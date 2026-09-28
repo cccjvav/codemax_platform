@@ -88,7 +88,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `91c2fd8d783b` | L1–L375 |
-| [`tests/test_extract.py`](test_extract.py) | `acb3766b2ecf` | L1–L294 |
+| [`tests/test_extract.py`](test_extract.py) | `51ad80685f7f` | L1–L318 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_free_text_control_chars.py`](test_free_text_control_chars.py) | `c6b6344a754f` | L1–L46 |
@@ -97,7 +97,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `c7c6f8df0def` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
-| [`tests/test_mermaid.py`](test_mermaid.py) | `da32f4c832d3` | L1–L267 |
+| [`tests/test_mermaid.py`](test_mermaid.py) | `209a06578895` | L1–L280 |
 | [`tests/test_mock_pay.py`](test_mock_pay.py) | `404c8385f38f` | L1–L287 |
 | [`tests/test_oauth.py`](test_oauth.py) | `367d3c3c7b7d` | L1–L433 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
@@ -395,3 +395,23 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-28 第二轮截图复核（TD-317）
 
 - `test_ui_accessibility.py` 末尾五条：待支付态标题、标题字号阶梯（h2/h3 元素规则、模拟收银台与授权页不再写死字号）、空框隐藏、窄屏页脚行距规则的顺序、授权页回调地址可换行。`test_shop_order_number_in_headings_can_wrap` 改为钉住订单号在可换行的 `.muted` 行里。
+
+## 2026-09-28 类图与 ER 页的错误提示（TD-318）
+
+- `test_mermaid.py`：Node 桩 `_STAGE_HARNESS` 与四条用例，分清请求失败和渲染失败，渲染失败时只显示第一行提示、保留源码、清空预览；产物与源码一致；提示里的方位词与模板顺序一致。
+- `test_er_page.py`：一条源码检查（页面脚本依赖 d3，不能用 Node 桩跑）。`test_frontend_supply_chain.py` 的 `initialize` 配置期望值加上 `suppressErrorRendering: true`，仍整体比较。
+
+## 2026-09-28 删除流程图的加锁顺序与额度判定（TD-319）
+
+- `test_diagram_concurrency.py`：保存确认所有权之后再发删除，删除排在保存之后（真 PostgreSQL 上改前失败）。
+- `test_diagram_quota.py`：超额时别人的、已删除的、不存在的 id 都是 404，自己的图仍是 409。
+
+## 2026-09-28 ER 图截断（TD-320）
+
+- `test_er_page.py`：按定义核对 3000 个随机串的截断位置，并给 19900 字符的表名、列类型计时，上限 1.5 秒（旧实现 21.6 秒）。
+
+## 2026-09-28 类图提示词与正文提取（TD-321 / TD-322）
+
+- `test_mermaid.py` 的 `test_prompt_marks_keys_in_a_form_mermaid_displays`：提示词规则 4 必须给出 `+int id PK`、`+int userId FK`、`PK FK`，`<<` 只能出现在「不要用」之后。渲染效果是真 Chromium 实测的结论，CI 里只钉提示词。
+- `test_extract.py` 的 `test_extract_content_keeps_every_text_exactly_once`：嵌套列表、pre、引用、h4、表格、`<br>`、注释、脚本、样式、noscript 混排的正文逐行核对；`test_extract_content_survives_nesting_deeper_than_recursion_limit`：嵌套深度为递归上限两倍时仍能取出文字。
+

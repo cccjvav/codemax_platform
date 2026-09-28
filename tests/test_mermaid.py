@@ -265,3 +265,16 @@ def test_error_messages_point_at_the_source_box_where_it_actually_is():
         text = path.read_text(encoding="utf-8")
         assert "上方是" not in text, f"{path.name} 仍说源码在上方"
         assert text.count("下方是") == 2, f"{path.name}：渲染失败与组件下载失败两条提示都应指向下方的源码框"
+
+
+def test_prompt_marks_keys_in_a_form_mermaid_displays():
+    """TD-321：规则 4 原来要求「在类内用 <<PK>> / <<FK>> 注解」。真 Chromium 里试过模型可能的所有写法：
+    <<...>> 在 Mermaid 类图里是整个类的注解，单独一行时显示成类名上方的 «PK»，两行只显示第一行（FK 丢失）；
+    写在属性后面被当成 HTML 标签去掉，只剩「+int id <>」。名称后加 PK / FK 会原样显示。"""
+    from app.tools.llm import SYSTEM_PROMPT
+
+    rule = next(line for line in SYSTEM_PROMPT.splitlines() if "主键" in line)
+    assert "`+int id PK`" in rule and "`+int userId FK`" in rule and "PK FK" in rule
+    for line in SYSTEM_PROMPT.splitlines():
+        for m in re.finditer("<<", line):
+            assert "不要用" in line[:m.start()], f"提示词只能在禁止句里出现 <<…>>：{line}"
