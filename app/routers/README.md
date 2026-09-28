@@ -102,10 +102,10 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `937bc98baa3b` | L1–L309 |
-| [`app/routers/payments_admin.py`](payments_admin.py) | `3b04f298db10` | L1–L252 |
+| [`app/routers/payments_admin.py`](payments_admin.py) | `915b93faedc0` | L1–L330 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `a93590872183` | L1–L301 |
-| [`app/routers/shop.py`](shop.py) | `fecfea5ac8a1` | L1–L837 |
+| [`app/routers/shop.py`](shop.py) | `c0020edd04bf` | L1–L762 |
 | [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
@@ -229,3 +229,9 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 
 此前 payments_admin 把「锁管理员并复核」写了三遍，其中两处是手写的 `update` + 重读，与 `lock_user` 等价但写法不一。各端点原有的检查顺序保持不变（例如 `review_order` 仍先比确认单号再复核权限，`close_channel` 先复核权限），因此多种错误同时出现时返回的状态码不变。测试里模拟「请求期间被撤权」的替身统一替换 `admin_common.lock_user`。
 
+
+## 2026-09-28：订单证据视图移到 payments_admin（TD-310）
+
+- `payment_ledger`（`GET /shop/admin/orders/{order_no}/ledger`）连同 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed` 从 `shop.py` 移到 `payments_admin.py` 末尾，与订单清单 `orders` 放在一起。上文历史批次里写的 `shop.payment_ledger` 现在就是 `payments_admin.payment_ledger`，行为不变。
+- `payments_admin` 的路由没有 prefix，装饰器写全路径；OpenAPI 标签由「商业平台」变为「订单管理」。
+- `shop.py` 现在只剩顾客侧（下单、查单、历史、下载、模拟收银台）、支付回调，以及两个管理写接口（人工确认收款、历史订单绑定——测试经 `shop` 模块替换它们用到的属性，见 TD-288）。

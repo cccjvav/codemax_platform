@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import NamedTuple
 
 import segno
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel, Field, StrictInt, field_validator
 from sqlalchemy import select
@@ -22,7 +22,6 @@ from ..delivery import snapshot_product, verify_snapshot
 from ..deps import get_current_user, require_admin, require_finance_origin
 from ..middleware import public_base_url
 from ..models import Order, PaymentEvent, PaymentReceipt, RefundReceipt, User
-from ..order_closures import view as closure_view
 from ..order_state import (
     CLOSED,
     DOWNLOADED,
@@ -34,12 +33,7 @@ from ..order_state import (
     mark_downloaded,
 )
 from ..payment_ledger import PaymentConflict, lock_order, settle
-from ..payment_review import review_states
 from ..ratelimit import rate_limit
-from ..refund_notifications import NOTICE_KIND, notice_view
-from ..refund_requests import prior_refund_activity, request_for, request_view
-from ..refund_submissions import submission_view
-from ..refund_verification import jobs_view
 from ..refunds import refund_for
 from ..site import page_context, templates
 from ..storage import StorageError, build_storage, verify_download
@@ -766,72 +760,3 @@ async def bind_legacy_order(order_no: str, proof: LegacyBindingIn, request: Requ
                         actor_id=admin.id, actor_name=admin.username, evidence=proof.evidence))
     await db.commit()
     return {'order_no': order.order_no, 'bound': True}
-
-
-def _refund_view(refund) -> dict | None:
-    if refund is None:
-        return None
-    return {'source': refund.source, 'refund_id': refund.refund_id, 'out_refund_no': refund.out_refund_no,
-            'amount': refund.amount, 'currency': refund.currency, 'completed_at': refund.completed_at,
-            'received_at': refund.received_at, 'actor': refund.actor_name,
-            'recorded_by': 'system' if refund.verification_event_id is not None else 'administrator',
-            'verification_event_id': refund.verification_event_id, 'evidence': refund.evidence}
-
-
-def _receipt_view(receipt: PaymentReceipt | None) -> dict | None:
-    if receipt is None:
-        return None
-    return {'source': receipt.source, 'reference': receipt.transaction_id,
-            'amount': receipt.amount, 'currency': receipt.currency,
-            'actor': receipt.actor_name, 'evidence': receipt.evidence,
-            'paid_at': receipt.paid_at, 'received_at': receipt.received_at}
-
-
-def _order_contract_view(order: Order) -> dict:
-    """订单冻结的合同字段：价格、渠道/商户与交付快照；NULL 渠道显示 legacy。"""
-    return {'user_id': order.user_id, 'product_name': order.product_name, 'amount': order.amount,
-            'currency': order.currency, 'status': order.status, 'payment_mode': order.payment_mode or 'legacy',
-            'merchant_id': order.merchant_id, 'app_id': order.app_id,
-            'delivery_key': order.delivery_key, 'delivery_digest': order.delivery_digest,
-            'delivery_size': order.delivery_size}
-
-
-async def _refund_prepare_allowed(db: AsyncSession, order: Order, receipt, refund, prepared) -> bool:
-    """只有带商户/应用凭证的微信收款、已付状态、且从未有过任何退款活动的单才能准备退款请求。"""
-    return (receipt is not None and receipt.source == 'wechat' and order.status in ('paid', 'downloaded')
-            and bool(receipt.merchant_id and receipt.app_id) and not refund and not prepared
-            and not await prior_refund_activity(db, order.id))
-
-
-@router.get('/admin/orders/{order_no}/ledger')
-async def payment_ledger(order_no: str, response: Response, before: int | None = Query(None, gt=0),
-                         db: AsyncSession = Depends(get_db), admin: User = Depends(require_admin)):
-    """Bounded admin-only evidence view. Unknown attempts require real provider reconciliation."""
-    response.headers["Cache-Control"] = "no-store"
-    order = await db.scalar(select(Order).where(Order.order_no == order_no))
-    if order is None:
-        raise HTTPException(404, '订单不存在')
-    receipt = await db.scalar(select(PaymentReceipt).where(PaymentReceipt.order_id == order.id))
-    query = select(PaymentEvent).where(PaymentEvent.order_id == order.id)
-    if before is not None:
-        query = query.where(PaymentEvent.id < before)
-    events = list((await db.scalars(query.order_by(PaymentEvent.id.desc()).limit(50))).all())
-    review = (await review_states(db, [order]))[order.id]
-    refund = await refund_for(db, order.id)
-    notice = await db.scalar(select(PaymentEvent).where(PaymentEvent.order_id == order.id, PaymentEvent.kind == NOTICE_KIND)
-                             .order_by(PaymentEvent.id.desc()).limit(1))
-    prepared = await request_for(db, order.id)
-    can_prepare = await _refund_prepare_allowed(db, order, receipt, refund, prepared)
-    return {'order_no': order.order_no, 'review': review, 'refund_notice': notice_view(notice),
-            'refund_auto_record_enabled': settings.WX_REFUND_AUTO_RECORD_ENABLED,
-            'refund_verification': await jobs_view(db, order.id), 'refund_verify_enabled': settings.WX_REFUND_VERIFY_ENABLED,
-            'channel_close': await closure_view(db, order, cfg=pay_config(), enabled=settings.WX_ORDER_CLOSE_ENABLED),
-            'refund_submission': await submission_view(db, prepared), 'refund_send_enabled': settings.WX_REFUND_SEND_ENABLED,
-            'refund_request': request_view(prepared, refund), 'refund_prepare_allowed': can_prepare,
-            'refund': _refund_view(refund),
-            'order': _order_contract_view(order),
-            'actions': {'manual': settings.SHOP_PAY_MODE == 'manual', 'mock_binding': settings.ENV == 'development'},
-            'receipt': _receipt_view(receipt),
-            'events': [{'id': e.id, 'attempt_id': e.attempt_id, 'kind': e.kind,
-                        'actor': e.actor_name, 'evidence': e.evidence, 'create_time': e.create_time} for e in events],
-            'next_cursor': events[-1].id if len(events) == 50 else None}

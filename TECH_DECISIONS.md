@@ -1446,3 +1446,28 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 **测试**：`tests/test_mock_pay.py` 新增 `test_mock_pay_page_failure_text_uses_the_shared_error_wording`：Node 里用假 DOM 跑源码与产物，errorText 从 auth.js 源码中取真实实现。五种应答：字符串 detail、校验错误数组、非 JSON 的 502、auth.js 缺席、401，源码与产物各一，共 10 条。在原来的写法下，前四种都会失败。
 
 **范围**：只影响开发/演示用的 mock 支付模式（生产启动检查拒绝 `SHOP_PAY_MODE=mock`）。
+
+## TD-310：管理端订单证据视图（ledger）从商城路由移到 payments_admin
+
+**状态**：已实施（2026-09-28），优化阶段重构批次。
+
+**问题**：`GET /shop/admin/orders/{order_no}/ledger` 是管理工作台选单后的详情接口，与订单清单 `GET /shop/admin/orders` 是同一个页面的两半，却放在顾客下单、回调、下载的 `routers/shop.py` 里；其他 `/shop/admin/...` 接口都在 `payments_admin.py` / `refunds_admin.py`。商城路由为它一个接口 import 了 8 个复核、退款通知、退款准备、发送、核验、关单模块，其余代码一个都不用。
+
+**决定**：
+- 把 `payment_ledger` 连同 `_refund_view` / `_receipt_view` / `_order_contract_view` / `_refund_prepare_allowed` 原样移到 `payments_admin.py` 末尾。`closure_view(...)` 改写为该文件已有的 `order_closures.view(...)`，除此之外函数体不改。
+- 路径、函数名、响应、权限都不变。`payments_admin` 的路由没有 prefix，所以装饰器写全路径 `/shop/admin/orders/{order_no}/ledger`。
+- `shop.py` 删除随之不用的 6 行 import 和 `Response`，从 837 行变为 762 行。
+- 与 TD-288 不冲突：TD-288 不拆文件，是因为测试通过 `monkeypatch.setattr(shop, ...)` 替换下单、回调用到的模块属性。ledger 这组函数没有任何测试或代码经 `shop.` 引用。
+- 人工确认收款、历史订单绑定两个管理写接口仍留在 `shop.py`：测试经 `shop` 模块替换它们用到的属性（TD-288 的理由），它们的路径也在 `/shop/orders/...` 下。
+
+**证据**：
+- 移动前后各导出一次 OpenAPI 做比较：第一版漏写了 `/shop` 前缀，路径变成 `/admin/orders/{order_no}/ledger`，就是这样发现的（RR-32）。修正后唯一差异是该接口的标签从「商业平台」变为「订单管理」。
+- 把前缀漏写放回去，`test_payment_ledger.py` / `test_payments_admin.py` 有 3 个用例失败，现有测试也能抓住。
+- 涉及 ledger 的 13 个测试文件 447 项，移动前后都通过。
+
+**本轮看过、决定不改的候选**（记下来，免得以后重复评估）：
+- 各页面各写一个 fetch 包装（drawio、ER、mermaid、商城）：各自处理 204/412/会话过期、503 自动重试、blob 下载等不同情况，共同部分（错误文字）已经在 `auth.errorText`。合成一个函数要带一串选项，反而更难读。
+- `refund_submissions` 的 `authorize` / `stop_sending` / `reauthorize`：结构相似，但每个比较的字段、报错文案和「锁 → 首次重放 → 当前状态」的先后都有意不同，合并会把最需要单独读的部分藏起来。
+- 11 处 `try: … except BaseException: await db.rollback(); raise`：3 行、写法清楚；换成上下文管理器要给 11 段资金代码整体缩进，收益只是形式。
+- `NO_CONTROL_CHARS` / `EvidenceIn` 仍在 `shop.py`：TD-294 为了不新增依赖方向特意放在这里，挪走只是把方向倒过来。
+- `payment_review.review_states`：密但只是一条流程（批量查询 → 指纹 → 状态），指纹格式与已保存的复核快照绑定，拆开收益小。
