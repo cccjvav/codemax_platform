@@ -330,7 +330,7 @@ def test_parse_ddl_scales_linearly_not_quadratically():
         ("unresolved_fk", lambda n: "".join(f"CREATE TABLE t{i}(a INT REFERENCES Missing{i});" for i in range(n))),
         # 未闭合的表头：原先每个表头都从自己的 '(' 扫到输入末尾（O(表头数×长度)）
         ("unclosed_heads", lambda n: "CREATE TABLE a(" * n),
-        # 表名里带 `$x$`：全局扫描判在字符串里，只能逐段重扫；超过上限不再重扫
+        # 表名里带 `$x$`：TD-285 时全局扫描判在字符串里、只能逐段重扫；TD-314 起扫描器已正确识别，仍保留这条线性护栏
         ("dollar_in_name", lambda n: "CREATE TABLE a$b$(" * n),
     ],
 )
@@ -354,8 +354,8 @@ def test_parse_ddl_adversarial_shapes_stay_linear(shape, make):
 
 
 def test_parse_ddl_fallback_still_parses_dollar_sign_table_names():
-    """表名 `a$b$` 在 PostgreSQL 里是合法标识符；全局扫描把 `$b$` 当成 dollar 引号开头，
-    这张表只能走逐段重扫。限次数（TD-285）不能把正常的这种表也丢掉。"""
+    """表名 `a$b$` 在 PostgreSQL 里是合法标识符。TD-285 时全局扫描把 `$b$` 当成 dollar 引号开头，这张表只能走
+    限次数的逐段重扫；TD-314 修正了扫描器本身，这条仍钉住这种表名能正常解析。"""
     graph = parse_ddl("CREATE TABLE a$b$(id INT PRIMARY KEY, name VARCHAR(20));")
     assert [t["name"] for t in graph["tables"]] == ["a$b$"]
     assert [c["name"] for c in graph["tables"][0]["columns"]] == ["id", "name"]

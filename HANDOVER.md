@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-28，TD-314 / 优化阶段复核：SQL 扫描器的 dollar 引号识别）**：`sql_ddl._scan` 和 `db_admin.has_transaction_control` 原来把 `a$x$`、`cost$$` 这类合法标识符里的 `$x$` 当成 dollar 引号开头，公开 ER 图/Word 导出会静默丢列、丢表、丢外键（RR-37）。现在按 PostgreSQL 词法规则，`$` 紧跟在标识符字符后面时属于名字本身。新旧两版 4 万份随机 SQL 差分确认只有这种写法的结果变了。见 TD-314。
+
 **接手状态（2026-09-28，TD-313 / 优化阶段：可信代理地址段只解析一处）**：`TRUSTED_PROXY_CIDRS` 原来在 `middleware.trusted_proxy` 和 `ratelimit.client_key` 各解析一次，配置有一段写错时两边结论不一致，限流会把代理后的全体用户当成一个 IP（RR-36）。现在统一由 `middleware.trusted_proxy_networks()` 解析，生产环境写错直接拒绝启动。见 TD-313 和 DEPLOY.md 启动检查表。
 
 **接手状态（2026-09-28，TD-312 / 优化阶段：微信签名认证三处合一）**：支付回调、退款通知、API 应答原来各写一份「四个签名头 → 新鲜度 → 平台身份 → 验签」，现在统一为 `wechat_pay.verify_signed_message`。唯一的行为变化：支付回调遇到重复的签名头，从放行改为 401（RR-35），各入口的状态码不变。见 TD-312。

@@ -36,6 +36,8 @@ _IDENT_PART = r'(?:"(?:[^"\n]|"")*"|`(?:[^`\n]|``)*`|[\w$]+)'
 _IDENT = rf"{_IDENT_PART}(?:\s*\.\s*{_IDENT_PART})*"
 
 _DOLLAR_QUOTE = re.compile(r"\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$")
+# 标识符字符（与 _IDENT_PART 的 [\w$] 一致）。紧跟在它后面的 `$` 属于标识符本身，不是 dollar 引号开头（TD-314）。
+_IDENT_CHAR = re.compile(r"[\w$]")
 _CREATE_TABLE = re.compile(r"CREATE\s+(?:(?:TEMP|TEMPORARY|UNLOGGED)\s+)?TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?", re.IGNORECASE)
 # ALTER TABLE [ONLY] [IF EXISTS] t ADD [CONSTRAINT name] FOREIGN KEY (cols) REFERENCES p [(cols)]（TD-269）
 _ALTER_FK = re.compile(
@@ -191,7 +193,10 @@ def _scan(s: str):
             yield i, ch, True
             i += 1
             continue
-        dollar = _DOLLAR_QUOTE.match(s, i) if ch == "$" else None
+        # PostgreSQL 与 MySQL 都允许标识符里带 `$`（a$b$、cost$$）：`$` 紧跟在标识符字符后面时是名字的一部分，
+        # 只有前面不是标识符字符时才可能开始 dollar 引号（PostgreSQL 词法规则相同，TD-314）。
+        starts_dollar = ch == "$" and not (i and _IDENT_CHAR.match(s[i - 1]))
+        dollar = _DOLLAR_QUOTE.match(s, i) if starts_dollar else None
         if dollar:
             delimiter = dollar.group()
             end = s.find(delimiter, i + len(delimiter))
@@ -280,8 +285,8 @@ def _iter_tables(sql: str, index: tuple[dict[int, int], set[int], set[int]] | No
             if start in match:
                 yield head.group(1), sql[start + 1 : match[start]]
             continue
-        # 全局扫描认为这个 '(' 在字符串里（表名里带 `$x$`、双引号名里带反斜杠这类怪写法），
-        # 只能从它起重新扫描。每次最坏扫到输入末尾，所以限定次数：正常 DDL 不会走到这里，
+        # 全局扫描认为这个 '(' 在字符串里（双引号名里带反斜杠这类怪写法；表名里带 `$x$` 自 TD-314 起
+        # 已由 _scan 正确识别，不再走这里），只能从它起重新扫描。每次最坏扫到输入末尾，所以限定次数：正常 DDL 不会走到这里，
         # 超过上限的这类表不再解析，防止用重复串把单次解析拖成秒级（TD-285）。
         fallbacks += 1
         if fallbacks > _MAX_FALLBACK_SCANS:

@@ -287,7 +287,8 @@ def has_transaction_control(sql: str) -> bool:
             else:
                 raise MaintenanceError('Unterminated migration quote')
             plain.append(' quoted ')
-        elif sql[i] == '$' and (match := re.match(r'\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$', sql[i:])):
+        elif (sql[i] == '$' and not (i and re.match(r'[\w$]', sql[i - 1]))  # a$b$ 是标识符，不是 dollar 引号（TD-314）
+              and (match := re.match(r'\$(?:[A-Za-z_][A-Za-z0-9_]*)?\$', sql[i:]))):
             delimiter = match[0]
             end = sql.find(delimiter, i + len(delimiter))
             if end < 0:

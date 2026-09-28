@@ -116,7 +116,7 @@ pending → closed → paid
 | [`app/config.py`](config.py) | `6acbbb805d97` | L1–L150 |
 | [`app/cpu_pool.py`](cpu_pool.py) | `1ca01edaa9c5` | L1–L103 |
 | [`app/database.py`](database.py) | `31f23a8fcc1e` | L1–L28 |
-| [`app/db_admin.py`](db_admin.py) | `87ace23d0b0c` | L1–L301 |
+| [`app/db_admin.py`](db_admin.py) | `b471867bfe49` | L1–L302 |
 | [`app/delivery.py`](delivery.py) | `0ba21151ff54` | L1–L154 |
 | [`app/deps.py`](deps.py) | `6ff6ae3cdf0c` | L1–L109 |
 | [`app/middleware.py`](middleware.py) | `42cb9a6a1dc9` | L1–L384 |
@@ -303,3 +303,7 @@ wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_js
 - `middleware.trusted_proxy_networks()`：`TRUSTED_PROXY_CIDRS` 的唯一解析处，按配置字符串缓存；任何一段畸形就抛 `ValueError`。`trusted_proxy` 与 `ratelimit.client_key` 都从这里取，畸形配置下一致地不信任任何代理。
 - `startup_checks.check_production_settings`：生产环境地址段解析失败时拒绝启动。
 - `middleware.DOCS_CONTENT_SECURITY_POLICY`：开发 `/docs`、`/redoc` 的 CSP 例外改为模块常量，内容不变。
+
+## 2026-09-28：迁移事务检查的 dollar 引号识别（TD-314）
+
+- `db_admin.has_transaction_control`：与 `tools/sql_ddl._scan` 同一条规则，`$` 紧跟在标识符字符后面时不开始 dollar 函数体，`a$x$ … b$x$` 之间的 `COMMIT` 不会再被当成函数体藏起来。

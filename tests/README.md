@@ -103,12 +103,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ops.py`](test_ops.py) | `19dcb2d9c987` | L1–L658 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `a4652243679f` | L1–L279 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
-| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `00dcd0f86ab2` | L1–L428 |
+| [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `120f73083b2c` | L1–L429 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
 | [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `cc79e0fdbeda` | L1–L627 |
-| [`tests/test_perf.py`](test_perf.py) | `4c839be0364b` | L1–L398 |
+| [`tests/test_perf.py`](test_perf.py) | `87b3decfd95d` | L1–L398 |
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
@@ -131,7 +131,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_shop_page.py`](test_shop_page.py) | `7989136535c4` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
-| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `5048ccb36936` | L1–L360 |
+| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `7770054a44c9` | L1–L375 |
 | [`tests/test_support.py`](test_support.py) | `f0ccc6097a4a` | L1–L342 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
@@ -374,3 +374,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_ratelimit.py::test_malformed_proxy_cidrs_trust_nobody_consistently`：畸形地址段下 HSTS/链接判定与限流身份一致地不信任代理；合法配置下跳过可信中间代理；XFF 链有畸形项时退回直接对端。
 - `test_ops.py::test_malformed_trusted_proxy_cidrs_in_production_is_rejected`：四种写错方式在生产环境各报一条；`_clean_prod` 显式设置默认地址段。
+
+## 2026-09-28 标识符里的 `$`（TD-314）
+
+- `test_sql_ddl.py::test_dollar_sign_inside_identifiers_is_not_a_dollar_quote`：带 `$` 的列、外键引用、表名全部解析；隔空格的 `$q$…$q$` 仍是字符串。
+- `test_payment_ledger.py::test_transaction_guard_rejects_real_wrappers` 新增 `a$x$; COMMIT; b$x$` 用例。
+- `test_perf.py`：`$x$` 表名相关的两处说明更新，断言不变。

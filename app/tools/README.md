@@ -95,7 +95,7 @@
 | [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
 | [`app/tools/llm.py`](llm.py) | `8090e7eb24ae` | L1–L249 |
 | [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |
-| [`app/tools/sql_ddl.py`](sql_ddl.py) | `205c84d4261f` | L1–L489 |
+| [`app/tools/sql_ddl.py`](sql_ddl.py) | `cbbc14b5b759` | L1–L494 |
 | [`app/tools/support.py`](support.py) | `7b0d616fe445` | L1–L359 |
 | [`app/tools/word.py`](word.py) | `69ccc5ac4d4a` | L1–L64 |
 
@@ -117,3 +117,8 @@
 ## 2026-09-15 交叉审查增量
 
 SQL解析只覆盖子集：新增临时/UNLOGGED表、dollar string与嵌套注释屏蔽、引号逗号键、常见多词/数组/限定类型及括号DEFAULT。ALTER外键、隐式引用、大小写折叠等仍未完整处理，输出须复核，不声称只影响显示。FAQ 0.55为待标定值，不推广其他模型经验。
+
+## 2026-09-28：标识符里的 `$` 不再被当成 dollar 引号（TD-314）
+
+- `sql_ddl._scan`：`$` 紧跟在标识符字符（`[\w$]`）后面时属于名字本身，只有前面不是标识符字符时才可能开始 `$tag$` 引号，与 PostgreSQL 词法一致。以前 `a$x$`、`cost$$` 会让其后直到末尾都算字符串，列、表、外键静默丢失。
+- `_iter_tables` 的逐段重扫（TD-285）保留，不再由这类表名触发。

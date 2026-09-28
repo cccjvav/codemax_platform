@@ -360,7 +360,8 @@ def test_snapshot_refuses_to_reuse_a_corrupted_published_copy(product):
 
 @pytest.mark.parametrize('sql', ['BEGIN; SELECT 1', 'SELECT 1;COMMIT;', '-- comment\nSTART TRANSACTION;',
                                  '/* outer /* inner */ x */ END;', 'PREPARE TRANSACTION \'x\';',
-                                 "SELECT '{}'::jsonb #>> '{}'; ROLLBACK;"])
+                                 "SELECT '{}'::jsonb #>> '{}'; ROLLBACK;",
+                                 'SELECT 1 AS a$x$; COMMIT; SELECT 1 AS b$x$;'])  # TD-314：a$x$ 是标识符
 def test_transaction_guard_rejects_real_wrappers(sql):
     assert db_admin.has_transaction_control(sql)
 

@@ -1567,3 +1567,28 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - `test_ratelimit.py::test_malformed_proxy_cidrs_trust_nobody_consistently`：畸形配置下 `trusted_proxy` 为 False、限流身份是直接对端；改成合法配置后恢复采信、跳过可信中间代理；链里有畸形项时退回直接对端。
 - `test_ops.py::test_malformed_trusted_proxy_cidrs_in_production_is_rejected`：四种写错方式各只报一条，带空格的多段合法写法不报。`_clean_prod` 显式设置默认地址段，不依赖环境。
 - 两条新用例在改之前的代码上都失败。
+
+## TD-314：SQL 扫描器不再把标识符里的 `$x$` 当成 dollar 引号
+
+**状态**：已实施（2026-09-28），优化阶段复核批次。
+
+**问题**：PostgreSQL 和 MySQL 都允许标识符里带 `$`（例如 `a$x$`、`cost$$`）。两处 SQL 扫描器只要看到 `$tag$` 就当成 dollar 引号开头，不看前一个字符：
+- `app/tools/sql_ddl._scan`：匿名公开的 `/tools/er-diagram`、`/tools/word-export` 用它解析用户 DDL；
+- `app/db_admin.has_transaction_control`：迁移脚本的事务包装检查。
+
+实测 `CREATE TABLE t (a$x$ INT, b INT); CREATE TABLE u (id INT, t_id INT REFERENCES t(a$x$));` 只解析出表 t 的第一列：`$x$` 之后直到输入末尾都被当成字符串，列 b、表 u 和它的外键静默丢失。`cost$$ INT` 则让整份 DDL 一张表都解析不出来。迁移检查里，`a$x$ … b$x$` 会把中间的 `COMMIT` 当成函数体藏起来。
+
+TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里），当时只为表头加了限次数的逐段重扫，没有修扫描器，所以列、外键和后面的表仍会丢。
+
+**决定**：两处采用 PostgreSQL 自己的词法规则：`$` 紧跟在标识符字符（`[\w$]`，与 `_IDENT_PART` 一致）后面时属于名字本身，只有前面不是标识符字符时才可能开始 dollar 引号。PostgreSQL 文档也要求关键字或标识符后面的 dollar 引号用空白隔开，否则定界符会被算进前面的标识符。
+- 真正的 dollar 引号（`DEFAULT $$…$$`、`AS $body$ … $body$`、`DO $x$ … $x$`）不受影响。
+- `_iter_tables` 的逐段重扫保留，仍服务双引号名里带反斜杠这类写法，注释已更新。
+
+**证据**：
+- 差分测试：新旧两版的 `parse_ddl` 和 `has_transaction_control` 跑 4 万份随机 SQL 片段（由表头、引号、注释、`$`、`$$`、`$q$`、`$1`、分号等随机拼接）。凡是不含「标识符字符后紧跟 `$`」的输入，结果与异常逐份一致；有差异的输入全部含这种写法。
+- 新用例在改之前的代码上失败。
+
+**测试**：
+- `test_sql_ddl.py::test_dollar_sign_inside_identifiers_is_not_a_dollar_quote`：列、外键引用、表名三种带 `$` 的写法全部解析；隔着空格的 `$q$…$q$` 仍是字符串，里面的 `CREATE TABLE phantom` 不算。
+- `test_payment_ledger.py::test_transaction_guard_rejects_real_wrappers` 新增 `SELECT 1 AS a$x$; COMMIT; SELECT 1 AS b$x$;`。
+- `test_perf.py` 两处注释和说明更新为「TD-314 起不再走逐段重扫」，断言不变，线性护栏保留。

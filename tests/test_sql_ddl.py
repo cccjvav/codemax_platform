@@ -337,6 +337,21 @@ def test_dialect_type_modifiers_are_kept_or_dropped_predictably():
     assert col(graph["tables"][0], "a")["primary_key"] and not col(graph["tables"][0], "a")["nullable"]
 
 
+def test_dollar_sign_inside_identifiers_is_not_a_dollar_quote():
+    """TD-314：PostgreSQL 与 MySQL 都允许标识符里带 `$`。以前扫描器把 a$x$ 里的 `$x$` 当成 dollar 引号开头，
+    其后直到输入末尾都算字符串：列 b、表 u 与它的外键静默丢失；cost$$ 让整份 DDL 一张表都解析不出来。"""
+    graph = parse_ddl("CREATE TABLE t (a$x$ INT, b INT);\n"
+                      "CREATE TABLE u (id INT, t_id INT REFERENCES t(a$x$));\n"
+                      "CREATE TABLE cost$$ (v INT);")
+    assert [(t["name"], [c["name"] for c in t["columns"]]) for t in graph["tables"]] == [
+        ("t", ["a$x$", "b"]), ("u", ["id", "t_id"]), ("cost$$", ["v"])]
+    assert graph["edges"] == [{"from_table": "u", "from_column": "t_id", "to_table": "t", "to_column": "a$x$"}]
+
+    # 前面不是标识符字符时仍是 dollar 引号：里面的逗号、括号、分号和 CREATE TABLE 都不算
+    graph = parse_ddl("CREATE TABLE t (a TEXT DEFAULT $q$ ,); CREATE TABLE phantom(x INT) $q$, b INT);")
+    assert [(t["name"], [c["name"] for c in t["columns"]]) for t in graph["tables"]] == [("t", ["a", "b"])]
+
+
 async def test_endpoint_returns_graph(client):
     r = await client.post("/tools/er-diagram", json={"ddl": PG_DDL})
     assert r.status_code == 200

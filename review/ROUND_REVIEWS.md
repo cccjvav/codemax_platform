@@ -189,3 +189,15 @@
 `middleware.py` 其余部分复核后不改：
 - 访问日志的 `extra={"rid"}` 目前没有格式化器读取。它无害，留给部署侧的结构化日志使用。
 - `Content-Length` 用 `int()` 解析会接受 `+5`、`1_000` 这类写法，但协议层（h11/httptools）在到达应用前已拒绝畸形长度，而且这里只用于提前拒绝，实际字节另有计数。
+
+## 2026-09-28：SQL 扫描器的 dollar 引号识别（TD-314）的本轮复审
+
+范围：复核 `delivery.snapshot_product`、`db_admin.has_transaction_control`、`sql_ddl._scan` 三个长函数；修复本批 diff。方法：用构造的 DDL 实测；新旧两版 4 万份随机 SQL 差分；新用例在改之前的代码上跑过，均失败。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-37 | 两处 SQL 扫描器把标识符里的 `$x$`（`a$x$`、`cost$$`，PostgreSQL 与 MySQL 都合法）当成 dollar 引号开头，其后直到输入末尾都算字符串：公开 ER 图/Word 导出静默丢列、丢表、丢外键；迁移事务检查可能漏掉被夹在中间的 `COMMIT`。TD-285 只处理了表头这一个症状。 | 按 PostgreSQL 词法规则修正两处扫描器（TD-314），补测试。 |
+
+复核后不改：
+- `delivery.snapshot_product` 的复制循环与 `file_digest` 相似，但一个写目标文件、报错文字不同，抽出来收益很小。无覆盖发布、源文件变更检测、目录 fsync 都正确。
+- `has_transaction_control` 的其余部分：引号闭合、E 转义、嵌套注释、未闭合区域都会拒绝，不会放行。
