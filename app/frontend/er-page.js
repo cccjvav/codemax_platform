@@ -155,6 +155,8 @@ const form = document.getElementById("er-form");
 const input = document.getElementById("ddl-input");
 const error = document.getElementById("er-error");
 const submit = document.getElementById("er-submit");
+const wordButton = document.getElementById("er-word");
+const failure = (e) => window.CodeMaxAuth?.failureText?.(e) ?? e.message; // TD-315：网络层失败显示中文，其余错误原样显示（见 auth.js 的 failureText）
 
 function post(url, payload) {
   return fetch(url, {
@@ -173,8 +175,11 @@ document.getElementById("er-sample").onclick = () => {
   input.value = SAMPLE;
 };
 
-document.getElementById("er-word").onclick = async () => {
+// 导出期间禁用按钮（TD-315）：以前连点会发出多次导出请求、下载多份相同文件
+wordButton.onclick = async () => {
+  if (wordButton.disabled) return;
   error.hidden = true;
+  wordButton.disabled = true;
   try {
     const res = await post("/tools/word-export", { ddl: input.value });
     if (!res.ok) {
@@ -189,7 +194,9 @@ document.getElementById("er-word").onclick = async () => {
     a.click();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
   } catch (e) {
-    fail(`导出失败：${e.message}`);
+    fail(`导出失败：${failure(e)}`);
+  } finally {
+    wordButton.disabled = false;
   }
 };
 
@@ -204,7 +211,7 @@ form.onsubmit = async (ev) => {
     if (!data) return fail("渲染失败：服务器返回的不是 JSON");
     renderEr("#er-canvas", data);
   } catch (e) {
-    fail(`渲染失败：${e.message}`);
+    fail(`渲染失败：${failure(e)}`);
   } finally {
     submit.disabled = false;
   }

@@ -46,16 +46,16 @@
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/frontend/auth.js`](auth.js) | `c0695653885c` | L1–L281 |
-| [`app/frontend/drawio-page.js`](drawio-page.js) | `240ada1a59cf` | L1–L201 |
+| [`app/frontend/auth.js`](auth.js) | `4cb99a94dd67` | L1–L291 |
+| [`app/frontend/drawio-page.js`](drawio-page.js) | `d5b627abb6d8` | L1–L203 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
-| [`app/frontend/er-page.js`](er-page.js) | `642a63a8fdc5` | L1–L211 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
-| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `961b83efd591` | L1–L46 |
+| [`app/frontend/er-page.js`](er-page.js) | `d03a734f8b36` | L1–L218 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `1095b1f64e82` | L1–L108 |
+| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `a27401684caf` | L1–L362 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `757c86711e23` | L1–L375 |
-| [`app/frontend/support-page.js`](support-page.js) | `18f7afffc55f` | L1–L226 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `bfac35ca4ea5` | L1–L363 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `cab919d15ed0` | L1–L376 |
+| [`app/frontend/support-page.js`](support-page.js) | `c1177cf0a5b7` | L1–L224 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -218,3 +218,9 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 ## 2026-09-28：模拟收银台失败提示（TD-309）
 
 - `mock-pay-page.js`：失败提示改为「支付失败：原因」，原因经 `window.CodeMaxAuth?.errorText` 生成（auth.js 缺席时为「请求失败（状态码）」），与其他页面措辞一致；非 JSON 应答不再显示成「失败 502：{}」。401 与成功分支不变。
+
+## 2026-09-28：错误文字统一（TD-315）
+
+- `auth.js` 导出 `failureText(e)`：`fetch` 的网络层失败（`TypeError` 且文字是 Failed to fetch / NetworkError… / Load failed）显示「网络连接失败，请检查网络后重试」，其余原样。
+- 各页用一行 `failure = (e) => CodeMaxAuth.failureText?.(e) ?? e.message` 显示错误，不直接拼 `e.message`，由 `test_frontend_pages_never_show_raw_exception_text` 守护。
+- `support-page` 的 `errorText` 委托 `auth.errorText`（原来是逐字相同的副本）；`er-page` 的「导出 Word」请求期间禁用；`drawio-page` 的 `manage()` 检查列表是数组。

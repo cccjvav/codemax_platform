@@ -38,6 +38,15 @@ window.CodeMaxAuth = (function () {
     if (Array.isArray(data?.detail)) return data.detail.map((x) => x.msg || "输入无效").join("；");
     return `请求失败（${status}）`;
   }
+  // fetch 在网络层失败（断网、DNS、代理拒绝）时抛 TypeError，文字随浏览器而异且是英文：
+  // Chrome「Failed to fetch」、Firefox「NetworkError when attempting to fetch resource.」、Safari「Load failed」。
+  // 以前页面直接显示 e.message，中文界面里冒出「下单失败：Failed to fetch」（TD-315）。
+  // 只认这几种网络失败；页面自己抛的 Error 本来就是中文，别的 TypeError 是脚本错误，都原样显示，不冒充网络问题。
+  const NETWORK_FAILURE = /failed to fetch|networkerror|load failed|network request failed/i;
+  function failureText(e) {
+    if (e?.name === "TypeError" && NETWORK_FAILURE.test(e.message || "")) return "网络连接失败，请检查网络后重试";
+    return e?.message || String(e);
+  }
   const listeners = [];
 
   function paint() {
@@ -167,7 +176,7 @@ window.CodeMaxAuth = (function () {
       pwCancel.textContent = "关闭";
       pwCancel.focus();
     } catch (ex) {
-      pwErr.textContent = `网络错误：${ex}`;
+      pwErr.textContent = failureText(ex);
     } finally { pwSubmit.disabled = false; }
   };
 
@@ -178,7 +187,7 @@ window.CodeMaxAuth = (function () {
       if (!res.ok) throw new Error(`退出失败（${res.status}）`);
       if (stamp !== authSeq) return;
       user = null; paint(); notify();
-    } catch (e) { if (stamp === authSeq) { open("login"); err.textContent = e.message; } }
+    } catch (e) { if (stamp === authSeq) { open("login"); err.textContent = failureText(e); } }
   };
 
   document.getElementById("auth-form").onsubmit = async (e) => {
@@ -220,7 +229,7 @@ window.CodeMaxAuth = (function () {
       await refresh();
       close();
     } catch (ex) {
-      err.textContent = `网络错误：${ex}`;
+      err.textContent = failureText(ex);
     } finally { submit.disabled = false; }
   };
 
@@ -253,6 +262,7 @@ window.CodeMaxAuth = (function () {
   }
   return {
     errorText,
+    failureText,
     open,
     close,
     openPassword,

@@ -228,6 +228,82 @@ def test_expired_session_reopens_login_and_clears_the_user_everywhere(tmp_path):
     assert "/support/messages" in result["fetches"]
 
 
+# ---------------------------------------------------------------- TD-315：网络层失败显示中文
+
+_NETWORK_HARNESS = r"""
+const [authPath, supportPath] = [process.argv[2], process.argv[3]];
+const els = {}; let down = false;
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false, children: [],
+  classList: { add() {}, remove() {}, contains() { return false; } }, setAttribute() {}, removeAttribute() {},
+  focus() {}, contains() { return false; }, append() {}, appendChild() {}, prepend() {}, replaceChildren() {},
+  addEventListener() {}, click() {}, scrollIntoView() {} });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t), body: mkEl("body"),
+  activeElement: null, addEventListener() {} };
+global.window = global; global.addEventListener = () => {}; global.setTimeout = () => 1; global.clearTimeout = () => {};
+global.AbortController = class { constructor() { this.signal = {}; } abort() {} };
+global.fetch = async (url) => {
+  if (url === "/auth/me") return { ok: true, status: 200, json: async () => ({ username: "alice", role: 0 }) };
+  if (url === "/support/ask") return { ok: false, status: 422, json: async () => ({ detail: [{ msg: "文本至少 1 个字符" }, {}] }) };
+  if (down) throw new TypeError("Failed to fetch");
+  return { ok: true, status: 200, json: async () => [] };
+};
+const tick = () => new Promise((r) => setImmediate(r));
+require(authPath);
+(async () => {
+  await tick();
+  const auth = global.CodeMaxAuth, out = {};
+  out.direct = [new TypeError("Failed to fetch"), new TypeError("NetworkError when attempting to fetch resource."),
+    new TypeError("Load failed"), new TypeError("rows is not iterable"), new Error("云端已有新版本")].map(auth.failureText);
+  down = true;
+  await document.getElementById("auth-form").onsubmit({ preventDefault() {} });
+  out.login = document.getElementById("auth-error").textContent;
+  require(supportPath); await tick(); await tick();
+  out.poll = document.getElementById("support-error").textContent;
+  const byId = (id) => document.getElementById(id);
+  byId("support-ask-text").value = "q";
+  await byId("support-ask-form").onsubmit({ preventDefault() {} });
+  out.ask = byId("support-ask-error").textContent;
+  console.log(JSON.stringify(out));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("folder", ["app/frontend", "app/static/js"])
+def test_network_failures_are_shown_in_chinese(tmp_path, folder):
+    """TD-315：fetch 在网络层失败时抛英文 TypeError（三种浏览器文字不同），以前页面原样显示成
+    「网络错误：TypeError: Failed to fetch」「读取失败，将重试：Failed to fetch」。只认这几种网络失败，
+    脚本自身的 TypeError 与页面抛的中文 Error 原样显示。客服页的 422 列表文字走共享 errorText。"""
+    harness = tmp_path / "harness.cjs"
+    harness.write_text(_NETWORK_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / folder / "auth.js"), str(ROOT / folder / "support-page.js")],
+                          capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, proc.stderr
+    import json
+
+    out = json.loads(proc.stdout.strip().splitlines()[-1])
+    network = "网络连接失败，请检查网络后重试"
+    assert out["direct"] == [network, network, network, "rows is not iterable", "云端已有新版本"]
+    assert out["login"] == network, "登录表单不能再显示 TypeError: Failed to fetch"
+    assert out["poll"] == f"读取失败，将重试：{network}"
+    assert out["ask"] == "暂时无法回答：文本至少 1 个字符；输入无效"
+
+
+def test_frontend_pages_never_show_raw_exception_text():
+    """TD-315 护栏：页面显示错误一律经 failureText（本页的 failure 包装），不直接拼 e.message / ${ex}。
+    唯一的例外是包装里的兜底（测试替身没有 failureText 时）与 auth.js 里 failureText 自身。"""
+    offenders = []
+    for path in sorted((ROOT / "app" / "frontend").glob("*.js")):
+        source = path.read_text(encoding="utf-8")
+        for match in re.finditer(r"\b(?:e|ex|err|error)\.message\b|\$\{(?:e|ex|err|error)\}", source):
+            before = source[max(0, match.start() - 3):match.start()]
+            line = source[source.rfind("\n", 0, match.start()) + 1:source.find("\n", match.end())]
+            if before == "?? " or "NETWORK_FAILURE.test(" in line or line.lstrip().startswith("//"):
+                continue
+            offenders.append(f"{path.name}: {line.strip()}")
+    assert offenders == [], offenders
+
+
 # ---------------------------------------------------------------- V-06 / TD-280：修改密码浮层
 
 _PASSWORD_HARNESS = r"""

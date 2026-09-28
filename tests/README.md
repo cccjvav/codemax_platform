@@ -86,7 +86,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
-| [`tests/test_er_page.py`](test_er_page.py) | `f9f85feeeb34` | L1–L310 |
+| [`tests/test_er_page.py`](test_er_page.py) | `fbba314e78b4` | L1–L320 |
 | [`tests/test_extract.py`](test_extract.py) | `acb3766b2ecf` | L1–L294 |
 | [`tests/test_faq.py`](test_faq.py) | `8e9cf7ac294c` | L1–L131 |
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
@@ -137,7 +137,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `f55250993601` | L1–L797 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `1a3215a84027` | L1–L873 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -380,3 +380,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_sql_ddl.py::test_dollar_sign_inside_identifiers_is_not_a_dollar_quote`：带 `$` 的列、外键引用、表名全部解析；隔空格的 `$q$…$q$` 仍是字符串。
 - `test_payment_ledger.py::test_transaction_guard_rejects_real_wrappers` 新增 `a$x$; COMMIT; b$x$` 用例。
 - `test_perf.py`：`$x$` 表名相关的两处说明更新，断言不变。
+
+## 2026-09-28 前端错误文字（TD-315）
+
+- `test_ui_accessibility.py::test_network_failures_are_shown_in_chinese`：Node 真跑 `auth.js` + `support-page.js`（源码与产物），覆盖三种浏览器的网络失败文字、脚本错误原样、登录表单、客服页读取与助手 422。
+- `test_ui_accessibility.py::test_frontend_pages_never_show_raw_exception_text`：源码扫描护栏。
+- `test_er_page.py::test_word_export_button_is_disabled_while_exporting`：源码断言导出期间禁用按钮。

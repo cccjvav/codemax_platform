@@ -1592,3 +1592,28 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 - `test_sql_ddl.py::test_dollar_sign_inside_identifiers_is_not_a_dollar_quote`：列、外键引用、表名三种带 `$` 的写法全部解析；隔着空格的 `$q$…$q$` 仍是字符串，里面的 `CREATE TABLE phantom` 不算。
 - `test_payment_ledger.py::test_transaction_guard_rejects_real_wrappers` 新增 `SELECT 1 AS a$x$; COMMIT; SELECT 1 AS b$x$;`。
 - `test_perf.py` 两处注释和说明更新为「TD-314 起不再走逐段重扫」，断言不变，线性护栏保留。
+
+## TD-315：前端网络失败显示中文，客服页复用共享 errorText
+
+**状态**：已实施（2026-09-28），优化阶段前端批次。
+
+**问题**：复核 `drawio-page`、`er-page`、`support-page`、`auth` 四个前端文件时发现：
+- **网络失败显示英文异常原文。** 8 个页面共 25 处直接显示 `e.message`，登录和改密两处还是 `网络错误：${ex}`。页面自己抛的 Error 是中文，没有问题；但 `fetch` 在网络层失败（断网、DNS、代理拒绝）时抛 `TypeError`，文字随浏览器而异且是英文：Chrome「Failed to fetch」、Firefox「NetworkError when attempting to fetch resource.」、Safari「Load failed」。于是中文界面里会出现「下单失败：Failed to fetch」「网络错误：TypeError: Failed to fetch」。
+- **客服页有一份 `errorText` 副本。** `support-page.js` 里的 `errorText` 与 `auth.js` 导出的逐字相同，其余页面都用共享的那份。
+- **「导出 Word」没有防连点。** 「生成 ER 图」按钮请求期间会禁用，「导出 Word」不会，连点会发出多次导出、下载多份相同文件。
+- **流程图管理列表缺格式检查。** `manage()` 没有像 `refreshList()` 那样确认列表是数组，异常响应会显示英文的「rows is not iterable」。
+
+**决定**：
+- `auth.js` 新增并导出 `failureText(e)`：只有 `name` 为 `TypeError` 且文字匹配上述几种网络失败时，才换成「网络连接失败，请检查网络后重试」。页面自己抛的中文 Error 和脚本自身的 `TypeError` 原样显示，不冒充网络问题。
+- 各页加一行 `failure = (e) => CodeMaxAuth.failureText?.(e) ?? e.message`，25 处显示点都改用它，原有前缀（「下单失败：」「读取失败，将重试：」等）保留。可选调用与仓库里 `errorText?.()`、`sessionExpired?.()` 的写法一致：Node 测试桩只挂自己需要的方法。页面按经典脚本在 Node 里跑，不能改成 `import` 共享模块。
+- `support-page` 删掉 `errorText` 副本，改为委托 `auth.errorText`。
+- 「导出 Word」请求期间禁用按钮，在 `finally` 里恢复；`manage()` 补上数组检查。
+- 已重新构建 `app/static/js`。
+
+**不做**：不统一各页的 fetch 包装（已在 TD-310 等批次判为不值得），只统一「错误怎么显示」。
+
+**测试**：
+- `test_ui_accessibility.py::test_network_failures_are_shown_in_chinese`：源码与构建产物各跑一遍 Node 桩，覆盖 `failureText` 的五种输入、登录表单、客服页读取失败、助手 422 列表文字（钉住委托后仍走共享实现）。
+- `test_ui_accessibility.py::test_frontend_pages_never_show_raw_exception_text`：源码扫描护栏，防止以后再直接显示 `e.message`。
+- `test_er_page.py::test_word_export_button_is_disabled_while_exporting`：`er-page.js` 引入 d3，不能在 Node 里跑，用源码断言。
+- 三条新用例在改之前的前端源码上都失败。

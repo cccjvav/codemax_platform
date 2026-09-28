@@ -17,11 +17,9 @@
   }
   const seen = new Set();
 
-  function errorText(data, status) {
-    if (typeof data?.detail === "string") return data.detail;
-    if (Array.isArray(data?.detail)) return data.detail.map((x) => x.msg || "输入无效").join("；");
-    return `请求失败（${status}）`;
-  }
+  // 错误文字用共享模块的实现（TD-315）：原来这里有一份与 auth.js 逐字相同的 errorText 副本
+  const errorText = (data, status) => auth.errorText(data, status);
+  const failure = (e) => auth.failureText?.(e) ?? e.message;
   async function request(url, options = {}) {
     const res = await fetch(url, { credentials: "same-origin", signal: controller.signal, ...options });
     const data = await res.json().catch(() => null);
@@ -81,7 +79,7 @@
       if (!newest) el("older").hidden = rows.length < 50;
       render(rows); el("error").textContent = "";
     } catch (e) {
-      if (stamp === epoch && e.name !== "AbortError") el("error").textContent = `读取失败，将重试：${e.message}`;
+      if (stamp === epoch && e.name !== "AbortError") el("error").textContent = `读取失败，将重试：${failure(e)}`;
     } finally {
       if (stamp === epoch) { polling = false; timer = setTimeout(poll, 4000); }
     }
@@ -107,7 +105,7 @@
         el("inbox").append(button);
       }
       inboxCursor = rows.at(-1)?.id; el("inbox-more").hidden = rows.length < 50;
-    } catch (e) { if (stamp === epoch && e.name !== "AbortError") el("error").textContent = e.message; }
+    } catch (e) { if (stamp === epoch && e.name !== "AbortError") el("error").textContent = failure(e); }
   }
   el("inbox-refresh").onclick = () => inbox();
   el("login-btn").onclick = () => auth.open();
@@ -117,7 +115,7 @@
     try {
       const rows = await request(endpoint() + `?before=${oldest}`);
       if (stamp === epoch) { render(rows, true); el("older").hidden = rows.length < 50; }
-    } catch (e) { if (stamp === epoch && e.name !== "AbortError") el("error").textContent = e.message; }
+    } catch (e) { if (stamp === epoch && e.name !== "AbortError") el("error").textContent = failure(e); }
   };
   el("form").onsubmit = async (e) => {
     e.preventDefault();
@@ -136,7 +134,7 @@
       el("body").value = ""; pending = null; el("error").textContent = "";
       clearTimeout(timer); if (!polling) poll();
     } catch (err) {
-      if (stamp === epoch && err.name !== "AbortError") el("error").textContent = `发送未确认，可重试（不会重复入库）：${err.message}`;
+      if (stamp === epoch && err.name !== "AbortError") el("error").textContent = `发送未确认，可重试（不会重复入库）：${failure(err)}`;
     } finally { if (stamp === epoch) { sending = false; el("send").disabled = false; } }
   };
   // ---------------------------------------------------------------- 先问智能助手（N-08 / TD-295）
@@ -193,7 +191,7 @@
       if (!res.ok) throw new Error(errorText(data, res.status));
       showAnswer(data, text);
     } catch (err) {
-      if (err.name !== "AbortError") el("ask-error").textContent = `暂时无法回答：${err.message}`;
+      if (err.name !== "AbortError") el("ask-error").textContent = `暂时无法回答：${failure(err)}`;
     } finally { asking = false; el("ask-send").disabled = false; }
   };
   el("ask-to-human").onclick = () => {

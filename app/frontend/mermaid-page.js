@@ -34,6 +34,7 @@ const error = document.getElementById("mermaid-error");
 const source = document.getElementById("mermaid-source");
 const preview = document.getElementById("mermaid-preview");
 const submit = document.getElementById("mermaid-submit");
+const failure = (e) => window.CodeMaxAuth?.failureText?.(e) ?? e.message; // TD-315：网络层失败显示中文，其余错误原样显示（见 auth.js 的 failureText）
 
 document.getElementById("mermaid-sample").onclick = () => {
   input.value = SAMPLE;
@@ -100,7 +101,7 @@ form.onsubmit = async (ev) => {
     preview.textContent = data.mermaid;
     await mermaid.run({ nodes: [preview] });
   } catch (e) {
-    fail(`渲染失败：${e.message}`);
+    fail(`渲染失败：${failure(e)}`);
   } finally {
     submit.disabled = false;
   }

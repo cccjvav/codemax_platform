@@ -1,6 +1,7 @@
 // Admin financial data stays in memory. Session and view generations reject late responses.
 (() => {
   const auth = window.CodeMaxAuth;
+  const failure = (e) => auth.failureText?.(e) ?? e.message;  // TD-315：网络层失败显示中文，其余错误原样显示（见 auth.js 的 failureText）
   const el = (id) => document.getElementById(`finance-${id}`);
   let user = null, epoch = 0, listSeq = 0, viewSeq = 0;
   let controller = new AbortController(), selected = null, contract = null;
@@ -66,7 +67,7 @@
     return data;
   }
   function report(error, stamp, view) {
-    if (alive(stamp, view) && error.name !== "AbortError") message(error.message);
+    if (alive(stamp, view) && error.name !== "AbortError") message(failure(error));
   }
   async function list(more = false) {
     if (!user) return;
@@ -325,7 +326,7 @@
     } catch (error) {
       if (alive(stamp, view) && kind === "verification-control" && error.status === 409) delete pending[kind];
       if (alive(stamp, view) && kind === "review" && error.status >= 400 && error.status < 500) delete pending[kind];
-      if (alive(stamp, view)) resultText = `${error.message}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;
+      if (alive(stamp, view)) resultText = `${failure(error)}。网络失败不证明操作未提交，请先刷新记录，勿另造流水重试。`;
     } finally {
       if (alive(stamp, view)) {
         busy = false;

@@ -41,6 +41,6 @@ pay.addEventListener("click", async () => {
       : `支付失败：${reason}`;
   } catch (e) {
     pay.disabled = false;
-    out.textContent = `网络错误：${e.message}`;
+    out.textContent = window.CodeMaxAuth?.failureText?.(e) ?? e.message;  // TD-315：网络层失败显示中文
   }
 });

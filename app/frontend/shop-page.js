@@ -7,6 +7,7 @@
 // 原先它是 shop.html 里的内联脚本，TD-223 把它抽了出来：内联脚本没法 lint、
 // 没法 import、也没法被 node 直接执行。搬迁前实测过 shop.html 的这段 JS 里
 // Jinja 插值 0 处，所以是纯机械搬迁，数据传递方式没变。
+const failure = (e) => window.CodeMaxAuth?.failureText?.(e) ?? e.message; // TD-315：网络层失败显示中文，其余错误原样显示（见 auth.js 的 failureText）
 const ST = {
   landing: document.getElementById("st-landing"),
   pending: document.getElementById("st-pending"),
@@ -111,7 +112,7 @@ async function poll() {
     render(o);
     if (o.status !== "pending") stop();
   } catch (e) {
-    if (stamp === buySeq) document.getElementById("buy-error").textContent = `状态暂时不可用，将重试：${e.message}`;
+    if (stamp === buySeq) document.getElementById("buy-error").textContent = `状态暂时不可用，将重试：${failure(e)}`;
   } finally { pollBusy = false; }
 }
 
@@ -236,7 +237,7 @@ async function buy() {
   userActed = true;   // 用户明确点了购买：自动恢复不再介入（见 bootstrap）
   const attempt = buySeq + 1;
   try { await doBuy(); } catch (e) {
-    if (attempt === buySeq) document.getElementById("buy-error").textContent = `下单失败：${e.message}`;
+    if (attempt === buySeq) document.getElementById("buy-error").textContent = `下单失败：${failure(e)}`;
   }
 }
 
@@ -321,7 +322,7 @@ document.getElementById("btn-download").onclick = async () => {
     if (typeof data?.download_url !== "string" || !/^https?:\/\//.test(data.download_url)) throw new Error("下载响应格式无效");
     window.location.href = data.download_url;
     show("paid");
-  } catch (e) { if (stamp === buySeq) errEl.textContent = `未完成下载，可重试：${e.message}`; }
+  } catch (e) { if (stamp === buySeq) errEl.textContent = `未完成下载，可重试：${failure(e)}`; }
 };
 
 async function loadHistory(more = false) {
@@ -347,7 +348,7 @@ async function loadHistory(more = false) {
     }
     historyCursor = data.next_cursor; document.getElementById("btn-history-more").hidden = !historyCursor;
     document.getElementById("history-error").textContent = data.orders.length ? "" : "暂无订单";
-  } catch (e) { if (stamp === buySeq) document.getElementById("history-error").textContent = e.message; }
+  } catch (e) { if (stamp === buySeq) document.getElementById("history-error").textContent = failure(e); }
 }
 document.getElementById("btn-history").onclick = () => loadHistory();
 document.getElementById("btn-history-more").onclick = () => loadHistory(true);

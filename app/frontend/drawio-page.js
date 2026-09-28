@@ -8,6 +8,7 @@
   const authStatus = document.getElementById("auth-status");
   const name = document.getElementById("diagram-name");
   const list = document.getElementById("diagram-list");
+  const failure = (e) => CodeMaxAuth.failureText?.(e) ?? e.message;  // TD-315：网络层失败显示中文，其余错误原样显示（见 auth.js 的 failureText）
   let currentId = null, xml = BLANK, etag = null, epoch = 0, sequence = 0, listSeq = 0, manageSeq = 0;
   // identityReady 区分「还没有同步过身份」与「同步过、当前是访客」。初值 undefined 与 null 不相等，
   // 于是首次 syncAuth(null) 也会走重建分支，把模板刚加载好的 iframe 换掉 —— 加上登录态异步返回
@@ -80,7 +81,7 @@
         const option = document.createElement("option"); option.value = row.id; option.textContent = row.name; list.appendChild(option);
       }
       if (currentId) list.value = String(currentId);
-    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+    } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   }
   async function save() {
     if (!loggedIn) { status.textContent = "未登录，未保存"; return; }
@@ -96,7 +97,7 @@
       currentId = result.data.id; etag = result.etag;
       status.textContent = `已保存到云端（#${currentId}）${xml !== content ? "，编辑器还有新改动" : ""}`;
       await refreshList();
-    } catch (e) { if (stamp === epoch) status.textContent = `未保存：${e.message}`; }
+    } catch (e) { if (stamp === epoch) status.textContent = `未保存：${failure(e)}`; }
     finally { if (stamp === epoch) saving = false; }
   }
   document.getElementById("btn-save").onclick = save;
@@ -109,7 +110,7 @@
       xml = validXml(data.content); currentId = data.id; etag = tag; name.value = data.name;
       // The iframe may have initialized during the fetch. Restart with the fetched document only.
       loading = false; resetEditor(); status.textContent = `已打开 #${data.id}`;
-    } catch (e) { if (stamp === epoch) { loading = false; resetEditor(); status.textContent = e.message; } }
+    } catch (e) { if (stamp === epoch) { loading = false; resetEditor(); status.textContent = failure(e); } }
   };
   document.getElementById("btn-new").onclick = () => {
     loading = false; xml = BLANK; currentId = null; etag = null; name.value = ""; list.value = ""; resetEditor(); status.textContent = "已新建空白流程图";
@@ -121,7 +122,7 @@
       const url = URL.createObjectURL(new Blob([content], { type: "application/xml" }));
       const a = document.createElement("a"); a.href = url; a.download = `${name.value.trim() || "diagram"}.drawio`; a.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+    } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   };
   document.getElementById("btn-import").onclick = () => document.getElementById("file-input").click();
   document.getElementById("file-input").onchange = async (event) => {
@@ -132,7 +133,7 @@
       const content = validXml(await file.text()); if (stamp !== epoch) return;
       xml = content; currentId = null; etag = null; name.value = file.name.replace(/\.(drawio|xml)$/i, "");
       resetEditor(); status.textContent = `已导入：${file.name}`;
-    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+    } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
     finally { event.target.value = ""; }
   };
   document.getElementById("btn-login").onclick = () => CodeMaxAuth.open("login");
@@ -168,6 +169,7 @@
     try {
       const [live, trash] = await Promise.all([api("/diagrams"), api("/diagrams?deleted=true")]);
       if (stamp !== epoch || serial !== manageSeq) return;
+      if (!Array.isArray(live.data) || !Array.isArray(trash.data)) throw new Error("流程图列表格式无效");  // 与 refreshList 一致
       const box = document.getElementById("diagram-manage"); box.innerHTML = "";
       for (const [rows, deleted] of [[live.data, false], [trash.data, true]]) {
         for (const row of rows) {
@@ -185,7 +187,7 @@
                 }
                 status.textContent = `${label}成功`;
                 await refreshList(); await manage();
-              } catch (e) { if (actionEpoch === epoch) status.textContent = e.message; }
+              } catch (e) { if (actionEpoch === epoch) status.textContent = failure(e); }
             };
             li.appendChild(button);
           }
@@ -194,7 +196,7 @@
           box.appendChild(li);
         }
       }
-    } catch (e) { if (stamp === epoch) status.textContent = e.message; }
+    } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   }
   document.getElementById("btn-manage").onclick = manage;
   CodeMaxAuth.onChange(syncAuth); syncAuth(CodeMaxAuth.user);

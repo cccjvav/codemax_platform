@@ -308,3 +308,13 @@ def test_initial_view_is_readable_instead_of_squeezing_the_whole_diagram():
     assert not big["fits"] and big["k"] == v["READABLE"] == 0.75 and (big["x"], big["y"]) == (12, 12)
     assert big_fit["k"] == big["fitK"] < 0.75 and big_fit["k"] * 2400 <= 900 - 24
     assert v["smallReadable"]["k"] == 0.75
+
+
+def test_word_export_button_is_disabled_while_exporting():
+    """TD-315：「导出 Word」请求期间禁用按钮并在结束后恢复（含失败路径），连点不会下载多份相同文件。"""
+    source = (ROOT / "app" / "frontend" / "er-page.js").read_text(encoding="utf-8")
+    handler = source.split("wordButton.onclick = async () => {", 1)[1].split("\n};", 1)[0]
+    assert "if (wordButton.disabled) return;" in handler
+    assert handler.index("wordButton.disabled = true;") < handler.index('post("/tools/word-export"')
+    assert "} finally {\n    wordButton.disabled = false;\n  }" in handler
+

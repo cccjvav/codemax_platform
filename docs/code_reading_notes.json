@@ -369,7 +369,7 @@
     },
     {
       "path": "app/frontend/auth.js",
-      "sha256": "c0695653885cfc3ac0315c9811e4367eabf30cc3467a422ee81884f07385dae4",
+      "sha256": "4cb99a94dd67dd8a28d1936216f58b2583028410e586e85abb59c184caa5e925",
       "blocks": [
         {
           "end": 35,
@@ -377,47 +377,47 @@
           "explanation": "立即调用的函数把返回对象挂到 window.CodeMaxAuth，内部变量不直接暴露。DOM ID 来自 base.html，文件要在相关 DOM 已存在时加载。user 是最近一次服务端确认的快照；authSeq 是本页面异步操作的序号，不是后端凭据版本。 TD-273：新增 settled 标记与 `get settled()` —— 只有它为 false 时才表示首次 /auth/me 还没返回，页面据此区分「启动中」与「确实是访客」。 TD-280：闭包顶部新增改密浮层的元素引用（pw-mask/pw-error/pw-done/pw-submit/pw-cancel），与 base.html 的 ID 一一对应。"
         },
         {
-          "end": 42,
+          "end": 51,
           "title": "errorText 兼容两类错误",
-          "explanation": "后端 detail 可能是字符串，也可能是字段校验数组；分别取文本或拼接 msg，其余退回 HTTP 状态。listeners 保存订阅函数，尚未执行它们；错误展示不是改变服务端结果。"
+          "explanation": "后端 detail 可能是字符串，也可能是字段校验数组；分别取文本或拼接 msg，其余退回 HTTP 状态。listeners 保存订阅函数，尚未执行它们；错误展示不是改变服务端结果。 TD-315：新增 failureText(e)。fetch 在网络层失败时抛 TypeError，文字随浏览器而异且是英文（Chrome「Failed to fetch」、Firefox「NetworkError when attempting to fetch resource.」、Safari「Load failed」），只有 name 为 TypeError 且文字匹配这几种时才换成「网络连接失败，请检查网络后重试」；页面自己抛的中文 Error 和脚本自身的 TypeError 原样显示，不冒充网络问题。随 errorText 一起导出，改密、退出、登录三处的「网络错误：${ex}」（会显示成 TypeError: Failed to fetch）都改用它。"
         },
         {
-          "end": 73,
+          "end": 82,
           "title": "paint 和 notify 分工",
           "explanation": "paint 根据 user 切换按钮/昵称，textContent 不把昵称解释成 HTML。notify 对数组副本遍历，避免某个回调退订时 splice 导致跳过下个监听器。隐藏按钮只影响显示，不产生服务器权限。 TD-272：paint 额外同步 #admin-entry 的可见性（已登录且 role≠1 时隐藏）。这是导航整洁，不是权限：角色仍由服务端 require_admin 查库判断。 TD-272 追加：判定改为 `adminEntry.hidden = !(on && user.role === 1)` —— 入口默认隐藏，只有管理员才显示（页脚保留常驻入口）。 TD-273：notify 增加 reason 参数（默认 'sync'），sessionExpired 传 'expired' —— 订阅页据此区分「凭证过期」与「用户主动退出」，到期时不再清掉用户没提交的内容；只用一个参数的旧回调不受影响。 TD-280：#auth-who 现在是按钮（打开修改密码），paint 同时写 ariaLabel =「用户名（修改密码）」——可见文字仍包含在可访问名称里（WCAG 2.5.3）；user 为空（退出/到期）时顺手关掉改密浮层，它属于刚离开的账号。"
         },
         {
-          "end": 117,
+          "end": 126,
           "title": "登录浮层与事件绑定",
           "explanation": "setMode 切换登录/注册文案和 autocomplete，open 让浮层可见并聚焦，close 移除样式。给 onclick 赋函数是注册回调，不是立刻调用。点击遮罩背景才关闭，点击浮层里的子元素不应被当作背景。 TD-263：open 记住 document.activeElement 为 opener；close 只在焦点仍在浮层内（或落回 body）时把焦点还给 opener，用户已点到别处就不抢；mask.onkeydown 捕获 Escape 关闭并 stopPropagation。ARIA 属性在 base.html。 （TD-278 段界重排：本段现为 L61–L96，含 setMode/open/close 与按钮、遮罩、Esc 绑定。） TD-280：焦点归还抽成 returnFocus(box, from)，登录与改密两个浮层共用同一条规则；本段只含登录浮层（setMode/open/close 与按钮、遮罩、Esc 绑定），改密浮层在下一段。 TD-307：setMode 同时给 #tab-login / #tab-register 设 aria-pressed（当前为 true、另一个 false），base.html 按它高亮当前标签；可选调用 setAttribute，部分 Node 测试替身没有它。"
         },
         {
-          "end": 173,
+          "end": 182,
           "title": "修改密码浮层：前端先挡、401 交给到期处理",
           "explanation": "TD-280 / V-06：后端 POST /auth/password（TD-70）早就有，但整站没有入口。点顶栏用户名 → openPassword：未登录则改开登录浮层；清空三个密码框、把当前用户名填进隐藏的 username 字段（让密码管理器把新密码存到对的账号）、记住 opener 并聚焦原密码。closePassword 同样清空并按 returnFocus 归还焦点；遮罩点击与 Esc 与登录浮层一致。提交：两次不一致、新旧相同在前端拦下（服务端也会挡，前端先挡是为了不消耗改密限流额度）；原密码错是 400，显示服务端文案；401 只可能是会话本身到期，先关改密浮层再交给 sessionExpired；其余非 2xx 的 res.json() 容忍非 JSON。成功时服务端已吊销旧 token 并给本会话换新 cookie，所以不 refresh、用户快照不变；清空输入、提示其他设备需重新登录，取消按钮改为「关闭」并获焦。pwSubmit.disabled 防重复提交，finally 恢复。"
         },
         {
-          "end": 183,
+          "end": 192,
           "title": "退出为什么先等服务器",
           "explanation": "POST /auth/logout 成功后才清 user 并通知；seq 过期则丢弃响应。网络失败不能假装退出完成，显示错误让用户重试。credentials=same-origin 允许带同源 Cookie，但 JS 不读取 Cookie 内容。 （TD-278 段界重排：L97–L106 即 btnLogout.onclick 整个函数。）"
         },
         {
-          "end": 206,
+          "end": 215,
           "title": "表单提交的注册阶段",
           "explanation": "preventDefault 阻止浏览器整页表单导航；disabled 挡住重复点击，finally 会恢复按钮。注册用 application/json 和 JSON.stringify；失败兼容非 JSON 响应。成功注册只创建用户，所以接下来还要走登录，不是已经有会话。 （TD-278 复核段界：此前多次编辑后段界漂移，本段实际落在登录浮层/退出代码中间；已按函数边界重排为 L107–L129，只含表单入口与注册请求。）"
         },
         {
-          "end": 225,
+          "end": 234,
           "title": "登录阶段与异常恢复",
           "explanation": "登录用 application/x-www-form-urlencoded 和 URLSearchParams，与注册格式不同。成功后 refresh 查 /auth/me，再关浮层；不把返回 token 存 localStorage。网络错误显示提示，finally 恢复提交按钮。此处不是所有 await 都有独立的操作序号检查，不能泛称彻底消除了所有前端竞态。 TD-278：登录成功后先把 #auth-pass 清空再 refresh/close —— 浮层只是隐藏、DOM 还在，否则明文密码一直留在页面里，退出后再打开浮层还原样填着；用户名保留方便同一账号重登。"
         },
         {
-          "end": 241,
+          "end": 250,
           "title": "refresh 的序号防旧结果覆盖",
           "explanation": "每次调用增加 authSeq；非成功响应当未登录，成功 JSON 至少要有对象和 username。若更晚的认证动作已开始，则不写回旧 user。异常时只有当前序号可清本地状态，并重新抛给调用方处理。 （TD-278 段界重排：L149–L164 为 refresh 函数本体；首次调用与其兜底在下一段。）"
         },
         {
-          "end": 281,
+          "end": 291,
           "title": "启动检查、订阅与 getter",
           "explanation": "初次 refresh 的 rejection 有兜底提示。onChange 返回退订函数，调用方不必保留回调引用；getter 每次读取当前闭包里的 user。它返回可用状态接口，不是把页面永远绑定到第一次加载时的旧对象。 TD-270：新增 sessionExpired(status)——数据接口回 401 且本地仍有用户时清快照、paint/notify、弹登录浮层并写\"登录已过期\"；返回 true 表示已处理。各页在 401 处调用它。 TD-273：本块覆盖会期到期的处理与会话 API 的导出（notify 原因、sessionExpired、onChange 退订、user getter 与 refresh 的竞态序号）。 TD-273 追加：settled 在 refresh 的成功与失败两条路径上都置 true，并通过 getter 暴露给页面。"
         }
@@ -425,68 +425,68 @@
     },
     {
       "path": "app/frontend/drawio-page.js",
-      "sha256": "240ada1a59cf57a175407795ef464fae5f1d8ec9ab8430c70f349bce6e2ab32f",
+      "sha256": "d5b627abb6d8fecac90a32569a9345097567648c85cef0022f2930e5f45f9796",
       "method": "manual",
       "blocks": [
         {
-          "end": 16,
+          "end": 17,
           "title": "外部编辑器与三类版本",
-          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。 TD-272：新增 identityReady，用来区分「尚未同步身份」与「同步过、当前是访客」—— identity 初值 undefined 与 null 不相等，会让首次 syncAuth(null) 也走重建分支。"
+          "explanation": "闭包区分云端id/etag、编辑器xml、epoch、导出sequence、普通listSeq与独立manageSeq；origin/source关联外部iframe。新增管理请求序号不改变load/export就绪协议，不把未知autosave当作就绪确认。 TD-272：新增 identityReady，用来区分「尚未同步身份」与「同步过、当前是访客」—— identity 初值 undefined 与 null 不相等，会让首次 syncAuth(null) 也走重建分支。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 25,
+          "end": 26,
           "title": "send / load / validXml：消息和输入边界",
           "explanation": "send 将对象序列化，只发当前 frame。load 在 loading 时不发送，并启 autosave:1；autosave 仅缓存 XML。validXml 拒空/超 500000 字符、DOCTYPE、解析错误和非允许根名；本地文件另用字节大小检查，前后端界限不能混同。"
         },
         {
-          "end": 33,
+          "end": 34,
           "title": "resetEditor：使旧文档消息失效",
           "explanation": "递增 epoch，清 ready/saving；取消 pending 定时器并 reject 等待者。克隆替换 iframe 产生新 browsing context，旧窗口即使 origin 相同也因 event.source 不同被拒。不是仅把文本变量设空。"
         },
         {
-          "end": 44,
+          "end": 45,
           "title": "exportXml：明确取当前内容再保存",
           "explanation": "未 ready 或已有 pending 立即拒绝；Promise 保存 requestId、epoch、resolve/reject，10 秒无回复清 pending 并报“未保存”。发 export format=xml，等回包中 message.requestId 对应，不直接拿最近 autosave 当最新。 TD-270：api() 对非 2xx 先问 CodeMaxAuth.sessionExpired，到期抛\"登录已过期，请重新登录后再保存\"。"
         },
         {
-          "end": 56,
+          "end": 57,
           "title": "api：Cookie、JSON 与 ETag",
           "explanation": "同源Cookie请求，按需JSON编码body/headers；204无正文，其他响应解析失败转null。成功但无有效JSON给固定可读错误；412保留冲突提示，其他失败交给auth.errorText，返回data与ETag。仍需调用方验证各业务响应字段。"
         },
         {
-          "end": 70,
+          "end": 71,
           "title": "message 回调：只接当前编辑器协议",
           "explanation": "先同时核 origin/source，再 JSON.parse；init 发送 load，load 标就绪。export 必须匹配 pending id/epoch，清 timer 后校验 XML 再 resolve；autosave 只更新缓存，save 事件仍调用 save 获取明确导出。"
         },
         {
-          "end": 84,
+          "end": 85,
           "title": "refreshList：拒绝迟到的列表",
           "explanation": "仅登录时请求 /diagrams，记录 epoch 与列表序号；两者仍匹配才更新 option。name 用 textContent，错误也只写当前代际。不是用服务器名字拼 HTML。"
         },
         {
-          "end": 101,
+          "end": 102,
           "title": "save：导出→POST/PUT→保存版本",
           "explanation": "未登录/重复保存拒绝；await exportXml 后和 HTTP 返回后都核 epoch。已有 id 用 PUT+If-Match，新图 POST；缺 id/ETag 不假报成功，提示刷新确认。若导出之后编辑器又变，提示有新改动；finally 仅给当前代际清 saving。"
         },
         {
-          "end": 116,
+          "end": 117,
           "title": "打开/新建：请求期间重置编辑上下文",
           "explanation": "保存按钮只绑定函数。列表选择先 loading=true 并重建 iframe，读取云端内容、ETag/name 后再重建一次，以免请求途中初始化拿到旧 XML。新建清 id/etag，保持本地空白而不自动 POST。"
         },
         {
-          "end": 137,
+          "end": 138,
           "title": "下载/导入：本地文件与云端对象分离",
           "explanation": "下载也明确 export 当前 XML，Blob URL 点链接后延时 revoke。导入通过隐藏 file-input：先限字节、异步读文本、再校验 XML/epoch；清云 id/etag 避免覆盖原文件，导入完清 input 允许再次选同文件。"
         },
         {
-          "end": 168,
+          "end": 169,
           "title": "syncAuth：保留游客草稿但不跨账号带走资产",
           "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。"
         },
         {
-          "end": 201,
+          "end": 203,
           "title": "manage / action：回收站、恢复与永久删",
-          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。"
+          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。"
         }
       ]
     },
@@ -549,7 +549,7 @@
     },
     {
       "path": "app/frontend/er-page.js",
-      "sha256": "642a63a8fdc57fcdea12a98b9062c108c428aa4d5ccaa03c5ad67681e9ff6430",
+      "sha256": "d03a734f8b365e3e87533d023bcd5b8a0b01dbb7a7bbc2df1ffc84c3a25abc64",
       "method": "manual",
       "blocks": [
         {
@@ -568,17 +568,17 @@
           "explanation": "每张表一个 g，translate 到布局坐标；白底矩形、#2563eb 表头（白字 5.17:1，TD-270）。标题与各行画截断后的文字，只有被截断时才挂 <title> 显示原文。颜色：PK 琥珀 #b45309、FK 蓝 #1d4ed8、普通列 #334155，白底都 ≥ 4.5:1。鼠标进入一张表时它的关系线加深加粗、其余线变淡，离开恢复；text 一律用 .text()，不执行表名/字段名里的 HTML。返回布局供调用者检查。"
         },
         {
-          "end": 171,
+          "end": 173,
           "title": "输入示例和 post/fail",
           "explanation": "SAMPLE 只是按钮填入的 SQL，不会自动执行服务器操作。post 发 JSON，fail 显示文本错误；元素 ID 必须与 er.html 同步。"
         },
         {
-          "end": 195,
+          "end": 202,
           "title": "示例 / Word 下载",
-          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。"
+          "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。 TD-315：导出期间 wordButton 禁用，结束后在 finally 里恢复（含失败与提前 return 的路径），连点不再发出多次导出、下载多份相同文件。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 211,
+          "end": 218,
           "title": "提交 ER：避免默认跳页和重复点击",
           "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。"
         }
@@ -586,34 +586,34 @@
     },
     {
       "path": "app/frontend/mermaid-page.js",
-      "sha256": "ad37f903fc4f7976d1da0c2ba9109bef85018f73d8ddb20c9e971c3c494cca16",
+      "sha256": "1095b1f64e82315b76729da84da3c1e05a3dd489f03234ad11da4f23da49bc8f",
       "method": "manual",
       "blocks": [
         {
-          "end": 37,
+          "end": 38,
           "title": "初始化和 DOM 合同",
           "explanation": "Mermaid 从锁定 npm 依赖打包，本页显式 strict、startOnLoad=false：把不可信模型输出交安全渲染器，非允许任意点击回调的 loose 模式。SAMPLE 和各元素匹配 mermaid.html。 TD-280：改为按需加载——loadMermaid() 在第一次需要时 import(\"mermaid\")，then 里做 initialize（strict 与 startOnLoad=false 不变）并缓存 promise；下载失败时把缓存清掉，下一次点击会重新下载，而不是永远拿到同一个失败结果。仍是 package-lock 锁定的本地包，由 Vite 拆成同源分块。页面首屏从约 669 KiB（16 个文件）降到约 3.5 KiB。"
         },
         {
-          "end": 46,
+          "end": 47,
           "title": "示例与 fail",
           "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。"
         },
         {
-          "end": 80,
+          "end": 81,
           "title": "503 自动重试一次：requestDiagram",
           "explanation": "503 是本站模型并发闸门已满（TD-264），带 Retry-After，不是上游故障。requestDiagram 最多重试 MAX_BUSY_RETRIES=1 次：等待秒数取 Retry-After，不可解析退回 5，钳在 1–30 秒，等待期间用 fail 显示\"服务繁忙，N 秒后自动重试…\"；第二次仍 503 或任何非 503 状态原样返回给调用方，不无限打转。setTimeout 由测试桩接管，Node 里不真等。 TD-272：新增 serverMessage()，把 502 且 detail 含 LLM_API_KEY 的服务端文案替换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 与其它 502 文案不变。"
         },
         {
-          "end": 107,
+          "end": 108,
           "title": "文本→模型接口→Mermaid 渲染",
-          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。"
+          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         }
       ]
     },
     {
       "path": "app/frontend/mock-pay-page.js",
-      "sha256": "961b83efd5916ef16fbd01079f086bef2d6f4bf9b0e07ebbc76952a7cdd15987",
+      "sha256": "0051085bb559ee67443e9947dd4285d4eac1d50fe49372799947c59886b1d82c",
       "method": "manual",
       "blocks": [
         {
@@ -624,7 +624,7 @@
         {
           "end": 46,
           "title": "点击确认：明确是模拟成功",
-          "explanation": "带 Cookie 向 /shop/mock-pay/confirm 发 JSON。200 输出模拟流水，401 提示登录，其他输出错误；当前回调没有 try/catch，网络或坏 JSON 会 reject，不要把它描述成完整错误恢复 UI。这个脚本不请求微信真实扣款。 TD-270：点击后禁用按钮防重复；200 显示状态并把「返回商城查看订单」链接显示出来（验收路线第 12 步需要一条明确的返回路径）；401 文案改为指向顶栏登录；非 200 恢复按钮；网络异常单独提示。 TD-309：失败提示改为「支付失败：原因」，原因交给 window.CodeMaxAuth?.errorText（与其他页面同一套措辞：字符串 detail 原样、校验错误数组逐条、其他情况「请求失败（状态码）」）；auth.js 缺席时同样退回「请求失败（状态码）」。原来自己拼 detail || JSON.stringify(data)，非 JSON 应答会显示成「失败 502：{}」。401 文案不变。"
+          "explanation": "带 Cookie 向 /shop/mock-pay/confirm 发 JSON。200 输出模拟流水，401 提示登录，其他输出错误；当前回调没有 try/catch，网络或坏 JSON 会 reject，不要把它描述成完整错误恢复 UI。这个脚本不请求微信真实扣款。 TD-270：点击后禁用按钮防重复；200 显示状态并把「返回商城查看订单」链接显示出来（验收路线第 12 步需要一条明确的返回路径）；401 文案改为指向顶栏登录；非 200 恢复按钮；网络异常单独提示。 TD-309：失败提示改为「支付失败：原因」，原因交给 window.CodeMaxAuth?.errorText（与其他页面同一套措辞：字符串 detail 原样、校验错误数组逐条、其他情况「请求失败（状态码）」）；auth.js 缺席时同样退回「请求失败（状态码）」。原来自己拼 detail || JSON.stringify(data)，非 JSON 应答会显示成「失败 502：{}」。401 文案不变。 TD-315：错误显示改经CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；原来固定前缀「网络错误：」会与网络失败文字重复，已去掉。"
         }
       ]
     },
@@ -642,51 +642,51 @@
     },
     {
       "path": "app/frontend/shop-page.js",
-      "sha256": "757c86711e23eab878d95aa81a387ec4d03765a58849c6e64e9ade6287a11035",
+      "sha256": "cab919d15ed0a6078d8cf451395ce50dc6404b2f38f00cf35a1d1212d9117a0b",
       "method": "manual",
       "blocks": [
         {
-          "end": 36,
+          "end": 37,
           "title": "订单 UI 状态与 show",
-          "explanation": "ST保存各视图，timer/currentNo/pollBusy/historyCursor分别管理轮询与分页；buyBtn/BUY_TEXT 记住主按钮的原始文案，供已购或退款后还原（V-05）。show切换视图并在离开pending时清定时器；删除未使用yuan。当前下单请求与轮询的过期判断用buySeq，不能只隐藏DOM而保留旧请求资格。 TD-281：ST 去掉从不显示的 downloaded 视图（模板的 st-downloaded 已删）；downloaded 订单由 render 走 paid 区重新领取。"
+          "explanation": "ST保存各视图，timer/currentNo/pollBusy/historyCursor分别管理轮询与分页；buyBtn/BUY_TEXT 记住主按钮的原始文案，供已购或退款后还原（V-05）。show切换视图并在离开pending时清定时器；删除未使用yuan。当前下单请求与轮询的过期判断用buySeq，不能只隐藏DOM而保留旧请求资格。 TD-281：ST 去掉从不显示的 downloaded 视图（模板的 st-downloaded 已删）；downloaded 订单由 render 走 paid 区重新领取。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 99,
+          "end": 100,
           "title": "render：只读订单状态，不申请下载",
           "explanation": "currentNo赋值后先判断refunded，直接show退款区域并停止旧轮询；否则按pending/paid/downloaded/closed显示。pending只用受控SVG或DOM图片/链接展示码；过期停止。paid/downloaded可重领仅对未退款单成立；渲染不调用下载POST。 TD-281：closed 分支写入的 #x-no 现在位于 st-closed 内——它原在从不显示的 st-downloaded 里，关闭页因此一直看不到订单号，而页面恰恰让用户找客服核对。"
         },
         {
-          "end": 119,
+          "end": 120,
           "title": "poll / stop：单在途与旧响应丢弃",
           "explanation": "pollBusy 禁止重叠轮询，记录订单号和 buySeq；fetch 与 json 两个 await 后都核身份/订单代际。401 停止，普通错误等下一轮，格式错误给重试提示。finally 清 busy；stop 只清计时器，不取消已在途请求，后者由序号挡住。 TD-270：轮询 401 时另调 sessionExpired 弹浮层。"
         },
         {
-          "end": 225,
+          "end": 226,
           "title": "V-05：已购用户与返回恢复",
           "explanation": "entitledNo/restored/userActed：有已购权益（paid/downloaded 且未退款）时主按钮换成「已购买，去下载」，点它 fetchOrder 后 render 回到该单，**不再 POST /shop/orders**（用户 2026-09-24 确认单 SKU 不设计复购）。orderFromUrl 只接受与订单号同形的 ?order=（收银台返回链接带单号）。bootstrap 在首次身份确定时只跑一次：先认 URL 单号，再 restoreLatest —— 最新一张就是已购单就直接显示该单，否则**已购优先于更晚的未付款单**，没有已购权益才恢复未过期的待支付单（过期的不恢复、重新起轮询）。fetchOrder 用 undefined/null 区分「这单不存在」与「暂时读不到（未登录/网络）」，后者不锁死本次恢复。userActed 保证用户点过按钮后自动恢复不再介入；账号切换 resetPrimary + restored=false，保持账号隔离。"
         },
         {
-          "end": 242,
+          "end": 243,
           "title": "一次性购买意图与 buy",
           "explanation": "offBuy 保存真实退订函数，不是再注册空监听器。buySeq 递增使旧 401 不得复活购买意图；buy 包装 doBuy 的异常，并且只有本次仍最新才写错误。取消显示不会向服务器退款或关单。 V-05：buy() 开头置 userActed，页面内的主动操作优先于自动恢复。"
         },
         {
-          "end": 300,
+          "end": 301,
           "title": "doBuy：仅最新尝试可以补单",
           "explanation": "POST /shop/orders 后先核 mySeq；401 唤登录并至多挂一个监听，登录成功先清 offBuy 再退订并 buy 一次。503 说明支付未配置，其他非 2xx 统一错误；解析成功订单后还要核序号和字段再 render，避免账号切换污染。"
         },
         {
-          "end": 308,
+          "end": 309,
           "title": "refreshOnReturn 与按钮绑定",
           "explanation": "pageshow.persisted（bfcache 恢复）或标签页重新可见且正在看待支付单时立即 poll 一次并确保定时器在跑，用户从收银台回来不用再等最长 3 秒。buyBtn 绑定 primary（V-05：按 entitledNo 决定下单还是回订单）；rebuy 仍是 buy（只针对已过期的待支付单），cancel 递增 buySeq、清 currentNo/轮询与待补单订阅。"
         },
         {
-          "end": 326,
+          "end": 327,
           "title": "下载：主动操作、短时链接可重领",
           "explanation": "只有用户主动点击才 POST /shop/download/{no}；成功后校验下载 URL 形状再跳转。已付款/已领过都可重领短时链接，失败不烧权益、可重试；401 交给 sessionExpired。 TD-278：res.json() 加 .catch(() => null)：反向代理 502/504 的 HTML 错误页不再变成「Unexpected token <」，交给 errorText 给出「请求失败（状态码）」。"
         },
         {
-          "end": 375,
+          "end": 376,
           "title": "loadHistory 与身份变化：游标分页",
           "explanation": "GET 历史带可选 before，检查 orders 数组，用文本按钮展示。选一张订单递增 buySeq 并停止旧轮询再 render；next_cursor 控制更早按钮。账号变更清编号、列表/游标与 timer，注销还退订待补购买，防止下次登录意外下单。 V-05：账号变更后 resetPrimary + restored=false 并对新身份 bootstrap，保证「已购买，去下载」不会跟着上一个账号留下来。 TD-278：历史列表的 res.json() 同样容忍非 JSON 应答。 TD-306：订单按钮 className=\"item\"；点开的那条标 aria-current，其余清除（可选调用，测试替身没有 setAttribute）。"
         }
@@ -694,7 +694,7 @@
     },
     {
       "path": "app/frontend/support-page.js",
-      "sha256": "18f7afffc55fb11b99040127b459578b032ed858e6a6d6769dc3e6080a381c31",
+      "sha256": "c1177cf0a5b79d3c86c6a04e9f1175dc5c6166b78b98abd0aa171c3509541f0c",
       "blocks": [
         {
           "end": 19,
@@ -702,42 +702,42 @@
           "explanation": "闭包保存auth/DOM访问、账号epoch、AbortController、会话target、读游标、待重试pending以及polling/sending/inboxSeq。newNonce优先randomUUID，再getRandomValues，最后生成UUIDv4格式的随机幂等ID；固定版本/variant位，不把降级随机值用于认证秘密。seen去重消息ID。"
         },
         {
-          "end": 38,
+          "end": 36,
           "title": "request 与 endpoint",
-          "explanation": "request 封装同源 Cookie、取消信号、JSON 解析和 HTTP 错误；调用者可覆盖 options。endpoint 根据当前管理员角色和所选 target 选择路径，其余取自己的消息。路径选择只改善 UI，真正权限必须由服务端再次校验。 TD-270：非 2xx 先交给 auth.sessionExpired，到期则抛\"登录已过期\"（onUser(null) 随之 reset 并停止轮询）。"
+          "explanation": "request 封装同源 Cookie、取消信号、JSON 解析和 HTTP 错误；调用者可覆盖 options。endpoint 根据当前管理员角色和所选 target 选择路径，其余取自己的消息。路径选择只改善 UI，真正权限必须由服务端再次校验。 TD-270：非 2xx 先交给 auth.sessionExpired，到期则抛\"登录已过期\"（onUser(null) 随之 reset 并停止轮询）。 TD-315：原来这里有一份与 auth.js 逐字相同的 errorText 副本，改为委托 auth.errorText；另加 failure(e) 包装 auth.failureText，读取、列表、发送、助手四处错误都经它显示。"
         },
         {
-          "end": 46,
+          "end": 44,
           "title": "reset：切换时清理旧上下文",
           "explanation": "递增 epoch、清计时器并 abort，再换新的 controller；清消息游标、去重集合、待发送和表单。已经到达服务端的写操作不会因为 abort 自动撤销，所以还需要 epoch 防旧响应贴回新会话和 nonce 防重试重复。"
         },
         {
-          "end": 74,
+          "end": 72,
           "title": "render：仅把消息当文本",
           "explanation": "seen 已有的 id 跳过；新 id 更新两端游标。用 textContent 写角色/时间/正文，正文里的 HTML 标签不会执行；prepend 用于老消息，append 用于新消息。CSS 负责保留换行；这不是富文本编辑器。 TD-278：nearBottom(box) 判断用户是否停在底部（差 <48px，或尚无高度的首屏）；append 新消息后仅在此时把 scrollTop 设到 scrollHeight。用户正往上翻旧消息（或 prepend 更早消息）时不打断。此前新回复常落在可视区外，看起来像没收到。 TD-306：时间经 formatTime() 固定按 zh-CN、24 小时制输出（年/月/日 时:分）；原来无参 toLocaleString() 跟随浏览器语言，英文系统上是「9/28/2026, 9:49:30 AM」。无效时间返回空串。"
         },
         {
-          "end": 88,
+          "end": 86,
           "title": "poll：完成后才排下一次",
           "explanation": "currentUser 和 polling 防匿名/重叠读取；用 newest 请求 after 增量，首次取最近页。每次 await 后比较 epoch。失败可显示可重试提示；finally 只有当前代次能排 4 秒后的轮询，不是每四秒无条件叠加请求。"
         },
         {
-          "end": 121,
+          "end": 119,
           "title": "管理员列表与更早消息",
           "explanation": "inbox只让管理员读取；epoch与单独inboxSeq共同拒绝晚到列表，more控制游标分页。选择客户先reset旧会话，再设置target并启用发送/开始轮询。更早消息使用before与当前epoch；管理与消息游标不共用。 TD-306：会话按钮 className=\"item\"；点击时清其他会话的 aria-current 并标记本条，重建列表时按当前 target 重新标记，刷新不丢选中状态。游客提示里的 #support-login-btn 绑定 auth.open()。"
         },
         {
-          "end": 141,
+          "end": 139,
           "title": "发送重试：为什么不能把 POST id 当读取进度",
           "explanation": "未登录唤起登录；sending阻止重叠，管理员target为空时明确拒绝并提示。正文非空后在try内创建/复用pending.body与client_nonce，网络不确认时保留同nonce重试，防重复写入。成功不跳读游标到POST id，避免漏管理员回复；epoch变更丢弃旧回包，finally只恢复本上下文按钮。"
         },
         {
-          "end": 204,
+          "end": 202,
           "title": "先问智能助手：公开 /support/ask，独立于会话代次",
           "explanation": "TD-295（N-08）：SOURCE_LABELS 把 source 映射成中文标签。提交时 trim 问题，asking 期间禁用按钮防重复；直接 fetch POST /support/ask，使用自己的 askController，不经过带 epoch 的 request()，所以登录/退出/到期不会清掉回答。非 2xx 用 errorText 显示「暂时无法回答」。showAnswer 只用 textContent 渲染答案、来源和引用（引用只留非空字符串），reason 是运维字段不展示，只在含「模型繁忙」时显示重试提示；escalated 记入 lastEscalated。R-03：固定转人工答案（source=human）是写给所有 /support/ask 调用方的「登录站内客服页留言」，人已在客服页，renderAnswer 按访客/普通用户/管理员换成 HUMAN_ANSWERS 里的页内说法，其他来源原样显示；它同时决定转人工按钮（管理员不显示），onUser 换账号时重新渲染。按钮：未登录记下 handoffDraft 并 auth.open()，普通用户 fillDraft 把问题填进 #support-body 并聚焦。它只填草稿，不会替用户发送留言；答案来自公开接口，不代表管理员已接单。"
         },
         {
-          "end": 226,
+          "end": 224,
           "title": "onUser 与离开页面",
           "explanation": "onUser清旧上下文/列表/target并设置新用户，未登录或管理员尚未选会话时禁用发送；展示对应面板并启动读取。pagehide递增epoch、取消定时器和请求。前端禁用不是权限依据，后端仍做角色/所有权检查。 onUser 同时按 isAdmin 给 #support-workspace 切 with-inbox class，替代 CSS :has()（TD-263）。 TD-273：onUser 在 reason==='expired' 时先取出 #support-body 的草稿，reset() 之后再放回，轮询照常停止 —— 到期不是用户放弃草稿。 TD-295：onUser 在重置后，如用户是普通用户且有 handoffDraft（未登录时点了「留言给管理员」），把它填进留言框并清空；pagehide 同时中止 askController。 复审补充（TD-296）：每次 onUser 都按 lastEscalated 与新角色重算转人工按钮显隐——回答显示后换成管理员登录时隐藏，换回普通用户或退出后恢复。 R-03：这一步改由 renderAnswer(user) 完成，同时把固定转人工答案刷新成新身份对应的页内文案。 TD-306：管理员登录后、选会话之前标题写「请先选择一个客户会话」（原来是没有内容可看的「我的留言」）；普通用户仍是「我的留言」。"
         }
@@ -5735,7 +5735,7 @@
     },
     {
       "path": "tests/test_er_page.py",
-      "sha256": "f9f85feeeb34524c4802c8f1f38dc73b4ba1e2920e7a481afd42aa14cb2bafb2",
+      "sha256": "fbba314e78b4dfad224b8b8bef7b253dbe1cda54c2c0f4e65e24c172a1d874b8",
       "method": "guided",
       "blocks": [
         {
@@ -5804,9 +5804,14 @@
           "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：tmp_path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL263 计算右侧并赋给 `node`：调用 shutil.which('node')。\nL264 判断 `node is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL265 核对 `'return null' in ER_JS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL266 结束当前函数，返回 None；不会自动commit未提交事务。\nL268 计算右侧并赋给 `graph`：{'tables': [{'name': 'a', 'comment': None, 'columns': [{'name': 'id', 'type': 'INT', 'primary_key': True}]}], 'edges': [{'from_table': 'a', 'from_column': 'b_id', 'to_table': 'b', 'to_column': 'id'}]}。\nL272 计算右侧并赋给 `payload`：tmp_path / 'graph.json'。\nL273 调用 payload.write_text(json.dumps(graph), encoding='utf-8')。\nL274 计算右侧并赋给 `out`：调用 subprocess.run([node, *_NODE_ARGS, _NODE_HARNESS, str(payload), str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL280 计算右侧并赋给 `layout`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL281 核对 `len(layout['nodes']) == 1`：此条件为假即测试失败；不是生产输入校验。\nL282 核对 `layout['links'] == []`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 310,
+          "end": 312,
           "title": "test_initial_view_is_readable_instead_of_squeezing_the_whole_diagram",
           "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实布局代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL285 把测试JavaScript多行字面量存入 `_VIEW_HARNESS`（424字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL302 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _VIEW_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL304 计算右侧并赋给 `v`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL305 计算右侧并赋给 `(small, big, big_fit)`：(v['small'], v['big'], v['bigFit'])。\nL306 核对 `small['fits'] and small['k'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL307 核对 `small['x'] == (900 - 500) / 2 and small['y'] == (620 - 300) / 2`：此条件为假即测试失败；不是生产输入校验。\nL308 核对 `not big['fits'] and big['k'] == v['READABLE'] == 0.75 and ((big['x'], big['y']) == (12, 12))`：此条件为假即测试失败；不是生产输入校验。\nL309 核对 `big_fit['k'] == big['fitK'] < 0.75 and big_fit['k'] * 2400 <= 900 - 24`：此条件为假即测试失败；不是生产输入校验。\nL310 核对 `v['smallReadable']['k'] == 0.75`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 320,
+          "title": "test_word_export_button_is_disabled_while_exporting",
+          "explanation": "TD-315：er-page.js 引入 d3，不能在 Node 里直接跑，这里读源码钉住：处理函数开头「已禁用就返回」、发请求之前先禁用、finally 里恢复。改之前的代码没有这三处。"
         }
       ]
     },
@@ -9358,7 +9363,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "f55250993601ca2cf472dd62404d3020337c6ddbc4b51b29247b0758442a5976",
+      "sha256": "1a3215a840276620905a27186e4cf6bb619ce9d8260badb85ebd829a0ea2fe55",
       "method": "guided",
       "blocks": [
         {
@@ -9421,164 +9426,179 @@
           "explanation": "本用例的准备条件：tmp_path, path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 对源码与产物两份 auth.js：打开后焦点进入输入框、非 Esc 不关、Esc 关闭并把焦点还给触发按钮、焦点已离开浮层时关闭不抢焦点。旧 auth.js 没有 onkeydown，本用例在修复前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')；pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL103 把测试JavaScript多行字面量存入 `_HARNESS`（2049字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL157 计算右侧并赋给 `harness`：tmp_path / 'harness.cjs'。\nL158 调用 harness.write_text(_HARNESS, encoding='utf-8')。\nL159 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL160 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL161 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL163 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL164 核对 `result['openedWithFocusInside']`：此条件为假即测试失败；不是生产输入校验。\nL165 核对 `result['otherKeyIgnored']`：此条件为假即测试失败；不是生产输入校验。\nL166 核对 `result['closedByEsc']`：此条件为假即测试失败；不是生产输入校验。\nL167 核对 `result['focusReturned']`：此条件为假即测试失败；不是生产输入校验。\nL168 核对 `result['focusLeftAlone']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 232,
+          "end": 230,
           "title": "test_expired_session_reopens_login_and_clears_the_user_everywhere",
           "explanation": "本用例的准备条件：tmp_path。涉及接口：/support/messages。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 Node 先加载 auth.js（/auth/me 200 → 已登录），再加载 support-page.js；其首个数据请求得 401 后：auth.user 为 null、顶栏切回登录按钮、浮层打开且文案含\"登录已过期\"、客服工作区隐藏/登录提示显示。改前失败。 TD-273：到期场景补草稿断言 —— 到期后 #support-body 仍是用户写的内容（旧代码上失败）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL173 把测试JavaScript多行字面量存入 `_EXPIRY_HARNESS`（2286字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL212 计算右侧并赋给 `harness`：tmp_path / 'expiry.cjs'。\nL213 调用 harness.write_text(_EXPIRY_HARNESS, encoding='utf-8')。\nL214 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js')], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL216 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL217 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL219 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL220 核对 `result['before'] == {'user': 'alice', 'btnAuthHidden': True, 'whoHidden': False}`：此条件为假即测试失败；不是生产输入校验。\nL221 计算右侧并赋给 `after`：result['after']。\nL222 核对 `after['user'] is None and after['btnAuthHidden'] is False and (after['whoHidden'] is True)`：此条件为假即测试失败；不是生产输入校验。\nL223 核对 `after['modalOpen'] is True and '登录已过期' in after['err']`：此条件为假即测试失败；不是生产输入校验。\nL224 核对 `after['workspaceHidden'] is True and after['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL225 核对 `after['draft'] == '写了一半的留言'`：此条件为假即测试失败；不是生产输入校验。\nL228 核对 `'/support/messages' in result['fetches']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 320,
+          "end": 270,
+          "title": "_NETWORK_HARNESS",
+          "explanation": "TD-315：Node 桩先让 /auth/me 返回已登录用户，再切到「网络断开」：除 /auth/me 与 /support/ask 外所有 fetch 都抛 TypeError('Failed to fetch')，/support/ask 固定返回 422 列表 detail。依次记录：failureText 对三种浏览器网络失败文字、脚本 TypeError、页面中文 Error 的结果；登录表单提交失败时的 auth-error；客服页首轮读取失败时的 support-error；助手提问 422 时的 ask-error。元素一律经 getElementById 取（页面在提交时才懒取输入框）。"
+        },
+        {
+          "end": 291,
+          "title": "test_network_failures_are_shown_in_chinese",
+          "explanation": "TD-315：源码与构建产物各跑一遍 _NETWORK_HARNESS。三种网络失败都变成「网络连接失败，请检查网络后重试」，脚本 TypeError 与中文 Error 原样；登录表单不再显示 TypeError: Failed to fetch；客服页读取失败带「读取失败，将重试：」前缀；422 列表 detail 经共享 errorText 拼成「文本至少 1 个字符；输入无效」，钉住客服页删掉副本后仍走同一实现。改之前的代码没有 failureText，桩里直接报错。"
+        },
+        {
+          "end": 308,
+          "title": "test_frontend_pages_never_show_raw_exception_text",
+          "explanation": "TD-315 护栏：扫描 app/frontend/*.js，凡是 e/ex/err/error.message 或 ${e}/${ex} 出现在显示位置都算违规；只放过 failure 包装里的「?? e.message」兜底、failureText 自身的匹配行和注释行。改之前的代码有二十多处。段尾两行是下一节（修改密码浮层）的分隔注释。"
+        },
+        {
+          "end": 396,
           "title": "test_password_dialog_changes_password_and_handles_every_outcome",
-          "explanation": "本用例的准备条件：tmp_path, path。涉及接口：/auth/password。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：Node 真跑 auth.js（源码与产物各一次）：用户名按钮可访问名称为「alice（修改密码）」；打开后焦点在原密码框、隐藏的 username 字段填当前账号；两次不一致/与原密码相同在前端拦下且不发请求；400 显示服务端「原密码不正确」；成功时请求体为 {old_password,new_password}、带 same-origin，三个密码框清空、提示其他设备失效、当前用户仍在、取消按钮变「关闭」并获焦；Esc 关闭且焦点回用户名按钮；再次打开不残留提示；401 关闭改密浮层并走会话到期（登录浮层 + 登录已过期）。改前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')；pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL233 把测试JavaScript多行字面量存入 `_PASSWORD_HARNESS`（3425字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL296 计算右侧并赋给 `harness`：tmp_path / 'password.cjs'。\nL297 调用 harness.write_text(_PASSWORD_HARNESS, encoding='utf-8')。\nL298 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL299 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL300 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL302 计算右侧并赋给 `r`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL303 核对 `r['label'] == 'alice（修改密码）'`：此条件为假即测试失败；不是生产输入校验。\nL304 核对 `r['opened'] == {'open': True, 'focusOld': True, 'user': 'alice', 'account': '当前账号：alice'}`：此条件为假即测试失败；不是生产输入校验。\nL305 核对 `r['mismatch']['err'] == '两次输入的新密码不一致' and r['mismatch']['posts'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL306 核对 `r['same']['err'] == '新密码不能与原密码相同' and r['same']['posts'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL307 核对 `r['wrongOld']['err'] == '原密码不正确' and r['wrongOld']['open'] and (r['wrongOld']['posts'] == 1)`：此条件为假即测试失败；不是生产输入校验。\nL308 计算右侧并赋给 `ok`：r['ok']。\nL309 核对 `ok['sent'] == {'url': '/auth/password', 'method': 'POST', 'credentials': 'same-origin', 'body': {'old_password': 'secret123', 'new_password': 'newpass1'}}`：此条件为假即测试失败；不是生产输入校验。\nL311 核对 `ok['err'] == '' and '其他设备' in ok['done'] and (ok['fields'] == ['', '', ''])`：此条件为假即测试失败；不是生产输入校验。\nL312 核对 `ok['user'] == 'alice' and ok['open']`：此条件为假即测试失败；不是生产输入校验。\nL313 核对 `ok['cancel'] == '关闭' and ok['focusCancel']`：此条件为假即测试失败；不是生产输入校验。\nL314 核对 `r['esc'] == {'open': False, 'focusWho': True}`：此条件为假即测试失败；不是生产输入校验。\nL315 核对 `r['reopen']['done'] == '' and r['reopen']['err'] == '' and (r['reopen']['fields'] == ['', '', ''])`：此条件为假即测试失败；不是生产输入校验。\nL316 计算右侧并赋给 `exp`：r['expired']。\nL317 核对 `exp['open'] is False and exp['loginOpen'] is True and ('登录已过期' in exp['err'])`：此条件为假即测试失败；不是生产输入校验。\nL318 核对 `exp['user'] is None and exp['fields'] == ['', '', '']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path, path。涉及接口：/auth/password。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：Node 真跑 auth.js（源码与产物各一次）：用户名按钮可访问名称为「alice（修改密码）」；打开后焦点在原密码框、隐藏的 username 字段填当前账号；两次不一致/与原密码相同在前端拦下且不发请求；400 显示服务端「原密码不正确」；成功时请求体为 {old_password,new_password}、带 same-origin，三个密码框清空、提示其他设备失效、当前用户仍在、取消按钮变「关闭」并获焦；Esc 关闭且焦点回用户名按钮；再次打开不残留提示；401 关闭改密浮层并走会话到期（登录浮层 + 登录已过期）。改前失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')；pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL309 把测试JavaScript多行字面量存入 `_PASSWORD_HARNESS`（3425字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL372 计算右侧并赋给 `harness`：tmp_path / 'password.cjs'。\nL373 调用 harness.write_text(_PASSWORD_HARNESS, encoding='utf-8')。\nL374 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL375 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL376 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL378 计算右侧并赋给 `r`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL379 核对 `r['label'] == 'alice（修改密码）'`：此条件为假即测试失败；不是生产输入校验。\nL380 核对 `r['opened'] == {'open': True, 'focusOld': True, 'user': 'alice', 'account': '当前账号：alice'}`：此条件为假即测试失败；不是生产输入校验。\nL381 核对 `r['mismatch']['err'] == '两次输入的新密码不一致' and r['mismatch']['posts'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL382 核对 `r['same']['err'] == '新密码不能与原密码相同' and r['same']['posts'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL383 核对 `r['wrongOld']['err'] == '原密码不正确' and r['wrongOld']['open'] and (r['wrongOld']['posts'] == 1)`：此条件为假即测试失败；不是生产输入校验。\nL384 计算右侧并赋给 `ok`：r['ok']。\nL385 核对 `ok['sent'] == {'url': '/auth/password', 'method': 'POST', 'credentials': 'same-origin', 'body': {'old_password': 'secret123', 'new_password': 'newpass1'}}`：此条件为假即测试失败；不是生产输入校验。\nL387 核对 `ok['err'] == '' and '其他设备' in ok['done'] and (ok['fields'] == ['', '', ''])`：此条件为假即测试失败；不是生产输入校验。\nL388 核对 `ok['user'] == 'alice' and ok['open']`：此条件为假即测试失败；不是生产输入校验。\nL389 核对 `ok['cancel'] == '关闭' and ok['focusCancel']`：此条件为假即测试失败；不是生产输入校验。\nL390 核对 `r['esc'] == {'open': False, 'focusWho': True}`：此条件为假即测试失败；不是生产输入校验。\nL391 核对 `r['reopen']['done'] == '' and r['reopen']['err'] == '' and (r['reopen']['fields'] == ['', '', ''])`：此条件为假即测试失败；不是生产输入校验。\nL392 计算右侧并赋给 `exp`：r['expired']。\nL393 核对 `exp['open'] is False and exp['loginOpen'] is True and ('登录已过期' in exp['err'])`：此条件为假即测试失败；不是生产输入校验。\nL394 核对 `exp['user'] is None and exp['fields'] == ['', '', '']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 341,
+          "end": 417,
           "title": "test_password_dialog_markup_matches_the_backend_contract",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：模板层面：用户名是 aria-haspopup=dialog 的 ghost 按钮；浮层 role=dialog/aria-modal/aria-labelledby；autocomplete 分别为 username/current-password/new-password，新密码 minlength 6、maxlength 64 与 PasswordChangeIn 一致；错误 role=alert、成功 role=status；浮层在 auth.js 之前。改前失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL323 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL324 计算右侧并赋给 `header`：html.split('<header>')[1].split('</header>')[0]。\nL325 核对 `re.search('<button type=\"button\" class=\"ghost who\" id=\"auth-who\" aria-haspopup=\"dialog\"[^>]*hidden>', header)`：此条件为假即测试失败；不是生产输入校验。\nL326 计算右侧并赋给 `dialog`：html.split('id=\"pw-mask\"')[1].split('<script')[0]。\nL327 核对 `'role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"pw-title\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL328 核对 `'id=\"pw-user\" autocomplete=\"username\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL329 核对 `'id=\"pw-old\" autocomplete=\"current-password\" required maxlength=\"64\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL330 逐项遍历 `('pw-new', 'pw-again')`，绑定 `field`；循环体按缩进执行，break可提前结束。\nL331 核对 `f'id=\"{field}\" autocomplete=\"new-password\" required minlength=\"6\" maxlength=\"64\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL332 核对 `'id=\"pw-error\" role=\"alert\"' in dialog and 'id=\"pw-done\" role=\"status\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL333 核对 `html.index('id=\"pw-mask\"') < html.index('<script src=\"/static/js/auth.js\">')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 348,
-          "title": "test_header_has_skip_link_and_main_target",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：WCAG 2.4.1 跳过导航 —— base.html 有 class=skip 指向 #main 的链接，main 带 id=main。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL344 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL345 核对 `'class=\"skip\" href=\"#main\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL346 核对 `'<main id=\"main\">' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 354,
-          "title": "test_buttons_and_inputs_inherit_the_page_font",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：表单控件 font: inherit，避免浏览器默认 13.33px Arial。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL351 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL352 核对 `re.search('button,\\\\s*input,\\\\s*select,\\\\s*textarea\\\\s*\\\\{\\\\s*font:\\\\s*inherit', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 378,
-          "title": "test_mobile_inputs_avoid_ios_zoom",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278 重写：TD-272 只查「规则存在」，而该规则实际被后面的 textarea 13px 与更高特异性的 .modal input 盖掉（Chromium 390px 实测全是 13px）。现在钉住层叠结果的两个前提：16px 规则是 base 样式表最后一条且点名 .modal input；其他模板的 <style> 不给 input/select/textarea 写 font/font-size。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL364 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL365 计算右侧并赋给 `style`：html.split('<style>')[1].split('</style>')[0]。\nL366 计算右侧并赋给 `tail`：style[style.rindex('@media (max-width: 700px)'):]。\nL367 核对 `'input, select, textarea, .modal input { font-size: 16px; }' in tail`：此条件为假即测试失败；不是生产输入校验。\nL368 计算右侧并赋给 `after`：tail.split('font-size: 16px; }', 1)[1]。\nL369 核对 `after.strip() == '}'`：此条件为假即测试失败；不是生产输入校验。\nL370 计算右侧并赋给 `control`：调用 re.compile('([^{}]*\\\\b(?:input|select|textarea)\\\\b[^{}]*)\\\\{([^}]*)\\\\}')。\nL371 逐项遍历 `(ROOT / 'app' / 'templates').glob('*.html')`，绑定 `tpl`；循环体按缩进执行，break可提前结束。\nL372 判断 `tpl.name == 'base.html'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL373 continue 跳过本轮剩余语句，进入下一轮。\nL374 逐项遍历 `re.findall('<style>(.*?)</style>', tpl.read_text(encoding='utf-8'), re.S)`，绑定 `block`；循环体按缩进执行，break可提前结束。\nL375 逐项遍历 `control.findall(re.sub('/\\\\*.*?\\\\*/', '', block, flags=re.S))`，绑定 `(selector, body)`；循环体按缩进执行，break可提前结束。\nL376 核对 `not re.search('\\\\bfont(-size)?\\\\s*:', body)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 384,
-          "title": "test_mobile_navigation_and_footer_links_get_touchable_padding",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：窄屏导航与页脚链接 8px 4px 内边距（≥24px 命中区）。TD-278：选择器去掉 .actions a —— 顶栏右侧不再有链接，客服/管理员/商品链接都在 nav 里，已被 header nav a 覆盖。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL381 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL382 核对 `'header nav a, footer .fnav a { display: inline-block; padding: 8px 4px; }' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 402,
-          "title": "test_mobile_header_is_two_rows_brand_and_login_then_scrolling_nav",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：窄屏顶栏两行 —— 客服、管理员入口、商品链接必须在 nav 里；.actions 只含登录/退出按钮、不含链接；900px 媒体查询里 header 为两列 grid，nav 占第二整行、nowrap 横向滚动。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL391 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL392 计算右侧并赋给 `header`：html.split('<header>')[1].split('</header>')[0]。\nL393 计算右侧并赋给 `nav`：header.split('<nav')[1].split('</nav>')[0]。\nL394 逐项遍历 `('href=\"/support/center\"', 'id=\"admin-entry\"', 'class=\"cta-link\"')`，绑定 `link`；循环体按缩进执行，break可提前结束。\nL395 核对 `link in nav`：此条件为假即测试失败；不是生产输入校验。\nL396 计算右侧并赋给 `actions`：header.split('<div class=\"actions\">')[1]。\nL397 核对 `'id=\"btn-auth\"' in actions and 'id=\"btn-logout\"' in actions and ('<a ' not in actions)`：此条件为假即测试失败；不是生产输入校验。\nL398 计算右侧并赋给 `mobile`：html.split('@media (max-width: 900px) {')[1].split('\\n      }\\n')[0]。\nL399 核对 `'header { display: grid; grid-template-columns: minmax(0, 1fr) auto;' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL400 核对 `'header nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto;' in mobile`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 412,
-          "title": "test_favicon_exists_and_is_a_dependency_free_svg",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：内联零外链 SVG 图标，避免每页多一次 /favicon.ico 404。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL405 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL406 核对 `'<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\" />' in html`：此条件为假即测试失败；不是生产输入校验。\nL407 计算右侧并赋给 `svg`：调用 (ROOT / 'app' / 'static' / 'favicon.svg').read_text(encoding='utf-8')。\nL409 核对 `'<script' not in svg.lower() and 'href=' not in svg and ('url(' not in svg)`：此条件为假即测试失败；不是生产输入校验。\nL410 核对 `svg.count('http') == 1 and 'http://www.w3.org/2000/svg' in svg`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：模板层面：用户名是 aria-haspopup=dialog 的 ghost 按钮；浮层 role=dialog/aria-modal/aria-labelledby；autocomplete 分别为 username/current-password/new-password，新密码 minlength 6、maxlength 64 与 PasswordChangeIn 一致；错误 role=alert、成功 role=status；浮层在 auth.js 之前。改前失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL399 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL400 计算右侧并赋给 `header`：html.split('<header>')[1].split('</header>')[0]。\nL401 核对 `re.search('<button type=\"button\" class=\"ghost who\" id=\"auth-who\" aria-haspopup=\"dialog\"[^>]*hidden>', header)`：此条件为假即测试失败；不是生产输入校验。\nL402 计算右侧并赋给 `dialog`：html.split('id=\"pw-mask\"')[1].split('<script')[0]。\nL403 核对 `'role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"pw-title\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL404 核对 `'id=\"pw-user\" autocomplete=\"username\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL405 核对 `'id=\"pw-old\" autocomplete=\"current-password\" required maxlength=\"64\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL406 逐项遍历 `('pw-new', 'pw-again')`，绑定 `field`；循环体按缩进执行，break可提前结束。\nL407 核对 `f'id=\"{field}\" autocomplete=\"new-password\" required minlength=\"6\" maxlength=\"64\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL408 核对 `'id=\"pw-error\" role=\"alert\"' in dialog and 'id=\"pw-done\" role=\"status\"' in dialog`：此条件为假即测试失败；不是生产输入校验。\nL409 核对 `html.index('id=\"pw-mask\"') < html.index('<script src=\"/static/js/auth.js\">')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 424,
+          "title": "test_header_has_skip_link_and_main_target",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：WCAG 2.4.1 跳过导航 —— base.html 有 class=skip 指向 #main 的链接，main 带 id=main。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL420 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL421 核对 `'class=\"skip\" href=\"#main\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL422 核对 `'<main id=\"main\">' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 430,
+          "title": "test_buttons_and_inputs_inherit_the_page_font",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：表单控件 font: inherit，避免浏览器默认 13.33px Arial。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL427 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL428 核对 `re.search('button,\\\\s*input,\\\\s*select,\\\\s*textarea\\\\s*\\\\{\\\\s*font:\\\\s*inherit', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 454,
+          "title": "test_mobile_inputs_avoid_ios_zoom",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278 重写：TD-272 只查「规则存在」，而该规则实际被后面的 textarea 13px 与更高特异性的 .modal input 盖掉（Chromium 390px 实测全是 13px）。现在钉住层叠结果的两个前提：16px 规则是 base 样式表最后一条且点名 .modal input；其他模板的 <style> 不给 input/select/textarea 写 font/font-size。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL440 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL441 计算右侧并赋给 `style`：html.split('<style>')[1].split('</style>')[0]。\nL442 计算右侧并赋给 `tail`：style[style.rindex('@media (max-width: 700px)'):]。\nL443 核对 `'input, select, textarea, .modal input { font-size: 16px; }' in tail`：此条件为假即测试失败；不是生产输入校验。\nL444 计算右侧并赋给 `after`：tail.split('font-size: 16px; }', 1)[1]。\nL445 核对 `after.strip() == '}'`：此条件为假即测试失败；不是生产输入校验。\nL446 计算右侧并赋给 `control`：调用 re.compile('([^{}]*\\\\b(?:input|select|textarea)\\\\b[^{}]*)\\\\{([^}]*)\\\\}')。\nL447 逐项遍历 `(ROOT / 'app' / 'templates').glob('*.html')`，绑定 `tpl`；循环体按缩进执行，break可提前结束。\nL448 判断 `tpl.name == 'base.html'`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL449 continue 跳过本轮剩余语句，进入下一轮。\nL450 逐项遍历 `re.findall('<style>(.*?)</style>', tpl.read_text(encoding='utf-8'), re.S)`，绑定 `block`；循环体按缩进执行，break可提前结束。\nL451 逐项遍历 `control.findall(re.sub('/\\\\*.*?\\\\*/', '', block, flags=re.S))`，绑定 `(selector, body)`；循环体按缩进执行，break可提前结束。\nL452 核对 `not re.search('\\\\bfont(-size)?\\\\s*:', body)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 460,
+          "title": "test_mobile_navigation_and_footer_links_get_touchable_padding",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：窄屏导航与页脚链接 8px 4px 内边距（≥24px 命中区）。TD-278：选择器去掉 .actions a —— 顶栏右侧不再有链接，客服/管理员/商品链接都在 nav 里，已被 header nav a 覆盖。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL457 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL458 核对 `'header nav a, footer .fnav a { display: inline-block; padding: 8px 4px; }' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 478,
+          "title": "test_mobile_header_is_two_rows_brand_and_login_then_scrolling_nav",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：窄屏顶栏两行 —— 客服、管理员入口、商品链接必须在 nav 里；.actions 只含登录/退出按钮、不含链接；900px 媒体查询里 header 为两列 grid，nav 占第二整行、nowrap 横向滚动。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL467 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL468 计算右侧并赋给 `header`：html.split('<header>')[1].split('</header>')[0]。\nL469 计算右侧并赋给 `nav`：header.split('<nav')[1].split('</nav>')[0]。\nL470 逐项遍历 `('href=\"/support/center\"', 'id=\"admin-entry\"', 'class=\"cta-link\"')`，绑定 `link`；循环体按缩进执行，break可提前结束。\nL471 核对 `link in nav`：此条件为假即测试失败；不是生产输入校验。\nL472 计算右侧并赋给 `actions`：header.split('<div class=\"actions\">')[1]。\nL473 核对 `'id=\"btn-auth\"' in actions and 'id=\"btn-logout\"' in actions and ('<a ' not in actions)`：此条件为假即测试失败；不是生产输入校验。\nL474 计算右侧并赋给 `mobile`：html.split('@media (max-width: 900px) {')[1].split('\\n      }\\n')[0]。\nL475 核对 `'header { display: grid; grid-template-columns: minmax(0, 1fr) auto;' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL476 核对 `'header nav { grid-column: 1 / -1; grid-row: 2; flex-wrap: nowrap; overflow-x: auto;' in mobile`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 488,
+          "title": "test_favicon_exists_and_is_a_dependency_free_svg",
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：内联零外链 SVG 图标，避免每页多一次 /favicon.ico 404。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL481 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL482 核对 `'<link rel=\"icon\" type=\"image/svg+xml\" href=\"/static/favicon.svg\" />' in html`：此条件为假即测试失败；不是生产输入校验。\nL483 计算右侧并赋给 `svg`：调用 (ROOT / 'app' / 'static' / 'favicon.svg').read_text(encoding='utf-8')。\nL485 核对 `'<script' not in svg.lower() and 'href=' not in svg and ('url(' not in svg)`：此条件为假即测试失败；不是生产输入校验。\nL486 核对 `svg.count('http') == 1 and 'http://www.w3.org/2000/svg' in svg`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 500,
           "title": "test_admin_link_is_labelled_and_hidden_for_non_admins",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：管理员入口默认 hidden、auth.js 按 role===1 显示；这是导航整洁不是权限。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL418 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL419 核对 `'<a id=\"admin-entry\" href=\"/admin/payments\" hidden>' in html`：此条件为假即测试失败；不是生产输入校验。\nL420 核对 `'<a href=\"/admin/payments\">订单管理（管理员）</a>' in html.split('<footer>')[1]`：此条件为假即测试失败；不是生产输入校验。\nL421 计算右侧并赋给 `source`：调用 (ROOT / 'app' / 'frontend' / 'auth.js').read_text(encoding='utf-8')。\nL422 核对 `'getElementById(\"admin-entry\")' in source and 'on && user.role === 1' in source`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：管理员入口默认 hidden、auth.js 按 role===1 显示；这是导航整洁不是权限。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL494 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL495 核对 `'<a id=\"admin-entry\" href=\"/admin/payments\" hidden>' in html`：此条件为假即测试失败；不是生产输入校验。\nL496 核对 `'<a href=\"/admin/payments\">订单管理（管理员）</a>' in html.split('<footer>')[1]`：此条件为假即测试失败；不是生产输入校验。\nL497 计算右侧并赋给 `source`：调用 (ROOT / 'app' / 'frontend' / 'auth.js').read_text(encoding='utf-8')。\nL498 核对 `'getElementById(\"admin-entry\")' in source and 'on && user.role === 1' in source`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 438,
+          "end": 514,
           "title": "test_admin_entry_visibility_follows_the_reported_role",
-          "explanation": "本用例的准备条件：tmp_path, path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：Node 真跑 auth.js，访客/普通用户隐藏、role=1 显示。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')；pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL429 计算右侧并赋给 `harness`：tmp_path / 'admin_entry.cjs'。\nL430 调用 harness.write_text(_ADMIN_ENTRY_HARNESS, encoding='utf-8')。\nL431 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL432 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL433 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL435 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL436 核对 `result == {'anon': True, 'member': True, 'admin': False}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path, path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：Node 真跑 auth.js，访客/普通用户隐藏、role=1 显示。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')；pytest.mark.parametrize('path', ['app/frontend/auth.js', 'app/static/js/auth.js'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL505 计算右侧并赋给 `harness`：tmp_path / 'admin_entry.cjs'。\nL506 调用 harness.write_text(_ADMIN_ENTRY_HARNESS, encoding='utf-8')。\nL507 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL508 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL509 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL511 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL512 核对 `result == {'anon': True, 'member': True, 'admin': False}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 475,
+          "end": 551,
           "title": "test_support_message_timestamp_meets_contrast_on_its_own_bubble",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：客服消息时间色在气泡底色上 ≥4.5:1。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL439 把测试JavaScript多行字面量存入 `_ADMIN_ENTRY_HARNESS`（1138字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL468 计算右侧并赋给 `css`：调用 SUPPORT_CSS.read_text(encoding='utf-8')。\nL469 计算右侧并赋给 `rule`：调用 re.search('#support-messages small \\\\{[^}]*\\\\}', css)。\nL470 核对 `rule`：此条件为假即测试失败；不是生产输入校验。\nL471 核对 `'color: #475569' in rule.group(0)`：此条件为假即测试失败；不是生产输入校验。\nL472 核对 `contrast('#475569', '#f1f5f9') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\nL473 核对 `contrast('#475569', '#eff6ff') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：客服消息时间色在气泡底色上 ≥4.5:1。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL515 把测试JavaScript多行字面量存入 `_ADMIN_ENTRY_HARNESS`（1138字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL544 计算右侧并赋给 `css`：调用 SUPPORT_CSS.read_text(encoding='utf-8')。\nL545 计算右侧并赋给 `rule`：调用 re.search('#support-messages small \\\\{[^}]*\\\\}', css)。\nL546 核对 `rule`：此条件为假即测试失败；不是生产输入校验。\nL547 核对 `'color: #475569' in rule.group(0)`：此条件为假即测试失败；不是生产输入校验。\nL548 核对 `contrast('#475569', '#f1f5f9') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\nL549 核对 `contrast('#475569', '#eff6ff') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 484,
+          "end": 560,
           "title": "test_tool_pages_have_a_visible_page_heading",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：工具模板渲染 page_heading 的 h2，首页不渲染。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL478 逐项遍历 `('er.html', 'mermaid.html', 'drawio.html')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL479 计算右侧并赋给 `text`：调用 (ROOT / 'app' / 'templates' / name).read_text(encoding='utf-8')。\nL480 核对 `'{% if page_heading %}<h2 class=\"page-heading\">{{ page_heading }}</h2>{% endif %}' in text`：此条件为假即测试失败；不是生产输入校验。\nL481 计算右侧并赋给 `site`：调用 (ROOT / 'app' / 'routers' / 'site.py').read_text(encoding='utf-8')。\nL482 核对 `'page_heading=\"\" if tool.key == \"home\" else tool.title' in site`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：工具模板渲染 page_heading 的 h2，首页不渲染。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL554 逐项遍历 `('er.html', 'mermaid.html', 'drawio.html')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL555 计算右侧并赋给 `text`：调用 (ROOT / 'app' / 'templates' / name).read_text(encoding='utf-8')。\nL556 核对 `'{% if page_heading %}<h2 class=\"page-heading\">{{ page_heading }}</h2>{% endif %}' in text`：此条件为假即测试失败；不是生产输入校验。\nL557 计算右侧并赋给 `site`：调用 (ROOT / 'app' / 'routers' / 'site.py').read_text(encoding='utf-8')。\nL558 核对 `'page_heading=\"\" if tool.key == \"home\" else tool.title' in site`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 497,
+          "end": 573,
           "title": "test_pages_render_one_h1_and_a_page_heading",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/tools/er、/tools/mermaid、/tools/drawio、/admin/payments、/support/center、/shop。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：真实渲染每页只有一个 h1 且含指定页面标题。TD-278：加入 /support/center、/shop 与模拟收银台（用 mock_mode fixture 打开）；收银台原有第二个 h1，旧模板上失败。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL487 逐项遍历 `(('/tools/er', 'SQL DDL 转 ER 图'), ('/tools/mermaid', '自然语言生成 UML 类图'), ('/tools/drawio', 'Drawio 在线流程图'), ('/admin/payments', '订单与收款管理'), ('/support/center', '站内客服'), ('/shop', '我的订单'), ('/shop/mock-pay?order_no=CM1', '模拟收银台'))`，绑定 `(path, heading)`；循环体按缩进执行，break可提前结束。\nL491 计算右侧并赋给 `html`：(await client.get(path)).text。\nL492 核对 `html.count('<h1>') == 1`：此条件为假即测试失败；不是生产输入校验。\nL493 核对 `heading in html`：此条件为假即测试失败；不是生产输入校验。\nL494 计算右侧并赋给 `home`：(await client.get('/')).text。\nL495 核对 `'class=\"page-heading\"' not in home`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/tools/er、/tools/mermaid、/tools/drawio、/admin/payments、/support/center、/shop。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：真实渲染每页只有一个 h1 且含指定页面标题。TD-278：加入 /support/center、/shop 与模拟收银台（用 mock_mode fixture 打开）；收银台原有第二个 h1，旧模板上失败。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL563 逐项遍历 `(('/tools/er', 'SQL DDL 转 ER 图'), ('/tools/mermaid', '自然语言生成 UML 类图'), ('/tools/drawio', 'Drawio 在线流程图'), ('/admin/payments', '订单与收款管理'), ('/support/center', '站内客服'), ('/shop', '我的订单'), ('/shop/mock-pay?order_no=CM1', '模拟收银台'))`，绑定 `(path, heading)`；循环体按缩进执行，break可提前结束。\nL567 计算右侧并赋给 `html`：(await client.get(path)).text。\nL568 核对 `html.count('<h1>') == 1`：此条件为假即测试失败；不是生产输入校验。\nL569 核对 `heading in html`：此条件为假即测试失败；不是生产输入校验。\nL570 计算右侧并赋给 `home`：(await client.get('/')).text。\nL571 核对 `'class=\"page-heading\"' not in home`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 508,
+          "end": 584,
           "title": "test_admin_console_separates_read_only_evidence_from_dangerous_actions",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：订单管理页只读凭证并入 details、危险表单红框、长订单号换行。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL500 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL501 核对 `'<details class=\"finance-readonly\" open>' in html`：此条件为假即测试失败；不是生产输入校验。\nL502 核对 `'class=\"finance-readonly\" open>\\n<summary>只读凭证与核验记录' in html`：此条件为假即测试失败；不是生产输入校验。\nL503 逐项遍历 `('finance-refund-send', 'finance-refund-stop')`，绑定 `form`；循环体按缩进执行，break可提前结束。\nL504 核对 `re.search('<form id=\"' + form + '\" class=\"danger\" hidden>', html)`：此条件为假即测试失败；不是生产输入校验。\nL505 核对 `'#finance-title, #finance-list button { overflow-wrap:anywhere; }' in html`：此条件为假即测试失败；不是生产输入校验。\nL506 核对 `'summary { padding: 6px 0; }' in BASE.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：订单管理页只读凭证并入 details、危险表单红框、长订单号换行。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL576 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL577 核对 `'<details class=\"finance-readonly\" open>' in html`：此条件为假即测试失败；不是生产输入校验。\nL578 核对 `'class=\"finance-readonly\" open>\\n<summary>只读凭证与核验记录' in html`：此条件为假即测试失败；不是生产输入校验。\nL579 逐项遍历 `('finance-refund-send', 'finance-refund-stop')`，绑定 `form`；循环体按缩进执行，break可提前结束。\nL580 核对 `re.search('<form id=\"' + form + '\" class=\"danger\" hidden>', html)`：此条件为假即测试失败；不是生产输入校验。\nL581 核对 `'#finance-title, #finance-list button { overflow-wrap:anywhere; }' in html`：此条件为假即测试失败；不是生产输入校验。\nL582 核对 `'summary { padding: 6px 0; }' in BASE.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 516,
+          "end": 592,
           "title": "test_hidden_attribute_wins_over_layout_display_rules",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：[hidden] 全局 !important 兜底，作者 display 规则不能让隐藏元素重新出现。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL515 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL516 核对 `'[hidden] { display: none !important; }' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-272：[hidden] 全局 !important 兜底，作者 display 规则不能让隐藏元素重新出现。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL591 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL592 核对 `'[hidden] { display: none !important; }' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 530,
+          "end": 606,
           "title": "test_shop_order_history_comes_after_every_status_section",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：shop.html 中四个状态区（TD-281 删掉了从不显示的 st-downloaded）都排在「我的订单」按钮之前（付完款先看到支付成功，也修 axe heading-order）；旧模板上失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL525 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'shop.html').read_text(encoding='utf-8')。\nL526 计算右侧并赋给 `history`：调用 html.index('id=\"btn-history\"')。\nL527 逐项遍历 `('st-pending', 'st-paid', 'st-refunded', 'st-closed')`，绑定 `status`；循环体按缩进执行，break可提前结束。\nL528 核对 `html.index(f'id=\"{status}\"') < history`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：shop.html 中四个状态区（TD-281 删掉了从不显示的 st-downloaded）都排在「我的订单」按钮之前（付完款先看到支付成功，也修 axe heading-order）；旧模板上失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL601 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'shop.html').read_text(encoding='utf-8')。\nL602 计算右侧并赋给 `history`：调用 html.index('id=\"btn-history\"')。\nL603 逐项遍历 `('st-pending', 'st-paid', 'st-refunded', 'st-closed')`，绑定 `status`；循环体按缩进执行，break可提前结束。\nL604 核对 `html.index(f'id=\"{status}\"') < history`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 544,
+          "end": 620,
           "title": "test_closed_order_page_shows_its_order_number",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-281：st-closed 区段内有 #x-no 且全页只有一个；模板不再有 st-downloaded，shop-page.js 不再取它；render 仍把 paid 与 downloaded 一起渲染成可重领的 paid 区。改前失败（#x-no 在从不显示的 st-downloaded 里）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL535 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'shop.html').read_text(encoding='utf-8')。\nL536 计算右侧并赋给 `closed`：html.split('<section id=\"st-closed\"')[1].split('</section>')[0]。\nL537 核对 `'id=\"x-no\"' in closed`：此条件为假即测试失败；不是生产输入校验。\nL538 核对 `html.count('id=\"x-no\"') == 1`：此条件为假即测试失败；不是生产输入校验。\nL539 核对 `'id=\"st-downloaded\"' not in html`：此条件为假即测试失败；不是生产输入校验。\nL540 计算右侧并赋给 `js`：调用 (ROOT / 'app' / 'frontend' / 'shop-page.js').read_text(encoding='utf-8')。\nL541 核对 `'getElementById(\"st-downloaded\")' not in js`：此条件为假即测试失败；不是生产输入校验。\nL542 核对 `'o.status === \"paid\" || o.status === \"downloaded\"' in js`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-281：st-closed 区段内有 #x-no 且全页只有一个；模板不再有 st-downloaded，shop-page.js 不再取它；render 仍把 paid 与 downloaded 一起渲染成可重领的 paid 区。改前失败（#x-no 在从不显示的 st-downloaded 里）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL611 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'shop.html').read_text(encoding='utf-8')。\nL612 计算右侧并赋给 `closed`：html.split('<section id=\"st-closed\"')[1].split('</section>')[0]。\nL613 核对 `'id=\"x-no\"' in closed`：此条件为假即测试失败；不是生产输入校验。\nL614 核对 `html.count('id=\"x-no\"') == 1`：此条件为假即测试失败；不是生产输入校验。\nL615 核对 `'id=\"st-downloaded\"' not in html`：此条件为假即测试失败；不是生产输入校验。\nL616 计算右侧并赋给 `js`：调用 (ROOT / 'app' / 'frontend' / 'shop-page.js').read_text(encoding='utf-8')。\nL617 核对 `'getElementById(\"st-downloaded\")' not in js`：此条件为假即测试失败；不是生产输入校验。\nL618 核对 `'o.status === \"paid\" || o.status === \"downloaded\"' in js`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 552,
+          "end": 628,
           "title": "test_drawio_login_prompt_is_one_toggleable_element",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：「云端保存需登录」与登录按钮在同一个 #drawio-login-prompt 里，#auth-status 在外面；旧模板没有这个包裹，失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL547 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'drawio.html').read_text(encoding='utf-8')。\nL548 计算右侧并赋给 `prompt`：html.split('<span id=\"drawio-login-prompt\">')[1].split('</button></span>')[0]。\nL549 核对 `'云端保存需登录' in prompt and 'id=\"btn-login\"' in prompt`：此条件为假即测试失败；不是生产输入校验。\nL550 核对 `'id=\"auth-status\"' not in prompt`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-278：「云端保存需登录」与登录按钮在同一个 #drawio-login-prompt 里，#auth-status 在外面；旧模板没有这个包裹，失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL623 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'drawio.html').read_text(encoding='utf-8')。\nL624 计算右侧并赋给 `prompt`：html.split('<span id=\"drawio-login-prompt\">')[1].split('</button></span>')[0]。\nL625 核对 `'云端保存需登录' in prompt and 'id=\"btn-login\"' in prompt`：此条件为假即测试失败；不是生产输入校验。\nL626 核对 `'id=\"auth-status\"' not in prompt`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 572,
+          "end": 648,
           "title": "test_type_scale_is_one_set_of_variables_with_16px_body_on_phones",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：base.html 用 :root 变量定字号（正文 15px、次级 14px、辅助 13px、标题 22px），手机段把正文改为 16px；样式表里所有 px 字号不低于 13；商品页、客服页、管理页的页面标题与工具页同为 22px，管理页分区标题 18px 不高于页面标题。改前失败（正文 14px、提示 12px、标题 20/21/24px）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL556 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL557 计算右侧并赋给 `style`：html.split('<style>')[1].split('</style>')[0]。\nL558 核对 `'--fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px;' in style`：此条件为假即测试失败；不是生产输入校验。\nL559 核对 `'font: var(--fs-body)/1.65 system-ui' in style`：此条件为假即测试失败；不是生产输入校验。\nL560 核对 `'@media (max-width: 700px) { :root { --fs-body: 16px; } }' in style`：此条件为假即测试失败；不是生产输入校验。\nL561 计算右侧并赋给 `sizes`：[int(n) for n in re.findall('font-size:\\\\s*(\\\\d+)px', style)]。\nL562 核对 `min(sizes) >= 13`：此条件为假即测试失败；不是生产输入校验。\nL563 核对 `'.page-heading { margin: 0 0 12px; font-size: var(--fs-title);' in style`：此条件为假即测试失败；不是生产输入校验。\nL564 计算右侧并赋给 `shop`：调用 SHOP.read_text(encoding='utf-8')。\nL565 计算右侧并赋给 `support`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL566 计算右侧并赋给 `admin`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL567 核对 `'<h2 class=\"page-heading\">{{ product_name }}</h2>' in shop`：此条件为假即测试失败；不是生产输入校验。\nL568 核对 `'<h2 class=\"page-heading\">站内客服</h2>' in support`：此条件为假即测试失败；不是生产输入校验。\nL569 核对 `'.finance .finance-heading { margin: 0 0 12px; font-size: var(--fs-title); }' in admin`：此条件为假即测试失败；不是生产输入校验。\nL570 核对 `'.finance section h2 { margin: 0 0 8px; font-size: 18px; }' in admin`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：base.html 用 :root 变量定字号（正文 15px、次级 14px、辅助 13px、标题 22px），手机段把正文改为 16px；样式表里所有 px 字号不低于 13；商品页、客服页、管理页的页面标题与工具页同为 22px，管理页分区标题 18px 不高于页面标题。改前失败（正文 14px、提示 12px、标题 20/21/24px）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL632 计算右侧并赋给 `html`：调用 BASE.read_text(encoding='utf-8')。\nL633 计算右侧并赋给 `style`：html.split('<style>')[1].split('</style>')[0]。\nL634 核对 `'--fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px;' in style`：此条件为假即测试失败；不是生产输入校验。\nL635 核对 `'font: var(--fs-body)/1.65 system-ui' in style`：此条件为假即测试失败；不是生产输入校验。\nL636 核对 `'@media (max-width: 700px) { :root { --fs-body: 16px; } }' in style`：此条件为假即测试失败；不是生产输入校验。\nL637 计算右侧并赋给 `sizes`：[int(n) for n in re.findall('font-size:\\\\s*(\\\\d+)px', style)]。\nL638 核对 `min(sizes) >= 13`：此条件为假即测试失败；不是生产输入校验。\nL639 核对 `'.page-heading { margin: 0 0 12px; font-size: var(--fs-title);' in style`：此条件为假即测试失败；不是生产输入校验。\nL640 计算右侧并赋给 `shop`：调用 SHOP.read_text(encoding='utf-8')。\nL641 计算右侧并赋给 `support`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL642 计算右侧并赋给 `admin`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL643 核对 `'<h2 class=\"page-heading\">{{ product_name }}</h2>' in shop`：此条件为假即测试失败；不是生产输入校验。\nL644 核对 `'<h2 class=\"page-heading\">站内客服</h2>' in support`：此条件为假即测试失败；不是生产输入校验。\nL645 核对 `'.finance .finance-heading { margin: 0 0 12px; font-size: var(--fs-title); }' in admin`：此条件为假即测试失败；不是生产输入校验。\nL646 核对 `'.finance section h2 { margin: 0 0 8px; font-size: 18px; }' in admin`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 583,
+          "end": 659,
           "title": "test_header_main_and_footer_share_one_content_column",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：顶栏、正文、页脚（含手机顶栏）左右内边距都是 --edge，宽屏对齐到 1440px 版心；管理页不再自带 1180px 居中框。改前失败（三处都是固定 24px/14px，管理页正文比顶栏缩进约 48px）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL575 计算右侧并赋给 `style`：BASE.read_text(encoding='utf-8').split('<style>')[1].split('</style>')[0]。\nL576 核对 `'--edge: max(var(--gutter), calc((100% - var(--page-max)) / 2));' in style`：此条件为假即测试失败；不是生产输入校验。\nL577 逐项遍历 `('padding: 12px var(--edge);', 'main { padding: 20px var(--edge) 28px;', 'padding: 14px var(--edge);', 'padding: 8px var(--edge) 0;')`，绑定 `rule`；循环体按缩进执行，break可提前结束。\nL579 核对 `rule in style`：此条件为假即测试失败；不是生产输入校验。\nL580 计算右侧并赋给 `admin`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL581 核对 `'.finance { padding: 4px 0 0; }' in admin and 'max-width: 1180px' not in admin`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：顶栏、正文、页脚（含手机顶栏）左右内边距都是 --edge，宽屏对齐到 1440px 版心；管理页不再自带 1180px 居中框。改前失败（三处都是固定 24px/14px，管理页正文比顶栏缩进约 48px）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL651 计算右侧并赋给 `style`：BASE.read_text(encoding='utf-8').split('<style>')[1].split('</style>')[0]。\nL652 核对 `'--edge: max(var(--gutter), calc((100% - var(--page-max)) / 2));' in style`：此条件为假即测试失败；不是生产输入校验。\nL653 逐项遍历 `('padding: 12px var(--edge);', 'main { padding: 20px var(--edge) 28px;', 'padding: 14px var(--edge);', 'padding: 8px var(--edge) 0;')`，绑定 `rule`；循环体按缩进执行，break可提前结束。\nL655 核对 `rule in style`：此条件为假即测试失败；不是生产输入校验。\nL656 计算右侧并赋给 `admin`：调用 (ROOT / 'app' / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL657 核对 `'.finance { padding: 4px 0 0; }' in admin and 'max-width: 1180px' not in admin`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 593,
+          "end": 669,
           "title": "test_home_page_is_a_card_grid_with_a_lead_line_but_no_page_heading",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：首页导语取 HOME.description（与 meta 描述同一来源），卡片放进 auto-fill 网格；导语是段落而不是标题。改前失败（卡片各占满整行、没有导语）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL587 计算右侧并赋给 `index`：调用 (ROOT / 'app' / 'templates' / 'index.html').read_text(encoding='utf-8')。\nL588 核对 `'<p class=\"home-lead\">{{ description }}</p>' in index`：此条件为假即测试失败；不是生产输入校验。\nL589 核对 `'<section class=\"tool-grid\">' in index`：此条件为假即测试失败；不是生产输入校验。\nL590 计算右侧并赋给 `style`：调用 BASE.read_text(encoding='utf-8')。\nL591 核对 `'.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));' in style`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：首页导语取 HOME.description（与 meta 描述同一来源），卡片放进 auto-fill 网格；导语是段落而不是标题。改前失败（卡片各占满整行、没有导语）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL663 计算右侧并赋给 `index`：调用 (ROOT / 'app' / 'templates' / 'index.html').read_text(encoding='utf-8')。\nL664 核对 `'<p class=\"home-lead\">{{ description }}</p>' in index`：此条件为假即测试失败；不是生产输入校验。\nL665 核对 `'<section class=\"tool-grid\">' in index`：此条件为假即测试失败；不是生产输入校验。\nL666 计算右侧并赋给 `style`：调用 BASE.read_text(encoding='utf-8')。\nL667 核对 `'.tool-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));' in style`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 610,
+          "end": 686,
           "title": "test_diagram_canvases_explain_themselves_before_the_first_render",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：类图预览用 :empty::before、ER 画布用「#er-tools 仍 hidden」显示生成前提示，ER 提示不挡拖动；同时核对 er-page.js 确实在渲染成功后取消 hidden，提示色在 #f8fafc 与白底上都 ≥4.5:1。改前失败（两处都没有提示）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL597 计算右侧并赋给 `base`：调用 BASE.read_text(encoding='utf-8')。\nL598 计算右侧并赋给 `er`：调用 (ROOT / 'app' / 'templates' / 'er.html').read_text(encoding='utf-8')。\nL599 核对 `'#mermaid-preview:empty::before { content:' in base`：此条件为假即测试失败；不是生产输入校验。\nL600 核对 `'.er-view:has(> #er-tools[hidden])::after { content:' in er`：此条件为假即测试失败；不是生产输入校验。\nL601 核对 `'pointer-events: none;' in er.split('.er-view:has(')[1].split('}')[0]`：此条件为假即测试失败；不是生产输入校验。\nL602 计算右侧并赋给 `js`：调用 (ROOT / 'app' / 'frontend' / 'er-page.js').read_text(encoding='utf-8')。\nL603 核对 `'tools.hidden = false;' in js`：此条件为假即测试失败；不是生产输入校验。\nL604 核对 `contrast('#64748b', '#f8fafc') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\nL605 核对 `contrast('#64748b') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-287：类图预览用 :empty::before、ER 画布用「#er-tools 仍 hidden」显示生成前提示，ER 提示不挡拖动；同时核对 er-page.js 确实在渲染成功后取消 hidden，提示色在 #f8fafc 与白底上都 ≥4.5:1。改前失败（两处都没有提示）。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL673 计算右侧并赋给 `base`：调用 BASE.read_text(encoding='utf-8')。\nL674 计算右侧并赋给 `er`：调用 (ROOT / 'app' / 'templates' / 'er.html').read_text(encoding='utf-8')。\nL675 核对 `'#mermaid-preview:empty::before { content:' in base`：此条件为假即测试失败；不是生产输入校验。\nL676 核对 `'.er-view:has(> #er-tools[hidden])::after { content:' in er`：此条件为假即测试失败；不是生产输入校验。\nL677 核对 `'pointer-events: none;' in er.split('.er-view:has(')[1].split('}')[0]`：此条件为假即测试失败；不是生产输入校验。\nL678 计算右侧并赋给 `js`：调用 (ROOT / 'app' / 'frontend' / 'er-page.js').read_text(encoding='utf-8')。\nL679 核对 `'tools.hidden = false;' in js`：此条件为假即测试失败；不是生产输入校验。\nL680 核对 `contrast('#64748b', '#f8fafc') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\nL681 核对 `contrast('#64748b') >= 4.5`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 614,
+          "end": 690,
           "title": "_base_style",
-          "explanation": "TD-306：读出 base.html 第一段 <style> 的内容，供下面一组界面整理用例共用。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL612 结束当前函数，返回 BASE.read_text(encoding='utf-8').split('<style>')[1].split('</style>')[0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：读出 base.html 第一段 <style> 的内容，供下面一组界面整理用例共用。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL688 结束当前函数，返回 BASE.read_text(encoding='utf-8').split('<style>')[1].split('</style>')[0]；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 630,
+          "end": 706,
           "title": "test_textareas_use_the_body_font_and_only_code_inputs_are_monospace",
-          "explanation": "TD-306：textarea 默认正文字体、只有 class=\"code\" 等宽；DDL 输入框点名 code，类图描述与客服两个输入框不点名；support.css 不再单独改字体。改前失败（默认规则就是等宽）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL618 计算右侧并赋给 `style`：调用 _base_style()。\nL619 核对 `'textarea { font-size: var(--fs-small); line-height: 1.55; }' in style`：此条件为假即测试失败；不是生产输入校验。\nL620 核对 `'textarea.code { font-family: ui-monospace, Consolas, monospace; }' in style`：此条件为假即测试失败；不是生产输入校验。\nL621 核对 `not re.search('(?m)^\\\\s*textarea\\\\s*\\\\{[^}]*monospace', style)`：此条件为假即测试失败；不是生产输入校验。\nL622 计算右侧并赋给 `templates`：ROOT / 'app' / 'templates'。\nL623 核对 `'<textarea id=\"ddl-input\" class=\"code\"' in (templates / 'er.html').read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL624 逐项遍历 `(('mermaid.html', 'text-input'), ('support-center.html', 'support-ask-text'), ('support-center.html', 'support-body'))`，绑定 `(name, textarea_id)`；循环体按缩进执行，break可提前结束。\nL626 计算右侧并赋给 `tag`：调用 re.search(f'<textarea id=\"{textarea_id}\"[^>]*>', (templates / name).read_text(encoding='utf-8')).group(0)。\nL627 核对 `'class=\"code\"' not in tag`：此条件为假即测试失败；不是生产输入校验。\nL628 核对 `'font-family' not in SUPPORT_CSS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：textarea 默认正文字体、只有 class=\"code\" 等宽；DDL 输入框点名 code，类图描述与客服两个输入框不点名；support.css 不再单独改字体。改前失败（默认规则就是等宽）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL694 计算右侧并赋给 `style`：调用 _base_style()。\nL695 核对 `'textarea { font-size: var(--fs-small); line-height: 1.55; }' in style`：此条件为假即测试失败；不是生产输入校验。\nL696 核对 `'textarea.code { font-family: ui-monospace, Consolas, monospace; }' in style`：此条件为假即测试失败；不是生产输入校验。\nL697 核对 `not re.search('(?m)^\\\\s*textarea\\\\s*\\\\{[^}]*monospace', style)`：此条件为假即测试失败；不是生产输入校验。\nL698 计算右侧并赋给 `templates`：ROOT / 'app' / 'templates'。\nL699 核对 `'<textarea id=\"ddl-input\" class=\"code\"' in (templates / 'er.html').read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL700 逐项遍历 `(('mermaid.html', 'text-input'), ('support-center.html', 'support-ask-text'), ('support-center.html', 'support-body'))`，绑定 `(name, textarea_id)`；循环体按缩进执行，break可提前结束。\nL702 计算右侧并赋给 `tag`：调用 re.search(f'<textarea id=\"{textarea_id}\"[^>]*>', (templates / name).read_text(encoding='utf-8')).group(0)。\nL703 核对 `'class=\"code\"' not in tag`：此条件为假即测试失败；不是生产输入校验。\nL704 核对 `'font-family' not in SUPPORT_CSS.read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 649,
+          "end": 725,
           "title": "test_form_controls_share_one_border_that_meets_non_text_contrast",
-          "explanation": "TD-306：统一的单行输入/下拉框规则用 :where()、不写字体；边框色 --control-border 在白底与 #f8fafc 上都按 WCAG 1.4.11 达到 3:1，textarea 与登录浮层输入框共用；drawio 工具栏不再单独画边框。改前失败（没有统一规则，边框 #cbd5e1 只有 1.48:1）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL635 计算右侧并赋给 `style`：调用 _base_style()。\nL636 计算右侧并赋给 `color`：调用 re.search('--control-border: (#[0-9a-f]{6});', style).group(1)。\nL637 核对 `contrast(color) >= 3 and contrast(color, '#f8fafc') >= 3`：此条件为假即测试失败；不是生产输入校验。\nL638 计算右侧并赋给 `rule`：调用 re.search(':where\\\\(input:not\\\\([^{]*\\\\), select\\\\) \\\\{([^}]*)\\\\}', style)。\nL639 核对 `rule`：此条件为假即测试失败；不是生产输入校验。\nL640 核对 `'border: 1px solid var(--control-border)' in rule.group(1) and 'background: #fff' in rule.group(1)`：此条件为假即测试失败；不是生产输入校验。\nL641 核对 `not re.search('\\\\bfont(-size)?\\\\s*:', rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL642 逐项遍历 `('textarea { width: 100%; padding: 8px; border: 1px solid var(--control-border);', '.modal input { width: 100%; padding: 7px 9px; border: 1px solid var(--control-border);')`，绑定 `selector`；循环体按缩进执行，break可提前结束。\nL644 核对 `selector in style`：此条件为假即测试失败；不是生产输入校验。\nL645 核对 `'#cbd5e1; border-radius: 6px' not in style`：此条件为假即测试失败；不是生产输入校验。\nL646 计算右侧并赋给 `drawio`：调用 (ROOT / 'app' / 'templates' / 'drawio.html').read_text(encoding='utf-8')。\nL647 核对 `'.toolbar select' not in drawio`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：统一的单行输入/下拉框规则用 :where()、不写字体；边框色 --control-border 在白底与 #f8fafc 上都按 WCAG 1.4.11 达到 3:1，textarea 与登录浮层输入框共用；drawio 工具栏不再单独画边框。改前失败（没有统一规则，边框 #cbd5e1 只有 1.48:1）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL711 计算右侧并赋给 `style`：调用 _base_style()。\nL712 计算右侧并赋给 `color`：调用 re.search('--control-border: (#[0-9a-f]{6});', style).group(1)。\nL713 核对 `contrast(color) >= 3 and contrast(color, '#f8fafc') >= 3`：此条件为假即测试失败；不是生产输入校验。\nL714 计算右侧并赋给 `rule`：调用 re.search(':where\\\\(input:not\\\\([^{]*\\\\), select\\\\) \\\\{([^}]*)\\\\}', style)。\nL715 核对 `rule`：此条件为假即测试失败；不是生产输入校验。\nL716 核对 `'border: 1px solid var(--control-border)' in rule.group(1) and 'background: #fff' in rule.group(1)`：此条件为假即测试失败；不是生产输入校验。\nL717 核对 `not re.search('\\\\bfont(-size)?\\\\s*:', rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL718 逐项遍历 `('textarea { width: 100%; padding: 8px; border: 1px solid var(--control-border);', '.modal input { width: 100%; padding: 7px 9px; border: 1px solid var(--control-border);')`，绑定 `selector`；循环体按缩进执行，break可提前结束。\nL720 核对 `selector in style`：此条件为假即测试失败；不是生产输入校验。\nL721 核对 `'#cbd5e1; border-radius: 6px' not in style`：此条件为假即测试失败；不是生产输入校验。\nL722 计算右侧并赋给 `drawio`：调用 (ROOT / 'app' / 'templates' / 'drawio.html').read_text(encoding='utf-8')。\nL723 核对 `'.toolbar select' not in drawio`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 657,
+          "end": 733,
           "title": "test_tool_form_buttons_sit_in_a_spaced_flex_row",
-          "explanation": "TD-306：ER / 类图页按钮行放进 .form-actions（flex、8px 间距）。改前失败（按钮只靠行内空白隔开）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL652 核对 `'.form-actions { display: flex; flex-wrap: wrap; gap: 8px;' in _base_style()`：此条件为假即测试失败；不是生产输入校验。\nL653 逐项遍历 `(('er.html', 'er-submit'), ('mermaid.html', 'mermaid-submit'))`，绑定 `(name, first)`；循环体按缩进执行，break可提前结束。\nL654 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / name).read_text(encoding='utf-8')。\nL655 核对 `re.search(f'<p class=\"form-actions\">\\\\s*<button type=\"submit\" id=\"{first}\">', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：ER / 类图页按钮行放进 .form-actions（flex、8px 间距）。改前失败（按钮只靠行内空白隔开）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL728 核对 `'.form-actions { display: flex; flex-wrap: wrap; gap: 8px;' in _base_style()`：此条件为假即测试失败；不是生产输入校验。\nL729 逐项遍历 `(('er.html', 'er-submit'), ('mermaid.html', 'mermaid-submit'))`，绑定 `(name, first)`；循环体按缩进执行，break可提前结束。\nL730 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / name).read_text(encoding='utf-8')。\nL731 核对 `re.search(f'<p class=\"form-actions\">\\\\s*<button type=\"submit\" id=\"{first}\">', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 664,
+          "end": 740,
           "title": "test_shop_order_number_in_headings_can_wrap",
-          "explanation": "TD-306：商城待付款标题里的 28 位订单号允许任意位置换行。改前失败（390px 登录后实测页面被撑到 418px 宽）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL660 计算右侧并赋给 `html`：调用 SHOP.read_text(encoding='utf-8')。\nL661 核对 `'.shop h2, .shop .muted { overflow-wrap: anywhere; }' in html`：此条件为假即测试失败；不是生产输入校验。\nL662 核对 `'<h2>订单 <span id=\"p-no\"></span></h2>' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：商城待付款标题里的 28 位订单号允许任意位置换行。改前失败（390px 登录后实测页面被撑到 418px 宽）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL736 计算右侧并赋给 `html`：调用 SHOP.read_text(encoding='utf-8')。\nL737 核对 `'.shop h2, .shop .muted { overflow-wrap: anywhere; }' in html`：此条件为假即测试失败；不是生产输入校验。\nL738 核对 `'<h2>订单 <span id=\"p-no\"></span></h2>' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 722,
+          "end": 798,
           "title": "test_list_rows_are_not_primary_buttons_and_mark_the_current_item",
-          "explanation": "TD-306：三个列表（管理页订单、客服会话、我的订单）都用 button.item 并设/清 aria-current，管理页订单号单独一行。改前失败（都是实心主按钮、没有选中标记）。下方的 _SUPPORT_LIST_HARNESS 是下一条用例的 Node 桩：假元素记录属性，fetch 返回两条会话和一条消息。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL668 计算右侧并赋给 `style`：调用 _base_style()。\nL669 核对 `re.search('button\\\\.item \\\\{[^}]*background: #fff;[^}]*white-space: pre-line;', style)`：此条件为假即测试失败；不是生产输入校验。\nL670 核对 `'button.item[aria-current=\"true\"] {' in style`：此条件为假即测试失败；不是生产输入校验。\nL671 计算右侧并赋给 `frontend`：ROOT / 'app' / 'frontend'。\nL672 逐项遍历 `('payments-admin.js', 'support-page.js', 'shop-page.js')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL673 计算右侧并赋给 `js`：调用 (frontend / name).read_text(encoding='utf-8')。\nL674 核对 `'button.className = \"item\";' in js`：此条件为假即测试失败；不是生产输入校验。\nL675 核对 `'button.setAttribute?.(\"aria-current\", \"true\");' in js and 'removeAttribute?.(\"aria-current\")' in js`：此条件为假即测试失败；不是生产输入校验。\nL676 计算右侧并赋给 `admin`：调用 (frontend / 'payments-admin.js').read_text(encoding='utf-8')。\nL677 核对 `'button.textContent = `${row.order_no}\\\\n${row.username}' in admin`：此条件为假即测试失败；不是生产输入校验。\nL680 把测试JavaScript多行字面量存入 `_SUPPORT_LIST_HARNESS`（2441字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：三个列表（管理页订单、客服会话、我的订单）都用 button.item 并设/清 aria-current，管理页订单号单独一行。改前失败（都是实心主按钮、没有选中标记）。下方的 _SUPPORT_LIST_HARNESS 是下一条用例的 Node 桩：假元素记录属性，fetch 返回两条会话和一条消息。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL744 计算右侧并赋给 `style`：调用 _base_style()。\nL745 核对 `re.search('button\\\\.item \\\\{[^}]*background: #fff;[^}]*white-space: pre-line;', style)`：此条件为假即测试失败；不是生产输入校验。\nL746 核对 `'button.item[aria-current=\"true\"] {' in style`：此条件为假即测试失败；不是生产输入校验。\nL747 计算右侧并赋给 `frontend`：ROOT / 'app' / 'frontend'。\nL748 逐项遍历 `('payments-admin.js', 'support-page.js', 'shop-page.js')`，绑定 `name`；循环体按缩进执行，break可提前结束。\nL749 计算右侧并赋给 `js`：调用 (frontend / name).read_text(encoding='utf-8')。\nL750 核对 `'button.className = \"item\";' in js`：此条件为假即测试失败；不是生产输入校验。\nL751 核对 `'button.setAttribute?.(\"aria-current\", \"true\");' in js and 'removeAttribute?.(\"aria-current\")' in js`：此条件为假即测试失败；不是生产输入校验。\nL752 计算右侧并赋给 `admin`：调用 (frontend / 'payments-admin.js').read_text(encoding='utf-8')。\nL753 核对 `'button.textContent = `${row.order_no}\\\\n${row.username}' in admin`：此条件为假即测试失败；不是生产输入校验。\nL756 把测试JavaScript多行字面量存入 `_SUPPORT_LIST_HARNESS`（2441字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 768,
+          "end": 844,
           "title": "test_support_inbox_marks_the_open_conversation_and_formats_time_in_chinese",
-          "explanation": "TD-306：Node 真跑客服页源码与构建产物：管理员未选会话时标题提示选择；只有当前会话带 aria-current，刷新列表后仍保留；消息时间固定中文 24 小时制；退出后游客按钮打开登录浮层。改前失败（标题是「我的留言」、无 class/标记、时间跟随系统语言）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL729 计算右侧并赋给 `harness`：tmp_path / 'support-list.cjs'。\nL730 调用 harness.write_text(_SUPPORT_LIST_HARNESS, encoding='utf-8')。\nL731 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL732 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL733 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL735 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL736 核对 `result['initialTitle'] == '请先选择一个客户会话'`：此条件为假即测试失败；不是生产输入校验。\nL737 核对 `result['classes'] == ['item', 'item']`：此条件为假即测试失败；不是生产输入校验。\nL738 核对 `result['marks'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL739 核对 `result['afterRefresh'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL740 核对 `result['meta'] == '客户 · 2026/09/28 09:49'`：此条件为假即测试失败；不是生产输入校验。\nL741 核对 `result['guestTitle'] == '我的留言' and result['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL742 核对 `result['opened'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL747 把测试JavaScript多行字面量存入 `_TABS_HARNESS`（1246字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-306：Node 真跑客服页源码与构建产物：管理员未选会话时标题提示选择；只有当前会话带 aria-current，刷新列表后仍保留；消息时间固定中文 24 小时制；退出后游客按钮打开登录浮层。改前失败（标题是「我的留言」、无 class/标记、时间跟随系统语言）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL805 计算右侧并赋给 `harness`：tmp_path / 'support-list.cjs'。\nL806 调用 harness.write_text(_SUPPORT_LIST_HARNESS, encoding='utf-8')。\nL807 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL808 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL809 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL811 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL812 核对 `result['initialTitle'] == '请先选择一个客户会话'`：此条件为假即测试失败；不是生产输入校验。\nL813 核对 `result['classes'] == ['item', 'item']`：此条件为假即测试失败；不是生产输入校验。\nL814 核对 `result['marks'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL815 核对 `result['afterRefresh'] == [None, 'true']`：此条件为假即测试失败；不是生产输入校验。\nL816 核对 `result['meta'] == '客户 · 2026/09/28 09:49'`：此条件为假即测试失败；不是生产输入校验。\nL817 核对 `result['guestTitle'] == '我的留言' and result['loginHidden'] is False`：此条件为假即测试失败；不是生产输入校验。\nL818 核对 `result['opened'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL823 把测试JavaScript多行字面量存入 `_TABS_HARNESS`（1246字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 786,
+          "end": 862,
           "title": "test_login_dialog_marks_the_current_tab",
-          "explanation": "TD-307：Node 真跑 auth.js 源码与产物：open(\"register\") 与两次切换后，当前标签 aria-pressed=\"true\"、另一个 \"false\"，标题同步；base.html 有按它高亮的规则。改前失败（两个标签都没有 aria-pressed）。上方的 _TABS_HARNESS 是它的 Node 桩：假元素记录 setAttribute。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL774 计算右侧并赋给 `harness`：tmp_path / 'tabs.cjs'。\nL775 调用 harness.write_text(_TABS_HARNESS, encoding='utf-8')。\nL776 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL777 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL778 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL780 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL781 核对 `result['register'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL782 核对 `result['login'] == ['true', 'false', '登录']`：此条件为假即测试失败；不是生产输入校验。\nL783 核对 `result['back'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL784 核对 `'.modal .tabs button[aria-pressed=\"true\"] {' in _base_style()`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-307：Node 真跑 auth.js 源码与产物：open(\"register\") 与两次切换后，当前标签 aria-pressed=\"true\"、另一个 \"false\"，标题同步；base.html 有按它高亮的规则。改前失败（两个标签都没有 aria-pressed）。上方的 _TABS_HARNESS 是它的 Node 桩：假元素记录 setAttribute。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL850 计算右侧并赋给 `harness`：tmp_path / 'tabs.cjs'。\nL851 调用 harness.write_text(_TABS_HARNESS, encoding='utf-8')。\nL852 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL853 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL854 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL856 计算右侧并赋给 `result`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL857 核对 `result['register'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL858 核对 `result['login'] == ['true', 'false', '登录']`：此条件为假即测试失败；不是生产输入校验。\nL859 核对 `result['back'] == ['false', 'true', '注册新账号']`：此条件为假即测试失败；不是生产输入校验。\nL860 核对 `'.modal .tabs button[aria-pressed=\"true\"] {' in _base_style()`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 797,
+          "end": 873,
           "title": "test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it",
-          "explanation": "TD-307：窄屏段里导航行有右缘 28px 渐隐（含 -webkit- 前缀）和同宽 ::after 占位，桌面段没有 mask-image。改前失败（没有渐隐）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL791 计算右侧并赋给 `style`：调用 _base_style()。\nL792 计算右侧并赋给 `mobile`：style.split('@media (max-width: 900px) {')[1].split('\\n      }\\n')[0]。\nL793 计算右侧并赋给 `fade`：'linear-gradient(to right, #000 calc(100% - 28px), transparent)'。\nL794 核对 `f'-webkit-mask-image: {fade};' in mobile and f'mask-image: {fade};' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL795 核对 `'header nav::after { content: \"\"; flex: 0 0 28px; }' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL796 计算右侧并赋给 `desktop`：调用 style.replace(mobile, '')。\nL797 核对 `'mask-image' not in desktop`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-307：窄屏段里导航行有右缘 28px 渐隐（含 -webkit- 前缀）和同宽 ::after 占位，桌面段没有 mask-image。改前失败（没有渐隐）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL867 计算右侧并赋给 `style`：调用 _base_style()。\nL868 计算右侧并赋给 `mobile`：style.split('@media (max-width: 900px) {')[1].split('\\n      }\\n')[0]。\nL869 计算右侧并赋给 `fade`：'linear-gradient(to right, #000 calc(100% - 28px), transparent)'。\nL870 核对 `f'-webkit-mask-image: {fade};' in mobile and f'mask-image: {fade};' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL871 核对 `'header nav::after { content: \"\"; flex: 0 0 28px; }' in mobile`：此条件为假即测试失败；不是生产输入校验。\nL872 计算右侧并赋给 `desktop`：调用 style.replace(mobile, '')。\nL873 核对 `'mask-image' not in desktop`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -10907,46 +10927,46 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "a27401684caf924c1aa8536b9c438b8f99741c52e8d41640c41d91fd1b507288",
+      "sha256": "bfac35ca4ea5d19344181640a2cbaae733c21e661c00e0bfba085fb92278ab0a",
       "method": "manual",
       "blocks": [
         {
-          "end": 29,
+          "end": 30,
           "title": "状态与身份标签",
           "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pending[\"refund-request\"]。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pending[\"refund-authorize\"]/pending[\"refund-send\"]和原退款号/全额/客户reason；仍只有内存状态。 新增pending[\"refund-stop\"]，停止与发送不共用幂等key。 加入verificationJobs/pending[\"verification-control\"]及第十一类表单；手输任务ID属于公共清理字段。 第十四批增加第十二类refund-reauthorize表单及仅内存pending[\"refund-reauthorize\"]。 新增第十三类channel-close表单及channelClose/pending[\"channel-close\"]内存状态、close-amount输入。 TD-299：八个 pending 变量合并为一个按表单类型索引的 pending 对象；RESUMABLE 列出可「按原请求体恢复」的八类表单（manual/query/binding/两类退款核验不在其中）。 TD-307：STATE_LABELS / MODE_LABELS 与 orderState(row) 把订单状态和收款渠道显示成「中文（原值）」；只查自有属性（hasOwnProperty.call），未列出的值原样显示，不猜含义。"
         },
         {
-          "end": 56,
+          "end": 57,
           "title": "清屏与旧会话隔离",
           "explanation": "clearDetail清currentRequest/pending[\"refund-request\"]/通知/复核/合同/凭证/金额和所有输入，禁用两个填号按钮并递增视图代次。reset另递增账号/列表代次、abort旧请求，普通用户隐藏工作区；不会因此撤销服务器已经提交的准备。 同时清授权/尝试/客户原因，新账号不继承待发送body；不能取消已发生网络。 清pending[\"refund-stop\"]与stop-view，不把前端清屏当网络取消。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 账户/选单变化清空任务列表、待确认控制、动作选择与最近控制文字。 同时清authorization-history与未知重新授权body，旧账号内容不得回填。 清除关单正文/金额/未知key，跨账号旧响应不得复活。 TD-278：clearDetail 同时隐藏 #finance-detail、显示 #finance-detail-hint（回到「请选择订单」提示）；reset 额外隐藏列表空状态段落。 TD-299：clearDetail 用一句 pending = {} 清空全部未知请求体，不再逐个置空；换单后回到原单也不会复用旧 request_id（submit-switch 场景）。"
         },
         {
-          "end": 70,
+          "end": 71,
           "title": "HTTP与错误归属",
-          "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。"
+          "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 104,
+          "end": 105,
           "title": "订单发现",
           "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。 TD-278：空结果提示改写进列表外的 #finance-list-empty（role=status），不再往 <ul> 的 textContent 里写字 —— 那违反列表结构（axe-core `list`，serious，管理页实测命中）；每次列表刷新先隐藏它。 TD-306：列表按钮 className=\"item\"（base.html 的浅色列表行），文字是「订单号\\n其余信息」，靠 pre-line 分两行，仍只用 textContent；点击先清其他行的 aria-current 再标记本行（setAttribute/removeAttribute 可选调用，测试替身没有这两个方法）。 TD-307：列表第二行的状态与渠道改用 orderState。"
         },
         {
-          "end": 171,
+          "end": 172,
           "title": "冻结合同与收款历史",
           "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 当前任务带snapshot供后续明确确认；latest_control为首次操作展示，匹配原pending key才清除待确认。控件仅当前列表有任务时显示，所有文本以textContent插入。 核验提示按AUTO_RECORD区分允许系统登记或仍待人工；不发POST，不证明worker在线。 成功凭证按recorded_by显示系统非管理员代办/真实人及verification_event_id，继续textContent不拼HTML，首次归属来自服务端而非客户端推断。 新history只用textContent显示有界版本/前版/正文/摘要/首次人/stop，读到原key才清未知请求；reauthorize_allowed只决定显示，非真实权限。 展示最新channel_close为纯文本，允许新动作或仍有pending[\"channel-close\"]时显示，不能把GET/状态变化当自动关单。 TD-278：detail 一开始就显示 #finance-detail、隐藏提示段落（选单前整块隐藏，见模板）。 TD-299：「GET 读到同一 request_id 才清除」统一为 settle(kind, id)；重新授权按历史列表里是否出现该 ID 判断，仍单独写。 TD-307：合同区「状态：」一行改用 orderState，与列表一致。"
         },
         {
-          "end": 302,
+          "end": 303,
           "title": "各表单的校验与请求构造",
           "explanation": "TD-308：DONE 之后是按表单类型索引的 BUILD 表，十三类写操作各有一个构造函数，接收单号与已过公共校验的依据，返回三种结果之一：字符串表示校验失败、由 operate 显示为提示；null 表示静默放弃（例如停止/发送时还没有授权记录）；否则返回 {url, body, summary}。授权、重新授权、发送、停止四类核对相同（原准备号、全额、最多160字依据，授权类另加按 UTF-8 字节计的客户原因），由 refundAttempt(kind) 生成。结果未知的请求统一走 resume(kind, same, fresh)：已有保存的请求体时，same 中每个字段都必须与之相同，否则拒绝并提示；相同就原样返回旧请求体（含原 request_id），没有保存的才调用 fresh() 新建并取新 nonce。各表单比较哪些字段沿用重构前的规则：关单比单号/金额/依据，退款准备比依据与金额，四类授权/发送比整份 base，核验控制比任务/动作/依据，复核比动作/依据。URL 仍逐个写成字面量，每个请求体的字段顺序与原先一致。"
         },
         {
-          "end": 337,
+          "end": 338,
           "title": "显式确认与不可取消的服务端边界",
           "explanation": "operate先核选单/可见/busy、手填单号及无C0/C1控制字符依据。十类显式操作中，refund-request要求全额安全整数与160字依据；未知pending[\"refund-request\"]不许改内容，重试整个原body含原request_id。确认后才保存pending并POST本地准备；成功清pending，失败保留并刷新。复核仍用快照/CAS与稳定nonce；两个退款核验仍按原流水/时间。账号/view变化丢弃结果，后端继续独立授权。 authorize/send另手输原CMR号/全额；reason按TextEncoder最多80字节。两个pending保留完整body阻止改未知请求，授权不连发send；发送确认明确真实转款。send重放键保留以读回；新尝试按钮另明确确认才清键。 stop分支手输原号/全额/单号，传原授权/摘要与停办依据；独立pending[\"refund-stop\"]保留未知body并拒绝修改，明确确认只停新本站尝试，POST只走stop而非send。 verification-control按手输任务ID匹配当前列表，确认框显示原退款号/只暂停此任务/不清零。未知请求保留原body/key/snapshot，修改动作/任务/依据拒绝；503不丢pending，409已知冲突才解除并让人刷新后重确认，成功只说动作已记录。不会POST退款或自动查询。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 reauthorize需原号/全额/客户原因、前版ID/摘要及独立确认；未知body/key冻结，不按新详情悄悄改内容，POST只到reauthorize而不调用send；成功仍须另行发送。 关单独立手动全额与原单确认；pending[\"channel-close\"]固定query/key/body，刷新新query不改旧命令，改未知依据拒绝；取消零POST，同key恢复只读提示。成功清pending再刷新但不自动查微信。 TD-299：确认后 RESUMABLE 内的类型一律 pending[kind] = body；成功后除 refund-send 外都删除（发送保留键，再点只读回同一尝试，submit-resend 场景守住）；成功提示从长三元表达式改为 DONE 查表，文案未变。 TD-308：各类表单的专属校验与请求体已移到上方 BUILD 表；operate 只做选单/可见/busy 与手填单号、3–500 字依据的公共校验，然后调用 BUILD[kind]，再走确认、保存 pending、POST、结算这条共用流程。以上各分支描述的规则不变。"
         },
         {
-          "end": 362,
+          "end": 363,
           "title": "事件入口",
           "explanation": "request-prefill仅当前管理员/有效prepared/非busy/可见区时填查询号，不提交或代填依据。通知填号保持原规则。登录/查询/分页/刷新/十表单事件统一绑定；切账号重置后只为新管理员读取。 send-new-attempt只清内存发送key，不POST；隐藏/非管理员/busy不操作，服务器仍检查60秒和既有观察。 TD-299：send-new-attempt 改为 delete pending[\"refund-send\"]。"
         }
