@@ -3,14 +3,16 @@
 <style>
   .mock-banner{background:#fff3cd;border:2px solid #d39e00;color:#663c00;padding:12px 16px;
     border-radius:8px;font-weight:700;margin-bottom:20px}
-  .mock-box{max-width:520px;margin:0 auto;padding:24px;border:1px solid #ddd;border-radius:10px}
-  .mock-box code{background:#f4f4f4;padding:2px 6px;border-radius:4px;word-break:break-all}
+  .mock-box{max-width:520px;margin:0 auto;padding:24px;border:1px solid #e2e8f0;border-radius:10px}
+  .mock-box code{background:#f1f5f9;padding:2px 6px;border-radius:4px;word-break:break-all}
   #pay{margin-top:16px;padding:10px 22px;font-size:16px;cursor:pointer;border-radius:6px;
     border:1px solid #d39e00;background:#ffc107}
-  #out{white-space:pre-wrap;font-size:14px;color:#555;margin-top:16px}
+  #out{white-space:pre-wrap;font-size:var(--fs-small);color:#475569;margin-top:16px}
+  /* 点击之前没有输出：空的 pre 会带着全站 pre 的底色和边框显示成一个空灰框（TD-317） */
+  #out:empty{display:none}
   #pay:disabled{background:#cbd5e1;border-color:#cbd5e1;color:#334155;cursor:not-allowed}
   #back{margin-top:16px}
-  .mock-title{font-size:24px;margin:0 0 12px}
+  .mock-title{margin:0 0 12px}  /* 字号跟随全站 h2（--fs-title） */
   #back a.cta{display:inline-block;padding:8px 18px;border-radius:6px;background:#15803d;color:#fff;font-weight:600}
 </style>
 <section class="mock-box">

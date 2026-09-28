@@ -138,7 +138,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `1a3215a84027` | L1–L873 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `651a9f70f98d` | L1–L922 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -391,3 +391,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-28 流程图页未保存改动（TD-316）
 
 - `test_drawio_unsaved_changes.py`：Node 真跑 `drawio-page.js`（源码与产物），检查打开、新建、导入、移到回收站前的询问与取消，保存、下载、保存期间又改、打开失败、换账号时「未保存」的变化，以及 `beforeunload`。
+
+## 2026-09-28 第二轮截图复核（TD-317）
+
+- `test_ui_accessibility.py` 末尾五条：待支付态标题、标题字号阶梯（h2/h3 元素规则、模拟收银台与授权页不再写死字号）、空框隐藏、窄屏页脚行距规则的顺序、授权页回调地址可换行。`test_shop_order_number_in_headings_can_wrap` 改为钉住订单号在可换行的 `.muted` 行里。

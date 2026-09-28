@@ -13,12 +13,15 @@
   .faq dd { margin: 2px 0 0; color: #475569; }
   .pay { text-align: center; padding: 20px 0; }
   .pay .qr { display: inline-block; padding: 10px; border: 1px solid #e2e8f0; border-radius: 8px; }
+  /* 没有收款码时（mock 模式只给收银台链接、或尚未渲染）不画空框：截图里是一个孤零零的小方块（TD-317） */
+  .pay .qr:empty { display: none; }
   /* segno 出的 SVG 默认宽高是模块数（37×37），必须放大，否则只有指甲盖大 */
   .pay .qr svg { width: 220px; height: 220px; display: block; }
   .muted { color: #64748b; }
   .warn { color: #b45309; background: #fffbeb; border: 1px solid #fde68a;
           border-radius: 6px; padding: 8px 12px; margin: 10px 0; }
   .history { margin-top: 22px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+  .history h3 { margin: 8px 0; }
   /* 订单列表项用 base.html 的 button.item 列表行样式（一条一行、长订单号可换行），这里只管间距 */
   #order-history button { margin: 6px 0; }
   /* 标题与说明里的 28 位订单号没有空格，不能换行时会把整页撑宽（TD-306：登录后 390px 实测页面宽 418px） */
@@ -78,7 +81,10 @@
   <section id="st-closed" hidden><h2>订单已关闭</h2><p class="muted">订单 <span id="x-no"></span></p><p>该订单尚未确认付款，不能下载。如已付款，请通过站内客服核对。</p></section>
   <!-- ② 待支付态 -->
   <section id="st-pending" class="pay" hidden>
-    <h2>订单 <span id="p-no"></span></h2>
+    <!-- 与支付成功、已关闭两态一致：标题说状态，订单号放在下面的灰字行。原来 28 位订单号在 24px 粗体标题里，
+         390px 宽要折成三行，比「正在等待支付」和付款按钮还显眼（TD-317）。 -->
+    <h2>等待支付</h2>
+    <p class="muted">订单 <span id="p-no"></span></p>
     <p class="muted" id="p-tip">正在等待支付…（每 3 秒自动查一次）</p>
     <div class="qr" id="p-qr"></div>
     <p id="p-link"></p>

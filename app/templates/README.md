@@ -25,15 +25,15 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `95808b92e7da` | L1–L266 |
+| [`app/templates/base.html`](base.html) | `a43c79902b68` | L1–L274 |
 | [`app/templates/drawio.html`](drawio.html) | `c47bd70936d8` | L1–L47 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
-| [`app/templates/mock_pay.html`](mock_pay.html) | `88953f7ff9be` | L1–L30 |
-| [`app/templates/oauth_consent.html`](oauth_consent.html) | `820d64cf6c89` | L1–L22 |
+| [`app/templates/mock_pay.html`](mock_pay.html) | `cbc2de375cf3` | L1–L32 |
+| [`app/templates/oauth_consent.html`](oauth_consent.html) | `db8d977abafa` | L1–L23 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `6348afa5d6fc` | L1–L169 |
-| [`app/templates/shop.html`](shop.html) | `ca3e287b61ae` | L1–L116 |
+| [`app/templates/shop.html`](shop.html) | `69fe791c95a0` | L1–L122 |
 | [`app/templates/support-center.html`](support-center.html) | `954df4986259` | L1–L55 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -160,3 +160,13 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 - **登录浮层当前标签**：`.modal .tabs button[aria-pressed="true"]` 浅蓝底、加粗、底部 3px 色条；`aria-pressed` 由 `auth.js` 的 `setMode` 设置。原来「登录 / 注册」两个标签外观相同。
 - **手机导航可滚动提示**：900px 以下导航行加右缘 28px 渐隐（`mask-image`，含 `-webkit-` 前缀），末尾 `header nav::after` 占同宽，滑到最右时最后一个链接完整可读。原有 `header nav { grid-column … }` 规则未动；旧内核不支持 mask 时只是没有渐隐。
 - 管理页状态文字见 `app/frontend/README.md` 同日一节。
+
+## 2026-09-28 第二轮截图复核（TD-317）
+
+- **标题字号**：`base.html` 新增 `--fs-subtitle`（17px），没写样式的 `h2` 用 `--fs-title`、`h3` 用 `--fs-subtitle`（元素选择器，页面里有样式的标题照常覆盖）。`mock_pay.html` 标题不再写死 24px，`oauth_consent.html` 标题改用 `page-heading`。
+- **`shop.html` 待支付态**：标题「等待支付」，订单号放到下面的 `.muted` 行（与支付成功、已关闭两态一致）；`.pay .qr:empty` 隐藏，mock 模式不再显示空的收款码框。
+- **`mock_pay.html`**：`#out:empty` 隐藏（点击之前不显示空灰框）；灰色改用站内同一组。
+- **页脚**：窄屏 `footer .fnav { row-gap: 0; }`，行距只靠链接的触控内边距。这条必须写在 `footer .fnav` 规则之后。
+- **`oauth_consent.html`**：回调地址行加 `overflow-wrap: anywhere`，长 URL 不再越过卡片右边框。
+
+截图环境：完整的 Noto Sans SC TTF（npm `@expo-google-fonts/noto-sans-sc`）复制到 `/tmp/fonts`，页面里用 `local()` 以 "Microsoft YaHei" 名义引用。TD-306 的 data URI 子集做法会缺字，详见 TD-317。回归见 `tests/test_ui_accessibility.py` 末尾 TD-317 一组。

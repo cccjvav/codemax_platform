@@ -21,7 +21,7 @@
          --edge 让顶栏、正文、页脚在宽屏上对齐到同一条 1440px 版心，窄屏退回 --gutter 边距。 */
       /* --control-border（TD-306）：输入框边框是辨认控件的唯一线索，WCAG 1.4.11 要求与背景 ≥3:1。
          原来的 #cbd5e1 在白底上只有 1.48:1；#7d8ca3 在白底 3.41:1、#f8fafc 浅底 3.26:1。 */
-      :root { --fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px; --control-border: #7d8ca3;
+      :root { --fs-body: 15px; --fs-small: 14px; --fs-xs: 13px; --fs-title: 22px; --fs-subtitle: 17px; --control-border: #7d8ca3;
               --gutter: 24px; --page-max: 1440px;
               --edge: max(var(--gutter), calc((100% - var(--page-max)) / 2)); }
       /* `hidden` 是 UA 样式里的 display:none，任何作者写的 display 规则都会盖掉它 ——
@@ -47,6 +47,11 @@
       /* 各页可见的页面级标题（TD-272）。此前只有 drawio.html 自己写了这条样式，
          ER / Mermaid 页落回浏览器默认 h2（约 21px + 大外边距），三个工具页标题大小不一。 */
       .page-heading { margin: 0 0 12px; font-size: var(--fs-title); line-height: 1.35; }
+      /* 没写样式的 h2 / h3 也落在字号阶梯上（TD-317）。截图实测商城状态区的 h2 是浏览器默认 1.5em
+         （正文 15px 时 22.5px、手机 16px 时 24px，随正文变），「我的订单」和客服页的 h3 是默认 1.17em（17.55 / 18.72px）。
+         元素选择器特异性最低，.card h2、.modal h2、.box h3、管理页 section h2 等页面规则照常覆盖。 */
+      h2 { font-size: var(--fs-title); line-height: 1.35; }
+      h3 { font-size: var(--fs-subtitle); line-height: 1.4; }
       /* 跳过导航（WCAG 2.4.1）：键盘/读屏用户不必每次穿过顶栏与页脚导航。
          视觉上隐藏，聚焦时才出现 —— 用绝对定位而不是 display:none，后者收不到焦点。 */
       .skip { position: absolute; left: -9999px; top: 0; background: #fff; border: 1px solid #2563eb;
@@ -77,6 +82,9 @@
       }
       footer { border-top: 1px solid #e2e8f0; padding: 14px var(--edge); color: #64748b; font-size: var(--fs-small); }
       footer .fnav { display: flex; gap: 14px; flex-wrap: wrap; margin-bottom: 6px; }
+      /* 窄屏页脚链接已有上下 8px 内边距（触控区），行间再加 14px 的 gap，390px 截图里两行链接之间空出约 30px。
+         行距交给内边距，只保留列间距（TD-317）。必须写在上一条之后，否则会被它的 gap 盖掉。 */
+      @media (max-width: 900px) { footer .fnav { row-gap: 0; } }
       /* details 的折叠标题同样可点：窄屏实测 22px 高，低于 WCAG 2.2 AA 的 24×24。 */
       summary { padding: 6px 0; }
       .split { display: grid; grid-template-columns: 400px minmax(0, 1fr); gap: 20px; }

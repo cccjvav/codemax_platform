@@ -1,13 +1,14 @@
 {% extends "base.html" %}
 {% block content %}
 <section style="max-width: 520px; margin: 40px auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 8px;">
-  <h2 style="margin: 0 0 12px; font-size: 20px;">{{ client_name }} 请求访问你的账号</h2>
+  <h2 class="page-heading">{{ client_name }} 请求访问你的账号</h2>
   <p>当前登录：<strong>{{ username }}</strong></p>
   <p style="color: #64748b;">
     同意后，该应用可以代表你访问本站的受保护资源（单点登录）。
     它<strong>拿不到</strong>你的密码。
   </p>
-  <p style="color: #64748b; font-size: 14px;">回调地址：<code>{{ redirect_uri }}</code></p>
+  {# 回调地址是一整串没有空格的 URL，手机上不能换行会把卡片撑破（TD-317） #}
+  <p style="color: #64748b; font-size: var(--fs-small); overflow-wrap: anywhere;">回调地址：<code>{{ redirect_uri }}</code></p>
   {# 纯表单，无脚本；auth_ui=False 同时关闭 base.html 登录脚本。
      当前 script-src 不允许 unsafe-inline；内联样式是另一条 style-src 策略。 #}
   <form method="post" action="/oauth/authorize" style="display: flex; gap: 8px; margin-top: 16px;">

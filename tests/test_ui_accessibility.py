@@ -735,7 +735,8 @@ def test_shop_order_number_in_headings_can_wrap():
     """登录后有待付款订单时，标题「订单 CM…」里 28 位订单号不能换行，390px 实测整页被撑到 418px 宽。"""
     html = SHOP.read_text(encoding="utf-8")
     assert ".shop h2, .shop .muted { overflow-wrap: anywhere; }" in html
-    assert '<h2>订单 <span id="p-no"></span></h2>' in html
+    # TD-317：待支付态的订单号从标题移到 .muted 行（与支付成功、已关闭两态一致），仍在可换行的元素里。
+    assert '<p class="muted">订单 <span id="p-no"></span></p>' in html
 
 
 def test_list_rows_are_not_primary_buttons_and_mark_the_current_item():
@@ -871,3 +872,51 @@ def test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it():
     assert 'header nav::after { content: ""; flex: 0 0 28px; }' in mobile
     desktop = style.replace(mobile, "")
     assert "mask-image" not in desktop, "渐隐只用于窄屏的横向滚动导航"
+
+
+# ---------------------------------------------------------------- TD-317：第二轮截图复核（字号阶梯、空框、页脚行距、回调地址）
+
+
+def test_pending_order_heading_states_the_status_not_the_order_number():
+    """待支付态的标题原来是「订单 + 28 位订单号」，24px 粗体在 390px 宽折成三行，比状态和付款按钮还显眼。"""
+    pending = SHOP.read_text(encoding="utf-8").split('<section id="st-pending"')[1].split("</section>")[0]
+    assert "<h2>等待支付</h2>" in pending
+    assert 'id="p-no"' in pending and "<h2>订单" not in pending
+
+
+def test_unstyled_headings_follow_the_type_scale():
+    """截图实测：商城状态区 h2 是浏览器默认 1.5em（22.5 / 24px），「我的订单」和客服页 h3 是默认 1.17em
+    （17.55 / 18.72px），模拟收银台标题写死 24px，授权页标题写死 20px —— 同一站点的标题有五六种大小。"""
+    style = _base_style()
+    assert "--fs-subtitle: 17px;" in style
+    assert "h2 { font-size: var(--fs-title); line-height: 1.35; }" in style
+    assert "h3 { font-size: var(--fs-subtitle); line-height: 1.4; }" in style
+    mock = (ROOT / "app" / "templates" / "mock_pay.html").read_text(encoding="utf-8")
+    assert not re.search(r"\.mock-title\{[^}]*font-size", mock), "模拟收银台标题应跟随全站 h2"
+    consent = (ROOT / "app" / "templates" / "oauth_consent.html").read_text(encoding="utf-8")
+    assert '<h2 class="page-heading">' in consent
+    assert not re.search(r"font-size:\s*\d+px", consent), "授权页不再写死像素字号"
+
+
+def test_empty_status_boxes_are_not_drawn():
+    """mock 模式没有收款码，待支付页出现一个带边框的空小方块；模拟收银台点击之前，
+    空的输出 pre 带着全站 pre 的底色和边框显示成一个空灰框。"""
+    assert ".pay .qr:empty { display: none; }" in SHOP.read_text(encoding="utf-8")
+    assert "#out:empty{display:none}" in (ROOT / "app" / "templates" / "mock_pay.html").read_text(encoding="utf-8")
+
+
+def test_mobile_footer_rows_are_spaced_by_padding_only():
+    """窄屏页脚链接已有上下 8px 内边距，行间再加 14px gap，两行之间空出约 30px。行距只留给内边距；
+    覆盖规则必须排在 footer .fnav 的 gap 之后，否则被它盖掉。"""
+    style = _base_style()
+    base_rule = style.index("footer .fnav { display: flex; gap: 14px;")
+    override = style.index("@media (max-width: 900px) { footer .fnav { row-gap: 0; } }")
+    assert override > base_rule
+
+
+def test_oauth_redirect_uri_wraps_inside_the_card():
+    """回调地址是一整串没有空格的 URL；390px 截图里它越过授权卡片右边框（页面没变宽，所以查不出横向滚动）。"""
+    consent = (ROOT / "app" / "templates" / "oauth_consent.html").read_text(encoding="utf-8")
+    line = next(x for x in consent.splitlines() if "{{ redirect_uri }}</code>" in x)
+    assert "overflow-wrap: anywhere" in line
+
