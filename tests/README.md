@@ -140,7 +140,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `f55250993601` | L1–L797 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
-| [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `f50d6a23e17e` | L1–L548 |
+| [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `455b17c78af6` | L1–L475 |
 | [`tests/test_wechat_pay.py`](test_wechat_pay.py) | `7bcab7a5bf99` | L1–L305 |
 | [`tests/test_word_export.py`](test_word_export.py) | `8bfbb5850a11` | L1–L108 |
@@ -358,3 +358,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-28 模拟收银台失败提示（TD-309）
 
 - `test_mock_pay.py` 新增 `test_mock_pay_page_failure_text_uses_the_shared_error_wording`：Node 假 DOM 跑页面脚本的源码与产物，errorText 从 auth.js 源码中取真实实现；五种应答（字符串 detail、校验错误数组、非 JSON 502、auth.js 缺席、401）断言提示全文、按钮恢复、返回链接隐藏、只发一次请求。原写法下前四种失败。
+
+## 2026-09-28 账单解析按表头名取列（TD-311）
+
+- `test_wechat_bills.py::test_strict_parser_rejects_bad_or_ambiguous_whole_file` 新增 `duplicate-payment-id`、`duplicate-refund-id`、`payment-coupon-refund`：只重复微信侧标识、付款行带充值券退款金额。原有的两个重复用例是整行相同，去掉任一标识的去重都不会失败。
+- 新增 `test_column_numbers_come_from_unique_header_names`：表头名不重复，`TOTAL_COLUMNS` 正好指向 `AMOUNT_NAMES`。

@@ -175,7 +175,8 @@ async def test_overall_deadline(monkeypatch):
         await bills.fetch_bill(CFG, DAY, transport=httpx.MockTransport(handler))
 
 
-@pytest.mark.parametrize('kind', ['header', 'old-format', 'footer', 'extra-row', 'truncated', 'count', 'sum', 'prefix', 'column', 'duplicate-payment', 'duplicate-refund', 'nul', 'utf8', 'money-float', 'negative', 'date', 'merchant', 'submerchant', 'refund-zero', 'refund-state', 'payment-refund-id'])
+@pytest.mark.parametrize('kind', ['header', 'old-format', 'footer', 'extra-row', 'truncated', 'count', 'sum', 'prefix', 'column', 'duplicate-payment', 'duplicate-refund',
+                                  'duplicate-payment-id', 'duplicate-refund-id', 'payment-coupon-refund', 'nul', 'utf8', 'money-float', 'negative', 'date', 'merchant', 'submerchant', 'refund-zero', 'refund-state', 'payment-refund-id'])
 def test_strict_parser_rejects_bad_or_ambiguous_whole_file(kind):
     raw = raw_bill(row())
     replacements = {'header': ('交易时间,', '错误时间,'), 'old-format': ('应结订单金额', '总金额'),
@@ -196,6 +197,14 @@ def test_strict_parser_rejects_bad_or_ambiguous_whole_file(kind):
         raw = raw_bill(row(), row())
     elif kind == 'duplicate-refund':
         raw = raw_bill(refund(), refund())
+    # TD-311 补：上面两种是整行相同、两个标识都重复；下面各只重复一个标识。
+    # 此前只按商户单号去重也能让全部用例通过，漏掉的是微信侧标识重复。
+    elif kind == 'duplicate-payment-id':
+        raw = raw_bill(row(), row(**{'商户订单号': 'ORDER_2'}))
+    elif kind == 'duplicate-refund-id':
+        raw = raw_bill(refund(), refund(**{'商户退款单号': 'REFUND_2'}))
+    elif kind == 'payment-coupon-refund':  # 付款行不能带充值券退款金额（汇总仍一致，只能靠逐行检查拒绝）
+        raw = raw_bill(row(**{'充值券退款金额': '1.00'}))
     elif kind == 'utf8':
         raw += b'\xff'
     elif kind == 'refund-zero':
@@ -546,3 +555,11 @@ async def test_full_cli_pipeline_on_complete_disposable_pg(tmp_path, monkeypatch
         await test_engine.dispose()
     finally:
         await asyncio.to_thread(server.cleanup)
+
+
+def test_column_numbers_come_from_unique_header_names():
+    """TD-311：列号由 DETAIL_HEADER.index(表头名) 得出，前提是表头名不重复（index 只返回第一个）；
+    TOTAL_COLUMNS 必须正好指向 AMOUNT_NAMES 这六列，顺序相同。"""
+    assert len(set(bills.DETAIL_HEADER)) == len(bills.DETAIL_HEADER)
+    assert [bills.DETAIL_HEADER[i] for i in bills.TOTAL_COLUMNS] == list(bills.AMOUNT_NAMES)
+    assert len(bills.AMOUNT_NAMES) == len(bills.TOTAL_HEADER) - 1  # 尾部第一列是总笔数

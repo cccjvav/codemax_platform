@@ -1471,3 +1471,33 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 11 处 `try: … except BaseException: await db.rollback(); raise`：3 行、写法清楚；换成上下文管理器要给 11 段资金代码整体缩进，收益只是形式。
 - `NO_CONTROL_CHARS` / `EvidenceIn` 仍在 `shop.py`：TD-294 为了不新增依赖方向特意放在这里，挪走只是把方向倒过来。
 - `payment_review.review_states`：密但只是一条流程（批量查询 → 指纹 → 状态），指纹格式与已保存的复核快照绑定，拆开收益小。
+
+## TD-311：微信账单解析按表头名取列，不再手写列号
+
+**状态**：已实施（2026-09-28），优化阶段重构批次。
+
+**问题**：`wechat_bills.parse_bill` 的每条校验都用裸数字取列，有两层编号：
+- `cells[2]`、`cells[9]`、`cells[14:16]`、`any(cells[i] for i in (18, 19))` 是 27 列明细表头里的位置；
+- `amounts[4]`、`amounts[5]` 是 `TOTAL_COLUMNS = (12, 16, 17, 22, 24, 25)` 这个元组里的位置，即订单金额和申请退款金额。
+
+要确认「付款行不能带退款字段」这类条件是否写对，得对着表头元组数两遍位置。这是对账用的资金解析器。
+
+**决定**：
+- 新增 `_Col` 命名空间，列号一律写成 `DETAIL_HEADER.index('表头名')`，只收录解析时真正读取的 15 列。表头常量若被改动，名字对不上会在导入时抛 `ValueError`，不会悄悄错位。
+- 六个金额列由 `AMOUNT_NAMES` 按名字给出，`TOTAL_COLUMNS` 由它生成：名字和取值都不变，测试用它独立求和。
+- 每行的六个金额拆成 `settlement`、`refunded`、`coupon_refunded`、`_fee`、`order_total`、`refund_applied` 六个变量。付款行条件因此读作 `order_total <= 0 or refunded or coupon_refunded or refund_applied or (refund_id, out_refund_no) != ('0', '0') or …`。
+- 校验顺序、报错文字、`BillRow` 字段都不变。
+
+**证据**：
+- 生成的列号与原来手写的逐一相同（0、1、2、3、5、6、8、9、11、13、14、15、18、19、22），`TOTAL_COLUMNS` 仍是 `(12, 16, 17, 22, 24, 25)`。
+- 差分测试：新旧两版解析器各跑 4 万份随机变异的账单（用测试里的造单函数，随机替换单元格为空串、零、负数、各状态值、超长标识、别的商户和日期等），解析结果或报错文字逐份一致。成功路径和 11 种报错都触发过，其中「重复标识」1747 次。
+- 变异检查：交换 `order_total` / `refund_applied` 的拆包顺序，24 个用例失败；手续费不按有符号解析，7 个失败。但以下三种**没有用例失败**，在重构前的代码上做等价改动也一样：
+  - 付款去重只看商户订单号、不看微信订单号；
+  - 退款去重只看商户退款单号、不看微信退款单号；
+  - 付款行允许带充值券退款金额。
+
+  原有两个重复用例都是整行相同，两个标识同时重复。
+
+**测试**：
+- `test_strict_parser_rejects_bad_or_ambiguous_whole_file` 新增 `duplicate-payment-id`、`duplicate-refund-id`、`payment-coupon-refund` 三种，分别在上述变异下失败，在重构前的代码上也通过。
+- 新增 `test_column_numbers_come_from_unique_header_names`：钉住表头名不重复（`index` 只返回第一个），以及 `TOTAL_COLUMNS` 正好指向 `AMOUNT_NAMES` 六列。

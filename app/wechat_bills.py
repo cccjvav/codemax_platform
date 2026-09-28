@@ -27,7 +27,30 @@ DEADLINE = 45
 DOWNLOAD_PATHS = ('/v3/billdownload/file', '/v3/bill/downloadurl')
 DETAIL_HEADER = ('交易时间', '公众账号ID', '商户号', '特约商户号', '设备号', '微信订单号', '商户订单号', '用户标识', '交易类型', '交易状态', '付款银行', '货币种类', '应结订单金额', '代金券金额', '微信退款单号', '商户退款单号', '退款金额', '充值券退款金额', '退款类型', '退款状态', '商品名称', '商户数据包', '手续费', '费率', '订单金额', '申请退款金额', '费率备注')
 TOTAL_HEADER = ('总交易单数', '应结订单总金额', '退款总金额', '充值券退款总金额', '手续费总金额', '订单总金额', '申请退款总金额')
-TOTAL_COLUMNS = (12, 16, 17, 22, 24, 25)
+# 逐行累加、再与尾部汇总比对的六个金额列，顺序与 TOTAL_HEADER[1:] 一一对应（手续费可为负）。
+# 列号按表头名取（TD-311）；测试用 TOTAL_COLUMNS 独立求和，名字与取值都不变。
+AMOUNT_NAMES = ('应结订单金额', '退款金额', '充值券退款金额', '手续费', '订单金额', '申请退款金额')
+TOTAL_COLUMNS = tuple(DETAIL_HEADER.index(name) for name in AMOUNT_NAMES)
+
+
+class _Col:
+    """明细行里用到的列号，一律按表头名取（TD-311）：读校验条件时不必对着 27 列表头数位置；
+    表头若被改动，名字对不上会在导入时直接抛 ValueError，不会悄悄错位。"""
+    TIME = DETAIL_HEADER.index('交易时间')
+    APPID = DETAIL_HEADER.index('公众账号ID')
+    MCHID = DETAIL_HEADER.index('商户号')
+    SUB_MCHID = DETAIL_HEADER.index('特约商户号')
+    TRANSACTION_ID = DETAIL_HEADER.index('微信订单号')
+    ORDER_NO = DETAIL_HEADER.index('商户订单号')
+    TRADE_TYPE = DETAIL_HEADER.index('交易类型')
+    STATE = DETAIL_HEADER.index('交易状态')
+    CURRENCY = DETAIL_HEADER.index('货币种类')
+    COUPON = DETAIL_HEADER.index('代金券金额')
+    REFUND_ID = DETAIL_HEADER.index('微信退款单号')
+    OUT_REFUND_NO = DETAIL_HEADER.index('商户退款单号')
+    REFUND_TYPE = DETAIL_HEADER.index('退款类型')
+    REFUND_STATE = DETAIL_HEADER.index('退款状态')
+    FEE = DETAIL_HEADER.index('手续费')
 
 
 class BillError(Exception):
@@ -186,43 +209,47 @@ def parse_bill(raw: bytes, *, day: date, merchant_id: str) -> Bill:
     for number, line in enumerate(lines[1:-2], 2):
         cells = _cells(line, len(DETAIL_HEADER))
         try:
-            at = datetime.strptime(cells[0], '%Y-%m-%d %H:%M:%S').replace(tzinfo=BILL_ZONE)
-            if at.strftime('%Y-%m-%d %H:%M:%S') != cells[0] or at.date() != day:
+            at = datetime.strptime(cells[_Col.TIME], '%Y-%m-%d %H:%M:%S').replace(tzinfo=BILL_ZONE)
+            if at.strftime('%Y-%m-%d %H:%M:%S') != cells[_Col.TIME] or at.date() != day:
                 raise ValueError
         except ValueError:
             raise BillError('账单交易日期无效或不属于指定日') from None
-        if cells[2] != merchant_id or cells[3] != '0':
+        if cells[_Col.MCHID] != merchant_id or cells[_Col.SUB_MCHID] != '0':
             raise BillError('账单商户或普通直连商户身份不符')
-        if cells[9] not in ('SUCCESS', 'REFUND', 'REVOKED'):
+        state = cells[_Col.STATE]
+        if state not in ('SUCCESS', 'REFUND', 'REVOKED'):
             raise BillError('账单交易状态未知')
-        for index in (1, 5, 6):
+        for index in (_Col.APPID, _Col.TRANSACTION_ID, _Col.ORDER_NO):
             if not re.fullmatch(r'[A-Za-z0-9_\-|*@.]{1,64}', cells[index]):
                 raise BillError('账单身份字段无效')
-        if not re.fullmatch(r'[A-Z]{3}', cells[11]) or not cells[8]:
+        if not re.fullmatch(r'[A-Z]{3}', cells[_Col.CURRENCY]) or not cells[_Col.TRADE_TYPE]:
             raise BillError('账单币种或交易类型无效')
-        amounts = [_money(cells[index], signed=index == 22) for index in TOTAL_COLUMNS]
-        _money(cells[13])  # Coupon amount is not the contract total.
+        amounts = [_money(cells[index], signed=index == _Col.FEE) for index in TOTAL_COLUMNS]
+        _money(cells[_Col.COUPON])  # Coupon amount is not the contract total.
         for index, amount in enumerate(amounts):
             totals[index] += amount
-        state = cells[9]
+        settlement, refunded, coupon_refunded, _fee, order_total, refund_applied = amounts
+        refund_id, out_refund_no = cells[_Col.REFUND_ID], cells[_Col.OUT_REFUND_NO]
         if state == 'SUCCESS':
-            if amounts[4] <= 0 or any(amounts[i] for i in (1, 2, 5)) or cells[14:16] != ['0', '0'] or any(cells[i] for i in (18, 19)):
+            if (order_total <= 0 or refunded or coupon_refunded or refund_applied
+                    or (refund_id, out_refund_no) != ('0', '0') or cells[_Col.REFUND_TYPE] or cells[_Col.REFUND_STATE]):
                 raise BillError('付款行夹带退款字段或金额无效')
-            identities = (('payment_no', cells[6]), ('payment_id', cells[5]))
+            identities = (('payment_no', cells[_Col.ORDER_NO]), ('payment_id', cells[_Col.TRANSACTION_ID]))
         else:
-            if amounts[0] or amounts[4] or amounts[5] <= 0:
+            if settlement or order_total or refund_applied <= 0:
                 raise BillError('退款/撤销行的订单金额或申请退款金额无效')
-            for index in (14, 15):
-                if not re.fullmatch(r'[A-Za-z0-9_\-|*@.]{1,64}', cells[index]):
+            for value in (refund_id, out_refund_no):
+                if not re.fullmatch(r'[A-Za-z0-9_\-|*@.]{1,64}', value):
                     raise BillError('账单退款身份字段无效')
-            if cells[19] not in ('SUCCESS', 'PROCESSING', 'FAIL', 'CHANGE') or not cells[18]:
+            if cells[_Col.REFUND_STATE] not in ('SUCCESS', 'PROCESSING', 'FAIL', 'CHANGE') or not cells[_Col.REFUND_TYPE]:
                 raise BillError('账单退款快照状态无效')
-            identities = (('refund_no', cells[15]), ('refund_id', cells[14]))
+            identities = (('refund_no', out_refund_no), ('refund_id', refund_id))
         if any(identity in seen for identity in identities):
             raise BillError('账单包含重复付款或退款标识')
         seen.update(identities)
-        rows.append(BillRow(number, at, cells[1], cells[5], cells[6], cells[8], state, cells[11],
-                            amounts[4], cells[14], cells[15], amounts[5], cells[19]))
+        rows.append(BillRow(number, at, cells[_Col.APPID], cells[_Col.TRANSACTION_ID], cells[_Col.ORDER_NO],
+                            cells[_Col.TRADE_TYPE], state, cells[_Col.CURRENCY], order_total,
+                            refund_id, out_refund_no, refund_applied, cells[_Col.REFUND_STATE]))
     footer = _cells(lines[-1], len(TOTAL_HEADER))
     if not re.fullmatch(r'[0-9]{1,8}', footer[0]):
         raise BillError('账单总笔数无效')

@@ -139,7 +139,7 @@ pending → closed → paid
 | [`app/startup_checks.py`](startup_checks.py) | `cb2e081a4545` | L1–L160 |
 | [`app/storage.py`](storage.py) | `9e9d10602f79` | L1–L124 |
 | [`app/timeutil.py`](timeutil.py) | `63bad13bfe2e` | L1–L19 |
-| [`app/wechat_bills.py`](wechat_bills.py) | `06ee7811c473` | L1–L232 |
+| [`app/wechat_bills.py`](wechat_bills.py) | `a1abd9c07ad8` | L1–L259 |
 | [`app/wechat_pay.py`](wechat_pay.py) | `c874e73c7a0d` | L1–L476 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
@@ -287,3 +287,8 @@ wechat_pay.close_order签POST固定out-trade-no路径和mchid JSON；_request_js
 - `bill_reconcile._verify_migrations`：`ledger_ready`（联网前预检）与 `snapshot(check_schema=True)`（快照事务内复核）共用的迁移台账校验。
 - `bill_reconcile._payment_code`：一行成功付款的差异判定（纯函数，第一个不满足的检查即结论），从 `compare` 的循环里抽出，逻辑未改。
 
+## 2026-09-28：账单解析按表头名取列（TD-311）
+
+- `wechat_bills._Col`：`parse_bill` 读取的 15 个明细列号，每个都写成 `DETAIL_HEADER.index('表头名')`；表头改动时名字对不上会在导入时报错。
+- `wechat_bills.AMOUNT_NAMES`：逐行累加、与尾部汇总比对的六个金额列名，`TOTAL_COLUMNS` 由它生成（取值不变）。
+- `parse_bill` 里六个金额拆成 `settlement` / `refunded` / `coupon_refunded` / `_fee` / `order_total` / `refund_applied`；校验顺序、报错文字、`BillRow` 字段不变。

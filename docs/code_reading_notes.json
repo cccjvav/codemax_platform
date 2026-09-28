@@ -13299,63 +13299,68 @@
     },
     {
       "path": "app/wechat_bills.py",
-      "sha256": "06ee7811c473c1b2cb0103ee30c44824b23a147ed2ab83040fb1288cf0ef09e0",
+      "sha256": "a1abd9c07ad872e83f7d699d241d8edcd8a0b23d6f96a82381aabc93cf7c0fc2",
       "method": "manual",
       "blocks": [
         {
-          "end": 32,
+          "end": 35,
           "title": "模块装配、输入来源与边界",
-          "explanation": "只处理普通直连商户现代ALL格式，标准库负责哈希/定点/时间/URL，HTTPX负责有界网络；PayConfig只在类型检查时导入，纯解析和CLI帮助不触发Settings。UTC+8、4MiB、5000行、45秒和两个官方路径是明确的保守边界，不是运行者时区或任意下载源。27列/7项汇总及6个金额索引逐项来自官方字段说明，后续变更必须连同反例和文档评审。"
+          "explanation": "只处理普通直连商户现代ALL格式，标准库负责哈希/定点/时间/URL，HTTPX负责有界网络；PayConfig只在类型检查时导入，纯解析和CLI帮助不触发Settings。UTC+8、4MiB、5000行、45秒和两个官方路径是明确的保守边界，不是运行者时区或任意下载源。27列/7项汇总及6个金额索引逐项来自官方字段说明，后续变更必须连同反例和文档评审。 TD-311：六个金额列改由 AMOUNT_NAMES 按表头名给出，TOTAL_COLUMNS 由它生成（取值仍是 12、16、17、22、24、25）。"
         },
         {
-          "end": 36,
+          "end": 55,
+          "title": "_Col",
+          "explanation": "TD-311：parse_bill 用到的明细列号集中在这里，每个都写成 DETAIL_HEADER.index('表头名')，名字就是官方表头原文。读校验条件时看到的是 cells[_Col.MCHID]、cells[_Col.REFUND_STATE]，不必再对着 27 列表头数位置；表头常量若被改动，名字对不上会在导入模块时直接抛 ValueError，而不是悄悄错位。前提是表头名不重复（index 只返回第一个），由 test_column_numbers_come_from_unique_header_names 钉住。只收录解析时真正读取的列，付款银行、商品名称等隐私或无关列不在其中。"
+        },
+        {
+          "end": 59,
           "title": "BillError",
           "explanation": "安全固定诊断类型；调用点不能把单元格、商户原始错误、URL或密钥拼入message。CLI可显示此类型消息，未知第三方异常只显示通用提示。它不代表渠道没有交易，也不触发财务写入。"
         },
         {
-          "end": 49,
+          "end": 72,
           "title": "_HideBillURL",
           "explanation": "HTTPX的INFO日志通常带完整请求URL。filter检查两个下载路径，只把命中的日志msg/args替换成固定文案，不临时改整个服务的日志级别、不影响其他请求。过滤器永久装到httpx logger；CLI另屏蔽第三方诊断。合成请求在INFO级别实测token不出现；不是所有库/代理日志的全局脱敏保证。"
         },
         {
-          "end": 66,
+          "end": 89,
           "title": "BillRow",
           "explanation": "frozen数据类只保存行号、带时区时间、app/订单/交易类型/状态/CNY与原合同金额、退款参考/申请额/快照状态。不保存openid、商品、设备、附加文本。退款at是发起时刻，total在退款行是0，不能把refund_state当现在的渠道成功凭证。"
         },
         {
-          "end": 75,
+          "end": 98,
           "title": "Bill",
           "explanation": "文件级只读值保存指定日、目标商户、原始字节SHA256、解析行与汇总整数分。纯解析器也能构造此对象，因此对象本身不等于平台签名证明；CLI必须只从fetch_bill认证链取得它，报告只作快照线索。"
         },
         {
-          "end": 89,
+          "end": 112,
           "title": "bill_day",
           "explanation": "要求ASCII YYYY-MM-DD及真实日历日期，把当前UTC时刻转UTC+8后只收过去1至90日。禁止今天/未来、过老或注入样式日期；实现比官方近3个月更保守，固定提示不回显输入。now仅给测试可控边界，不使用丹麦机器日期。"
         },
         {
-          "end": 109,
+          "end": 132,
           "title": "download_path",
           "explanation": "在签名之前校验值类型/长度/ASCII/反斜线，urlsplit后精确HTTPS主站且无显式端口、userinfo、片段，路径只认两个官方示例。query严格一个非空token，检查原始字符及百分号编码、拒decoded控制字符；不接tar_type或重复参数。返回HTTPX最终raw_path，签名与真实发送的百分号字节一致，所有失败隐藏原URL。"
         },
         {
-          "end": 149,
+          "end": 172,
           "title": "fetch_bill",
           "explanation": "局部导入现有支付协议，先校验明确日期，再在45秒总预算内用wechat_pay.apply_trade_bill申请ALL（TD-298前是直接调私有_request_json），必须经过平台身份/时间/RSA验证。检查SHA1类型/40位摘要，先白名单URL后签空GET，不重定向、不用环境代理下载、不接受压缩。预检Content-Length并逐块限制4MiB，结束再核声明长度；下载端点按官方不带微信签名，hmac比较签名元数据中的SHA1是必需门禁。最后才parse_bill；HTTP/总期限/签名/编码错误转固定BillError，未生成可信报告不能称零交易。"
         },
         {
-          "end": 157,
+          "end": 180,
           "title": "_money",
           "explanation": "正则限定普通十进制两位小数和整数位预算，只有fee允许负号。拆整数/小数后乘100并取符号，不经float或宽松Decimal舍入。用于逐行和尾部汇总；金额格式错误整份拒绝，不能把科学计数/多小数截成合法分值。"
         },
         {
-          "end": 165,
+          "end": 188,
           "title": "_cells",
           "explanation": "严格按英文逗号拆列，每一值必须以一个格式反引号开始且不超4096字符，然后只剥掉格式前缀。商户文本的逗号在渠道侧已转义，不使用Excel宽松引号规则吞并坏列；正文不被反解输出。"
         },
         {
-          "end": 232,
+          "end": 259,
           "title": "parse_bill",
-          "explanation": "纯函数无网络/数据库，先总字节与UTF8/BOM/CRLF检查，拒未转义控制字符；表头、尾部、行数必须完整准确。逐行按UTC+8精确时间绑定指定日、当前商户/普通子商户0，校验身份/状态/币种和整数金额。分别累计6项汇总；SUCCESS必须正原价、退款额0、两个退款号为0且状态/类型空；退款/撤销原价与应结为0、申请额正且有合法号/冻结状态。付款号和退款号用独立命名空间去重，允许原付款+不同部分退款。末尾验证笔数及每项总额才返回Bill；本地匹配用订单金额索引24而非应结索引12，任何格式/完整性错都不返回部分列表。"
+          "explanation": "纯函数无网络/数据库，先总字节与UTF8/BOM/CRLF检查，拒未转义控制字符；表头、尾部、行数必须完整准确。逐行按UTC+8精确时间绑定指定日、当前商户/普通子商户0，校验身份/状态/币种和整数金额。分别累计6项汇总；SUCCESS必须正原价、退款额0、两个退款号为0且状态/类型空；退款/撤销原价与应结为0、申请额正且有合法号/冻结状态。付款号和退款号用独立命名空间去重，允许原付款+不同部分退款。末尾验证笔数及每项总额才返回Bill；本地匹配用订单金额索引24而非应结索引12，任何格式/完整性错都不返回部分列表。 TD-311：写法改为按名字读列，逻辑不变。六个金额在每行解出后拆成 settlement、refunded、coupon_refunded、_fee、order_total、refund_applied 六个变量（原来是 amounts[0]…amounts[5]）；上文说的「订单金额索引24」就是 order_total，申请退款金额就是 refund_applied。新旧两版用 4 万份随机变异的账单逐份比较，结果与报错文字完全一致。"
         }
       ]
     },
@@ -13433,7 +13438,7 @@
     },
     {
       "path": "tests/test_wechat_bills.py",
-      "sha256": "f50d6a23e17ed97edb2129ac6093b02185a6cb983d2e472d47d50533d4c65c84",
+      "sha256": "b2e08d815890ea8b3b0f69632cd0b903a342652e5640aff7e1b94904643e7c7a",
       "method": "manual",
       "blocks": [
         {
@@ -13497,109 +13502,114 @@
           "explanation": "缩短总预算并让申请替身睡过截止，应该被取消并转换BillError；若继续到pytest.fail说明预算无效。此例针对总期限而非HTTPX单次read timeout。"
         },
         {
-          "end": 211,
+          "end": 220,
           "title": "test_strict_parser_rejects_bad_or_ambiguous_whole_file",
-          "explanation": "现代头/历史别名、尾部/多行/截断、笔数/合计、反引号/列数、重复付款/退款、NUL/UTF8、科学计数/负价、错日/商户/子商户和退款状态金额/付款退款号逐个构造。要求整个解析失败且不回显私有单元格，不删坏行返回部分成功。"
+          "explanation": "现代头/历史别名、尾部/多行/截断、笔数/合计、反引号/列数、重复付款/退款、NUL/UTF8、科学计数/负价、错日/商户/子商户和退款状态金额/付款退款号逐个构造。要求整个解析失败且不回显私有单元格，不删坏行返回部分成功。 TD-311：新增三种：duplicate-payment-id（微信订单号相同、商户订单号不同）、duplicate-refund-id（微信退款单号相同、商户退款单号不同）、payment-coupon-refund（付款行带充值券退款金额，汇总仍一致，只能靠逐行检查拒绝）。原有的两种重复是整行相同、两个标识同时重复，所以把任一标识从去重里去掉都不会有用例失败；新的三种分别在对应变异下失败，在重构前的代码上也通过。"
         },
         {
-          "end": 221,
+          "end": 230,
           "title": "test_bom_empty_totals_and_parser_budgets",
           "explanation": "允许合法BOM和有完整零汇总的零行文件，不能等同API无账单错误。降低行/字节预算验证超额整次失败，不靠巨大真实数据压测或调高生产限制。"
         },
         {
-          "end": 229,
+          "end": 238,
           "title": "test_beijing_day_not_machine_or_operator_day",
           "explanation": "固定UTC16点正好跨北京日，昨天选择应独立于本地时区；今天/未来/过老/不补零/查询注入/全角数字均拒绝。没有使用丹麦机器日历悄悄筛掉凌晨付款。"
         },
         {
-          "end": 248,
+          "end": 257,
           "title": "seed",
           "explanation": "仅可丢弃ORM夹具，创建独立用户、原订单和可选凭证并真实commit供独立连接读取；存UTC时间，金额1000，带私有商品/交付哨兵。可制造应用不该自然出现的冲突，不能拿ORM create_all冒充生产迁移触发器保护。"
         },
         {
-          "end": 254,
+          "end": 263,
           "title": "read_report",
           "explanation": "把严格解析、独立会话快照与纯compare串起来测试本地行为，不调用真实fetch或用业务数据库。返回实际report用于分类及无写入断言。"
         },
         {
-          "end": 278,
+          "end": 287,
           "title": "test_bidirectional_payment_coupon_and_refund_snapshot_without_writes",
           "explanation": "已有匹配和本地缺渠道两单，加退款快照，精确断言三类结果；监听真实SQL拒INSERT/UPDATE/DELETE/COMMIT，再用独立连接核对状态/交付/两凭证不变且退款/事件为空。输出不得包含私有标识/证据键/token，scope文案中的普通evidence单词不算泄露。"
         },
         {
-          "end": 312,
+          "end": 321,
           "title": "test_difference_classifications_and_receipt_binding",
           "explanation": "分别造正常、未知单、无凭证、原合同/渠道、凭证流水/金额、订单状态/流水、跨日/未知时间、跨单归属冲突。逐一断言具体code及needs_review，不接受所有异常都以模糊“成功”结束，唯一正常情景才不需核查。"
         },
         {
-          "end": 320,
+          "end": 329,
           "title": "test_non_native_or_non_cny_rows_are_only_excluded",
           "explanation": "TD-298：把唯一一行账单分别改成JSAPI交易类型或USD币种，本地不造订单。报告只能把它计入excluded_rows并标为需人工核查，不能产生任何比对条目（items与counts都为空）。对账范围由bill_reconcile._scoped_rows的三个条件定义，此前只有「其他应用」一条有用例，删掉交易类型或币种条件都没有测试失败；现在两个参数组分别守住这两个条件。"
         },
         {
-          "end": 332,
+          "end": 341,
           "title": "test_scope_and_utc_midnight_reverse_scan_uses_paid_not_received",
           "explanation": "设置北京日边界前1秒/零点/次日零点、未知日期与无凭证历史已付单；外app账单排除但必须needs_review。反向集合精确包含当天、未知与legacy，排除日期外，不依赖自动received_at时间。"
         },
         {
-          "end": 340,
+          "end": 349,
           "title": "test_both_channel_and_local_limits_fail_not_partial_success",
           "explanation": "本地两单把预算降成1，零行渠道文件也不能截成无差异；必须报本地快照超额。确保反向读取同样受预算约束，不只限制下载文件。"
         },
         {
-          "end": 345,
+          "end": 354,
           "title": "test_missing_migration_ledger_refuses_cli_snapshot",
           "explanation": "ORM建表没有正式迁移账本，check_schema必须失败；不为测试填虚构完整迁移来绕开门禁。完整SQL链路另在独立PG用真实初始化验证。"
         },
         {
-          "end": 353,
+          "end": 362,
           "title": "test_partial_refund_states_never_mean_completed_receipt",
           "explanation": "SUCCESS/PROCESSING/FAIL/CHANGE四种冻结状态都是观察，申请500分与needs_review不变，RefundReceipt仍空。不能用账单状态或部分额冒充当前全额完成。"
         },
         {
-          "end": 371,
+          "end": 380,
           "title": "test_atomic_private_report_no_overwrite_and_failed_publish_cleanup",
           "explanation": "真实临时文件验证JSON内容与POSIX0600；相同名字第二次发布必须FileExistsError且原字节不变。注入fsync失败后不能出现新目标或临时残留，不用mock替代原子文件发布核心。"
         },
         {
-          "end": 387,
+          "end": 396,
           "title": "test_report_directory_not_downloadable_or_symlinked",
           "explanation": "固定临时ROOT，正常私有目录可用，storage覆盖runtime与目录符号链接都拒绝。Windows无创建symlink权限时明确skip这一分支，不能说已证明Windows ACL；前面普通路径断言仍实际执行。"
         },
         {
-          "end": 402,
+          "end": 411,
           "title": "test_cli_gates_precede_all_external_io",
           "explanation": "合成配置与无业务意义DSN下分别禁用/错商户/错目标/坏日，出站函数是pytest.fail哨兵。必须在触外部之前BillError，不能为测试开真实账单读取。"
         },
         {
-          "end": 416,
+          "end": 425,
           "title": "test_cli_exit_codes_and_secret_safe_errors",
           "explanation": "注入正常无差异/需核查/含私有DSN异常三类run结果，执行main和argparse，断言0/2/1与仅成功有文件名。恢复日志设置通过monkeypatch隔离，不影响后续套件，异常原文不得出现。"
         },
         {
-          "end": 430,
+          "end": 439,
           "title": "test_real_cli_help_and_invalid_environment_are_secret_safe",
           "explanation": "子进程设置坏DB_PORT及开关，不提供可用商户。--help无需有效Settings；实际命令配置失败必须1且不出现PRIVATE或Traceback，证明脱敏包含导入期而不只是正常函数异常。 另在齐全必需参数后追加带PRIVATE哨兵的未知参数，确保不被缺参检查提前短路；真实子进程必须退出2且不回显。恢复默认argparse的受控变异会被此断言捕获。"
         },
         {
-          "end": 458,
+          "end": 467,
           "title": "test_consistent_pg_snapshot_does_not_see_mid_read_receipt",
           "explanation": "仅PG执行，在真实SET READ ONLY后SHOW验证on/repeatable read；第一条读完成后由另一会话提交新凭证。当前快照必须仍报渠道无本地订单，下一快照才匹配，证明不跨读取拼接两个时间的事实。SQLite明确skip，不用单连接模拟隔离。"
         },
         {
-          "end": 478,
+          "end": 487,
           "title": "test_confirmation_cannot_hide_database_url_overrides",
           "explanation": "检验正常主机、有效socket/port覆盖返回实际target，拒database覆盖、多host、零端口、逗号主机、SQLite与非asyncpg。确认口径必须跟真实DSN一致，不打印PRIVATE密码。"
         },
         {
-          "end": 499,
+          "end": 508,
           "title": "test_streamed_hash_and_download_phase_deadline",
           "explanation": "真实AsyncByteStream分两段传输也须得到原SHA256；第二个替身在下载阶段阻塞，45秒总预算被测试降至0.1后应取消且已发生两请求。补申请阶段期限测试，不能只验证第一跳。"
         },
         {
-          "end": 548,
+          "end": 559,
           "title": "test_full_cli_pipeline_on_complete_disposable_pg",
           "explanation": "自行创建pgserver临时库与非超级用户角色，用closing保证psycopg初始化不重复进入已有事务；执行真实完整SQL/账本，不用ORM伪造版本。中央配置/SessionLocal只替换到此可丢弃库，真实fetch使用签名MockTransport，完整run须生成未知订单报告且数据库仍无订单/凭证。finally清服务器，绝不接受业务DSN或真实商户；这不是Windows或生产恢复签收。"
+        },
+        {
+          "end": 565,
+          "title": "test_column_numbers_come_from_unique_header_names",
+          "explanation": "TD-311：解析器按 DETAIL_HEADER.index(表头名) 取列号，这条钉住两个前提：明细表头名互不重复（否则 index 会静默取第一个）；TOTAL_COLUMNS 正好指向 AMOUNT_NAMES 六列且顺序相同，数量等于尾部汇总列数减去第一列总笔数。"
         }
       ]
     },

@@ -42,6 +42,8 @@
 
 **接手状态（2026-09-27，TD-291 / 导读维护工具进仓库）**：用户确认把导读生成脚本放进仓库：`scripts/code_reading_narrate.py`（check / remap / regen / add / drop / init），对现有带 AST 段的块约 97.5% 逐行复现；改 Python 源码后用它更新对应文件导读，功能契约仍人写。顺带修正 TD-290 漏更的两处模块块导读。同批用户已确认的后续项：客服页「先问智能助手」入口（N-08）、OAuth `/token` 标准错误格式、C1 控制字符统一拒绝、客服 `reason` 不外泄异常原文。见 TD-291。
 
+**接手状态（2026-09-28，TD-311 / 优化阶段：账单解析按表头名取列）**：`wechat_bills.parse_bill` 原来用 `cells[14:16]`、`amounts[4]` 这类裸数字取列，现在列号一律写成 `DETAIL_HEADER.index('表头名')`（`_Col`），六个金额拆成有名字的变量。新旧解析器 4 万份随机账单差分结果一致。复审补了三条原来没有测试的校验（RR-33）。见 TD-311。
+
 **接手状态（2026-09-28，TD-310 / 优化阶段：ledger 移到 payments_admin）**：管理工作台的订单证据视图 `GET /shop/admin/orders/{order_no}/ledger` 及其四个视图函数从 `routers/shop.py` 移到 `routers/payments_admin.py`，与订单清单放在一起；商城路由少了 8 个只为它引入的模块。路径、响应、权限不变，OpenAPI 只差标签。TD-310 里还记了本轮看过、决定不改的五个候选。
 
 **接手状态（2026-09-28，TD-309 / R-07 模拟收银台失败提示）**：模拟收银台的失败提示改用共用的 `auth.errorText`，非 JSON 应答不再显示成「失败 502：{}」；新增 10 条 Node 用例。R 组又只剩常设的 R-01。见 TD-309。
