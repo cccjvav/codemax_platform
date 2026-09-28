@@ -35,26 +35,39 @@ const ROW_FONT = 12;
 
 // 文字宽度估算（px）。只求「不低估」：真实字体（Noto Sans SC / 系统 UI 字体）下实测
 // 估算值比真实宽度略大，截断宁可早一点，也不让文字压到框线外。
+function charWidth(ch, size) {
+  const c = ch.codePointAt(0);
+  if (c >= 0x2e80) return size;                       // CJK、全角标点
+  if (/[A-Z@#%&MW]/.test(ch)) return size * 0.7;
+  if (/[mw]/.test(ch)) return size * 0.86;
+  if (/[iljtfr.,:;'|!() ]/.test(ch)) return size * 0.36;
+  return size * 0.6;
+}
+
 function textWidth(text, size, bold = false) {
   let w = 0;
-  for (const ch of String(text)) {
-    const c = ch.codePointAt(0);
-    if (c >= 0x2e80) w += size;                         // CJK、全角标点
-    else if (/[A-Z@#%&MW]/.test(ch)) w += size * 0.7;
-    else if (/[mw]/.test(ch)) w += size * 0.86;
-    else if (/[iljtfr.,:;'|!() ]/.test(ch)) w += size * 0.36;
-    else w += size * 0.6;
-  }
+  for (const ch of String(text)) w += charWidth(ch, size);
   return bold ? w * 1.08 : w;
 }
 
-// 放得下就原样返回；放不下就逐字截短并加省略号。
+// 放得下就原样返回；放不下就取「加上省略号仍放得下」的最长前缀。
+// 一次扫描、累加前缀宽度（TD-320）：原来每删一个字就把整串重新量一遍，是平方级 ——
+// 后端对表名、列类型不限长，粘进一行 2 万字符的名字，实测要卡住页面约 10 秒。
+// 累加顺序与 textWidth 相同，截断位置与原来逐字删除的结果逐位一致。
 function fitText(text, maxWidth, size, bold = false) {
   const s = String(text);
   if (textWidth(s, size, bold) <= maxWidth) return s;
+  const scale = bold ? 1.08 : 1;
+  const ellipsis = charWidth("…", size);
   const chars = Array.from(s);
-  while (chars.length && textWidth(chars.join("") + "…", size, bold) > maxWidth) chars.pop();
-  return chars.join("") + "…";
+  let w = 0;
+  let keep = 0;
+  for (const ch of chars) {
+    w += charWidth(ch, size);
+    if ((w + ellipsis) * scale > maxWidth) break;
+    keep++;
+  }
+  return chars.slice(0, keep).join("") + "…";
 }
 
 function nodeHeight(table) {

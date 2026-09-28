@@ -492,7 +492,7 @@
     },
     {
       "path": "app/frontend/er-layout.js",
-      "sha256": "68703a77b32fb6d1f56b51c93b60cabe80ac32a378b9d8580b383662b65ebe4f",
+      "sha256": "a2a6d4769b385428dd89b6b1c36786c749ba0953f0b6d15cf206a9b728b04963",
       "method": "manual",
       "blocks": [
         {
@@ -501,47 +501,47 @@
           "explanation": "此文件不 import D3、不碰 DOM，Node 可直接执行（CI 没有 node_modules，契约测试靠这一点跑得动）。文件头写明 TD-279 的三步：按外键深度分列、按文字估算宽度、正交折线只走通道和顶部车道。常量分三组：节点尺寸（表头30、每列24、底8、左右内边距10、宽度夹在160–340）；分列（同列间距28、单列超过900px拆子列）；路由（通道最小56、竖线间距8、车道起点/间距/离表格的余量）。字号14/12 与渲染层一致，估算宽度用的就是它们。"
         },
         {
-          "end": 58,
-          "title": "textWidth / fitText：估算而不是测量",
-          "explanation": "纯布局拿不到浏览器字体，只能估算：CJK 与全角按 1em，大写/宽字母放大，窄字母与标点缩小，粗体再乘 1.08。目标是「不低估」——真实 Noto Sans SC 下项目 16 张表实测零溢出，估算宽一点只会早截断。fitText 放得下原样返回，否则逐字删到「剩余+省略号」放得下为止；Array.from 按码点切，不会把代理对切成乱码。"
+          "end": 71,
+          "title": "charWidth / textWidth / fitText：估算而不是测量",
+          "explanation": "纯布局拿不到浏览器字体，只能估算：CJK 与全角按 1em，大写/宽字母放大，窄字母与标点缩小，粗体再乘 1.08。目标是「不低估」——真实 Noto Sans SC 下项目 16 张表实测零溢出，估算宽一点只会早截断。每个字的估算宽度由 charWidth 给出，textWidth 按顺序累加。fitText 放得下原样返回，否则一次扫描累加前缀宽度，取「前缀+省略号」仍放得下的最长前缀（TD-320：原来每删一个字就把整串重新量一遍，是平方级，后端对表名和列类型不限长，2 万字符的名字实测卡住页面约 10 秒；累加顺序与 textWidth 相同，截断位置与原来逐位一致）；Array.from 按码点切，不会把代理对切成乱码。"
         },
         {
-          "end": 77,
+          "end": 90,
           "title": "节点高度、标题与行文字、列中线",
           "explanation": "nodeHeight 仍只由列数决定（旧导出保留）。headerText 把注释放进全角括号；rowText 给主键加 PK、外键加 FK 前缀，外键列来自本图的 edges。rowCenter 返回某列那一行的中线 y（相对节点顶部），线的起点/终点就钉在这里；列名找不到时退回表头中线，而不是抛错。"
         },
         {
-          "end": 100,
+          "end": 113,
           "title": "layoutEr 入口：过滤悬空外键、收集父子关系",
           "explanation": "按表名建下标；目标表或源表不在 DDL 里的外键 return null 后 filter 掉——只丢这条线，不让整图崩。parents 记每张表引用的父表（自引用不算，不影响分列），related 标记参与任何关系的表，fkCols 记每张表的外键列（自引用也标 FK）。"
         },
         {
-          "end": 114,
+          "end": 127,
           "title": "① 外键深度：环也有限",
           "explanation": "depth = 0（不引用别人）或 1 + 父表最大深度，记忆化 DFS。onStack 是当前递归路径：a→b→a 这种环里回到栈上的父表被忽略，所以一定终止；环两端会落在相邻两列，线仍按通道规则路由，不会穿表。"
         },
         {
-          "end": 141,
+          "end": 154,
           "title": "② 节点尺寸与截断后的文字",
           "explanation": "宽度 = 标题与各行估算宽度的最大值 + 两侧内边距，夹在 [160, 340] 并取整。header/rows[].text 是截断后要画的文字，headerFull/rows[].full 是原文，渲染层据此决定是否挂悬停提示；pk/fk 决定颜色。name/comment/columns/x/y/w/h 保持原字段名，契约测试与旧调用者照常读取。"
         },
         {
-          "end": 189,
+          "end": 202,
           "title": "③ 分列：按深度、按父表位置排序、过高拆子列",
           "explanation": "逐层处理 depth 0..max：同层按已放置父表的平均中线 y 排序（根层保持 DDL 顺序），减少相邻两列之间的线交叉。pushColumns 累加高度，超过 MAX_COL_H 就开新子列（单表更高时以单表为准）；stack 在列内从上往下排。没有任何关系的表最后单独成列放最右，不挤进关系区。col[i] 记录每张表所在列号，路由要用。"
         },
         {
-          "end": 249,
+          "end": 262,
           "title": "④ 路由准备：通道、总线竖线与顶部车道",
           "explanation": "gap g 是第 g-1 列与第 g 列之间的空白，0 与末尾是外边距。父表在左：子表从左边出、进父表右边；父表在右（环）反之；同列（含自引用）两端都走右侧通道。两端通道相同就是 direct（一段竖线），否则走顶部车道。竖线 slot：指向同一父列（target）的线在同一通道共用一条，形成总线；车道也按 target 共用。通道宽度随竖线数增长，列宽取列内最宽的表，据此从左到右累加出每列 x；最后按车道数把所有节点整体下移，给车道留出表格上方的空间。"
         },
         {
-          "end": 287,
+          "end": 300,
           "title": "折线坐标与返回值",
           "explanation": "x1 在子表朝向父表的那条边，y1 是外键列中线；x2/y2 同理落在父表被引用列那一行。direct：出→竖线→进，4 点；车道：出→子侧竖线上到车道→沿车道→父侧总线下来→进，6 点。竖线只在通道里、车道在所有表之上，所以任何线段都不进入表格（tests/test_er_page.py 逐段核对）。points 给测试，path 字符串给渲染；label 保持「列 → 列」原格式。width 为 0 时返回 0（空输入不出负宽度），height 取最低节点底边。"
         },
         {
-          "end": 305,
+          "end": 318,
           "title": "initialView：可读比例优先",
           "explanation": "纯函数：整图按比例放进画布（留 12px 边距、不放大超过 1）若仍 ≥ 0.75 就居中显示全图；否则以 0.75 从左上角开始，由用户拖动平移，渲染层的「查看全图」按钮再用 mode='fit'/'readable' 切换。原来 viewBox 永远等于整图，本项目 16 张表被压到约 40%，12px 列名缩成 5px。最后导出供渲染与测试复用。"
         }
@@ -5745,7 +5745,7 @@
     },
     {
       "path": "tests/test_er_page.py",
-      "sha256": "f8a56b14300c33ba94b6562ee227deafa8ac9aa4fe0c14da9a721786d8ccca32",
+      "sha256": "91c2fd8d783ba7a7e302dcf78c21a7d729debf8eb1417592a7873614d82adaa7",
       "method": "guided",
       "blocks": [
         {
@@ -5824,9 +5824,14 @@
           "explanation": "TD-315：er-page.js 引入 d3，不能在 Node 里直接跑，这里读源码钉住：处理函数开头「已禁用就返回」、发请求之前先禁用、finally 里恢复。改之前的代码没有这三处。"
         },
         {
-          "end": 331,
+          "end": 330,
           "title": "test_submit_errors_name_the_stage_that_failed",
           "explanation": "ER 页提交按阶段报错（源码检查，页面脚本依赖 d3，跑不了 Node 桩）：请求阶段含断网是「请求失败」，只有 renderEr 之后才是「渲染失败」；非 JSON 应答也归到请求失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL325 计算右侧并赋给 `source`：调用 (ROOT / 'app' / 'frontend' / 'er-page.js').read_text(encoding='utf-8')。\nL326 计算右侧并赋给 `submit`：source[source.index('form.onsubmit'):]。\nL327 核对 `'let stage = \"请求失败\";' in submit`：此条件为假即测试失败；不是生产输入校验。\nL328 核对 `submit.index('stage = \"渲染失败\";') < submit.index('renderEr(\"#er-canvas\", data);')`：此条件为假即测试失败；不是生产输入校验。\nL329 核对 `submit.index('post(\"/tools/er-diagram\"') < submit.index('stage = \"渲染失败\";')`：此条件为假即测试失败；不是生产输入校验。\nL330 核对 `'fail(`${stage}：${failure(e)}`)' in submit`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 375,
+          "title": "test_long_names_are_truncated_in_linear_time_with_the_same_cut_point",
+          "explanation": "TD-320：块首的 _FIT_HARNESS 在 Node 里跑真实的 fitText 与 layoutEr。按定义核对截断：结果是加上省略号仍放得下的最长前缀加省略号，再多一个字就放不下（3000 个随机串，含中文、emoji、粗体）；再给一张表名和列类型各 19900 字符的表计时：改之前要 10 秒以上（本机 21 秒），现在几毫秒，上限 1.5 秒。完整文字仍保留给悬停提示。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL333 把测试JavaScript多行字面量存入 `_FIT_HARNESS`（1540字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL367 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _FIT_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL369 计算右侧并赋给 `r`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL370 核对 `r['bad'] == []`：此条件为假即测试失败；不是生产输入校验。\nL371 核对 `r['headerFull'] == 19900`：此条件为假即测试失败；不是生产输入校验。\nL372 核对 `r['rowFull'] == len('PK id: ') + 19900`：此条件为假即测试失败；不是生产输入校验。\nL373 核对 `r['header'] < 60 and r['row'] < 60 and (r['w'] <= 340)`：此条件为假即测试失败；不是生产输入校验。\nL375 核对 `r['ms'] < 1500`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

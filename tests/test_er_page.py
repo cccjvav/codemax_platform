@@ -329,3 +329,47 @@ def test_submit_errors_name_the_stage_that_failed():
     assert submit.index('post("/tools/er-diagram"') < submit.index('stage = "渲染失败";')
     assert "fail(`${stage}：${failure(e)}`)" in submit
 
+
+_FIT_HARNESS = """
+import { pathToFileURL } from "node:url";
+const { fitText, textWidth, layoutEr } = await import(pathToFileURL(process.argv[1]).href);
+const pool = Array.from("aAmMwWiIl.:;|() 1文字注释…😀漢Ωé_-@#%&");
+let seed = 11;
+const rnd = () => (seed = (seed * 1103515245 + 12345) % 2147483648) / 2147483648;
+const bad = [];
+for (let i = 0; i < 3000 && bad.length < 3; i++) {
+  const s = Array.from({ length: Math.floor(rnd() * 50) }, () => pool[Math.floor(rnd() * pool.length)]).join("");
+  const max = Math.floor(rnd() * 300), size = i % 2 ? 12 : 14, bold = rnd() < 0.5;
+  const out = fitText(s, max, size, bold);
+  if (textWidth(s, size, bold) <= max) { if (out !== s) bad.push([s, max, out]); continue; }
+  const prefix = Array.from(out.slice(0, -1));
+  const next = Array.from(s)[prefix.length];
+  const longest = textWidth(prefix.join("") + "…", size, bold) <= max || prefix.length === 0;
+  const maximal = next === undefined || textWidth(prefix.join("") + next + "…", size, bold) > max;
+  if (!out.endsWith("…") || !s.startsWith(prefix.join("")) || !longest || !maximal) bad.push([s, max, out]);
+}
+const huge = "a".repeat(19900);
+const t0 = performance.now();
+const layout = layoutEr({ tables: [{ name: huge, comment: null, columns: [{ name: "id", type: huge, primary_key: true }] }], edges: [] });
+const ms = performance.now() - t0;
+const node = layout.nodes[0];
+console.log(JSON.stringify({ bad, ms, header: node.header.length, headerFull: node.headerFull.length,
+  row: node.rows[0].text.length, rowFull: node.rows[0].full.length, w: node.w }));
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_long_names_are_truncated_in_linear_time_with_the_same_cut_point():
+    """TD-320：fitText 原来每删一个字就把整串重新量一遍（平方级）。后端对表名、列类型不限长，
+    一行 2 万字符的名字实测卡住页面约 10 秒。现在一次扫描累加前缀宽度。
+
+    截断规则按定义核对：结果是「加上省略号仍放得下」的最长前缀 + 省略号，再多一个字就放不下。"""
+    out = subprocess.run([shutil.which("node"), *_NODE_ARGS, _FIT_HARNESS, str(ER_JS)],
+                         capture_output=True, text=True, check=True)
+    r = json.loads(out.stdout)
+    assert r["bad"] == [], f"截断位置不符合定义：{r['bad']}"
+    assert r["headerFull"] == 19900, "表没有注释时表头就是完整表名"
+    assert r["rowFull"] == len("PK id: ") + 19900, "完整文字要留给悬停提示"
+    assert r["header"] < 60 and r["row"] < 60 and r["w"] <= 340, "框内只放截断后的文字"
+    # 改之前这张表（两处 19900 字符）要 10 秒以上；改之后几毫秒。上限留足 CI 机器的波动。
+    assert r["ms"] < 1500, f"布局耗时 {r['ms']:.0f} ms，截断又变成平方级了？"
