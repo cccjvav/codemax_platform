@@ -34,13 +34,27 @@ def _allowed_states(function: str) -> set[str]:
     raise AssertionError(f"wechat_pay.{function} 里找不到 `state not in (...)` 的状态校验")
 
 
-def _module_constants(path: Path, tree: ast.Module) -> dict[str, str]:
-    """模块顶层的字符串常量，加上 `from .x import NAME` 导入的字符串常量。"""
-    consts: dict[str, str] = {}
-    for node in tree.body:
-        if (isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
-                and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)):
-            consts[node.targets[0].id] = node.value.value
+def _string_values(node: ast.AST) -> frozenset[str] | None:
+    """字符串常量 → {它}；全是字符串常量的元组 → 其元素集合；其他写法 → None。"""
+    if isinstance(node, ast.Constant) and isinstance(node.value, str):
+        return frozenset({node.value})
+    if isinstance(node, ast.Tuple) and node.elts and all(
+            isinstance(e, ast.Constant) and isinstance(e.value, str) for e in node.elts):
+        return frozenset(e.value for e in node.elts)
+    return None
+
+
+def _top_level_values(tree: ast.Module) -> dict[str, frozenset[str]]:
+    return {
+        node.targets[0].id: values for node in tree.body
+        if isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name)
+        and (values := _string_values(node.value)) is not None
+    }
+
+
+def _module_constants(path: Path, tree: ast.Module) -> dict[str, frozenset[str]]:
+    """模块顶层的字符串常量与字符串元组（如 ISSUES），加上 `from .x import NAME` 导入的同类常量。"""
+    consts = _top_level_values(tree)
     for node in tree.body:
         if isinstance(node, ast.ImportFrom) and node.level and node.module:
             base = path.parent
@@ -49,12 +63,7 @@ def _module_constants(path: Path, tree: ast.Module) -> dict[str, str]:
             source = base.joinpath(*node.module.split(".")).with_suffix(".py")
             if not source.is_file():
                 continue
-            other = ast.parse(source.read_text(encoding="utf-8"))
-            imported = {
-                n.targets[0].id: n.value.value for n in other.body
-                if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name)
-                and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)
-            }
+            imported = _top_level_values(ast.parse(source.read_text(encoding="utf-8")))
             for alias in node.names:
                 if alias.name in imported:
                     consts[alias.asname or alias.name] = imported[alias.name]
@@ -73,14 +82,14 @@ def _enclosing_function(node: ast.AST, parents: dict[ast.AST, ast.AST]):
     return None
 
 
-def _resolve(expr: ast.AST, scope, consts: dict[str, str], where: str) -> set[str]:
+def _resolve(expr: ast.AST, scope, consts: dict[str, frozenset[str]], where: str) -> set[str]:
     if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
         return {expr.value}
     if isinstance(expr, ast.IfExp):
         return _resolve(expr.body, scope, consts, where) | _resolve(expr.orelse, scope, consts, where)
     if isinstance(expr, ast.Name):
         if expr.id in consts:
-            return {consts[expr.id]}
+            return set(consts[expr.id])
         values = [
             node.value for node in ast.walk(scope) if scope is not None
             and isinstance(node, ast.Assign) and any(isinstance(t, ast.Name) and t.id == expr.id for t in node.targets)
@@ -124,6 +133,57 @@ def backend_event_kinds() -> set[str]:
                     arg = node.args[index]
                 kinds |= _resolve(arg, _enclosing_function(node, parents), consts, where)
     return kinds
+
+
+def backend_read_kinds() -> dict[str, set[str]]:
+    """后端按字符串**读取**的事件种类：`x.kind == ...`、`x.kind != ...`、`x.kind.in_((...))`。
+
+    只有 PaymentEvent 有 kind 列，所以这些都是事件种类。返回 种类 → 出现位置。"""
+    found: dict[str, set[str]] = {}
+
+    def values(expr: ast.AST, consts, where: str) -> set[str]:
+        if isinstance(expr, ast.Constant) and isinstance(expr.value, str):
+            return {expr.value}
+        if isinstance(expr, ast.Name):
+            assert expr.id in consts, f"{where}：认不出 {expr.id!r} 的取值"
+            return set(consts[expr.id])
+        if isinstance(expr, ast.Starred):
+            return values(expr.value, consts, where)
+        if isinstance(expr, (ast.Tuple, ast.List)):
+            return set().union(*(values(e, consts, where) for e in expr.elts))
+        raise AssertionError(f"{where}：认不出的 kind 比较写法 {ast.unparse(expr)}")
+
+    def is_kind(node: ast.AST) -> bool:
+        return isinstance(node, ast.Attribute) and node.attr == "kind"
+
+    for path in sorted(APP.rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        consts = _module_constants(path, tree)
+        for node in ast.walk(tree):
+            where = f"{path.relative_to(ROOT)}:{getattr(node, 'lineno', 0)}"
+            sides: list[ast.AST] = []
+            if isinstance(node, ast.Compare) and len(node.comparators) == 1:
+                if is_kind(node.left):
+                    sides = [node.comparators[0]]
+                elif is_kind(node.comparators[0]):
+                    sides = [node.left]
+            elif (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                  and node.func.attr in ("in_", "not_in", "notin_") and is_kind(node.func.value)):
+                sides = list(node.args)
+            for side in sides:
+                for kind in values(side, consts, where):
+                    found.setdefault(kind, set()).add(where)
+    return found
+
+
+def test_every_kind_the_backend_reads_is_one_it_writes():
+    """按字符串读取的种类（复核待办的 ISSUES、超时未完成的配对、退款流程里的查询）必须是后端真会写入的种类。
+
+    拼错一个字不会报错，只会永远匹配不到 —— 例如 ISSUES 里拼错一项，这类异常订单就悄悄不进复核待办。"""
+    written, read = backend_event_kinds(), backend_read_kinds()
+    assert len(read) >= 30, sorted(read)  # 扫描器自检：ISSUES 一项就有 24 种
+    stray = {kind: sorted(places) for kind, places in read.items() if kind not in written}
+    assert not stray, f"读取了后端从不写入的事件种类（拼写错误或已删除）：{stray}"
 
 
 def frontend_event_labels() -> dict[str, str]:

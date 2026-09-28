@@ -104,7 +104,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ops.py`](test_ops.py) | `19dcb2d9c987` | L1–L658 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `a4652243679f` | L1–L279 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
-| [`tests/test_payment_event_labels.py`](test_payment_event_labels.py) | `6a38818fa31c` | L1–L174 |
+| [`tests/test_payment_event_labels.py`](test_payment_event_labels.py) | `4f5b82922d76` | L1–L234 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `120f73083b2c` | L1–L429 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
@@ -421,3 +421,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_payment_event_labels.py`（新）：从 `app/` 的语法树找出后端写入的全部事件种类（字面量、常量、导入常量、条件表达式、局部变量、辅助函数参数、`query_` / `refund_query_` 加 `wechat_pay` 允许的状态），与 `payments-admin.js` 的 `EVENT_LABELS` 双向比较；扫描器自检（六种写法、共 35 种）；措辞规则（非成功凭证不写「成功」，四种已验签非成功观察写明「不是成功」，名称不重复）；事件行 CSS 有 `pre-line`。
 - `test_payments_frontend.py` 新场景 `event-labels`（源码与产物）：已登记种类显示「中文（原值）」，`constructor` 与未登记的新种类原样显示。
 - 改前代码上：名称表两条、CSS 一条、两个 `event-labels` 场景都失败；另外人为改后端一个种类、删一个名称、把非成功观察写成「成功」，各自失败。
+
+## 2026-09-28 事件种类读取守卫（TD-324）
+
+- `test_payment_event_labels.py` 的 `test_every_kind_the_backend_reads_is_one_it_writes`：后端按字符串读取的事件种类（`x.kind == / !=`、`x.kind.in_(...)`，含导入的 `ISSUES` 与 `*` 展开）必须都是后端会写入的种类。人为把 `overdue_start` 的 `prepay_unknown` 拼错时现有相关用例全部通过，本条失败并指出文件和行。
+
