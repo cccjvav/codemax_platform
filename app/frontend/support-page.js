@@ -50,6 +50,13 @@
   function nearBottom(box) {
     return !box.scrollHeight || box.scrollHeight - box.scrollTop - box.clientHeight < 48;
   }
+  // 时间固定按中文格式（TD-306）：不带参数的 toLocaleString() 跟随浏览器语言，英文系统上是
+  // 「9/28/2026, 9:49:30 AM」，夹在全中文页面里很突兀。
+  const TIME_FORMAT = { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false };
+  function formatTime(value) {
+    const time = new Date(value);
+    return Number.isNaN(time.getTime()) ? "" : time.toLocaleString("zh-CN", TIME_FORMAT);
+  }
   function render(rows, prepend = false) {
     const box = el("messages"), stick = !prepend && nearBottom(box);
     const nodes = [];
@@ -58,7 +65,7 @@
       seen.add(row.id); newest = Math.max(newest, row.id); oldest = Math.min(oldest ?? row.id, row.id);
       const li = document.createElement("li"), meta = document.createElement("small");
       li.className = row.sender_role === 1 ? "admin" : "customer";
-      meta.textContent = `${row.sender_role === 1 ? "管理员" : "客户"} · ${new Date(row.create_time).toLocaleString()}`;
+      meta.textContent = `${row.sender_role === 1 ? "管理员" : "客户"} · ${formatTime(row.create_time)}`;
       const text = document.createElement("div"); text.textContent = row.body;
       li.append(meta, text); nodes.push(li);
     }
@@ -88,8 +95,13 @@
       if (!more) el("inbox").replaceChildren();
       for (const row of rows) {
         const button = document.createElement("button");
-        button.type = "button"; button.textContent = `${row.username} · ${row.awaiting_admin ? "待回复" : "已回复"}`;
+        button.type = "button"; button.className = "item";
+        button.textContent = `${row.username} · ${row.awaiting_admin ? "待回复" : "已回复"}`;
+        if (row.customer_id === target) button.setAttribute?.("aria-current", "true");  // 刷新列表后保留选中标记
         button.onclick = () => {
+          // 选中的会话高亮（TD-306）；可选调用：测试替身没有 setAttribute
+          for (const other of el("inbox").children || []) other.removeAttribute?.("aria-current");
+          button.setAttribute?.("aria-current", "true");
           reset(); target = row.customer_id; el("send").disabled = false; el("title").textContent = `与 ${row.username} 的会话`; poll();
         };
         el("inbox").append(button);
@@ -98,6 +110,7 @@
     } catch (e) { if (stamp === epoch && e.name !== "AbortError") el("error").textContent = e.message; }
   }
   el("inbox-refresh").onclick = () => inbox();
+  el("login-btn").onclick = () => auth.open();
   el("inbox-more").onclick = () => inbox(true);
   el("older").onclick = async () => {
     const stamp = epoch;
@@ -201,7 +214,8 @@
     el("send").disabled = !user || user.role === 1;
     el("login").hidden = !!user; el("workspace").hidden = !user;
     const isAdmin = user?.role === 1;
-    el("inbox-panel").hidden = !isAdmin; el("title").textContent = "我的留言";
+    // 管理员选中会话之前没有「我的留言」可看，标题直接提示下一步（TD-306）；手机上会话列表在上方
+    el("inbox-panel").hidden = !isAdmin; el("title").textContent = isAdmin ? "请先选择一个客户会话" : "我的留言";
     // 两栏布局用 class 切换而不是 CSS :has()：旧内核不支持 :has()，管理员会只看到单栏叠放（TD-263）。
     const layout = el("workspace").classList;
     if (isAdmin) layout.add("with-inbox"); else layout.remove("with-inbox");

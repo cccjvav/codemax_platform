@@ -75,10 +75,13 @@
       el("list").replaceChildren(); el("list-empty").hidden = true;
       for (const row of data.orders) {
         const li = document.createElement("li"), button = document.createElement("button");
-        button.type = "button";
-        button.textContent = `${row.order_no} · ${row.username} (#${row.user_id}) · ${row.product_name} · ${money(row.amount)} · ${row.status} / ${row.payment_mode}`;
+        // 列表行（TD-306）：订单号单独一行，其余信息第二行（button.item 是 pre-line）；选中项标 aria-current
+        button.type = "button"; button.className = "item";
+        button.textContent = `${row.order_no}\n${row.username} (#${row.user_id}) · ${row.product_name} · ${money(row.amount)} · ${row.status} / ${row.payment_mode}`;
         button.onclick = () => {
           if (busy) { message("请先等待当前操作完成；离开页面不会撤销已提交操作。"); return; }
+          for (const item of el("list").children || []) item.children?.[0]?.removeAttribute?.("aria-current");
+          button.setAttribute?.("aria-current", "true");
           clearDetail(); selected = row.order_no; message(""); detail();
         };
         li.append(button); el("list").append(li);

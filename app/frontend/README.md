@@ -53,9 +53,9 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `7781eb0da6a4` | L1–L338 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `8299e4b12efc` | L1–L370 |
-| [`app/frontend/support-page.js`](support-page.js) | `cf725cd704a4` | L1–L212 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `62e9dc58d5c2` | L1–L341 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `757c86711e23` | L1–L375 |
+| [`app/frontend/support-page.js`](support-page.js) | `18f7afffc55f` | L1–L226 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -197,3 +197,9 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 
 上文历史批次里的 pendingXxx 名称即对应 `pending["表单类型"]`。新增 Node 场景 `submit-resend`、`submit-switch` 守住「成功后保留发送键」和「换单清空」两条此前没有测试的行为。
 
+## 2026-09-28：列表行与选中标记（TD-306）
+
+- `payments-admin.js`：订单列表按钮 `className = "item"`，文字改为「订单号 + 换行 + 其余信息」（`button.item` 是 `pre-line`，仍只用 `textContent`，不拼 HTML）；点击时先清掉其他行的 `aria-current` 再标记本行。
+- `support-page.js`：会话列表同样用 `item` 与 `aria-current`，刷新列表时按当前 `target` 重新标记；管理员未选会话时标题是「请先选择一个客户会话」（原来是没有内容的「我的留言」）；`formatTime()` 固定按 `zh-CN`、24 小时制输出消息时间（原来的无参 `toLocaleString()` 跟随浏览器语言，英文系统上是「9/28/2026, 9:49:30 AM」），无效时间返回空串；游客提示里的 `#support-login-btn` 调 `auth.open()`。
+- `shop-page.js`：「我的订单」按钮用 `item`，点开的那条标 `aria-current`。
+- `setAttribute` / `removeAttribute` 用可选调用：旧的 Node 测试替身元素没有这两个方法。

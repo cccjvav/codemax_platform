@@ -3,21 +3,22 @@
 /* 两栏由脚本切换 .with-inbox（TD-263），不再依赖 :has()——旧内核（Chrome<105、Firefox<121）不支持它，管理员会看到单栏叠放 */
 .support-layout.with-inbox { grid-template-columns: 260px minmax(0, 1fr); }
 .support-center [hidden] { display: none; }
-#support-inbox button { display: block; width: 100%; text-align: left; margin-top: 8px; }
+/* 会话列表项用 base.html 的 button.item 列表行样式（TD-306），这里只管间距 */
+#support-inbox button { margin-top: 8px; }
 #support-messages { list-style: none; padding: 0; max-height: 55vh; overflow: auto; }
 #support-messages li { white-space: pre-wrap; overflow-wrap: anywhere; background: #f1f5f9; padding: 12px; margin: 8px 0; border-radius: 8px; }
 #support-messages li.admin { background: #eff6ff; border-left: 3px solid #2563eb; }
 #support-messages small { display: block; color: #475569; }  /* TD-272：11.7px 的 #64748b 落在气泡底色上只有 4.34:1，
    低于 WCAG AA 的 4.5:1（axe-core 实测）；#475569 是 6.92:1，与站内次级正文同色。 */
 @media (max-width: 700px) { .support-layout.with-inbox { grid-template-columns: 1fr; } }
-/* 留言框用正文字体：base.html 给 textarea 的等宽字体是为 DDL/代码输入准备的，写中文留言不合适。
-   只改字体族、不改字号 —— 手机 16px 规则（base.html 末尾）照常生效。 */
-#support-body { font-family: inherit; line-height: 1.6; }
+/* 留言框、提问框的正文字体已由 base.html 统一（TD-306：textarea 默认正文字体，只有 class="code" 用等宽），
+   这里只把行高放宽一点；不改字号 —— 手机 16px 规则（base.html 末尾）照常生效。 */
+#support-body, #support-ask-text { line-height: 1.6; }
+.support-login { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
 /* 先问智能助手（TD-295）：浅底卡片与下方私人留言区分开。辅助文字用 #475569（浅底上 7.2:1），
    不用 #64748b —— 它在 #f8fafc 上只剩约 4.5:1，贴着 WCAG AA 边线。 */
 .support-assistant { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px 20px; margin: 16px 0 24px; }
 .support-assistant h3 { margin: 0 0 4px; }
 .support-assistant-note { color: #475569; font-size: var(--fs-small); margin: 4px 0; }
-#support-ask-text { font-family: inherit; line-height: 1.6; }
 #support-ask-answer { white-space: pre-wrap; overflow-wrap: anywhere; margin: 8px 0; }
 #support-ask-refs { margin: 4px 0; padding-left: 20px; }

@@ -25,16 +25,16 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `a9b186a8c560` | L1–L239 |
-| [`app/templates/drawio.html`](drawio.html) | `1f33348a0b0f` | L1–L50 |
-| [`app/templates/er.html`](er.html) | `021924e1ee5a` | L1–L45 |
+| [`app/templates/base.html`](base.html) | `a4043a423d13` | L1–L258 |
+| [`app/templates/drawio.html`](drawio.html) | `c47bd70936d8` | L1–L47 |
+| [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
-| [`app/templates/mermaid.html`](mermaid.html) | `529281507e00` | L1–L21 |
+| [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `88953f7ff9be` | L1–L30 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `820d64cf6c89` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `6348afa5d6fc` | L1–L169 |
-| [`app/templates/shop.html`](shop.html) | `b8177065729d` | L1–L115 |
-| [`app/templates/support-center.html`](support-center.html) | `6bc150af595a` | L1–L53 |
+| [`app/templates/shop.html`](shop.html) | `ca3e287b61ae` | L1–L116 |
+| [`app/templates/support-center.html`](support-center.html) | `954df4986259` | L1–L55 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -133,10 +133,24 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 
 真实 Chromium（1280 / 390 宽、Noto Sans SC）统计：改前各页 85–95% 的可见文字是 13–14px，手机上也一样；页面标题 20/21/24px 不一；首页三张卡片各占满整行；ER/类图画布生成前是空框。
 
-- **字号**：`base.html` 的 `:root` 定 `--fs-body`（15px，≤700px 另一段改 16px）、`--fs-small` 14px、`--fs-xs` 13px、`--fs-title` 22px。textarea 14px 等宽、`pre` 与浮层提示 13px，样式表里没有小于 13px 的字号。输入框 16px 覆盖仍是样式表最后一条（手机正文 16px 写在它前面单独一段）。
+- **字号**：`base.html` 的 `:root` 定 `--fs-body`（15px，≤700px 另一段改 16px）、`--fs-small` 14px、`--fs-xs` 13px、`--fs-title` 22px。textarea 14px（TD-306 起默认正文字体，只有 `class="code"` 等宽）、`pre` 与浮层提示 13px，样式表里没有小于 13px 的字号。输入框 16px 覆盖仍是样式表最后一条（手机正文 16px 写在它前面单独一段）。
 - **版心**：`--edge = max(--gutter, (100% − 1440px) / 2)`，顶栏、`main`、页脚（含手机顶栏）共用，宽屏左右对齐，窄屏退回 `--gutter`（≤900px 为 14px）。`payments-admin.html` 去掉自带的 1180px 居中与 22px 内边距。商城（720px）与客服（1040px）的阅读宽度保留。
 - **标题**：商城商品名与「站内客服」加 `page-heading`；管理页 `.finance-heading` 用 `--fs-title`，分区 h2 18px。
 - **首页**：`index.html` 加 `<p class="home-lead">{{ description }}</p>`（与 meta 描述同源，不是标题），卡片放进 `.tool-grid`（`auto-fill, minmax(300px, 1fr)`），底部「打开工具 →」只是视觉指示（`aria-hidden`）。
 - **空状态**：`#mermaid-preview:empty::before` 与 `er.html` 的 `.er-view:has(> #er-tools[hidden])::after` 在生成前显示提示；ER 提示 `pointer-events: none`，旧内核不支持 `:has()` 时只是没有提示。≤900px 时 DDL 输入框 13em、ER 画布 60vh（原 16 行 + 70vh）。
 - 管理页按钮外边距只留右侧，左缘与输入框对齐。
 - 回归：`tests/test_ui_accessibility.py` 末尾四条（字号变量与下限、共用版心、首页网格、空状态提示与对比度）。
+
+## 2026-09-28 截图复核后的界面整理（TD-306）
+
+真实 Chromium 截图（1280 / 390 宽；游客、普通用户、管理员三种身份，含有待付款订单与客服会话的数据）逐页复核后的修正：
+
+- **横向溢出（缺陷）**：`shop.html` 待付款区标题「订单 CM…」里 28 位订单号不能换行，登录后 390px 宽实测整页被撑到 418px。加 `.shop h2, .shop .muted { overflow-wrap: anywhere; }`。
+- **多行输入字体**：`base.html` 原来给所有 textarea 等宽字体（为 DDL 准备），Mermaid 的自然语言描述也成了 Consolas + 回落字体。现在 textarea 默认正文字体，`er.html` 的 `#ddl-input` 加 `class="code"` 才用等宽；`support.css` 里两条单独改回正文字体的规则随之删去。
+- **单行输入与下拉框**：新增 `:where(input:not(复选/单选/文件/滑块/取色), select)` 统一规则（浅色圆角边框、白底）。`:where()` 特异性为 0，`.finance input`、`.modal input` 等页面规则仍可覆盖；规则不写字体，手机 16px 规则仍是样式表最后一条。`drawio.html` 工具栏自己的边框规则删去（其下拉框原来仍是浏览器灰底）。
+- **控件边框对比度**：新变量 `--control-border: #7d8ca3`，textarea、登录浮层输入框、统一规则共用。原来的 `#cbd5e1` 在白底上只有 1.48:1，达不到 WCAG 1.4.11 对控件边界的 3:1；新色白底 3.41:1、`#f8fafc` 浅底 3.26:1。
+- **按钮行**：新类 `.form-actions`（flex、8px 间距），`er.html` / `mermaid.html` 的按钮行使用。原来按钮之间只有行内空白（约 4px）。
+- **列表行**：新类 `button.item`（白底、边框、左对齐、`pre-line`），选中项 `[aria-current="true"]` 浅蓝底加左侧色条。管理页订单列表、客服会话列表、商城「我的订单」原来都是实心主按钮，与「查询 / 刷新」一样，也看不出选中了哪条。`shop.html`、`support.css` 里对应的列表规则只留间距。
+- **客服页**：游客提示 `#support-login` 旁加「登录 / 注册」按钮 `#support-login-btn`（原来只有一句话，要自己去顶栏找）。
+
+截图时注入的 Noto Sans SC 以 "Microsoft YaHei" 名义声明，并把雅黑排在 `system-ui` 之前（这台无头 Chromium 里 `system-ui` 在前时中文整段空白，属于截图环境问题，站点字体栈未改）。回归见 `tests/test_ui_accessibility.py` 末尾 TD-306 一组。

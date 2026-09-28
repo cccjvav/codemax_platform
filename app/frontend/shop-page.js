@@ -335,9 +335,14 @@ async function loadHistory(more = false) {
     if (!more) box.innerHTML = "";
     const labels = { pending: "待付款", paid: "可下载", downloaded: "可重新下载", closed: "已关闭" };
     for (const order of data.orders) {
-      const button = document.createElement("button"); button.type = "button";
+      const button = document.createElement("button"); button.type = "button"; button.className = "item";
       button.textContent = `${order.order_no} · ${order.refunded ? "已全额退款（不可下载）" : labels[order.status] || order.status}`;
-      button.onclick = () => { userActed = true; ++buySeq; stop(); render(order); };
+      button.onclick = () => {
+        // 标出正在查看的是哪一条（TD-306）；可选调用：测试替身没有 setAttribute
+        for (const other of box.children || []) other.removeAttribute?.("aria-current");
+        button.setAttribute?.("aria-current", "true");
+        userActed = true; ++buySeq; stop(); render(order);
+      };
       box.appendChild(button);
     }
     historyCursor = data.next_cursor; document.getElementById("btn-history-more").hidden = !historyCursor;

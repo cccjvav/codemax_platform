@@ -27,7 +27,9 @@
       </p>
     </div>
   </section>
-  <p id="support-login">请先登录，再查看或发送私人留言。</p>
+  {# 游客提示带上登录按钮（TD-306）：原来只有一句话，得自己去顶栏找登录入口 #}
+  <p id="support-login" class="support-login">请先登录，再查看或发送私人留言。
+    <button type="button" class="ghost" id="support-login-btn">登录 / 注册</button></p>
   <p id="support-error" class="error" role="alert"></p>
   <div class="support-layout" id="support-workspace" hidden>
     <aside id="support-inbox-panel" hidden>

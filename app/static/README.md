@@ -93,7 +93,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `bb18c8d02351` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `a14219a2e586` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `81e9d6cff794` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `bc6c0614a828` | 生成物，见模块构建说明 |
@@ -108,12 +108,12 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/rough.esm.js`](js/rough.esm.js) | `ef405c5eaa33` | 生成物，见模块构建说明 |
 | [`app/static/js/sankeyDiagram-P5KCCOFB.js`](js/sankeyDiagram-P5KCCOFB.js) | `94031b0096e6` | 生成物，见模块构建说明 |
 | [`app/static/js/sequenceDiagram-WJ2MYXX4.js`](js/sequenceDiagram-WJ2MYXX4.js) | `7253da3935a3` | 生成物，见模块构建说明 |
-| [`app/static/js/shop-page.js`](js/shop-page.js) | `5e63bc4a8d00` | 生成物，见模块构建说明 |
+| [`app/static/js/shop-page.js`](js/shop-page.js) | `1f7f77a5715f` | 生成物，见模块构建说明 |
 | [`app/static/js/sizeCapture-INFHLROL.js`](js/sizeCapture-INFHLROL.js) | `1686f2a8163c` | 生成物，见模块构建说明 |
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `a53c367355a3` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `1679bc93e658` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `d8c58ae2e526` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `24b062312da4` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `99cd3de777d0` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `6f2a01973e9c` | 生成物，见模块构建说明 |
@@ -124,7 +124,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/wardleyDiagram-VM6X3IG4.js`](js/wardleyDiagram-VM6X3IG4.js) | `cba4035cb673` | 生成物，见模块构建说明 |
 | [`app/static/js/xychartDiagram-S5SC5T6Z.js`](js/xychartDiagram-S5SC5T6Z.js) | `6faab4aa11db` | 生成物，见模块构建说明 |
 | [`app/static/pay_qr.svg`](pay_qr.svg) | `e76dba08c82d` | L1–L17 |
-| [`app/static/support.css`](support.css) | `c609f490af91` | L1–L23 |
+| [`app/static/support.css`](support.css) | `c2c68415af57` | L1–L24 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。
@@ -182,3 +182,8 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 ## 2026-09-26 shop-page.js 重建（TD-281）
 
 - 源码 `app/frontend/shop-page.js` 去掉 `ST.downloaded` 后重新 `npm run build`，只有 `js/shop-page.js` 变化。
+
+## 2026-09-28 列表行、中文时间与客服页字体（TD-306）
+
+- `support.css`：`#support-body`、`#support-ask-text` 不再单独写 `font-family: inherit` —— base.html 起 textarea 默认就是正文字体，这里只保留 1.6 行高；会话列表按钮的宽度/对齐交给 base.html 的 `button.item`，这里只留上间距；新增 `.support-login`（游客提示与登录按钮同一行，窄屏换行）。
+- `js/payments-admin.js`、`js/shop-page.js`、`js/support-page.js` 由 `npm run build` 从对应源码重建（列表行 class、`aria-current`、客服消息中文时间）。

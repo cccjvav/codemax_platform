@@ -603,3 +603,140 @@ def test_diagram_canvases_explain_themselves_before_the_first_render():
     assert "tools.hidden = false;" in js, "ER 提示依赖渲染成功后取消 #er-tools 的 hidden"
     assert contrast("#64748b", "#f8fafc") >= 4.5  # ER 画布底色
     assert contrast("#64748b") >= 4.5             # 类图预览白底
+
+
+# ---------------------------------------------------------------- TD-306：截图复核后的界面整理
+
+
+def _base_style() -> str:
+    return BASE.read_text(encoding="utf-8").split("<style>")[1].split("</style>")[0]
+
+
+def test_textareas_use_the_body_font_and_only_code_inputs_are_monospace():
+    """所有 textarea 原来都是等宽字体（给 DDL 准备的），Mermaid 自然语言描述、客服留言也跟着用了 Consolas。
+    现在默认正文字体，只有 class="code" 用等宽；DDL 输入框点名 code，其余多行输入不点名。"""
+    style = _base_style()
+    assert "textarea { font-size: var(--fs-small); line-height: 1.55; }" in style
+    assert "textarea.code { font-family: ui-monospace, Consolas, monospace; }" in style
+    assert not re.search(r"(?m)^\s*textarea\s*\{[^}]*monospace", style), "textarea 默认规则不应再带等宽字体"
+    templates = ROOT / "app" / "templates"
+    assert '<textarea id="ddl-input" class="code"' in (templates / "er.html").read_text(encoding="utf-8")
+    for name, textarea_id in (("mermaid.html", "text-input"), ("support-center.html", "support-ask-text"),
+                              ("support-center.html", "support-body")):
+        tag = re.search(rf'<textarea id="{textarea_id}"[^>]*>', (templates / name).read_text(encoding="utf-8")).group(0)
+        assert 'class="code"' not in tag, f"{textarea_id} 是自然语言输入，不该用等宽字体"
+    assert "font-family" not in SUPPORT_CSS.read_text(encoding="utf-8"), "客服页不需要再单独把字体改回正文"
+
+
+def test_form_controls_share_one_border_that_meets_non_text_contrast():
+    """单行输入框与下拉框此前只有登录浮层、drawio 工具栏各自画了浅色边框，管理页是浏览器默认样式。
+    统一规则用 :where()（特异性 0，页面规则仍可覆盖）、不写字体（不干扰手机 16px）；
+    边框色是辨认控件的唯一线索，WCAG 1.4.11 要求 ≥3:1，白底与客服助手卡片的浅底都要达标。"""
+    style = _base_style()
+    color = re.search(r"--control-border: (#[0-9a-f]{6});", style).group(1)
+    assert contrast(color) >= 3 and contrast(color, "#f8fafc") >= 3, color
+    rule = re.search(r":where\(input:not\([^{]*\), select\) \{([^}]*)\}", style)
+    assert rule, "缺少全站单行输入/下拉框规则"
+    assert "border: 1px solid var(--control-border)" in rule.group(1) and "background: #fff" in rule.group(1)
+    assert not re.search(r"\bfont(-size)?\s*:", rule.group(1)), "统一控件规则不能写字体（会与手机 16px 规则打架）"
+    for selector in ("textarea { width: 100%; padding: 8px; border: 1px solid var(--control-border);",
+                     ".modal input { width: 100%; padding: 7px 9px; border: 1px solid var(--control-border);"):
+        assert selector in style, selector
+    assert "#cbd5e1; border-radius: 6px" not in style, "输入框边框不应再用 1.48:1 的 #cbd5e1"
+    drawio = (ROOT / "app" / "templates" / "drawio.html").read_text(encoding="utf-8")
+    assert ".toolbar select" not in drawio, "drawio 工具栏控件由全站规则统一，不再单独画边框"
+
+
+def test_tool_form_buttons_sit_in_a_spaced_flex_row():
+    """ER / 类图页的按钮原来靠行内空白隔开（约 4px），截图里几乎挨在一起。"""
+    assert ".form-actions { display: flex; flex-wrap: wrap; gap: 8px;" in _base_style()
+    for name, first in (("er.html", "er-submit"), ("mermaid.html", "mermaid-submit")):
+        html = (ROOT / "app" / "templates" / name).read_text(encoding="utf-8")
+        assert re.search(rf'<p class="form-actions">\s*<button type="submit" id="{first}">', html), name
+
+
+def test_shop_order_number_in_headings_can_wrap():
+    """登录后有待付款订单时，标题「订单 CM…」里 28 位订单号不能换行，390px 实测整页被撑到 418px 宽。"""
+    html = SHOP.read_text(encoding="utf-8")
+    assert ".shop h2, .shop .muted { overflow-wrap: anywhere; }" in html
+    assert '<h2>订单 <span id="p-no"></span></h2>' in html
+
+
+def test_list_rows_are_not_primary_buttons_and_mark_the_current_item():
+    """订单列表、客服会话列表原来是一排实心主按钮，与「查询 / 刷新」长得一样，也看不出选中的是哪条。
+    改为 button.item 列表行；点击后由脚本设 aria-current，CSS 按它高亮。三个列表都要用。"""
+    style = _base_style()
+    assert re.search(r"button\.item \{[^}]*background: #fff;[^}]*white-space: pre-line;", style)
+    assert 'button.item[aria-current="true"] {' in style
+    frontend = ROOT / "app" / "frontend"
+    for name in ("payments-admin.js", "support-page.js", "shop-page.js"):
+        js = (frontend / name).read_text(encoding="utf-8")
+        assert 'button.className = "item";' in js, name
+        assert 'button.setAttribute?.("aria-current", "true");' in js and 'removeAttribute?.("aria-current")' in js, name
+    admin = (frontend / "payments-admin.js").read_text(encoding="utf-8")
+    assert "button.textContent = `${row.order_no}\\n${row.username}" in admin, "订单号单独一行"
+
+
+_SUPPORT_LIST_HARNESS = r"""
+const path = process.argv[2];
+const els = {}; let opened = 0;
+const mkEl = (id) => {
+  const attrs = {};
+  return { id, value: "", textContent: "", hidden: false, disabled: false, className: "", children: [], attrs,
+    classList: { add() {}, remove() {} }, setAttribute(k, v) { attrs[k] = String(v); }, removeAttribute(k) { delete attrs[k]; },
+    append(...x) { this.children.push(...x); }, prepend(...x) { this.children.unshift(...x); },
+    replaceChildren(...x) { this.children = x; }, focus() {}, scrollIntoView() {} };
+};
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t) };
+const auth = { user: { username: "boss", role: 1 }, onChange(fn) { this.listener = fn; }, open() { opened += 1; } };
+global.window = global; global.CodeMaxAuth = auth; global.addEventListener = () => {};
+global.setTimeout = () => 1; global.clearTimeout = () => {};
+global.fetch = async (url) => {
+  let data = [];
+  if (url.startsWith("/support/conversations?") || url === "/support/conversations")
+    data = [{ id: 9, customer_id: 1, username: "alice", awaiting_admin: true }, { id: 8, customer_id: 2, username: "bob", awaiting_admin: false }];
+  else if (url.startsWith("/support/conversations/2/messages"))
+    data = [{ id: 5, sender_role: 0, body: "hi", create_time: "2026-09-28T09:49:30" }];
+  return { ok: true, status: 200, json: async () => data };
+};
+const tick = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r)); };
+require(path);
+(async () => {
+  await tick();
+  const inbox = els["support-inbox"];
+  const initialTitle = els["support-title"].textContent;
+  const classes = inbox.children.map((b) => b.className);
+  inbox.children[0].onclick(); await tick();
+  inbox.children[1].onclick(); await tick();
+  const marks = inbox.children.map((b) => b.attrs["aria-current"] || null);
+  const meta = els["support-messages"].children[0].children[0].textContent;
+  els["support-inbox-refresh"].onclick(); await tick();
+  const afterRefresh = els["support-inbox"].children.map((b) => b.attrs["aria-current"] || null);
+  auth.listener(null);
+  const guestTitle = els["support-title"].textContent, loginHidden = els["support-login"].hidden;
+  els["support-login-btn"].onclick();
+  console.log(JSON.stringify({ initialTitle, classes, marks, meta, afterRefresh, guestTitle, loginHidden, opened }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/support-page.js", "app/static/js/support-page.js"])
+def test_support_inbox_marks_the_open_conversation_and_formats_time_in_chinese(tmp_path, path):
+    """TD-306：① 管理员选中会话前标题提示「请先选择一个客户会话」（原来是没有内容可看的「我的留言」）；
+    ② 会话列表是 item 行，只有当前会话带 aria-current，刷新列表后仍保留；③ 消息时间固定中文格式
+    （原来跟随浏览器语言，英文系统上是「9/28/2026, 9:49:30 AM」）；④ 游客提示旁的按钮打开登录浮层。"""
+    harness = tmp_path / "support-list.cjs"
+    harness.write_text(_SUPPORT_LIST_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    result = json.loads(proc.stdout.strip().splitlines()[-1])
+    assert result["initialTitle"] == "请先选择一个客户会话", result
+    assert result["classes"] == ["item", "item"], result
+    assert result["marks"] == [None, "true"], result
+    assert result["afterRefresh"] == [None, "true"], result
+    assert result["meta"] == "客户 · 2026/09/28 09:49", result
+    assert result["guestTitle"] == "我的留言" and result["loginHidden"] is False, result
+    assert result["opened"] == 1, result

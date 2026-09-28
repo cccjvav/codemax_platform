@@ -137,7 +137,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `fe4aa93c190a` | L1–L605 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `94606e806042` | L1–L742 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `f50d6a23e17e` | L1–L548 |
@@ -340,3 +340,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_download.py::test_missing_product_file_404` 加强：404 detail 不得含对象 key、须含「购买权益未删除」，`codemax.shop` 日志里必须有 key。
 - 新增 `test_download.py::test_order_history_draws_qr_only_for_pending_rows`：closed/paid/pending 三张单都带 weixin:// 码，历史接口只画 pending 那张，单查接口照旧有码。
 - 新增 `test_ui_accessibility.py::test_closed_order_page_shows_its_order_number`；`test_shop_order_history_comes_after_every_status_section` 与 `test_shop_page.py` 的 Node 桩随模板去掉 `st-downloaded`（区段已删，不是放宽断言）。
+
+## 2026-09-28 截图复核后的界面整理（TD-306）
+
+`test_ui_accessibility.py` 末尾新增六条：textarea 默认正文字体且只有 `class="code"` 等宽（DDL 输入框点名、自然语言输入不点名、`support.css` 不再改字体）；统一控件规则用 `:where()`、不写字体、边框色 `--control-border` 在白底与 `#f8fafc` 上 ≥3:1；ER/类图按钮行在 `.form-actions` 里；商城订单号标题可换行；三个列表都用 `button.item` 并设/清 `aria-current`；Node 真跑客服页源码与产物（管理员未选会话时的标题、只有当前会话带 `aria-current` 且刷新后保留、消息时间「2026/09/28 09:49」、退出后游客按钮打开登录浮层）。改前的源码下这组用例会失败（标题、列表 class、时间格式都不同）；另把「中文时间」「刷新后保留标记」两处改回旧写法做过变异核对，用例随之变红。
