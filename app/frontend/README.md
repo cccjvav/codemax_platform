@@ -51,7 +51,7 @@
 | [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
 | [`app/frontend/er-page.js`](er-page.js) | `642a63a8fdc5` | L1–L211 |
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `ad37f903fc4f` | L1–L107 |
-| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `e63fa12d8e85` | L1–L42 |
+| [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `961b83efd591` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `a27401684caf` | L1–L362 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `757c86711e23` | L1–L375 |
@@ -214,3 +214,7 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 - `payments-admin.js`：`BUILD[kind](number, evidence)` 负责各类表单的专属校验与请求：返回字符串表示校验失败（`operate` 显示为提示），返回 `null` 表示静默放弃，否则返回 `{url, body, summary}`。授权、重新授权、发送、停止四类由 `refundAttempt(kind)` 生成。
 - 结果未知的请求统一经 `resume(kind, same, fresh)`：`same` 中的字段须与保存的请求体一致，否则拒绝；没有保存的才新建。各表单比较的字段沿用原规则。
 - `operate` 只做公共校验（选单、可见、busy、手填单号、3–500 字依据）、确认、保存 pending、POST 与结算。新增一类写操作时：在 `forms` 里登记、在 `BUILD` 里加构造函数；结果未知时需要原样重发的，再加进 `RESUMABLE`。
+
+## 2026-09-28：模拟收银台失败提示（TD-309）
+
+- `mock-pay-page.js`：失败提示改为「支付失败：原因」，原因经 `window.CodeMaxAuth?.errorText` 生成（auth.js 缺席时为「请求失败（状态码）」），与其他页面措辞一致；非 JSON 应答不再显示成「失败 502：{}」。401 与成功分支不变。

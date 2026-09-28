@@ -1431,3 +1431,18 @@ LLM：`LLMClient._call` 用 `client.stream` 打开响应，`_json_within_budget`
 - 退款准备比较里去掉「金额」也没有场景改变，这种情况实际到不了：金额先要等于合同全额才能走到比较，而换单时 pending 会清空。所以这里不补用例，比较作为防线保留（RR-29）。
 
 **代价**：文件从 348 行变为 362 行，增加的主要是构造函数的边界与注释。
+
+## TD-309：模拟收银台的失败提示改用共用的 `auth.errorText`（R-07）
+
+**状态**：已实施（2026-09-28）。来自 RR-30 / ROADMAP R-07。
+
+**问题**：`mock-pay-page.js` 的失败提示自己拼 `失败 ${status}：${data.detail || JSON.stringify(data)}`。站内其他页面都经 `auth.errorText` 生成错误文字，只有这里例外。非 JSON 应答（代理 502 返回的 HTML 页，脚本按 `{}` 处理）会显示成「失败 502：{}」；万一是校验错误数组，会显示原始 JSON。
+
+**决定**：
+- 失败原因交给 `window.CodeMaxAuth?.errorText(data, status)`。base.html 在页面内容之前加载 auth.js，所以正常情况下一定有；缺席时退回「请求失败（状态码）」。
+- 文案改为「支付失败：原因」。不沿用「失败 502：」前缀，因为 errorText 的兜底文案已包含状态码，沿用会变成「失败 502：请求失败（502）」。
+- 未登录 401 的专门提示、成功分支都不变。重建 `app/static/js/mock-pay-page.js`。
+
+**测试**：`tests/test_mock_pay.py` 新增 `test_mock_pay_page_failure_text_uses_the_shared_error_wording`：Node 里用假 DOM 跑源码与产物，errorText 从 auth.js 源码中取真实实现。五种应答：字符串 detail、校验错误数组、非 JSON 的 502、auth.js 缺席、401，源码与产物各一，共 10 条。在原来的写法下，前四种都会失败。
+
+**范围**：只影响开发/演示用的 mock 支付模式（生产启动检查拒绝 `SHOP_PAY_MODE=mock`）。

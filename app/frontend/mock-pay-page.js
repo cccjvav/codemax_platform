@@ -32,9 +32,13 @@ pay.addEventListener("click", async () => {
       return;
     }
     pay.disabled = false;
+    // 失败原因与其他页面一样交给 auth.errorText（TD-309）：字符串 detail 原样显示，校验错误数组逐条列出，
+    // 非 JSON 应答（代理 502 的 HTML 页，上面按 {} 处理）显示「请求失败（状态码）」。
+    // 原来自己拼 `detail || JSON.stringify(data)`，非 JSON 应答会显示成「失败 502：{}」。
+    const reason = window.CodeMaxAuth?.errorText(data, res.status) || `请求失败（${res.status}）`;
     out.textContent = res.status === 401
       ? "未登录：请先点击顶栏「登录 / 注册」登录同一账号，再回到本页确认。"
-      : `失败 ${res.status}：${data.detail || JSON.stringify(data)}`;
+      : `支付失败：${reason}`;
   } catch (e) {
     pay.disabled = false;
     out.textContent = `网络错误：${e.message}`;

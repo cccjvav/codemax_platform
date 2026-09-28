@@ -613,7 +613,7 @@
     },
     {
       "path": "app/frontend/mock-pay-page.js",
-      "sha256": "e63fa12d8e85a30602d9d42092d108a85f57d96a985c303ce283d4fa6fa5953e",
+      "sha256": "961b83efd5916ef16fbd01079f086bef2d6f4bf9b0e07ebbc76952a7cdd15987",
       "method": "manual",
       "blocks": [
         {
@@ -622,9 +622,9 @@
           "explanation": "orderNo 从服务端转义输出的 #no 文本读取；out 为结果区。真实是否 mock、订单是否本人由后端确认，浏览器里的按钮不能授权支付。 新增取 #pay 与 #back 引用。"
         },
         {
-          "end": 42,
+          "end": 46,
           "title": "点击确认：明确是模拟成功",
-          "explanation": "带 Cookie 向 /shop/mock-pay/confirm 发 JSON。200 输出模拟流水，401 提示登录，其他输出错误；当前回调没有 try/catch，网络或坏 JSON 会 reject，不要把它描述成完整错误恢复 UI。这个脚本不请求微信真实扣款。 TD-270：点击后禁用按钮防重复；200 显示状态并把「返回商城查看订单」链接显示出来（验收路线第 12 步需要一条明确的返回路径）；401 文案改为指向顶栏登录；非 200 恢复按钮；网络异常单独提示。"
+          "explanation": "带 Cookie 向 /shop/mock-pay/confirm 发 JSON。200 输出模拟流水，401 提示登录，其他输出错误；当前回调没有 try/catch，网络或坏 JSON 会 reject，不要把它描述成完整错误恢复 UI。这个脚本不请求微信真实扣款。 TD-270：点击后禁用按钮防重复；200 显示状态并把「返回商城查看订单」链接显示出来（验收路线第 12 步需要一条明确的返回路径）；401 文案改为指向顶栏登录；非 200 恢复按钮；网络异常单独提示。 TD-309：失败提示改为「支付失败：原因」，原因交给 window.CodeMaxAuth?.errorText（与其他页面同一套措辞：字符串 detail 原样、校验错误数组逐条、其他情况「请求失败（状态码）」）；auth.js 缺席时同样退回「请求失败（状态码）」。原来自己拼 detail || JSON.stringify(data)，非 JSON 应答会显示成「失败 502：{}」。401 文案不变。"
         }
       ]
     },
@@ -6838,123 +6838,133 @@
     },
     {
       "path": "tests/test_mock_pay.py",
-      "sha256": "6549e100006250b379a606c30a255403f9f7ed3702f505bded4679b14de5eed5",
+      "sha256": "404c8385f38fb822aada5f6a70b169adfd5f00ebc57d28d8a865fdcddd0a80d3",
       "method": "guided",
       "blocks": [
         {
-          "end": 19,
-          "title": "模块装配",
-          "explanation": "模块协作与边界：mock本地支付串、演示页文案、本人确认与生产模式隐藏；禁用native_prepay替身防真实出站。共享page_context确保收银台不是缺导航的孤页，模拟流水不可作为收款证据。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL9 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import app.routers.shop as shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from app.models import Order；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 导入 from tests.conftest import TestSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
           "end": 23,
+          "title": "模块装配",
+          "explanation": "模块协作与边界：mock本地支付串、演示页文案、本人确认与生产模式隐藏；禁用native_prepay替身防真实出站。共享page_context确保收银台不是缺导航的孤页，模拟流水不可作为收款证据。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL9 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from sqlalchemy import select；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL18 导入 import app.routers.shop as shop；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 导入 from app.config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL20 导入 from app.models import Order；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 导入 from tests.conftest import TestSession；导入模块顶层可能初始化对象，但不因此运行每个函数体。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 27,
           "title": "mock_mode",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL22 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'mock')：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n登记/装饰：pytest.fixture。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：monkeypatch；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL26 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'mock')：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 29,
+          "end": 33,
           "title": "mock_mode.no_wechat",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL25 抛出 AssertionError('模拟模式不该调用微信支付')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL27 调用 monkeypatch.setattr(shop, 'native_prepay', no_wechat)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：cfg, **kw；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL29 抛出 AssertionError('模拟模式不该调用微信支付')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL31 调用 monkeypatch.setattr(shop, 'native_prepay', no_wechat)：仅在本测试替换属性，fixture结束恢复。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 35,
+          "end": 39,
           "title": "auth_headers",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：client, username='buyer', password='secret123'；异步调用需await才推进。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL31 await 调用 client.post('/auth/register', json={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL32 计算右侧并赋给 `r`：await 调用 client.post('/auth/login', data={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL33 结束当前函数，返回 {'Authorization': f\"Bearer {r.json()['access_token']}\"}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：client, username='buyer', password='secret123'；异步调用需await才推进。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL35 await 调用 client.post('/auth/register', json={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL36 计算右侧并赋给 `r`：await 调用 client.post('/auth/login', data={'username': username, 'password': password})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL37 结束当前函数，返回 {'Authorization': f\"Bearer {r.json()['access_token']}\"}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 40,
+          "end": 44,
           "title": "order_row",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：order_no: str；异步调用需await才推进。 返回类型标注：Order。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL37 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL38 结束当前函数，返回 调用 (await s.execute(select(Order).where(Order.order_no == order_no))).scalar_one()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：order_no: str；异步调用需await才推进。 返回类型标注：Order。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL41 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL42 结束当前函数，返回 调用 (await s.execute(select(Order).where(Order.order_no == order_no))).scalar_one()；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 50,
+          "end": 54,
           "title": "test_mock_order_points_at_local_cashier",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay?order_no=、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL42 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL43 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL44 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL45 计算右侧并赋给 `body`：调用 r.json()。\nL46 核对 `body['pay_mode'] == 'mock'`：此条件为假即测试失败；不是生产输入校验。\nL47 核对 `body['code_url'].endswith(f\"/shop/mock-pay?order_no={body['order_no']}\")`：此条件为假即测试失败；不是生产输入校验。\nL48 核对 `body['code_url'].startswith('http://test')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay?order_no=、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL46 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL47 计算右侧并赋给 `r`：await 调用 client.post('/shop/orders', headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL48 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL49 计算右侧并赋给 `body`：调用 r.json()。\nL50 核对 `body['pay_mode'] == 'mock'`：此条件为假即测试失败；不是生产输入校验。\nL51 核对 `body['code_url'].endswith(f\"/shop/mock-pay?order_no={body['order_no']}\")`：此条件为假即测试失败；不是生产输入校验。\nL52 核对 `body['code_url'].startswith('http://test')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 57,
+          "end": 61,
           "title": "test_mock_pay_page_renders_warning",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL52 计算右侧并赋给 `r`：await 调用 client.get('/shop/mock-pay', params={'order_no': 'CM123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL53 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL54 核对 `'模拟支付通道' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL55 核对 `'CM123' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `r`：await 调用 client.get('/shop/mock-pay', params={'order_no': 'CM123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL57 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL58 核对 `'模拟支付通道' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL59 核对 `'CM123' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 74,
+          "end": 78,
           "title": "test_mock_pay_return_link_carries_the_order_number",
           "explanation": "返回链接必须带订单号（V-05），且没带单号时不能拼出空的 ?order=（那会变成「打开商城但什么都不恢复」）。"
         },
         {
-          "end": 87,
+          "end": 91,
           "title": "test_mock_confirm_marks_paid",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL76 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL77 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL78 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL79 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL80 核对 `r.json()['status'] == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL81 核对 `r.json()['transaction_id'].startswith('MOCK-')`：此条件为假即测试失败；不是生产输入校验。\nL83 计算右侧并赋给 `row`：await 调用 order_row(order_no)；等待期间可让出事件循环，恢复后才执行下一句。\nL84 核对 `row.status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL85 核对 `row.paid_at is not None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL80 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL81 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL82 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL83 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL84 核对 `r.json()['status'] == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL85 核对 `r.json()['transaction_id'].startswith('MOCK-')`：此条件为假即测试失败；不是生产输入校验。\nL87 计算右侧并赋给 `row`：await 调用 order_row(order_no)；等待期间可让出事件循环，恢复后才执行下一句。\nL88 核对 `row.status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\nL89 核对 `row.paid_at is not None`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 92,
+          "end": 96,
           "title": "test_mock_confirm_requires_login",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL89 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL90 核对 `r.status_code == 401`：要求未通过身份验证；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL93 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL94 核对 `r.status_code == 401`：要求未通过身份验证；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 101,
+          "end": 105,
           "title": "test_mock_confirm_rejects_other_users_order",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL94 计算右侧并赋给 `alice`：await 调用 auth_headers(client, 'alice', 'secret123')；等待期间可让出事件循环，恢复后才执行下一句。\nL95 计算右侧并赋给 `bob`：await 调用 auth_headers(client, 'bob', 'secret456')；等待期间可让出事件循环，恢复后才执行下一句。\nL96 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=alice)).json()['order_no']。\nL97 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=bob)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL98 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL99 核对 `(await order_row(order_no)).status == 'pending'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL98 计算右侧并赋给 `alice`：await 调用 auth_headers(client, 'alice', 'secret123')；等待期间可让出事件循环，恢复后才执行下一句。\nL99 计算右侧并赋给 `bob`：await 调用 auth_headers(client, 'bob', 'secret456')；等待期间可让出事件循环，恢复后才执行下一句。\nL100 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=alice)).json()['order_no']。\nL101 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=bob)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL102 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL103 核对 `(await order_row(order_no)).status == 'pending'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 110,
+          "end": 114,
           "title": "test_mock_confirm_is_idempotent",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL103 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL104 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL105 计算右侧并赋给 `first`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL106 计算右侧并赋给 `again`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL107 核对 `(first.status_code, again.status_code) == (200, 200)`：此条件为假即测试失败；不是生产输入校验。\nL108 核对 `(await order_row(order_no)).status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay/confirm、/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL107 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL108 计算右侧并赋给 `order_no`：(await client.post('/shop/orders', headers=h)).json()['order_no']。\nL109 计算右侧并赋给 `first`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL110 计算右侧并赋给 `again`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': order_no}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL111 核对 `(first.status_code, again.status_code) == (200, 200)`：此条件为假即测试失败；不是生产输入校验。\nL112 核对 `(await order_row(order_no)).status == 'paid'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 119,
+          "end": 123,
           "title": "test_wechat_mode_hides_mock_endpoints",
-          "explanation": "本用例的准备条件：client。涉及接口：/shop/mock-pay、/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL113 核对 `settings.SHOP_PAY_MODE == 'wechat'`：此条件为假即测试失败；不是生产输入校验。\nL114 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL115 核对 `(await client.get('/shop/mock-pay')).status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL116 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL117 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/shop/mock-pay、/shop/mock-pay/confirm。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL117 核对 `settings.SHOP_PAY_MODE == 'wechat'`：此条件为假即测试失败；不是生产输入校验。\nL118 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL119 核对 `(await client.get('/shop/mock-pay')).status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL120 计算右侧并赋给 `r`：await 调用 client.post('/shop/mock-pay/confirm', json={'order_no': 'CM1'}, headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL121 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 134,
+          "end": 138,
           "title": "test_unknown_pay_mode_rejected",
-          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL121 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'alipay')：仅在本测试替换属性，fixture结束恢复。\nL122 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL123 核对 `(await client.post('/shop/orders', headers=h)).status_code == 500`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/shop/orders。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL125 调用 monkeypatch.setattr(settings, 'SHOP_PAY_MODE', 'alipay')：仅在本测试替换属性，fixture结束恢复。\nL126 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL127 核对 `(await client.post('/shop/orders', headers=h)).status_code == 500`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 144,
+          "end": 148,
           "title": "test_mock_pay_page_renders_full_site_chrome",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL137 计算右侧并赋给 `html`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL139 核对 `'<h1><a href=\"/\">CodeMax 在线工具</a></h1>' in html`：此条件为假即测试失败；不是生产输入校验。\nL140 核对 `'<nav></nav>' not in html`：此条件为假即测试失败；不是生产输入校验。\nL141 核对 `'href=\"/tools/er\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL142 核对 `'href=\"\"' not in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL141 计算右侧并赋给 `html`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL143 核对 `'<h1><a href=\"/\">CodeMax 在线工具</a></h1>' in html`：此条件为假即测试失败；不是生产输入校验。\nL144 核对 `'<nav></nav>' not in html`：此条件为假即测试失败；不是生产输入校验。\nL145 核对 `'href=\"/tools/er\"' in html`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `'href=\"\"' not in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 153,
+          "end": 157,
           "title": "test_mock_pay_page_has_the_same_chrome_as_a_normal_page",
-          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop、/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL147 计算右侧并赋给 `cashier`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL148 计算右侧并赋给 `normal`：(await client.get('/shop')).text。\nL149 逐项遍历 `('<h1><a href=\"/\">CodeMax 在线工具</a></h1>', 'href=\"/tools/er\"', 'id=\"btn-auth\"')`，绑定 `probe`；循环体按缩进执行，break可提前结束。\nL150 核对 `probe in cashier`：此条件为假即测试失败；不是生产输入校验。\nL151 核对 `probe in normal`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client, mock_mode。涉及接口：/shop、/shop/mock-pay。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL151 计算右侧并赋给 `cashier`：(await client.get('/shop/mock-pay', params={'order_no': 'CM1'})).text。\nL152 计算右侧并赋给 `normal`：(await client.get('/shop')).text。\nL153 逐项遍历 `('<h1><a href=\"/\">CodeMax 在线工具</a></h1>', 'href=\"/tools/er\"', 'id=\"btn-auth\"')`，绑定 `probe`；循环体按缩进执行，break可提前结束。\nL154 核对 `probe in cashier`：此条件为假即测试失败；不是生产输入校验。\nL155 核对 `probe in normal`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 170,
+          "end": 174,
           "title": "test_page_context_is_the_single_source_of_base_template_fields",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL161 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL163 导入 from app.site import page_context；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL165 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL166 计算右侧并赋给 `base`：调用 (root / 'app/templates/base.html').read_text(encoding='utf-8')。\nL167 计算右侧并赋给 `used`：调用 set(re.findall('{{\\\\s*([a-z_]+)', base))。\nL169 累积修改 `used`：执行 `used -= {'t', 'request'}`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL164 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL165 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL167 导入 from app.site import page_context；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL169 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL170 计算右侧并赋给 `base`：调用 (root / 'app/templates/base.html').read_text(encoding='utf-8')。\nL171 计算右侧并赋给 `used`：调用 set(re.findall('{{\\\\s*([a-z_]+)', base))。\nL173 累积修改 `used`：执行 `used -= {'t', 'request'}`，新值供下一轮/后续分支使用。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 178,
+          "end": 182,
           "title": "test_page_context_is_the_single_source_of_base_template_fields._Req",
-          "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n结构事实：定义类 test_page_context_is_the_single_source_of_base_template_fields._Req，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL172 pass 占位，不执行任何操作。\nL174 计算右侧并赋给 `provided`：调用 set(page_context(_Req(), title='x'))。\nL175 计算右侧并赋给 `missing`：used - provided。\nL176 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n结构事实：定义类 test_page_context_is_the_single_source_of_base_template_fields._Req，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL176 pass 占位，不执行任何操作。\nL178 计算右侧并赋给 `provided`：调用 set(page_context(_Req(), title='x'))。\nL179 计算右侧并赋给 `missing`：used - provided。\nL180 核对 `not missing`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 186,
+          "end": 190,
           "title": "order_count",
           "explanation": "R-02 / TD-302 补测试的辅助：数测试库里的订单行数，用来断言被拒绝的下单没有留下订单。"
         },
         {
-          "end": 196,
+          "end": 200,
           "title": "test_checkout_refuses_an_invalid_product_amount_configuration",
           "explanation": "本用例的准备条件：client、mock_mode、product、monkeypatch 夹具；商品金额配置取 0、-1、2147483648、199.0、True 五组。每组下单都必须 503 且不建单。浮点 199.0 与布尔 True 在 Python 里都能通过「0 < x <= 上限」，所以类型检查不能省；2147483648 超过数据库 INTEGER 上限。此前删掉类型检查或上限都没有用例失败。"
         },
         {
-          "end": 206,
+          "end": 210,
           "title": "test_mock_checkout_and_confirm_are_refused_outside_development",
           "explanation": "本用例的准备条件：client、mock_mode、product、monkeypatch 夹具；先在开发环境建一张模拟单，再把 ENV 切到 production。下单必须 503，模拟确认必须 404，原有的模拟单保持 pending。模拟支付等于免费发货按钮，这两处环境检查此前删掉都没有用例失败。"
         },
         {
-          "end": 215,
+          "end": 219,
           "title": "test_order_status_of_another_user_is_not_found",
           "explanation": "本用例的准备条件：client、mock_mode、product 夹具；alice 下单，bob 用自己的令牌按单号查询：404，响应里没有收款链接。此前把单查接口的归属检查删掉没有用例失败——任何登录用户都能凭单号看到别人的订单状态和收款链接。"
         },
         {
-          "end": 231,
+          "end": 236,
           "title": "test_only_pending_orders_report_expiry",
           "explanation": "本用例的准备条件：client、mock_mode、product 夹具；把一张模拟单的创建时间拨到有效期之前：待支付时 expired 为 True；模拟付款后再查，status 为 paid、expired 为 False。钉住「只有待支付单会过期」，否则已付款的旧单在轮询里会显示为过期。"
+        },
+        {
+          "end": 264,
+          "title": "模拟收银台脚本的 Node 夹具",
+          "explanation": "TD-309 / R-07 的测试夹具：_ROOT 是仓库根目录；_MOCK_PAGE_HARNESS 是交给 node -e 的脚本，参数依次为页面脚本路径、是否提供 auth、状态码、应答正文。它用假 DOM 元素（只有 textContent、hidden、disabled 和记录点击处理函数的 addEventListener）在 vm 里执行页面脚本；auth 为 yes 时从 app/frontend/auth.js 源码中用正则取出 errorText 函数定义并求值，挂到 CodeMaxAuth 上，因此比较的是真实实现而不是另写的副本。fetch 替身记录请求并返回给定状态码，正文按 JSON 解析（非 JSON 正文会抛错，模拟代理的 HTML 错误页）。最后触发点击，输出提示文字、按钮与返回链接状态和已发出的请求。"
+        },
+        {
+          "end": 287,
+          "title": "test_mock_pay_page_failure_text_uses_the_shared_error_wording",
+          "explanation": "TD-309 / R-07：在 Node 里用假 DOM 跑模拟收银台脚本的源码与产物，errorText 从 auth.js 源码中取真实实现。五种应答：字符串 detail、校验错误数组（缺 msg 的一项显示「输入无效」）、非 JSON 的 502、auth.js 缺席时的 502、未登录 401。断言提示全文、按钮恢复可点、返回链接仍隐藏、只发出一次确认请求。原来的写法下前四种都会失败（非 JSON 应答显示成「失败 502：{}」）；401 文案不变。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要系统 Node 执行页面脚本')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：file, auth, status, body, expected；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL280 计算右侧并赋给 `result`：调用 subprocess.run(['node', '-e', _MOCK_PAGE_HARNESS, file, auth, status, body], cwd=_ROOT, text=True, capture_output=True, check=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL284 计算右侧并赋给 `data`：调用 json.loads(result.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL285 核对 `data['text'] == expected`：此条件为假即测试失败；不是生产输入校验。\nL286 核对 `data['disabled'] is False and data['back'] is True`：此条件为假即测试失败；不是生产输入校验。\nL287 核对 `data['sent'] == [{'url': '/shop/mock-pay/confirm', 'body': {'order_no': 'CM1'}}]`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

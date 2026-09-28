@@ -6,7 +6,11 @@
 另一个重点是：模拟支付走的是与真实回调**完全相同**的状态机与幂等逻辑，
 所以演示跑通的路径和上生产是同一条，不会漏测。
 """
+import json
 import re
+import shutil
+import subprocess
+from pathlib import Path
 
 import pytest
 from sqlalchemy import select
@@ -229,3 +233,55 @@ async def test_only_pending_orders_report_expiry(client, mock_mode, product):
     assert (await client.post("/shop/mock-pay/confirm", json={"order_no": no}, headers=h)).status_code == 200
     body = (await client.get(f"/shop/orders/{no}", headers=h)).json()
     assert body["status"] == "paid" and body["expired"] is False
+
+
+# ---------------------------------------------------------------- R-07 / TD-309：模拟收银台的失败提示
+
+_ROOT = Path(__file__).resolve().parents[1]
+# 假 DOM 跑页面脚本；errorText 取自 auth.js 源码里的真实实现，不是另写一份。
+_MOCK_PAGE_HARNESS = r"""
+const fs = require('fs'), vm = require('vm');
+const [file, auth, status, body] = process.argv.slice(1);
+const nodes = {};
+const node = (id) => nodes[id] ??= {id, textContent: id === 'no' ? ' CM1 ' : '', hidden: true, disabled: false,
+  addEventListener(type, fn) { this.handler = fn; }};
+const ctx = {document: {getElementById: node}, JSON, Promise, console, sent: []};
+ctx.window = ctx;
+if (auth === 'yes') {
+  const src = fs.readFileSync('app/frontend/auth.js', 'utf8');
+  const errorText = src.match(/function errorText\(data, status\) \{[\s\S]*?\n  \}/)[0];
+  ctx.CodeMaxAuth = {errorText: vm.runInNewContext(`(${errorText})`)};
+}
+ctx.fetch = async (url, opt) => {
+  ctx.sent.push({url, body: JSON.parse(opt.body)});
+  return {status: Number(status), json: async () => JSON.parse(body)};
+};
+vm.runInNewContext(fs.readFileSync(file, 'utf8'), ctx);
+node('pay').handler().then(() => console.log(JSON.stringify({
+  text: node('out').textContent, disabled: node('pay').disabled, back: node('back').hidden, sent: ctx.sent})));
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要系统 Node 执行页面脚本")
+@pytest.mark.parametrize("file", ["app/frontend/mock-pay-page.js", "app/static/js/mock-pay-page.js"])
+@pytest.mark.parametrize(
+    ("auth", "status", "body", "expected"),
+    [
+        ("yes", "404", '{"detail": "订单不存在"}', "支付失败：订单不存在"),
+        ("yes", "422", '{"detail": [{"msg": "字段缺失"}, {}]}', "支付失败：字段缺失；输入无效"),
+        # 代理 502 的 HTML 页不是 JSON：原来显示「失败 502：{}」
+        ("yes", "502", "<html>bad gateway</html>", "支付失败：请求失败（502）"),
+        ("no", "502", "<html>bad gateway</html>", "支付失败：请求失败（502）"),
+        ("yes", "401", '{"detail": "未登录"}', "未登录：请先点击顶栏「登录 / 注册」登录同一账号，再回到本页确认。"),
+    ],
+)
+def test_mock_pay_page_failure_text_uses_the_shared_error_wording(file, auth, status, body, expected):
+    """失败提示与其他页面一样经 auth.errorText；auth.js 缺席时退回「请求失败（状态码）」。按钮恢复可点，不显示返回链接。"""
+    result = subprocess.run(
+        ["node", "-e", _MOCK_PAGE_HARNESS, file, auth, status, body],
+        cwd=_ROOT, text=True, capture_output=True, check=True, timeout=20,
+    )
+    data = json.loads(result.stdout)
+    assert data["text"] == expected
+    assert data["disabled"] is False and data["back"] is True
+    assert data["sent"] == [{"url": "/shop/mock-pay/confirm", "body": {"order_no": "CM1"}}]

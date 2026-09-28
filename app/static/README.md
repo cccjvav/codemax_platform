@@ -89,7 +89,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/mermaid-parser.core.js`](js/mermaid-parser.core.js) | `7146f3a0e00e` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid.core.js`](js/mermaid.core.js) | `1fb816f0fe83` | 生成物，见模块构建说明 |
 | [`app/static/js/mindmap-definition-YA3MSWOX.js`](js/mindmap-definition-YA3MSWOX.js) | `7b724282b151` | 生成物，见模块构建说明 |
-| [`app/static/js/mock-pay-page.js`](js/mock-pay-page.js) | `3dd0b4be7370` | 生成物，见模块构建说明 |
+| [`app/static/js/mock-pay-page.js`](js/mock-pay-page.js) | `77fee3c432fb` | 生成物，见模块构建说明 |
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
@@ -195,3 +195,7 @@ payments-admin.js由新增核验调度表单源码重建；不要直接修改压
 ## 2026-09-28 重建（TD-308）
 
 - `js/payments-admin.js` 由 `npm run build` 从源码重建（写操作改为按表单类型构造请求，行为不变）。
+
+## 2026-09-28 重建（TD-309）
+
+- `js/mock-pay-page.js` 由 `npm run build` 从源码重建（失败提示改用 `auth.errorText`）。

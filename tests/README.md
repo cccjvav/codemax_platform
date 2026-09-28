@@ -97,7 +97,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
 | [`tests/test_mermaid.py`](test_mermaid.py) | `5a961a7ab99e` | L1–L183 |
-| [`tests/test_mock_pay.py`](test_mock_pay.py) | `6549e1000062` | L1–L231 |
+| [`tests/test_mock_pay.py`](test_mock_pay.py) | `404c8385f38f` | L1–L287 |
 | [`tests/test_oauth.py`](test_oauth.py) | `367d3c3c7b7d` | L1–L433 |
 | [`tests/test_oauth_consent.py`](test_oauth_consent.py) | `4005b0b271f0` | L1–L199 |
 | [`tests/test_ops.py`](test_ops.py) | `8176210c71dd` | L1–L646 |
@@ -354,3 +354,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_payments_frontend.py` 新增 `review-change`（复核应答丢失后改说明再提交）与 `control-change-job`（核验控制结果未知后改选另一个任务）两个场景，源码与产物各一：都必须只发出一次请求并显示拒绝提示。它们补的是原有缺口：把复核比较里的「说明」、控制比较里的「任务」去掉时，此前没有用例失败。
 - 控制场景的输出多了 `notice`（页面提示），复核场景多了 `message`；原有断言不变。
+
+## 2026-09-28 模拟收银台失败提示（TD-309）
+
+- `test_mock_pay.py` 新增 `test_mock_pay_page_failure_text_uses_the_shared_error_wording`：Node 假 DOM 跑页面脚本的源码与产物，errorText 从 auth.js 源码中取真实实现；五种应答（字符串 detail、校验错误数组、非 JSON 502、auth.js 缺席、401）断言提示全文、按钮恢复、返回链接隐藏、只发一次请求。原写法下前四种失败。
