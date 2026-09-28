@@ -32,7 +32,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `cbc2de375cf3` | L1–L32 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `db8d977abafa` | L1–L23 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `6348afa5d6fc` | L1–L169 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `4beb6794c03c` | L1–L172 |
 | [`app/templates/shop.html`](shop.html) | `69fe791c95a0` | L1–L122 |
 | [`app/templates/support-center.html`](support-center.html) | `954df4986259` | L1–L55 |
 
@@ -170,3 +170,7 @@ payments-admin新增不可覆盖授权历史details与独立重新授权表单�
 - **`oauth_consent.html`**：回调地址行加 `overflow-wrap: anywhere`，长 URL 不再越过卡片右边框。
 
 截图环境：完整的 Noto Sans SC TTF（npm `@expo-google-fonts/noto-sans-sc`）复制到 `/tmp/fonts`，页面里用 `local()` 以 "Microsoft YaHei" 名义引用。TD-306 的 data URI 子集做法会缺字，详见 TD-317。回归见 `tests/test_ui_accessibility.py` 末尾 TD-317 一组。
+
+## 2026-09-28 事件历史换行（TD-323）
+
+- `payments-admin.html`：`#finance-events li` 设 `white-space:pre-line`。脚本一直用换行把每条事件分成「时间 · 事件 · 操作人 / 尝试号 / 依据」三行，但原来 li 没有这条规则，三行挤成一段，操作人、尝试号和依据 JSON 连在一起（真 Chromium 截图核对，1280px 与 390px 各一张，改后无横向溢出）。

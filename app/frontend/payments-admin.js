@@ -22,6 +22,47 @@
   const STATE_LABELS = { pending: "待付款", paid: "已付款", downloaded: "已下载", closed: "已关闭" };
   const MODE_LABELS = { wechat: "微信支付", manual: "人工收款", mock: "模拟收银台", legacy: "历史合同" };
   const labelled = (labels, code) => Object.prototype.hasOwnProperty.call(labels, code) ? `${labels[code]}（${code}）` : String(code ?? "");
+  // 事件历史的中文名称（TD-323 / ROADMAP R-09，措辞经用户 2026-09-28 确认），同样显示成「中文（原值）」，未列出的原样显示。
+  // 措辞规则：发起类只写「发起 / 开始」；观察、未知、中止、冲突类不写成功，已验签的非成功观察写明「不是成功」；
+  // 只有 query_success、refund_query_success、refund_manual_success 是成功凭证。后端新增或删去事件种类而这里没跟上时，
+  // tests/test_payment_event_labels.py 会失败（它从后端写入点逐一找出全部种类，含 query_ / refund_query_ + 状态拼出的部分）。
+  const EVENT_LABELS = Object.freeze({
+    prepay_started: "发起下单",
+    prepay_ready: "已生成支付二维码",
+    prepay_unknown: "下单结果未知（不能断定未扣款）",
+    query_started: "发起查单",
+    query_success: "查单确认已支付（已记收款）",
+    query_notpay: "查单：未支付",
+    query_closed: "查单：已关闭",
+    query_refund: "查单：已转退款",
+    query_unknown: "查单结果未知",
+    query_aborted: "查单中止（权限或凭据有变化）",
+    query_conflict: "查单结果与本地记录冲突",
+    legacy_bound: "历史订单补绑支付方式与交付文件",
+    channel_close_started: "发起关单",
+    channel_close_acknowledged: "渠道已受理关单（仍需查单，本地状态不变）",
+    channel_close_unknown: "关单结果未知",
+    operator_review: "人工复核",
+    refund_manual_success: "人工确认退款成功",
+    refund_query_started: "发起退款查询",
+    refund_query_success: "退款查询确认成功",
+    refund_query_closed: "退款查询：已关闭（不是成功）",
+    refund_query_processing: "退款查询：处理中（不是成功）",
+    refund_query_abnormal: "退款查询：异常（不是成功）",
+    refund_query_unknown: "退款查询结果未知",
+    refund_query_aborted: "退款查询中止",
+    refund_query_conflict: "退款查询结果冲突",
+    refund_notify_signal: "收到退款通知（仅是信号，需查询确认）",
+    refund_request_prepared: "退款申请已准备（退款单号已固定）",
+    refund_authorized: "退款已授权",
+    refund_reauthorized: "退款重新授权",
+    refund_send_started: "开始提交退款",
+    refund_send_observed: "退款提交结果：已受理或未知（不是成功）",
+    refund_send_stopped: "已停止提交退款",
+    refund_verify_started: "开始核实退款",
+    refund_verify_observed: "退款核实结果（重试已用完，或查询返回的结果）",
+    refund_verify_control: "人工调整退款核实",
+  });
   const orderState = (row) => `${labelled(STATE_LABELS, row.status)} / ${labelled(MODE_LABELS, row.payment_mode)}`;
   const alive = (stamp, view) => stamp === epoch && (view === undefined || view === viewSeq);
   const message = (text) => { el("message").textContent = text; };
@@ -163,7 +204,7 @@
       el("events").replaceChildren();
       for (const event of data.events) {
         const li = document.createElement("li");
-        li.textContent = `${event.create_time} · ${event.kind} · ${event.actor || "系统"}\n尝试 ${event.attempt_id}\n${event.evidence || ""}`;
+        li.textContent = `${event.create_time} · ${labelled(EVENT_LABELS, event.kind)} · ${event.actor || "系统"}\n尝试 ${event.attempt_id}\n${event.evidence || ""}`;
         el("events").append(li);
       }
       eventCursor = data.next_cursor; el("older").hidden = !eventCursor;

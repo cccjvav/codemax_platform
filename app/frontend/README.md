@@ -53,7 +53,7 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `4c9ee202d8a8` | L1–L125 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `bfac35ca4ea5` | L1–L363 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `bd9383a44d83` | L1–L404 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `cab919d15ed0` | L1–L376 |
 | [`app/frontend/support-page.js`](support-page.js) | `c1177cf0a5b7` | L1–L224 |
 
@@ -239,3 +239,7 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 ## 2026-09-28：ER 截断改为一次扫描（TD-320）
 
 - `er-layout.js` 拆出 `charWidth`；`fitText` 一次扫描累加前缀宽度，不再逐字删末尾并整串重量（原来平方级，2 万字符的表名卡住页面约 8 秒）。截断位置与原实现逐位一致，由 `tests/test_er_page.py` 按定义核对并计时。
+
+## 2026-09-28：事件历史中文名称（TD-323 / R-09）
+
+- `payments-admin.js`：新增冻结的 `EVENT_LABELS`（35 种事件，措辞经用户确认），事件历史每行经 `labelled` 显示成「中文（原值）」，未登记的种类与原型上的键原样显示。只有 `query_success`、`refund_query_success`、`refund_manual_success` 三种名称里能出现「成功」；已验签的非成功观察写明「不是成功」。表与后端写入点是否一致由 `tests/test_payment_event_labels.py` 从语法树核对，后端增删事件种类而这里没跟上时测试失败。

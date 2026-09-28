@@ -332,6 +332,14 @@ if(scenario.startsWith('close-')){
  const rows=el('list').children.map(li=>li.children[0].textContent);
  await clickOrder();
  console.log(JSON.stringify({rows,contract:el('contract').textContent}));
+}else if(scenario==='event-labels'){
+ impl=async(url)=>{
+  if(!url.includes('/ledger'))return rows();
+  const d=ledger('ORDER1');
+  d.events=['refund_query_processing','query_success','constructor','future_kind'].map((kind,i)=>({id:i+1,kind,create_time:'T',attempt_id:'A',actor:null,evidence:''}));
+  return d};
+ start();await tick();await clickOrder();
+ console.log(JSON.stringify({events:el('events').children.map(li=>li.textContent.split('\n')[0])}));
 }else if(scenario==='lost-response'){
  start();await tick();await clickOrder();input();
  impl=async(url,opt)=>{if(opt.method==='POST'){paid=true;throw Error('response lost')}return ledger('ORDER1')};
@@ -347,7 +355,7 @@ if(scenario.startsWith('close-')){
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
                                      'mutation-account-race', 'lost-response', 'query', 'binding',
                                      'review-retry', 'review-stale', 'review-switch', 'review-change', 'review-filter',
-                                     'empty-list', 'detail-visibility', 'state-labels'])
+                                     'empty-list', 'detail-visibility', 'state-labels', 'event-labels'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
                             text=True, capture_output=True, check=True, timeout=20)
@@ -389,6 +397,14 @@ def test_workbench_browser_logic(folder, scenario):
         assert first == 'ORDER1\nu (#1) · P · 100 分（¥1.00） · 待付款（pending） / 人工收款（manual）'
         assert second.endswith(' · refunding / 历史合同（legacy）')
         assert '状态：已付款（paid） / constructor\n' in data['contract']
+    elif scenario == 'event-labels':
+        # TD-323 / R-09：事件种类显示成「中文（原值）」；原型上的键与未登记的新种类原样显示，不猜含义。
+        assert data['events'] == [
+            'T · 退款查询：处理中（不是成功）（refund_query_processing） · 系统',
+            'T · 查单确认已支付（已记收款）（query_success） · 系统',
+            'T · constructor · 系统',
+            'T · future_kind · 系统',
+        ]
     elif scenario == 'review-filter':
         assert 'bucket=reviewed' in data['urls'][1] and 'before=' not in data['urls'][1]
         assert 'before=100' in data['urls'][2]

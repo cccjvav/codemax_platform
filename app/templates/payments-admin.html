@@ -16,6 +16,9 @@
   /* 右外边距代替四周 4px（TD-287）：原来每个按钮左侧也缩进 4px，与上方输入框左缘对不齐 */
   .finance button { margin:4px 8px 4px 0; padding:8px 12px; cursor:pointer; }
   .finance li { margin:10px 0; overflow-wrap:anywhere; }
+  /* 事件历史每条由脚本用换行分成三行：时间 · 事件 · 操作人 / 尝试号 / 依据（TD-323）。原来没有 pre-line，
+     三行挤成一段，操作人、尝试号和依据 JSON 连在一起分不清（真 Chromium 截图核对）。 */
+  #finance-events li { white-space:pre-line; }
   .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
   .finance .warning { padding:12px; background:#fffbeb; border-left:4px solid #d97706; }
   /* 28 位订单号没有空格，会把整页撑出横向滚动条（390px 实测溢出 28px）。

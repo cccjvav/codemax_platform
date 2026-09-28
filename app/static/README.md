@@ -93,7 +93,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `6257a5fc2a7d` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `f9eeea9ef741` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `81e9d6cff794` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `bc6c0614a828` | 生成物，见模块构建说明 |

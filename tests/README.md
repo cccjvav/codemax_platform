@@ -104,11 +104,12 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ops.py`](test_ops.py) | `19dcb2d9c987` | L1–L658 |
 | [`tests/test_order_closures.py`](test_order_closures.py) | `a4652243679f` | L1–L279 |
 | [`tests/test_order_state.py`](test_order_state.py) | `3cc847284250` | L1–L138 |
+| [`tests/test_payment_event_labels.py`](test_payment_event_labels.py) | `6a38818fa31c` | L1–L174 |
 | [`tests/test_payment_ledger.py`](test_payment_ledger.py) | `120f73083b2c` | L1–L429 |
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `cc79e0fdbeda` | L1–L627 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `ab6a21622471` | L1–L643 |
 | [`tests/test_perf.py`](test_perf.py) | `87b3decfd95d` | L1–L398 |
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
@@ -415,3 +416,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_mermaid.py` 的 `test_prompt_marks_keys_in_a_form_mermaid_displays`：提示词规则 4 必须给出 `+int id PK`、`+int userId FK`、`PK FK`，`<<` 只能出现在「不要用」之后。渲染效果是真 Chromium 实测的结论，CI 里只钉提示词。
 - `test_extract.py` 的 `test_extract_content_keeps_every_text_exactly_once`：嵌套列表、pre、引用、h4、表格、`<br>`、注释、脚本、样式、noscript 混排的正文逐行核对；`test_extract_content_survives_nesting_deeper_than_recursion_limit`：嵌套深度为递归上限两倍时仍能取出文字。
 
+## 2026-09-28 事件历史中文名称（TD-323）
+
+- `test_payment_event_labels.py`（新）：从 `app/` 的语法树找出后端写入的全部事件种类（字面量、常量、导入常量、条件表达式、局部变量、辅助函数参数、`query_` / `refund_query_` 加 `wechat_pay` 允许的状态），与 `payments-admin.js` 的 `EVENT_LABELS` 双向比较；扫描器自检（六种写法、共 35 种）；措辞规则（非成功凭证不写「成功」，四种已验签非成功观察写明「不是成功」，名称不重复）；事件行 CSS 有 `pre-line`。
+- `test_payments_frontend.py` 新场景 `event-labels`（源码与产物）：已登记种类显示「中文（原值）」，`constructor` 与未登记的新种类原样显示。
+- 改前代码上：名称表两条、CSS 一条、两个 `event-labels` 场景都失败；另外人为改后端一个种类、删一个名称、把非成功观察写成「成功」，各自失败。

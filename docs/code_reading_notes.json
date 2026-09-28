@@ -11017,46 +11017,46 @@
     },
     {
       "path": "app/frontend/payments-admin.js",
-      "sha256": "bfac35ca4ea5d19344181640a2cbaae733c21e661c00e0bfba085fb92278ab0a",
+      "sha256": "bd9383a44d83bc9d32720ae4e01d42c9104d5f63fb28ddd3f3567a08f1f80a64",
       "method": "manual",
       "blocks": [
         {
-          "end": 30,
+          "end": 71,
           "title": "状态与身份标签",
-          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pending[\"refund-request\"]。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pending[\"refund-authorize\"]/pending[\"refund-send\"]和原退款号/全额/客户reason；仍只有内存状态。 新增pending[\"refund-stop\"]，停止与发送不共用幂等key。 加入verificationJobs/pending[\"verification-control\"]及第十一类表单；手输任务ID属于公共清理字段。 第十四批增加第十二类refund-reauthorize表单及仅内存pending[\"refund-reauthorize\"]。 新增第十三类channel-close表单及channelClose/pending[\"channel-close\"]内存状态、close-amount输入。 TD-299：八个 pending 变量合并为一个按表单类型索引的 pending 对象；RESUMABLE 列出可「按原请求体恢复」的八类表单（manual/query/binding/两类退款核验不在其中）。 TD-307：STATE_LABELS / MODE_LABELS 与 orderState(row) 把订单状态和收款渠道显示成「中文（原值）」；只查自有属性（hasOwnProperty.call），未列出的值原样显示，不猜含义。"
+          "explanation": "IIFE保存账号/列表/详情代次、abort、当前通知/准备和pending[\"refund-request\"]。forms统一十类表单；nonce是UUID优先、随机降级的幂等标识，不是认证秘密。inputs包括独立准备金额，数据仅驻内存。 新增submission/pending[\"refund-authorize\"]/pending[\"refund-send\"]和原退款号/全额/客户reason；仍只有内存状态。 新增pending[\"refund-stop\"]，停止与发送不共用幂等key。 加入verificationJobs/pending[\"verification-control\"]及第十一类表单；手输任务ID属于公共清理字段。 第十四批增加第十二类refund-reauthorize表单及仅内存pending[\"refund-reauthorize\"]。 新增第十三类channel-close表单及channelClose/pending[\"channel-close\"]内存状态、close-amount输入。 TD-299：八个 pending 变量合并为一个按表单类型索引的 pending 对象；RESUMABLE 列出可「按原请求体恢复」的八类表单（manual/query/binding/两类退款核验不在其中）。 TD-307：STATE_LABELS / MODE_LABELS 与 orderState(row) 把订单状态和收款渠道显示成「中文（原值）」；只查自有属性（hasOwnProperty.call），未列出的值原样显示，不猜含义。 TD-323 / R-09：新增冻结的 EVENT_LABELS，35 种事件各有一个中文名（措辞经用户确认），经 labelled 显示成「中文（原值）」，未登记的原样显示；只有 query_success、refund_query_success、refund_manual_success 是成功凭证，已验签的非成功观察写明「不是成功」。表与后端写入点的一致性由 tests/test_payment_event_labels.py 从语法树核对。"
         },
         {
-          "end": 57,
+          "end": 98,
           "title": "清屏与旧会话隔离",
           "explanation": "clearDetail清currentRequest/pending[\"refund-request\"]/通知/复核/合同/凭证/金额和所有输入，禁用两个填号按钮并递增视图代次。reset另递增账号/列表代次、abort旧请求，普通用户隐藏工作区；不会因此撤销服务器已经提交的准备。 同时清授权/尝试/客户原因，新账号不继承待发送body；不能取消已发生网络。 清pending[\"refund-stop\"]与stop-view，不把前端清屏当网络取消。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 账户/选单变化清空任务列表、待确认控制、动作选择与最近控制文字。 同时清authorization-history与未知重新授权body，旧账号内容不得回填。 清除关单正文/金额/未知key，跨账号旧响应不得复活。 TD-278：clearDetail 同时隐藏 #finance-detail、显示 #finance-detail-hint（回到「请选择订单」提示）；reset 额外隐藏列表空状态段落。 TD-299：clearDetail 用一句 pending = {} 清空全部未知请求体，不再逐个置空；换单后回到原单也不会复用旧 request_id（submit-switch 场景）。"
         },
         {
-          "end": 71,
+          "end": 112,
           "title": "HTTP与错误归属",
           "explanation": "request同源Cookie/no-store，捕获当前会话标签。401/403只有仍属当前会话才reset，旧账号迟到错误不能清新账号；errorText统一显示。report同样仅对当前视图显示非abort错误。 错误对象保留HTTP status，4xx的明确拒绝与网络/5xx的不确定提交分开处理。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 105,
+          "end": 146,
           "title": "订单发现",
           "explanation": "list限制管理员，捕获独立请求序号，以URLSearchParams构造bucket/精确单号/before。每次最多50条替换DOM，textContent避免用户名产品名注入。按钮在无操作进行时清详情并选择原单；旧列表响应丢弃，下一页游标只来自响应。 仅相同筛选才继续原游标；200候选预算可能产生空续页，明确提示继续，不误称全局无待办。 TD-278：空结果提示改写进列表外的 #finance-list-empty（role=status），不再往 <ul> 的 textContent 里写字 —— 那违反列表结构（axe-core `list`，serious，管理页实测命中）；每次列表刷新先隐藏它。 TD-306：列表按钮 className=\"item\"（base.html 的浅色列表行），文字是「订单号\\n其余信息」，靠 pre-line 分两行，仍只用 textContent；点击先清其他行的 aria-current 再标记本行（setAttribute/removeAttribute 可选调用，测试替身没有这两个方法）。 TD-307：列表第二行的状态与渠道改用 orderState。"
         },
         {
-          "end": 172,
+          "end": 213,
           "title": "冻结合同与收款历史",
-          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 当前任务带snapshot供后续明确确认；latest_control为首次操作展示，匹配原pending key才清除待确认。控件仅当前列表有任务时显示，所有文本以textContent插入。 核验提示按AUTO_RECORD区分允许系统登记或仍待人工；不发POST，不证明worker在线。 成功凭证按recorded_by显示系统非管理员代办/真实人及verification_event_id，继续textContent不拼HTML，首次归属来自服务端而非客户端推断。 新history只用textContent显示有界版本/前版/正文/摘要/首次人/stop，读到原key才清未知请求；reauthorize_allowed只决定显示，非真实权限。 展示最新channel_close为纯文本，允许新动作或仍有pending[\"channel-close\"]时显示，不能把GET/状态变化当自动关单。 TD-278：detail 一开始就显示 #finance-detail、隐藏提示段落（选单前整块隐藏，见模板）。 TD-299：「GET 读到同一 request_id 才清除」统一为 settle(kind, id)；重新授权按历史列表里是否出现该 ID 判断，仍单独写。 TD-307：合同区「状态：」一行改用 orderState，与列表一致。"
+          "explanation": "detail在alive检查后展示原合同、付款、成功退款、通知和本地准备。只有GET看到同request_id才确认原未知准备已保存；prepared不证明未发送，其他状态仅按成功凭证匹配展示。refund_prepare_allowed控制准备表单，已有成功则准备填号禁用。通知/准备/凭证独立于历史分页，textContent不执行HTML；没有自动金融POST。 另用textContent展示冻结完整JSON/摘要/首次人/最近尝试；授权记录确认丢ACK，开关关闭或已退款隐藏send。 GET读到同停止ID确认已保存；单独textContent显示首次停办事实；有停止隐藏send和stop，发送开关关仍可stop。 verification-view只读textContent、任务原号/状态/次数/时间/最多50条；开关不证明进程在线，SUCCESS待人手确认，同原号已有凭证另提示；换账号清屏/代次丢弃迟到响应，不新增POST。 当前任务带snapshot供后续明确确认；latest_control为首次操作展示，匹配原pending key才清除待确认。控件仅当前列表有任务时显示，所有文本以textContent插入。 核验提示按AUTO_RECORD区分允许系统登记或仍待人工；不发POST，不证明worker在线。 成功凭证按recorded_by显示系统非管理员代办/真实人及verification_event_id，继续textContent不拼HTML，首次归属来自服务端而非客户端推断。 新history只用textContent显示有界版本/前版/正文/摘要/首次人/stop，读到原key才清未知请求；reauthorize_allowed只决定显示，非真实权限。 展示最新channel_close为纯文本，允许新动作或仍有pending[\"channel-close\"]时显示，不能把GET/状态变化当自动关单。 TD-278：detail 一开始就显示 #finance-detail、隐藏提示段落（选单前整块隐藏，见模板）。 TD-299：「GET 读到同一 request_id 才清除」统一为 settle(kind, id)；重新授权按历史列表里是否出现该 ID 判断，仍单独写。 TD-307：合同区「状态：」一行改用 orderState，与列表一致。 TD-323：事件历史每行第一行的事件种类经 EVENT_LABELS 显示中文名。"
         },
         {
-          "end": 303,
+          "end": 344,
           "title": "各表单的校验与请求构造",
           "explanation": "TD-308：DONE 之后是按表单类型索引的 BUILD 表，十三类写操作各有一个构造函数，接收单号与已过公共校验的依据，返回三种结果之一：字符串表示校验失败、由 operate 显示为提示；null 表示静默放弃（例如停止/发送时还没有授权记录）；否则返回 {url, body, summary}。授权、重新授权、发送、停止四类核对相同（原准备号、全额、最多160字依据，授权类另加按 UTF-8 字节计的客户原因），由 refundAttempt(kind) 生成。结果未知的请求统一走 resume(kind, same, fresh)：已有保存的请求体时，same 中每个字段都必须与之相同，否则拒绝并提示；相同就原样返回旧请求体（含原 request_id），没有保存的才调用 fresh() 新建并取新 nonce。各表单比较哪些字段沿用重构前的规则：关单比单号/金额/依据，退款准备比依据与金额，四类授权/发送比整份 base，核验控制比任务/动作/依据，复核比动作/依据。URL 仍逐个写成字面量，每个请求体的字段顺序与原先一致。"
         },
         {
-          "end": 338,
+          "end": 379,
           "title": "显式确认与不可取消的服务端边界",
           "explanation": "operate先核选单/可见/busy、手填单号及无C0/C1控制字符依据。十类显式操作中，refund-request要求全额安全整数与160字依据；未知pending[\"refund-request\"]不许改内容，重试整个原body含原request_id。确认后才保存pending并POST本地准备；成功清pending，失败保留并刷新。复核仍用快照/CAS与稳定nonce；两个退款核验仍按原流水/时间。账号/view变化丢弃结果，后端继续独立授权。 authorize/send另手输原CMR号/全额；reason按TextEncoder最多80字节。两个pending保留完整body阻止改未知请求，授权不连发send；发送确认明确真实转款。send重放键保留以读回；新尝试按钮另明确确认才清键。 stop分支手输原号/全额/单号，传原授权/摘要与停办依据；独立pending[\"refund-stop\"]保留未知body并拒绝修改，明确确认只停新本站尝试，POST只走stop而非send。 verification-control按手输任务ID匹配当前列表，确认框显示原退款号/只暂停此任务/不清零。未知请求保留原body/key/snapshot，修改动作/任务/依据拒绝；503不丢pending，409已知冲突才解除并让人刷新后重确认，成功只说动作已记录。不会POST退款或自动查询。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 reauthorize需原号/全额/客户原因、前版ID/摘要及独立确认；未知body/key冻结，不按新详情悄悄改内容，POST只到reauthorize而不调用send；成功仍须另行发送。 关单独立手动全额与原单确认；pending[\"channel-close\"]固定query/key/body，刷新新query不改旧命令，改未知依据拒绝；取消零POST，同key恢复只读提示。成功清pending再刷新但不自动查微信。 TD-299：确认后 RESUMABLE 内的类型一律 pending[kind] = body；成功后除 refund-send 外都删除（发送保留键，再点只读回同一尝试，submit-resend 场景守住）；成功提示从长三元表达式改为 DONE 查表，文案未变。 TD-308：各类表单的专属校验与请求体已移到上方 BUILD 表；operate 只做选单/可见/busy 与手填单号、3–500 字依据的公共校验，然后调用 BUILD[kind]，再走确认、保存 pending、POST、结算这条共用流程。以上各分支描述的规则不变。"
         },
         {
-          "end": 363,
+          "end": 404,
           "title": "事件入口",
           "explanation": "request-prefill仅当前管理员/有效prepared/非busy/可见区时填查询号，不提交或代填依据。通知填号保持原规则。登录/查询/分页/刷新/十表单事件统一绑定；切账号重置后只为新管理员读取。 send-new-attempt只清内存发送key，不POST；隐藏/非管理员/busy不操作，服务器仍检查60秒和既有观察。 TD-299：send-new-attempt 改为 delete pending[\"refund-send\"]。"
         }
@@ -11146,36 +11146,36 @@
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "6348afa5d6fcb8e9abdd4c2e97ee427f48c8875df0be84e9dd9141004cb706bf",
+      "sha256": "4beb6794c03c60a007550845072501ebe659466f29885b8818142a9ad9249772",
       "method": "manual",
       "blocks": [
         {
-          "end": 59,
+          "end": 62,
           "title": "布局和隐藏边界",
-          "explanation": "继承公共base，局部响应式两栏grid，窄屏改一栏；hidden用important避免grid覆盖浏览器默认隐藏。pre允许长单号/摘要换行，表单/按钮有基本布局；需真实浏览器验证。 TD-272：页面标题由 h1 降为 h2.finance-heading（字号由 CSS 保持），整站每页恢复只有一个 h1；窄屏去掉 .finance 外层与 section 内边距；#finance-title 与 #finance-list button 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；真实发送/停止表单加 .danger 红框；只读凭证并入 details.finance-readonly（默认 open，折叠只是减少滚动）。 TD-272 追加：折叠标题的命中区内边距统一由 base.html 的 `summary` 规则提供，本页不再重复写死，避免两处漂移。 TD-278：新增 .finance-hint 提示文字样式，`.finance pre:empty { display:none }` —— 没有内容的只读框不画空边框。 TD-287：去掉自带的 1180px 居中和 22px 内边距，与顶栏共用版心；页面标题用 --fs-title（22px），分区 h2 固定 18px；按钮外边距改为只留右侧，左缘与输入框对齐。"
+          "explanation": "继承公共base，局部响应式两栏grid，窄屏改一栏；hidden用important避免grid覆盖浏览器默认隐藏。pre允许长单号/摘要换行，表单/按钮有基本布局；需真实浏览器验证。 TD-272：页面标题由 h1 降为 h2.finance-heading（字号由 CSS 保持），整站每页恢复只有一个 h1；窄屏去掉 .finance 外层与 section 内边距；#finance-title 与 #finance-list button 允许任意位置换行（28 位订单号此前把 390px 页面撑出 28px 横向滚动）；真实发送/停止表单加 .danger 红框；只读凭证并入 details.finance-readonly（默认 open，折叠只是减少滚动）。 TD-272 追加：折叠标题的命中区内边距统一由 base.html 的 `summary` 规则提供，本页不再重复写死，避免两处漂移。 TD-278：新增 .finance-hint 提示文字样式，`.finance pre:empty { display:none }` —— 没有内容的只读框不画空边框。 TD-287：去掉自带的 1180px 居中和 22px 内边距，与顶栏共用版心；页面标题用 --fs-title（22px），分区 h2 固定 18px；按钮外边距改为只留右侧，左缘与输入框对齐。 TD-323：#finance-events li 设 white-space:pre-line，脚本用换行分出的「时间 · 事件 · 操作人 / 尝试号 / 依据」三行不再挤成一段。"
         },
         {
-          "end": 80,
+          "end": 83,
           "title": "公开壳与订单筛选",
           "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。 TD-272：标题从 h1 改为 h2.finance-heading，页面外层的说明与登录态块不变。 TD-278：订单列表后新增 #finance-list-empty（role=status）承载空结果提示；详情区新增 #finance-detail-hint 提示段落，其后的合同/凭证/操作全部包进默认 hidden 的 #finance-detail —— 选单前不再叠出十几个空 <pre> 框和禁用按钮。"
         },
         {
-          "end": 91,
+          "end": 94,
           "title": "筛选与详情容器",
           "explanation": "完整订单号可为空做筛选，列表/下一页由JS填写；详情显示当前单标题、合同、客服链接和刷新按钮，未加载前不可刷新。客服只引导人工联系，不承诺自动派单。 HTML pattern按现代浏览器v标志解释，字面连字符和斜线必须转义；不能把普通JS正则写法直接照搬，另有Node Unicode Sets构造回归。"
         },
         {
-          "end": 112,
+          "end": 115,
           "title": "财务写的共同确认与人工核账",
           "explanation": "准备、通知、成功退款、复核独立显示；operations默认hidden，共用手动订单号/单行依据。复核和人工收款按原合同填写，不用准备状态冒充金融完成。 新增finance-verification-view只读分区，仍保留十类手动操作；查询观察与成功凭证分开。 新增最近核验控制显示块，不将历史操作冒称当前状态。"
         },
         {
-          "end": 157,
+          "end": 160,
           "title": "主动查单与历史原件",
           "explanation": "增加refund-request准备表单及整数全额输入，submit说明仅保存、不发送/授权、不撤权；并保留付款查单、独立退款查询、人工已退款登记。新增request-prefill与通知填号均type=button且默认禁用。历史绑定仍一次性核准，所有权限由API再次检查。 新增verification-control独立表单：手输任务ID，选择hold/retry，说明仅此任务、不召回GET、不清次数及耗尽人工查询；仍复用公共原单确认和依据。 领取先提交后即使HTTP尚未发出也可能继续GET；接管不是网络召回，页面/接口明确此界线。 客户原因移到两授权表单共用位置；新增authorization-history details和独立reauthorize按钮，说明原版停止不解除、仅新授权且不发送。 新渠道关单分区在退款前，专用close-amount手填，说明本地closed/最新NOTPAY/未知边界，按钮不是退款。 TD-272：finance-refund-send / finance-refund-stop 两个真实资金动作加 .danger 红框，与只读信息在视觉上分开；元素的 hidden/显示条件与提交路径不变。"
         },
         {
-          "end": 169,
+          "end": 172,
           "title": "事件历史与构建入口",
           "explanation": "绑定提交、事件列表/更早按钮和started未知说明是空容器，JS读取管理员API。固定名本地payments-admin.js用defer加载，复用base共享auth，不引入CDN/内联脚本或Node服务。 第九批新增独立客户原因/手输原号全额、授权及发送表单和冻结正文区；发送默认hidden、明确可能真实转款。new-attempt是button不自动提交。 新stop-view/stop表单默认hidden，submit明确不能撤回渠道退款、释放号码或恢复下载，没有恢复发送按钮。 TD-278：此段开头是 #finance-detail 包裹的结束标签。"
         }
@@ -11347,71 +11347,71 @@
     },
     {
       "path": "tests/test_payments_frontend.py",
-      "sha256": "cc79e0fdbeda41693f52b0c5fbff11ffa1119778b3503b92eb1eca120a6d8f8c",
+      "sha256": "ab6a216224713fbda4b255b6d1f4997e6065a154cff75b7331ec41fb1208abb5",
       "method": "manual",
       "blocks": [
         {
-          "end": 344,
+          "end": 352,
           "title": "装配与验证边界",
           "explanation": "Node VM构造可控DOM/认证/fetch并执行实际源码和bundle。新增prepare场景控制提交前未知、提交后丢ACK可读、改未知内容、取消、换账号后延迟应答及只填号；记录body、POST数量、可见性和提示。原通知/核验/复核/付款场景保留，不模拟真实浏览器布局/商户。 第九批VM加入TextEncoder与六种授权/发送场景；执行实际源码及bundle，不用字符串存在性代替行为。 新stop五场景使用真JS及TextEncoder/可控fetch，不造浏览器验收结论。 核验任务场景对照生产JS和bundle，检查只读文本、同号已有凭证提示、换账号清屏及迟到响应不回填，所有场景零POST。 control-*六种场景执行真实脚本：未知重试刷新了snapshot仍复用原body；改依据不再发；取消无POST；切账号迟到无残留；丢ACK读回首笔；409后重新确认使用新摘要。模拟DOM不是浏览器。 system-on/off/race装配系统凭证及事件123，检查无POST、开关文案、textContent与切账号丢迟到响应；用含script的纯文本actor检呈现，不执行HTML。 reapprove五场景构造已停止叶子/历史，模拟保存、丢应答、未知后改原因、隐藏和账号迟到；不调用真实浏览器。 close六场景执行保存/未知/改内容/禁止/取消/账号迟到；未知后模拟查询attempt变化，仍须原body重放。 TD-278：HARNESS 新增 empty-list（空结果只写进 #finance-list-empty、<ul> 保持无文字）与 detail-visibility（选单前/选单后/退出三个时刻的详情与提示显隐）两个场景。 TD-299：submit 组 HARNESS 增加 submit-resend（成功后再提交）与 submit-switch（丢应答→切单→回原单→重新填写提交）。 TD-307：新增 state-labels 场景：列表两行（已知与未知状态）和合同区的状态文字；渠道值 'constructor' 用来确认查表只认自有属性。 TD-308：新增 review-change（复核应答丢失后改说明再提交）与 control-change-job（核验控制结果未知后改选列表里的另一个任务）两个场景；控制场景的输出多了 notice（页面提示），复核场景多了 message。"
         },
         {
-          "end": 413,
+          "end": 429,
           "title": "test_workbench_browser_logic",
           "explanation": "Node VM分别执行源文件和提交bundle，手工DOM/fetch返回控制账号和详情乱序、来源错误、输入校验/确认弹窗、人工确认/微信查单/永久绑定请求、提交后换账号与响应丢失。断言没有普通用户请求、旧数据回填或第二次人工写；保留文字中的script标签为字面，不把VM当真实布局或Cookie执行。 新复核场景在源码/bundle分别执行，断言原请求完全一致、409后采用新摘要/版本、旧账号复核说明清空，以及新筛选首请求不带旧before、之后才续页。 TD-278：参数化加入 empty-list 与 detail-visibility，并分别断言精确结果；两者在改前的前端上都失败。 TD-307：state-labels 断言列表第一行全文（订单号单独一行、「待付款（pending） / 人工收款（manual）」），未知状态 refunding 原样显示，合同区「已付款（paid） / constructor」。 TD-308：review-change 断言只发出一次请求，并提示「上次复核结果未确认」。"
         },
         {
-          "end": 420,
+          "end": 436,
           "title": "test_hidden_css_and_no_html_interpolation",
           "explanation": "静态补充检查强制hidden样式避免grid覆盖UA隐藏，并禁止管理脚本innerHTML和localStorage。主要行为仍由上方VM执行，不只做源码字符串存在性检查。"
         },
         {
-          "end": 431,
+          "end": 447,
           "title": "test_html_patterns_use_browser_unicode_sets",
           "explanation": "提取管理HTML的两个pattern，Node以浏览器使用的v标志真正构造完整匹配正则，再验证安全订单号和BANK斜线/连字符参考号能匹配、点路径与空格不匹配。旧普通JS字符类会SyntaxError，不能靠pattern字符串存在或VM不模拟表单校验而漏掉。未安装Node时明确skip，不声称浏览器通过。"
         },
         {
-          "end": 451,
+          "end": 467,
           "title": "test_refund_controls_in_actual_source_and_bundle",
           "explanation": "源码/提交bundle各跑退款人工、查询、已退款展示三个Node VM场景，取消不发POST、字段映射准确、切账号清敏感字段，退款依据按文本显示，已退人工表单隐藏。不代表浏览器或商户验收。"
         },
         {
-          "end": 464,
+          "end": 480,
           "title": "test_refund_notice_only_refills_and_never_submits_or_leaks",
           "explanation": "分别执行源码和bundle的全额通知/部分通知/迟到详情三种Node场景。断言展示明确非本地凭证、POST为零、确认号/依据未代填、账号切换后摘要和退款号清空；仅全额能填号，部分按钮禁用，标题回请选择订单。模拟DOM不验证CSS布局或真实商户。"
         },
         {
-          "end": 489,
+          "end": 505,
           "title": "test_preparation_ui_preserves_request_and_never_sends_money",
           "explanation": "两份实际JS各执行六场景：未知重试两个body完全相同/32位ID；丢ACK后GET隐藏表单不重发；改未确认内容拦截；取消零POST；换账号迟到结果不回填；填号不POST/不代填确认，另号成功则禁用。断言文本明确非发送授权，不冒充浏览器/商户验收。"
         },
         {
-          "end": 513,
+          "end": 529,
           "title": "test_explicit_submission_ui_is_not_automatic",
           "explanation": "源码/bundle六场景：发送/授权未知重试同完整body和32位key；开关关、取消及超字节原因零POST；换账号后旧应答不回填。所有场景敏感字段清空，不冒充真实浏览器/商户验收。 TD-299 补两个场景：submit-resend 发送成功后再点，两次请求体完全相同（同 request_id，服务端只读回，不会第二次转款）；submit-switch 第一次丢应答后切到别单再回来，第二次必须换新 request_id、其余字段不变。两者在重构前后的源码上都通过；把「成功后保留发送键」或「清屏清空 pending」去掉时分别失败。"
         },
         {
-          "end": 546,
+          "end": 562,
           "title": "停止发送与只读任务展示回归",
           "explanation": "源码/bundle五场景：未知同body重试，改未知依据不发第二次，取消零POST，账号迟到清屏，丢ACK后GET隐藏发送及停止。所有POST必须stop路径，绝不能误发真实send；不替代浏览器验收。 同段后续核验展示三场景另验证原退款号/结果用文本呈现、最多50条截断提示、已有成功凭证标签与换账号迟到清空；只读展示零POST。"
         },
         {
-          "end": 571,
+          "end": 587,
           "title": "test_verification_control_immutable_unknown_request_and_account_isolation",
           "explanation": "源码和bundle分别执行六种控制场景，断言唯一控制端点、确认边界、取消无POST、原key/body恢复、409新摘要及账号清空。 TD-308：新增 control-change-job，共七种场景：结果未知后改选任务 10，断言只发出针对任务 9 的一次请求，并提示「结果未知」。这条与 review-change 补的是原有缺口：重构前把比较字段中的任务或复核说明去掉，没有任何用例失败。"
         },
         {
-          "end": 586,
+          "end": 602,
           "title": "test_system_receipt_identity_and_authority_display",
           "explanation": "源码/bundle×开关开/关/迟到六场景，断言零POST及清屏；正常显示系统非管理员代办、首笔actor文本与事件123；迟到不填旧详情。Node VM不是浏览器签收。"
         },
         {
-          "end": 608,
+          "end": 624,
           "title": "test_reauthorization_ui_frozen_unknown_and_no_automatic_send",
           "explanation": "源码/bundle各五场景。保存只POST reauthorize且确认文案不发送，未知重试body/key逐字相同，改原因不发第二次；禁止/迟到零POST且历史/输入清空。纯文本script样例不执行HTML。"
         },
         {
-          "end": 627,
+          "end": 643,
           "title": "test_channel_close_explicit_unknown_frozen_and_account_isolation",
           "explanation": "源码和提交bundle各六场景，共12；禁止/取消/迟到零POST，账户清空；正常仅close-channel，unknown两次body/key/query逐字相等，变更依据不发第二次。纯文本script不当HTML，弹窗明确不是退款。"
         }
@@ -14437,6 +14437,73 @@
           "end": 157,
           "title": "test_unsaved_changes_are_confirmed_before_they_are_discarded",
           "explanation": "源码与构建产物各跑一遍 _HARNESS，逐段断言。没改过：新建不询问、离开不拦。改过：新建、打开、导入、移走正在编辑的图都先问，取消后名称、列表选中项不变，不发请求、不弹文件选择。保存成功或下载后不再算未保存；保存期间又改过仍算未保存，与状态栏「编辑器还有新改动」一致。打开失败时编辑器重载成含改动的内容，所以仍算未保存。换账号无法取消，不询问，上一个账号的改动按账号隔离清掉。下载和换账号两段先确认此时确实是「未保存」，免得断言空过。改之前的代码在「改过后离开页面应被拦截」一条就失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：source；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL128 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', _HARNESS, str(ROOT / source)], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL129 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL130 计算右侧并赋给 `out`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL132 核对 `out['cleanNew'] == {'confirms': 0, 'status': '已新建空白流程图', 'leaving': False}`：此条件为假即测试失败；不是生产输入校验。\nL134 核对 `out['dirtyLeaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL135 核对 `out['newCancelled'] == {'confirms': 1, 'name': '草稿', 'status': '已新建空白流程图'}`：此条件为假即测试失败；不是生产输入校验。\nL136 核对 `out['openCancelled'] == {'list': '', 'fetched': False}`：此条件为假即测试失败；不是生产输入校验。\nL137 核对 `out['importCancelled'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL138 核对 `out['confirmText'] == '当前流程图有未保存的改动，继续会丢弃这些改动。确定吗？'`：此条件为假即测试失败；不是生产输入校验。\nL140 核对 `out['afterSave'] == {'leaving': False, 'status': '已保存到云端（#7）'}`：此条件为假即测试失败；不是生产输入校验。\nL141 核对 `out['newAfterSave'] == {'asked': 0, 'status': '已新建空白流程图'}`：此条件为假即测试失败；不是生产输入校验。\nL143 核对 `out['editedDuringSave']['leaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL144 核对 `'编辑器还有新改动' in out['editedDuringSave']['status']`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `out['openFailed']['leaving'] is True`：此条件为假即测试失败；不是生产输入校验。\nL147 核对 `out['openFailed']['reloaded'] == '<mxfile>NEWER_THAN_SNAPSHOT</mxfile>'`：此条件为假即测试失败；不是生产输入校验。\nL148 核对 `'服务暂时不可用' in out['openFailed']['status']`：此条件为假即测试失败；不是生产输入校验。\nL149 核对 `out['opened'] == {'leaving': False, 'status': '已打开 #1'}`：此条件为假即测试失败；不是生产输入校验。\nL151 核对 `out['trashCancelled'] == {'deleted': False, 'leaving': True}`：此条件为假即测试失败；不是生产输入校验。\nL152 核对 `out['trashed'] == {'deleted': True, 'leaving': False, 'name': ''}`：此条件为假即测试失败；不是生产输入校验。\nL154 核对 `out['beforeDownload'] is True and out['afterDownload'] is False`：此条件为假即测试失败；不是生产输入校验。\nL156 核对 `out['beforeSwitch'] is True`：此条件为假即测试失败；不是生产输入校验。\nL157 核对 `out['accountSwitch'] == {'asked': 0, 'leaving': False}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        }
+      ]
+    },
+    {
+      "path": "tests/test_payment_event_labels.py",
+      "sha256": "6a38818fa31c4b6dc469620ca0cfcb7e1a0480cf5a5fff90d3e9a4d837827bd2",
+      "method": "guided",
+      "blocks": [
+        {
+          "end": 24,
+          "title": "模块装配",
+          "explanation": "TD-323 / ROADMAP R-09 的守卫：订单管理页 EVENT_LABELS 必须与后端写入的事件种类完全一致。后端种类不是手抄清单，而是从 app/ 的语法树里找出每一处 PaymentEvent(kind=...) 及把参数当 kind 的辅助函数的每次调用；query_ / refund_query_ 加渠道状态拼出的种类，状态取自 wechat_pay 里对应函数的状态元组。认不出的写法直接失败。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL11 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 import ast；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL17 计算右侧并赋给 `ROOT`：Path(__file__).resolve().parents[1]。\nL18 计算右侧并赋给 `APP`：ROOT / 'app'。\nL20 计算右侧并赋给 `DYNAMIC_PREFIXES`：{'query_': 'query_order', 'refund_query_': 'parse_full_refund'}。\nL22 计算右侧并赋给 `SUCCESS_KINDS`：{'query_success', 'refund_query_success', 'refund_manual_success'}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 36,
+          "title": "_allowed_states",
+          "explanation": "读出 wechat_pay 某函数里 `state not in (...)` 的状态元组，作为前缀拼接种类的全部可能值；找不到就失败，防止校验改写后测试悄悄失效。\n\n输入签名：function: str；定义函数不等于此处立刻执行函数体。 返回类型标注：set[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL27 计算右侧并赋给 `tree`：调用 ast.parse((APP / 'wechat_pay.py').read_text(encoding='utf-8'))。\nL28 逐项遍历 `ast.walk(tree)`，绑定 `fn`；循环体按缩进执行，break可提前结束。\nL29 判断 `isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)) and fn.name == function`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL30 逐项遍历 `ast.walk(fn)`，绑定 `node`；循环体按缩进执行，break可提前结束。\nL31 判断 `isinstance(node, ast.Compare) and isinstance(node.left, ast.Name) and (node.left.id == 'state') and isinstance(node.ops[0], ast.NotIn) and isinstance(node.comparators[0], ast.Tuple)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL33 结束当前函数，返回 {elt.value for elt in node.comparators[0].elts}；不会自动commit未提交事务。\nL34 抛出 AssertionError(f'wechat_pay.{function} 里找不到 `state not in (...)` 的状态校验')；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 63,
+          "title": "_module_constants",
+          "explanation": "收集模块顶层字符串常量，以及用相对导入从别的模块拿来的字符串常量（例如 payments_admin 从 payment_review 导入的 REVIEW_KIND）。\n\n输入签名：path: Path, tree: ast.Module；定义函数不等于此处立刻执行函数体。 返回类型标注：dict[str, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL39 计算右侧并赋给 `consts`（标注 dict[str, str]）：{}。\nL40 逐项遍历 `tree.body`，绑定 `node`；循环体按缩进执行，break可提前结束。\nL41 判断 `isinstance(node, ast.Assign) and len(node.targets) == 1 and isinstance(node.targets[0], ast.Name) and isinstance(node.value, ast.Constant) and isinstance(node.value.value, str)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL43 计算右侧并赋给 `consts[node.targets[0].id]`：node.value.value。\nL44 逐项遍历 `tree.body`，绑定 `node`；循环体按缩进执行，break可提前结束。\nL45 判断 `isinstance(node, ast.ImportFrom) and node.level and node.module`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL46 计算右侧并赋给 `base`：path.parent。\nL47 逐项遍历 `range(node.level - 1)`，绑定 `_`；循环体按缩进执行，break可提前结束。\nL48 计算右侧并赋给 `base`：base.parent。\nL49 计算右侧并赋给 `source`：调用 base.joinpath(*node.module.split('.')).with_suffix('.py')。\nL50 判断 `not source.is_file()`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL51 continue 跳过本轮剩余语句，进入下一轮。\nL52 计算右侧并赋给 `other`：调用 ast.parse(source.read_text(encoding='utf-8'))。\nL53 计算右侧并赋给 `imported`：{n.targets[0].id: n.value.value for n in other.body if isinstance(n, ast.Assign) and len(n.targets) == 1 and isinstance(n.targets[0], ast.Name) and isinstance(n.value, ast.Constant) and isinstance(n.value.value, str)}。\nL58 逐项遍历 `node.names`，绑定 `alias`；循环体按缩进执行，break可提前结束。\nL59 判断 `alias.name in imported`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL60 计算右侧并赋给 `consts[alias.asname or alias.name]`：imported[alias.name]。\nL61 结束当前函数，返回 consts；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 67,
+          "title": "_parents",
+          "explanation": "建子节点到父节点的映射，供查找调用点所在的函数。\n\n输入签名：tree: ast.AST；定义函数不等于此处立刻执行函数体。 返回类型标注：dict[ast.AST, ast.AST]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL65 结束当前函数，返回 {child: node for node in ast.walk(tree) for child in ast.iter_child_nodes(node)}；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 75,
+          "title": "_enclosing_function",
+          "explanation": "沿父节点向上找最内层函数定义；模块顶层返回 None。\n\n输入签名：node: ast.AST, parents: dict[ast.AST, ast.AST]；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL69 只要 `node in parents` 为真就重复该体，注意体内推进索引/退出条件。\nL70 计算右侧并赋给 `node`：parents[node]。\nL71 判断 `isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL72 结束当前函数，返回 node；不会自动commit未提交事务。\nL73 结束当前函数，返回 None；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 97,
+          "title": "_resolve",
+          "explanation": "把一个 kind 表达式解析成可能的种类集合：字面量、模块常量、条件表达式、同一函数里赋过值的局部变量、已登记前缀加渠道状态。其余写法抛断言，逼维护者扩展扫描器。\n\n输入签名：expr: ast.AST, scope, consts: dict[str, str], where: str；定义函数不等于此处立刻执行函数体。 返回类型标注：set[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL77 判断 `isinstance(expr, ast.Constant) and isinstance(expr.value, str)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL78 结束当前函数，返回 {expr.value}；不会自动commit未提交事务。\nL79 判断 `isinstance(expr, ast.IfExp)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL80 结束当前函数，返回 _resolve(expr.body, scope, consts, where) | _resolve(expr.orelse, scope, consts, where)；不会自动commit未提交事务。\nL81 判断 `isinstance(expr, ast.Name)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL82 判断 `expr.id in consts`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL83 结束当前函数，返回 {consts[expr.id]}；不会自动commit未提交事务。\nL84 计算右侧并赋给 `values`：[node.value for node in ast.walk(scope) if scope is not None and isinstance(node, ast.Assign) and any((isinstance(t, ast.Name) and t.id == expr.id for t in node.targets))] if scope is not None else []。\nL88 核对 `values`：此条件为假即测试失败；不是生产输入校验。\nL89 结束当前函数，返回 调用 set().union(*(_resolve(v, scope, consts, where) for v in values))；不会自动commit未提交事务。\nL90 判断 `isinstance(expr, ast.BinOp) and isinstance(expr.op, ast.Add) and isinstance(expr.left, ast.Constant) and isinstance(expr.left.value, str)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL92 计算右侧并赋给 `prefix`：expr.left.value。\nL93 核对 `prefix in DYNAMIC_PREFIXES`：此条件为假即测试失败；不是生产输入校验。\nL94 结束当前函数，返回 {prefix + state.lower() for state in _allowed_states(DYNAMIC_PREFIXES[prefix])}；不会自动commit未提交事务。\nL95 抛出 AssertionError(f'{where}：认不出的 kind 写法 {ast.unparse(expr)}')；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 128,
+          "title": "backend_event_kinds",
+          "explanation": "遍历 app/ 下所有模块：直接的 PaymentEvent(kind=...) 就地解析；kind 是所在函数参数的，把该函数登记为辅助函数，再解析它在同一模块里每次调用传入的实参。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：set[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL99 计算右侧并赋给 `kinds`（标注 set[str]）：调用 set()。\nL100 逐项遍历 `sorted(APP.rglob('*.py'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL101 计算右侧并赋给 `tree`：调用 ast.parse(path.read_text(encoding='utf-8'))。\nL102 计算右侧并赋给 `consts`：调用 _module_constants(path, tree)。\nL103 计算右侧并赋给 `parents`：调用 _parents(tree)。\nL104 计算右侧并赋给 `helpers`（标注 dict[str, tuple[int, str]]）：{}。\nL105 逐项遍历 `ast.walk(tree)`，绑定 `node`；循环体按缩进执行，break可提前结束。\nL106 判断 `not (isinstance(node, ast.Call) and getattr(node.func, 'id', getattr(node.func, 'attr', None)) == 'PaymentEvent')`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL107 continue 跳过本轮剩余语句，进入下一轮。\nL108 计算右侧并赋给 `where`：f'{path.relative_to(ROOT)}:{node.lineno}'。\nL109 计算右侧并赋给 `kind`：调用 next((k.value for k in node.keywords if k.arg == 'kind'), None)。\nL110 核对 `kind is not None`：此条件为假即测试失败；不是生产输入校验。\nL111 计算右侧并赋给 `fn`：调用 _enclosing_function(node, parents)。\nL112 计算右侧并赋给 `params`：[a.arg for a in fn.args.args] if fn is not None else []。\nL113 判断 `isinstance(kind, ast.Name) and kind.id in params and (kind.id not in consts)`，为真进入当前缩进分支，为假进入else/elif。\nL114 计算右侧并赋给 `helpers[fn.name]`：(params.index(kind.id), kind.id)。\nL116 累积修改 `kinds`：执行 `kinds |= _resolve(kind, fn, consts, where)`，新值供下一轮/后续分支使用。\nL117 逐项遍历 `ast.walk(tree)`，绑定 `node`；循环体按缩进执行，break可提前结束。\nL118 判断 `isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and (node.func.id in helpers)`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL119 计算右侧并赋给 `(index, name)`：helpers[node.func.id]。\nL120 计算右侧并赋给 `where`：f'{path.relative_to(ROOT)}:{node.lineno}'。\nL121 计算右侧并赋给 `arg`：调用 next((k.value for k in node.keywords if k.arg == name), None)。\nL122 判断 `arg is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL123 核对 `len(node.args) > index`：此条件为假即测试失败；不是生产输入校验。\nL124 计算右侧并赋给 `arg`：node.args[index]。\nL125 累积修改 `kinds`：执行 `kinds |= _resolve(arg, _enclosing_function(node, parents), consts, where)`，新值供下一轮/后续分支使用。\nL126 结束当前函数，返回 kinds；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 135,
+          "title": "frontend_event_labels",
+          "explanation": "从 payments-admin.js 的 EVENT_LABELS 冻结对象里读出「种类: 中文名」。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：dict[str, str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL130 计算右侧并赋给 `source`：调用 (APP / 'frontend' / 'payments-admin.js').read_text(encoding='utf-8')。\nL131 计算右侧并赋给 `block`：调用 re.search('const EVENT_LABELS = Object\\\\.freeze\\\\(\\\\{(.*?)\\\\}\\\\);', source, re.S)。\nL132 核对 `block`：此条件为假即测试失败；不是生产输入校验。\nL133 结束当前函数，返回 调用 dict(re.findall('^\\\\s*([a-z_]+): \"([^\"]+)\",?$', block.group(1), re.M))；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 148,
+          "title": "test_backend_scan_finds_the_known_shapes",
+          "explanation": "扫描器自身的健全性：六种写法各举一个必须找到的种类，总数等于 R-09 逐一核对的 35 种。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL138 计算右侧并赋给 `kinds`：调用 backend_event_kinds()。\nL139 逐项遍历 `('prepay_started', 'channel_close_unknown', 'operator_review', 'query_notpay', 'refund_query_processing', 'refund_verify_started')`，绑定 `kind`；循环体按缩进执行，break可提前结束。\nL145 核对 `kind in kinds`：此条件为假即测试失败；不是生产输入校验。\nL146 核对 `len(kinds) == 35`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 154,
+          "title": "test_every_backend_event_kind_has_exactly_one_chinese_label",
+          "explanation": "双向比较：后端写入而名称表没有的、名称表有而后端不再写入的，都失败并列出种类。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL150 计算右侧并赋给 `(kinds, labels)`：(backend_event_kinds(), frontend_event_labels())。\nL151 核对 `not kinds - set(labels)`：此条件为假即测试失败；不是生产输入校验。\nL152 核对 `not set(labels) - kinds`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 167,
+          "title": "test_only_success_evidence_is_called_success",
+          "explanation": "R-09 的措辞规则：除三种成功凭证外，名称里不能出现「成功」（「不是成功」除外）；四种已验签的非成功观察必须写明「不是成功」；名称不能重复。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL157 计算右侧并赋给 `labels`：调用 frontend_event_labels()。\nL158 逐项遍历 `labels.items()`，绑定 `(kind, label)`；循环体按缩进执行，break可提前结束。\nL159 判断 `kind not in SUCCESS_KINDS`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL160 核对 `'成功' not in label.replace('不是成功', '')`：此条件为假即测试失败；不是生产输入校验。\nL161 核对 `'已支付' in labels['query_success'] and '退款成功' in labels['refund_manual_success']`：此条件为假即测试失败；不是生产输入校验。\nL162 核对 `'确认成功' in labels['refund_query_success']`：此条件为假即测试失败；不是生产输入校验。\nL163 逐项遍历 `('refund_query_closed', 'refund_query_processing', 'refund_query_abnormal', 'refund_send_observed')`，绑定 `kind`；循环体按缩进执行，break可提前结束。\nL164 核对 `'不是成功' in labels[kind]`：此条件为假即测试失败；不是生产输入校验。\nL165 核对 `len(set(labels.values())) == len(labels)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 174,
+          "title": "test_event_rows_keep_their_line_breaks",
+          "explanation": "事件行的 CSS 必须有 white-space:pre-line，脚本仍用换行分出三行；原模板没有这条规则，三行挤成一段（真 Chromium 截图核对）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL171 计算右侧并赋给 `html`：调用 (APP / 'templates' / 'payments-admin.html').read_text(encoding='utf-8')。\nL172 核对 `re.search('#finance-events li\\\\s*\\\\{[^}]*white-space:\\\\s*pre-line', html)`：此条件为假即测试失败；不是生产输入校验。\nL173 计算右侧并赋给 `source`：调用 (APP / 'frontend' / 'payments-admin.js').read_text(encoding='utf-8')。\nL174 核对 `'${labelled(EVENT_LABELS, event.kind)} · ${event.actor || \"系统\"}\\\\n尝试 ${event.attempt_id}\\\\n' in source`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     }
