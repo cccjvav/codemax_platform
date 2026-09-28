@@ -4,6 +4,8 @@ LLM 客户端全部注入（假客户端 / httpx.MockTransport），**测试不�
 """
 import json
 import re
+import shutil
+import subprocess
 from pathlib import Path
 
 import httpx
@@ -181,3 +183,85 @@ async def test_mermaid_page_served_and_wired(client):
         app.dependency_overrides.pop(get_llm, None)
     for key in payload:
         assert f"data.{key}" in js, f"交互脚本没读接口返回的 {key} 字段"
+
+
+# ---------------------------------------------------------------- TD-318：出错时按阶段说明，画不出来时给中文解释
+
+_STAGE_HARNESS = r"""
+const [path, scenario] = process.argv.slice(1);
+const els = {}, errors = [];
+let config = null;
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false, onclick: null, onsubmit: null,
+  removeAttribute() {}, setAttribute() {} });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)) };
+global.window = global;
+global.CodeMaxAuth = { errorText: (d, s) => (d && d.detail) || `请求失败（${s}）`,
+  failureText: (e) => (e.name === "TypeError" && /failed to fetch/i.test(e.message) ? "网络连接失败，请检查网络后重试" : e.message) };
+global.setTimeout = (fn) => { fn(); return 1; };
+global.fetch = async () => {
+  if (scenario === "offline") throw new TypeError("Failed to fetch");
+  return { ok: true, status: 200, json: async () => ({ mermaid: "classDiagram\nclass Order {\n  +int id\n" }), headers: { get: () => null } };
+};
+// Mermaid 11 解析失败时抛出的是多行英文：第一行说哪一行出错，后面是指向出错位置的字符画和期望的记号。
+const parseError = new Error("Parse error on line 3:\n...s Order {  +int id\n----------------------^\nExpecting 'STRUCT_STOP', got 'EOF'");
+const stub = `Promise.resolve({ default: { initialize(c) { config = c; }, run: async () => { throw parseError; } } })`;
+const code = require("fs").readFileSync(path, "utf8").replace(/import\(\s*"mermaid"\s*\)/, stub);
+(async () => {
+  require("vm").runInThisContext(code, { filename: path });
+  const error = els["mermaid-error"];
+  Object.defineProperty(error, "textContent", { set(v) { errors.push(v); }, get() { return errors.at(-1) || ""; } });
+  els["text-input"].value = "订单";
+  await els["mermaid-form"].onsubmit({ preventDefault() {} });
+  console.log(JSON.stringify({ error: errors.at(-1), shown: !error.hidden, source: els["mermaid-source"].textContent,
+    sourceShown: !els["mermaid-source"].hidden, preview: els["mermaid-preview"].textContent, config,
+    submitEnabled: !els["mermaid-submit"].disabled }));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+def _run_stage(scenario: str) -> dict:
+    proc = subprocess.run(["node", "-e", _STAGE_HARNESS, str(Path(__file__).resolve().parents[1] / "app/frontend/mermaid-page.js"),
+                           scenario], capture_output=True, text=True, timeout=20)
+    assert proc.returncode == 0, proc.stderr
+    return json.loads(proc.stdout.strip().splitlines()[-1])
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_network_failure_is_reported_as_a_request_failure_not_a_render_failure():
+    """断网时请求根本没发出去，原来也显示「渲染失败：…」。"""
+    out = _run_stage("offline")
+    assert out["error"] == "请求失败：网络连接失败，请检查网络后重试"
+    assert out["submitEnabled"] is True
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+def test_unrenderable_model_output_gets_a_chinese_explanation_and_keeps_the_source():
+    """服务端只核对首行图类型，模型给出的源码可能有语法错误。原来显示解析器的多行英文原文，
+    预览区里还有 Mermaid 自己画的「Syntax error in text」炸弹图。"""
+    out = _run_stage("parse-error")
+    assert out["config"]["suppressErrorRendering"] is True, "不让 Mermaid 往预览区画错误图"
+    assert out["config"]["securityLevel"] == "strict"
+    assert out["error"] == ("无法绘制模型生成的图（Mermaid 提示：Parse error on line 3:）。"
+                            "下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。")
+    assert "Expecting" not in out["error"] and "^" not in out["error"], "字符画和期望记号不进提示"
+    assert out["sourceShown"] and out["source"].startswith("classDiagram"), "源码仍然给用户"
+    assert out["preview"] == "", "预览区不再重复一份源码原文"
+    assert out["submitEnabled"] is True
+
+
+def test_source_and_bundle_agree_on_render_failure_handling():
+    """产物把 Mermaid 整个打了进来，Node 里跑不了；核对不会被压缩改写的字面量。"""
+    bundle = (Path(__file__).resolve().parents[1] / "app/static/js/mermaid-page.js").read_text(encoding="utf-8")
+    assert "suppressErrorRendering" in bundle and "无法绘制模型生成的图" in bundle and "请求失败：" in bundle, "忘了 npm run build？"
+
+
+def test_error_messages_point_at_the_source_box_where_it_actually_is():
+    """错误提示让用户去看「源码」，方位词得与模板一致（TD-318）：模板里源码框紧跟在错误提示**之后**，
+    桌面双栏与手机单栏都在它下方。原来两条提示都写「上方是…源码」，用户往上找只能看到输入框。"""
+    root = Path(__file__).resolve().parents[1]
+    template = (root / "app" / "templates" / "mermaid.html").read_text(encoding="utf-8")
+    assert template.index('id="mermaid-error"') < template.index('id="mermaid-source"')
+    for path in (root / "app" / "frontend" / "mermaid-page.js", root / "app" / "static" / "js" / "mermaid-page.js"):
+        text = path.read_text(encoding="utf-8")
+        assert "上方是" not in text, f"{path.name} 仍说源码在上方"
+        assert text.count("下方是") == 2, f"{path.name}：渲染失败与组件下载失败两条提示都应指向下方的源码框"

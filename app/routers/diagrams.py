@@ -159,8 +159,9 @@ async def update_diagram(
     """
     expected = _parse_if_match(if_match)
     await lock_user(db, user.id)
-    await _storage_budget(db, user.id, data.content, diagram_id)
+    # 先 404 再算额度：对不存在 / 别人的 / 已删除的 id，回答应当是「没有这张图」，而不是「你超额了」。
     diagram = await _owned(db, user, diagram_id)  # 不存在 / 不是自己的 / 已删除 → 404
+    await _storage_budget(db, user.id, data.content, diagram_id)
     result = await db.execute(
         update(SysDiagram)
         .where(
@@ -173,6 +174,8 @@ async def update_diagram(
         execution_options={"synchronize_session": False},
     )
     # 走到这里说明存在性与归属已经确认过了，所以 rowcount == 0 只可能是版本冲突。
+    # 前提是改动存活状态的端点（删除、恢复、永久删除）都先拿同一把用户锁：删除原来不拿锁，
+    # 在上面的 _owned 与这条 UPDATE 之间删掉，会被报成「云端第 N 版、你手上第 N 版」的假冲突（TD-319）。
     if result.rowcount == 0:
         raise HTTPException(
             status.HTTP_412_PRECONDITION_FAILED,
@@ -192,7 +195,11 @@ async def delete_diagram(
     """删除 = 打软删除时间戳（TD-64），可以用 POST /{id}/restore 恢复。
 
     对调用方而言与硬删除无异：删完 GET 就是 404、列表里也没有。
+
+    先拿用户锁，与保存、恢复、永久删除串行（TD-319）：保存确认「图还在」之后、写入之前，
+    删除不能插进来把它变成一个假的版本冲突。
     """
+    await lock_user(db, user.id)
     diagram = await _owned(db, user, diagram_id)
     diagram.deleted_at = datetime.now(timezone.utc)  # 列是 TIMESTAMPTZ（TD-146 的约定）
     await db.commit()

@@ -145,3 +145,36 @@ async def test_list_exposes_version(client):
     await create(client, h)
     items = (await client.get("/diagrams", headers=h)).json()
     assert items[0]["version"] == 1
+
+
+# ---------------------------------------------------------------- TD-319：删除与保存串行
+
+
+async def test_delete_during_a_save_waits_instead_of_faking_a_version_conflict(client, monkeypatch):
+    """保存先确认「图还在、是自己的」，再做带版本条件的 UPDATE。删除原来不拿用户锁，
+    在这两步之间删掉时，UPDATE 因存活条件落空，被报成「云端第 1 版、你手上第 1 版」的 412 ——
+    两个版本号一样的「版本冲突」。现在删除先拿同一把用户锁，只能排在保存之后。
+
+    在 _owned 返回前把删除请求发出去并给它时间完成。真 PostgreSQL 上改之前删除会先提交、保存得到 412；
+    SQLite 的写锁是整库的，删除本来就会等，两种实现在 SQLite 上都通过。"""
+    from app.routers import diagrams
+
+    h = await auth(client)
+    did = (await create(client, h)).json()["id"]
+    original, deleting = diagrams._owned, []
+
+    async def owned_then_delete(db, user, diagram_id, **kw):
+        row = await original(db, user, diagram_id, **kw)
+        if not deleting and not kw:
+            deleting.append(asyncio.create_task(client.delete(f"/diagrams/{did}", headers=h)))
+            await asyncio.sleep(0.5)
+        return row
+
+    monkeypatch.setattr(diagrams, "_owned", owned_then_delete)
+    saved = await put(client, h, did, '"1"', name="保存在先", content="<saved/>")
+    deleted = await deleting[0]
+    assert saved.status_code == 200, f"保存被删除插队成了 {saved.status_code}：{saved.text}"
+    assert deleted.status_code == 204
+    trash = (await client.get("/diagrams?deleted=true", headers=h)).json()
+    assert [(row["id"], row["name"], row["version"]) for row in trash] == [(did, "保存在先", 2)], "先保存、后删除"
+

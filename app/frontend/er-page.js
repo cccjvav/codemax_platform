@@ -204,14 +204,17 @@ form.onsubmit = async (ev) => {
   ev.preventDefault();
   error.hidden = true;
   submit.disabled = true;
+  // 出错时按阶段说（TD-318）：请求阶段（含网络中断）是「请求失败」，只有绘制阶段才是「渲染失败」
+  let stage = "请求失败";
   try {
     const res = await post("/tools/er-diagram", { ddl: input.value });
     const data = await res.json().catch(() => null);
     if (!res.ok) return fail(window.CodeMaxAuth.errorText(data, res.status));
-    if (!data) return fail("渲染失败：服务器返回的不是 JSON");
+    if (!data) return fail("请求失败：服务器返回的不是 JSON");
+    stage = "渲染失败";
     renderEr("#er-canvas", data);
   } catch (e) {
-    fail(`渲染失败：${failure(e)}`);
+    fail(`${stage}：${failure(e)}`);
   } finally {
     submit.disabled = false;
   }

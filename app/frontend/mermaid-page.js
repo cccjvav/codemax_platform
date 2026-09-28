@@ -19,7 +19,9 @@ function loadMermaid() {
     // 而这里的 mermaid 文本是 **LLM 生成的** —— 等于把一段不可信输入交给一个
     // 「允许内嵌 HTML 与跳转」的渲染器，在本站同源下执行。
     // strict 会转义标签、禁用点击交互，正是这种场景该有的档位。
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict" });
+    // suppressErrorRendering（TD-318）：画不出来时不要往预览区塞 Mermaid 自己的「Syntax error in text」炸弹图，
+    // 由本页给出中文说明（renderFailure）。不设时它先画错误图再抛异常，两份错误叠在一起。
+    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", suppressErrorRendering: true });
     return mermaid;
   });
   // 下载失败（断网、部署途中旧分块被替换）不能把失败的 promise 永久缓存，否则再点也不会重试
@@ -56,6 +58,13 @@ function serverMessage(res, data) {
   return text;
 }
 
+// 模型给出的源码 Mermaid 画不出来（多半是语法错误：服务端只核对了首行的图类型）。解析器的英文提示
+// 只取第一行作线索（例如「Parse error on line 3:」），后面几行是指向出错位置的字符画，放进一行提示里没法读（TD-318）。
+function renderFailure(e) {
+  const hint = String(failure(e) ?? "").split("\n")[0].trim().slice(0, 120);
+  return `无法绘制模型生成的图${hint ? `（Mermaid 提示：${hint}）` : ""}。下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。`;
+}
+
 // 503 = 本站模型并发闸门已满（TD-264），带 Retry-After；不是上游故障，等几秒再试通常就能成功。
 // 只自动重试一次：第二次仍繁忙就把服务端文案原样给用户，不无限打转。
 const MAX_BUSY_RETRIES = 1;
@@ -84,24 +93,32 @@ form.onsubmit = async (ev) => {
   error.hidden = true;
   submit.disabled = true;
   const renderer = loadMermaid();
+  // 出错时按阶段说：请求阶段（含网络中断）是「请求失败」，只有渲染阶段才是「渲染失败」（TD-318）
+  let stage = "request";
   try {
     const { res, data } = await requestDiagram(input.value);
     if (!res.ok) return fail(serverMessage(res, data));
     error.hidden = true;
-    // 先给出 Mermaid 源码：就算渲染器下载失败，用户也拿到了结果，可以复制到别处渲染
+    // 先给出 Mermaid 源码（在错误提示下方）：就算渲染器下载失败，用户也拿到了结果，可以复制到别处渲染
     source.hidden = false;
     source.textContent = data.mermaid;
     let mermaid;
     try {
       mermaid = await renderer;
     } catch {
-      return fail("图表渲染组件下载失败（网络中断或站点刚更新），上方是生成的 Mermaid 源码；请刷新页面后重试。");
+      return fail("图表渲染组件下载失败（网络中断或站点刚更新），下方是生成的 Mermaid 源码；请刷新页面后重试。");
     }
+    stage = "render";
     preview.removeAttribute("data-processed");
     preview.textContent = data.mermaid;
     await mermaid.run({ nodes: [preview] });
   } catch (e) {
-    fail(`渲染失败：${failure(e)}`);
+    if (stage === "render") {
+      preview.textContent = "";  // 画失败时预览区里还是刚放进去的源码原文，与源码框重复
+      fail(renderFailure(e));
+    } else {
+      fail(`请求失败：${failure(e)}`);
+    }
   } finally {
     submit.disabled = false;
   }

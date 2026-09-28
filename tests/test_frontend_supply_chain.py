@@ -280,7 +280,8 @@ def test_mermaid_loads_on_first_generate_and_retries_a_failed_download(tmp_path)
     assert "渲染组件下载失败" in failed["err"] and failed["source"] == "classDiagram\nclass A" and failed["runs"] == 0, failed
     assert r["ok"] == {"loads": 3, "runs": 1, "inits": 1, "err": "", "source": "classDiagram\nclass B", "enabled": True}, r["ok"]
     assert r["again"]["loads"] == 3 and r["again"]["runs"] == 2 and r["again"]["inits"] == 1, "成功后应复用已加载的 Mermaid"
-    assert r["cfg"] == {"startOnLoad": False, "securityLevel": "strict"}
+    # suppressErrorRendering（TD-318）：解析失败时不让 Mermaid 往预览区画它的「Syntax error」炸弹图，由页面给中文提示
+    assert r["cfg"] == {"startOnLoad": False, "securityLevel": "strict", "suppressErrorRendering": True}
 
 
 def _static_closure(entry: str) -> set[str]:

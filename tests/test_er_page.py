@@ -318,3 +318,14 @@ def test_word_export_button_is_disabled_while_exporting():
     assert handler.index("wordButton.disabled = true;") < handler.index('post("/tools/word-export"')
     assert "} finally {\n    wordButton.disabled = false;\n  }" in handler
 
+
+def test_submit_errors_name_the_stage_that_failed():
+    """TD-318：断网时请求根本没发出去，原来也显示「渲染失败：网络连接失败…」。er-page.js 引入 d3，
+    Node 里跑不了，读源码钉住：阶段默认是「请求失败」，拿到数据、开始绘制之前才切到「渲染失败」。"""
+    source = (ROOT / "app" / "frontend" / "er-page.js").read_text(encoding="utf-8")
+    submit = source[source.index("form.onsubmit"):]
+    assert 'let stage = "请求失败";' in submit
+    assert submit.index('stage = "渲染失败";') < submit.index('renderEr("#er-canvas", data);')
+    assert submit.index('post("/tools/er-diagram"') < submit.index('stage = "渲染失败";')
+    assert "fail(`${stage}：${failure(e)}`)" in submit
+

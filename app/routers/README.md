@@ -38,8 +38,8 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | 函数 | 写入与并发契约 |
 | --- | --- |
 | `create_diagram` | 用户写锁下检查活跃条数、总条数与总 UTF-8 字节；写入 XML，返回文件与 ETag；写入走 `diagram_write` 桶（`RATE_LIMIT_DIAGRAM_WRITES`，TD-275） |
-| `update_diagram` | 必须 If-Match；检查预算后按 version 条件 UPDATE，递增 version；缺头 428、格式错误 400、旧版本 412；与 `create_diagram` 共用 `diagram_write` 桶（TD-275） |
-| `delete_diagram` | 软删除活跃文件，成功 204；此操作当前不要求 If-Match。不能把编辑/永久删除的版本前置条件泛化到全部写接口 |
+| `update_diagram` | 必须 If-Match；用户写锁下先查归属（404），再检查预算（TD-319），然后按 version 条件 UPDATE，递增 version；缺头 428、格式错误 400、旧版本 412；与 `create_diagram` 共用 `diagram_write` 桶（TD-275） |
+| `delete_diagram` | 先拿用户写锁（TD-319：与保存串行，否则保存会把刚删掉的图报成版本冲突），再软删除活跃文件，成功 204；此操作当前不要求 If-Match。不能把编辑/永久删除的版本前置条件泛化到全部写接口 |
 | `restore_diagram` | 用户写锁；只恢复回收站对象，检查活跃配额并递增 version；非删除状态/配额冲突 409 |
 | `purge_diagram` | 只永久删除自己的回收站对象，必须 If-Match；成功 204；不可撤销并释放总预算 |
 | `_owned` / `_alive` / `_live_count` | 统一所有权、软删除过滤、活跃计数；include_deleted 用于恢复和永久删除，不只恢复 |
@@ -98,7 +98,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/admin.py`](admin.py) | `6a6d47579bf1` | L1–L91 |
 | [`app/routers/admin_common.py`](admin_common.py) | `51315149b95d` | L1–L33 |
 | [`app/routers/auth.py`](auth.py) | `f95778c951b3` | L1–L142 |
-| [`app/routers/diagrams.py`](diagrams.py) | `225cdf41a311` | L1–L240 |
+| [`app/routers/diagrams.py`](diagrams.py) | `c573ba733cb8` | L1–L247 |
 | [`app/routers/health.py`](health.py) | `c5adf1210f78` | L1–L45 |
 | [`app/routers/messages.py`](messages.py) | `2a4df4fafa87` | L1–L121 |
 | [`app/routers/oauth.py`](oauth.py) | `937bc98baa3b` | L1–L309 |

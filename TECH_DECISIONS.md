@@ -1656,3 +1656,46 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 **测试**：`tests/test_ui_accessibility.py` 新增五条，并更新一条：`test_shop_order_number_in_headings_can_wrap` 原来钉住旧的标题结构，现在改为钉住订单号在可换行的 `.muted` 行里，「订单号能换行」这一保证不变。六条在改之前的模板上都失败。
 
 **截图环境（更正 TD-306 的做法）**：把 `@fontsource/noto-sans-sc` 的 woff2 以 data URI 注入并不可靠。单个 chinese-simplified 子集缺常用字（「转」「登」「录」「注」「册」都显示为空白）；把全部按 unicode-range 拆分的子集内联进去（约 6.5 MB）后，每次截图缺的字又不一样。改用 `@expo-google-fonts/noto-sans-sc` 里完整的 TTF，复制到 `/tmp/fonts`（`@sparticuz/chromium` 的 fontconfig 目录），页面里只用 `local()` 把 "Microsoft YaHei" 指向它，所有中文都能完整显示。这些都装在仓库外，是一次性的截图证据。
+
+## TD-318：类图与 ER 页出错时分清请求失败和渲染失败，画不出来时给中文说明
+
+**状态**：已实施（2026-09-28），优化阶段前端批次。
+
+**背景**：类图页的 Mermaid 源码是模型输出。服务端只核对第一行的图类型（`app/tools/llm.py` 的 `_DIAGRAM_TYPES`），后面有语法错误照样返回，所以浏览器里「画不出来」是正常会发生的情况。用沙箱内真实 Chromium 复现了改之前的表现（拦截 `/tools/mermaid` 返回一段括号不配对的源码）：
+- 提示区显示解析器的四行英文原文：「渲染失败：Parse error on line 5:」，接一行源码片段、一行 `----^` 字符画、一行「Expecting 'NEWLINE', 'EOF', got 'STRUCT_STOP'」。
+- 预览区里多出 Mermaid 自己画的「Syntax error in text」炸弹图。Mermaid 11 的 `run()` 在解析失败时先往节点里画这张图，再抛错（`node_modules/mermaid/dist/mermaid.core.mjs` 约 1317 行）。
+- 断网时请求根本没发出去，提示也是「渲染失败：网络连接失败…」，因为整个 `try` 共用一个前缀。ER 页同样如此。
+
+**修改**：
+- `mermaid-page.js`：`initialize` 增加 `suppressErrorRendering: true`，Mermaid 不再往预览区画错误图。新增 `renderFailure(e)`：只取提示的第一行（去空白，最多 120 字），拼成「无法绘制模型生成的图（Mermaid 提示：Parse error on line 5:）。下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。」后面几行是字符画，放进一行提示里无法阅读。
+- 提交流程记录阶段：清 `data-processed` 之前是请求阶段，出错显示「请求失败：…」；之后是渲染阶段，清空预览区（里面还是刚放进去的源码原文，与源码框重复），显示上面的说明。源码框保留原文。
+- `er-page.js`：同样按阶段显示「请求失败：…」或「渲染失败：…」；成功状态却不是 JSON 时显示「请求失败：服务器返回的不是 JSON」。
+- **方位词**：两条提示原来都说「上方是…源码」（包括原有的「图表渲染组件下载失败」提示），但模板里源码框在错误提示**之后**，桌面双栏和手机单栏都在下方。这是看真浏览器截图时发现的，一并改成「下方」。
+- 用词是「图」而不是「类图」：服务端也接受 `erDiagram`、`graph`、`flowchart`，模型可能返回其他类型。
+
+**不改**：新请求失败时，上一次成功的图仍留在预览区（请求阶段失败不动预览区），两页保持一致。渲染阶段失败时预览区清空，因为里面已经不是上一张图了。
+
+**测试**：
+- `tests/test_mermaid.py` 新增 Node 桩 `_STAGE_HARNESS` 和四条用例：断网是「请求失败」；画不出来时只有第一行提示、源码保留、预览区清空、配置里有 `suppressErrorRendering`；产物与源码一致；提示里的方位词与模板顺序一致。
+- `tests/test_er_page.py` 新增一条源码检查（页面脚本依赖 d3，跑不了 Node 桩）。
+- `tests/test_frontend_supply_chain.py` 原来整体比较 `initialize` 的配置，现在期望值多了 `suppressErrorRendering: true`，比较仍是整体相等。
+- 五条新用例在改之前的源码与产物上全部失败。
+- 真 Chromium 复测：画不出来、断网、正常三种情况分别得到中文说明且没有炸弹图、「请求失败：网络连接失败，请检查网络后重试」、正常出图；ER 页断网与非 JSON 应答都显示「请求失败：…」，正常出图。
+
+**截图环境补充**：`@sparticuz/chromium` 把 `FONTCONFIG_PATH` 设为 `/tmp/fonts`，但这个目录里还要有一份 `fonts.conf`（`<dir>/tmp/fonts</dir>`），否则 TTF 放进去也不会被扫描，中文仍显示成方框。TD-317 的写法漏了这一步。
+
+## TD-319：删除流程图先拿用户锁；保存先判 404 再算额度
+
+**状态**：已实施（2026-09-28），优化阶段复核批次（`app/routers/diagrams.py`）。
+
+**问题一：并发删除被报成假的版本冲突（缺陷）。** 保存（PUT）先拿用户锁，再用 `_owned` 确认图存在、属于本人、未删除，然后做带 `version = 期望值` 和「未删除」条件的 UPDATE，`rowcount == 0` 就回 412「云端已经是第 N 版，你手上是第 M 版」。创建、恢复、永久删除都先拿同一把用户锁，唯独删除没有。删除插在 `_owned` 和 UPDATE 之间时，UPDATE 因「未删除」条件落空，用户看到的是「云端已经是第 1 版，你手上是第 1 版」：两个版本号一样的版本冲突，而真实情况是图刚被删掉。
+
+**修改一**：`delete_diagram` 开头 `await lock_user(db, user.id)`。改动存活状态的端点全部走同一把锁后，PUT 在确认所有权到 UPDATE 之间不会被删除插队，`rowcount == 0` 只剩版本不符一种可能，412 的文案也就总是对的。锁的粒度是用户行，和其他写端点一样，只让同一用户的写操作串行。
+
+**问题二：超额时对不存在的图也回 409。** PUT 原来先算存储额度、再查所有权。已经超额的用户保存别人的、已删除的或不存在的 id，得到的是「流程图总存储已达上限」409，答非所问。不泄露信息（额度只按本人计算），但回答不对。
+
+**修改二**：先 `_owned`（404），再 `_storage_budget`。自己的图照样受额度约束。
+
+**测试**：
+- `tests/test_diagram_concurrency.py` 新增一条：包装 `_owned`，在 PUT 确认所有权之后发出删除请求并等 0.5 秒。改之前在真 PostgreSQL 上删除先提交，保存得到上面那条「第 1 版对第 1 版」的 412；改之后删除排在保存之后，保存 200、删除 204，回收站里是保存后的第 2 版。SQLite 的写锁是整库的，删除本来就会等，两种实现在 SQLite 上都通过，这条靠 CI 的 PostgreSQL 作业把关。
+- `tests/test_diagram_quota.py` 新增一条：超额时别人的、已删除的、不存在的 id 都是 404，自己的图仍是 409。改之前在 SQLite 与 PostgreSQL 上都失败。

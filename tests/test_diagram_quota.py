@@ -151,3 +151,21 @@ async def test_update_is_not_limited_by_quota(client, monkeypatch):
                          headers={**h, "If-Match": '"1"'})
     assert r.status_code == 200
     assert r.json()["name"] == "改个名"
+
+
+async def test_saving_a_missing_or_foreign_diagram_is_404_even_when_over_quota(client, monkeypatch):
+    """PUT 先确认「这张图在、是你的」，再算存储额度（TD-319）。原来顺序相反：已经超额的用户
+    保存一个不存在、别人的或已删除的 id，得到的是「总存储已达上限」的 409，答非所问。"""
+    alice = await auth(client)
+    bob = await auth(client, username="bob", password="secret456")
+    mine, gone = await new(client, alice), await new(client, alice)
+    assert (await client.delete(f"/diagrams/{gone}", headers=alice)).status_code == 204
+    foreign = await new(client, bob)
+    monkeypatch.setattr(settings, "DIAGRAM_TOTAL_QUOTA", 1)
+    body = {"name": "x", "content": "<mxfile/>"}
+
+    over = await client.put(f"/diagrams/{mine}", json=body, headers={**alice, "If-Match": '"1"'})
+    assert over.status_code == 409, "自己的图照样受额度约束，顺序调整不能把额度检查丢掉"
+    for did in (foreign, gone, 999999):
+        r = await client.put(f"/diagrams/{did}", json=body, headers={**alice, "If-Match": '"1"'})
+        assert r.status_code == 404, f"id {did} 应当 404，实际 {r.status_code}：{r.text}"

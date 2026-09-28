@@ -68,7 +68,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/dist.js`](js/dist.js) | `7b1e508a3391` | 生成物，见模块构建说明 |
 | [`app/static/js/drawio-page.js`](js/drawio-page.js) | `94d8c525720d` | 生成物，见模块构建说明 |
 | [`app/static/js/ebnfDiagram-PWID7BFC.js`](js/ebnfDiagram-PWID7BFC.js) | `ae05bf314f9d` | 生成物，见模块构建说明 |
-| [`app/static/js/er-page.js`](js/er-page.js) | `88e2205ca5c4` | 生成物，见模块构建说明 |
+| [`app/static/js/er-page.js`](js/er-page.js) | `745eb52b560b` | 生成物，见模块构建说明 |
 | [`app/static/js/erDiagram-RLTQ6QDP.js`](js/erDiagram-RLTQ6QDP.js) | `cc19e69b836a` | 生成物，见模块构建说明 |
 | [`app/static/js/eventmodeling-NTZA5JFV.js`](js/eventmodeling-NTZA5JFV.js) | `6d880858817b` | 生成物，见模块构建说明 |
 | [`app/static/js/flowDiagram-HODETNUW.js`](js/flowDiagram-HODETNUW.js) | `5018e3a596bc` | 生成物，见模块构建说明 |
@@ -85,7 +85,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/katex.js`](js/katex.js) | `57d7eb6dbbc3` | 生成物，见模块构建说明 |
 | [`app/static/js/line.js`](js/line.js) | `655f21b5e91d` | 生成物，见模块构建说明 |
 | [`app/static/js/linear.js`](js/linear.js) | `78c6a0ccd56b` | 生成物，见模块构建说明 |
-| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `7eaf875c3546` | 生成物，见模块构建说明 |
+| [`app/static/js/mermaid-page.js`](js/mermaid-page.js) | `84b9986cf19c` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid-parser.core.js`](js/mermaid-parser.core.js) | `7146f3a0e00e` | 生成物，见模块构建说明 |
 | [`app/static/js/mermaid.core.js`](js/mermaid.core.js) | `1fb816f0fe83` | 生成物，见模块构建说明 |
 | [`app/static/js/mindmap-definition-YA3MSWOX.js`](js/mindmap-definition-YA3MSWOX.js) | `7b724282b151` | 生成物，见模块构建说明 |

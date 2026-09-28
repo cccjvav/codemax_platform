@@ -49,8 +49,8 @@
 | [`app/frontend/auth.js`](auth.js) | `4cb99a94dd67` | L1–L291 |
 | [`app/frontend/drawio-page.js`](drawio-page.js) | `462e8b4acdfa` | L1–L215 |
 | [`app/frontend/er-layout.js`](er-layout.js) | `68703a77b32f` | L1–L305 |
-| [`app/frontend/er-page.js`](er-page.js) | `d03a734f8b36` | L1–L218 |
-| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `1095b1f64e82` | L1–L108 |
+| [`app/frontend/er-page.js`](er-page.js) | `ff0461e26931` | L1–L221 |
+| [`app/frontend/mermaid-page.js`](mermaid-page.js) | `4c9ee202d8a8` | L1–L125 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `bfac35ca4ea5` | L1–L363 |
@@ -229,3 +229,9 @@ authorization-history用textContent显示有界历史/截断、前版/首笔人/
 
 - `drawio-page.js` 用 `dirty` 记「既没保存到云端、也没下载到本地的改动」：收到 `autosave` 置位；保存或下载成功且期间没再改、打开/新建/导入成功、换账号时清零。
 - 打开、新建、导入、移走正在编辑的图之前经 `discardOk()` 询问；`beforeunload` 在 `dirty` 时拦截关闭页面。由 `tests/test_drawio_unsaved_changes.py` 守护。
+
+## 2026-09-28：出错提示分阶段（TD-318）
+
+- `mermaid-page.js`：`initialize` 带 `suppressErrorRendering: true`，Mermaid 解析失败时不再往预览区画「Syntax error in text」图。`renderFailure(e)` 只取解析器提示的第一行，拼成「无法绘制模型生成的图（Mermaid 提示：…）。下方是模型给出的源码…」。提交时记录阶段：请求阶段（含断网）显示「请求失败：…」，渲染阶段清空预览区并显示上面的说明，源码框保留。
+- `er-page.js`：同样按阶段显示「请求失败：…」或「渲染失败：…」。
+- 两条类图提示原来都说「上方是…源码」，源码框其实在错误提示下方，已改成「下方」。由 `tests/test_mermaid.py` 的 Node 桩和 `tests/test_er_page.py` 守护。

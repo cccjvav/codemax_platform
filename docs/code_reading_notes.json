@@ -549,7 +549,7 @@
     },
     {
       "path": "app/frontend/er-page.js",
-      "sha256": "d03a734f8b365e3e87533d023bcd5b8a0b01dbb7a7bbc2df1ffc84c3a25abc64",
+      "sha256": "ff0461e269314adb3c236f26221c6c06c08514daf4ad2a3edc87918206919ece",
       "method": "manual",
       "blocks": [
         {
@@ -578,36 +578,36 @@
           "explanation": "示例只改 textarea。Word 按钮 POST 原 DDL，非成功解析错误；成功读 Blob，创建临时 a 下载 DOCX 并 revoke URL。网络失败显示文本，不在浏览器本地生成 Word。 TD-279：失败分支的 res.json() 加 .catch(() => null)，代理 502/504 的 HTML 页交给 errorText 显示「请求失败（状态码）」。 TD-315：导出期间 wordButton 禁用，结束后在 finally 里恢复（含失败与提前 return 的路径），连点不再发出多次导出、下载多份相同文件。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 218,
+          "end": 221,
           "title": "提交 ER：避免默认跳页和重复点击",
-          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。"
+          "explanation": "preventDefault、清错误并 disable；POST /tools/er-diagram 解析 JSON，非成功经 auth.errorText 显示，成功调用 renderEr。渲染异常也被捕获；finally 恢复按钮。 TD-279：res.json() 同样容忍非 JSON；成功状态却拿不到 JSON 时显示「服务器返回的不是 JSON」而不是把 null 交给 renderEr。 TD-318：catch 按阶段说明：stage 起始为「请求失败」，调用 renderEr 前改为「渲染失败」，提示为「阶段：原因」；非 JSON 应答显示「请求失败：服务器返回的不是 JSON」。原来断网也显示「渲染失败」。"
         }
       ]
     },
     {
       "path": "app/frontend/mermaid-page.js",
-      "sha256": "1095b1f64e82315b76729da84da3c1e05a3dd489f03234ad11da4f23da49bc8f",
+      "sha256": "4c9ee202d8a8edf191072bfa67396dbe1e300289cbc77d4d497eb03e3f6fafef",
       "method": "manual",
       "blocks": [
         {
-          "end": 38,
+          "end": 40,
           "title": "初始化和 DOM 合同",
-          "explanation": "Mermaid 从锁定 npm 依赖打包，本页显式 strict、startOnLoad=false：把不可信模型输出交安全渲染器，非允许任意点击回调的 loose 模式。SAMPLE 和各元素匹配 mermaid.html。 TD-280：改为按需加载——loadMermaid() 在第一次需要时 import(\"mermaid\")，then 里做 initialize（strict 与 startOnLoad=false 不变）并缓存 promise；下载失败时把缓存清掉，下一次点击会重新下载，而不是永远拿到同一个失败结果。仍是 package-lock 锁定的本地包，由 Vite 拆成同源分块。页面首屏从约 669 KiB（16 个文件）降到约 3.5 KiB。"
+          "explanation": "Mermaid 从锁定 npm 依赖打包，本页显式 strict、startOnLoad=false：把不可信模型输出交安全渲染器，非允许任意点击回调的 loose 模式。SAMPLE 和各元素匹配 mermaid.html。 TD-280：改为按需加载——loadMermaid() 在第一次需要时 import(\"mermaid\")，then 里做 initialize（strict 与 startOnLoad=false 不变）并缓存 promise；下载失败时把缓存清掉，下一次点击会重新下载，而不是永远拿到同一个失败结果。仍是 package-lock 锁定的本地包，由 Vite 拆成同源分块。页面首屏从约 669 KiB（16 个文件）降到约 3.5 KiB。 TD-318：initialize 增加 suppressErrorRendering: true。不加时 Mermaid 11 解析失败会先往预览区画一张「Syntax error in text」炸弹图再抛错，页面随后的中文提示与这张英文错误图同时出现。"
         },
         {
-          "end": 47,
+          "end": 49,
           "title": "示例与 fail",
-          "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。"
+          "explanation": "示例仅填输入，fail 展示 error.textContent 并取消 hidden；不通过 innerHTML 放模型/服务器错误。 TD-318：本块之后新增 renderFailure(e)：只取 failure(e) 的第一行（去空白、最多 120 字），拼成「无法绘制模型生成的图（Mermaid 提示：…）。下方是模型给出的源码…」。解析器提示后面几行是指向出错位置的字符画，放进一行提示里无法阅读。"
         },
         {
-          "end": 81,
+          "end": 90,
           "title": "503 自动重试一次：requestDiagram",
           "explanation": "503 是本站模型并发闸门已满（TD-264），带 Retry-After，不是上游故障。requestDiagram 最多重试 MAX_BUSY_RETRIES=1 次：等待秒数取 Retry-After，不可解析退回 5，钳在 1–30 秒，等待期间用 fail 显示\"服务繁忙，N 秒后自动重试…\"；第二次仍 503 或任何非 503 状态原样返回给调用方，不无限打转。setTimeout 由测试桩接管，Node 里不真等。 TD-272：新增 serverMessage()，把 502 且 detail 含 LLM_API_KEY 的服务端文案替换成访客能懂的「AI 生成暂不可用（站点未开启模型服务）…」；服务端 detail 与其它 502 文案不变。"
         },
         {
-          "end": 108,
+          "end": 125,
           "title": "文本→模型接口→Mermaid 渲染",
-          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
+          "explanation": "阻止表单跳转、禁用提交，POST /tools/mermaid；成功先用 textContent 显示源和预览文本，清 data-processed 允许重新渲染，await mermaid.run。后端前缀通过仍可能语法错误，catch 会提示；finally 恢复按钮。 现在经 requestDiagram 取得响应；成功后先清掉重试提示再展示源码与预览。 TD-272：失败分支改走 serverMessage()，只有「未配置模型」这一类换文案；其余错误仍原样显示服务端说明。 TD-280：提交一开始就调用 loadMermaid()，与模型请求并行下载（模型要几秒，渲染器通常先就绪）；拿到结果先显示源码，再 await 渲染器——下载失败时给出「图表渲染组件下载失败…」并保留源码可复制。请求失败提前 return 时渲染器 promise 已有 catch，不产生未处理拒绝。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。 TD-318：catch 按阶段说明。stage 起始为 request，在清 data-processed 之前改为 render：请求阶段（含断网）显示「请求失败：…」，渲染阶段清空预览区（里面还是刚放进去的源码原文）并显示 renderFailure(e)。原来整个 try 共用「渲染失败：」，断网也被说成渲染失败。上次成功的图在新请求失败时仍保留，与 ER 页一致。渲染组件下载失败的提示也把「上方是…源码」改成「下方是」：源码框在错误提示之后。"
         }
       ]
     },
@@ -1146,7 +1146,7 @@
     },
     {
       "path": "app/routers/diagrams.py",
-      "sha256": "225cdf41a31128f9f5dc692a02e7339d5ecb186b611861a24a5b4598c1b25e88",
+      "sha256": "c573ba733cb8e28df1cfcb4081460596da8453fd94f2a8e77abd72538ab6a2be",
       "method": "guided",
       "blocks": [
         {
@@ -1200,24 +1200,24 @@
           "explanation": "功能契约：_owned 确认可读，再返回正文及 ETag，不修改文件版本。\n\n登记/装饰：router.get('/{diagram_id}', response_model=DiagramOut)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, response: Response, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL133 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL134 计算右侧并赋给 `response.headers['ETag']`：调用 _etag(diagram)。\nL135 结束当前函数，返回 diagram；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 187,
+          "end": 190,
           "title": "update_diagram",
-          "explanation": "功能契约：先解析 If-Match、锁用户、检查预算，再查所有权；因此某些请求可先遇到配额错误。UPDATE 同时匹配 id/user/version/活跃，未命中 412；成功提交刷新给新 ETag。\n\n登记/装饰：router.put('/{diagram_id}', response_model=DiagramOut)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, data: DiagramIn, response: Response, if_match: str | None=Header(default=None, alias='If-Match'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 计算右侧并赋给 `expected`：调用 _parse_if_match(if_match)。\nL161 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL162 await 调用 _storage_budget(db, user.id, data.content, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL163 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 计算右侧并赋给 `result`：await 调用 db.execute(update(SysDiagram).where(SysDiagram.id == diagram_id, SysDiagram.user_id == user.id, SysDiagram.version == expected, _alive()).values(name=data.name, content=data.content, version=expected + 1), execution_options={'synchronize_session': False})：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL176 判断 `result.rowcount == 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL177 抛出 HTTPException(status.HTTP_412_PRECONDITION_FAILED, f'云端已经是第 {diagram.version} 版，你手上是第 {expected} 版；为避免覆盖别人的改动，本次保存未写入。请重新打开最新版本再改。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL182 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL183 await 调用 db.refresh(diagram)：从数据库重读对象，不是提交；等待期间可让出事件循环，恢复后才执行下一句。\nL184 计算右侧并赋给 `response.headers['ETag']`：调用 _etag(diagram)。\nL185 结束当前函数，返回 diagram；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 依赖里挂 `diagram_write` 桶（`RATE_LIMIT_DIAGRAM_WRITES`，TD-275）：POST 与 PUT 共用一个写入配额，读取不挂桶。"
+          "explanation": "功能契约：先解析 If-Match、锁用户，再查所有权（不存在 / 别人的 / 已删除 → 404），最后检查存储预算（TD-319：原来先算预算，超额用户对任何 id 都先得到 409）。改动存活状态的端点都先拿同一把用户锁，所以确认所有权之后到 UPDATE 之间不会被删除插队，rowcount 为 0 只剩版本不符一种可能。UPDATE 同时匹配 id/user/version/活跃，未命中 412；成功提交刷新给新 ETag。\n\n登记/装饰：router.put('/{diagram_id}', response_model=DiagramOut)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, data: DiagramIn, response: Response, if_match: str | None=Header(default=None, alias='If-Match'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 计算右侧并赋给 `expected`：调用 _parse_if_match(if_match)。\nL161 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL163 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 await 调用 _storage_budget(db, user.id, data.content, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL165 计算右侧并赋给 `result`：await 调用 db.execute(update(SysDiagram).where(SysDiagram.id == diagram_id, SysDiagram.user_id == user.id, SysDiagram.version == expected, _alive()).values(name=data.name, content=data.content, version=expected + 1), execution_options={'synchronize_session': False})：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL179 判断 `result.rowcount == 0`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL180 抛出 HTTPException(status.HTTP_412_PRECONDITION_FAILED, f'云端已经是第 {diagram.version} 版，你手上是第 {expected} 版；为避免覆盖别人的改动，本次保存未写入。请重新打开最新版本再改。')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL185 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL186 await 调用 db.refresh(diagram)：从数据库重读对象，不是提交；等待期间可让出事件循环，恢复后才执行下一句。\nL187 计算右侧并赋给 `response.headers['ETag']`：调用 _etag(diagram)。\nL188 结束当前函数，返回 diagram；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 依赖里挂 `diagram_write` 桶（`RATE_LIMIT_DIAGRAM_WRITES`，TD-275）：POST 与 PUT 共用一个写入配额，读取不挂桶。"
         },
         {
-          "end": 200,
+          "end": 207,
           "title": "delete_diagram",
-          "explanation": "功能契约：软删除只设 deleted_at 并提交，没有 If-Match；GET 默认随后 404，但回收站可恢复，预算不全部释放。\n\n登记/装饰：router.delete('/{diagram_id}', status_code=204)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL196 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL197 计算右侧并赋给 `diagram.deleted_at`：调用 datetime.now(timezone.utc)。\nL198 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：先 lock_user（TD-319：原来不拿锁，在保存确认所有权之后、写入之前删掉，保存会报出「第 N 版对第 N 版」的假版本冲突），再软删除，只设 deleted_at 并提交，没有 If-Match；GET 默认随后 404，但回收站可恢复，预算不全部释放。\n\n登记/装饰：router.delete('/{diagram_id}', status_code=204)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL202 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL203 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id)；等待期间可让出事件循环，恢复后才执行下一句。\nL204 计算右侧并赋给 `diagram.deleted_at`：调用 datetime.now(timezone.utc)。\nL205 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 225,
+          "end": 232,
           "title": "restore_diagram",
-          "explanation": "功能契约：用户锁下读取回收站，非已删 409、活跃配额不足 409；清删除时间并递增版本，提交返回新 ETag。\n\n登记/装饰：router.post('/{diagram_id}/restore', response_model=DiagramOut)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, response: Response, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL209 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL210 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id, include_deleted=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL211 判断 `diagram.deleted_at is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL212 抛出 HTTPException(status.HTTP_409_CONFLICT, '该流程图没有被删除')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL213 判断 `await _live_count(db, user) >= settings.DIAGRAM_QUOTA`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL214 抛出 HTTPException(status.HTTP_409_CONFLICT, f'恢复失败：存活流程图已达上限（{settings.DIAGRAM_QUOTA} 张）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL218 计算右侧并赋给 `diagram.deleted_at`：None。\nL219 累积修改 `diagram.version`：执行 `diagram.version += 1`，新值供下一轮/后续分支使用。\nL220 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL221 await 调用 db.refresh(diagram)：从数据库重读对象，不是提交；等待期间可让出事件循环，恢复后才执行下一句。\nL222 计算右侧并赋给 `response.headers['ETag']`：调用 _etag(diagram)。\nL223 结束当前函数，返回 diagram；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：用户锁下读取回收站，非已删 409、活跃配额不足 409；清删除时间并递增版本，提交返回新 ETag。\n\n登记/装饰：router.post('/{diagram_id}/restore', response_model=DiagramOut)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, response: Response, user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL216 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL217 计算右侧并赋给 `diagram`：await 调用 _owned(db, user, diagram_id, include_deleted=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL218 判断 `diagram.deleted_at is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL219 抛出 HTTPException(status.HTTP_409_CONFLICT, '该流程图没有被删除')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL220 判断 `await _live_count(db, user) >= settings.DIAGRAM_QUOTA`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL221 抛出 HTTPException(status.HTTP_409_CONFLICT, f'恢复失败：存活流程图已达上限（{settings.DIAGRAM_QUOTA} 张）')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL225 计算右侧并赋给 `diagram.deleted_at`：None。\nL226 累积修改 `diagram.version`：执行 `diagram.version += 1`，新值供下一轮/后续分支使用。\nL227 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\nL228 await 调用 db.refresh(diagram)：从数据库重读对象，不是提交；等待期间可让出事件循环，恢复后才执行下一句。\nL229 计算右侧并赋给 `response.headers['ETag']`：调用 _etag(diagram)。\nL230 结束当前函数，返回 diagram；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 240,
+          "end": 247,
           "title": "purge_diagram",
-          "explanation": "功能契约：必须是本人回收站项且提供当前版本；条件 DELETE 未命中 412。提交后不可恢复，别把它等同软删。\n\n登记/装饰：router.delete('/{diagram_id}/purge', status_code=204)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, if_match: str | None=Header(None, alias='If-Match'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL230 计算右侧并赋给 `expected`：调用 _parse_if_match(if_match)。\nL231 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL232 计算右侧并赋给 `row`：await 调用 _owned(db, user, diagram_id, include_deleted=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL233 判断 `row.deleted_at is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL234 抛出 HTTPException(409, '只能永久删除回收站中的流程图')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL235 计算右侧并赋给 `result`：await 调用 db.execute(delete(SysDiagram).where(SysDiagram.id == diagram_id, SysDiagram.user_id == user.id, SysDiagram.deleted_at.is_not(None), SysDiagram.version == expected))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL238 判断 `result.rowcount != 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL239 抛出 HTTPException(412, '流程图版本已变化，请刷新回收站')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL240 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：必须是本人回收站项且提供当前版本；条件 DELETE 未命中 412。提交后不可恢复，别把它等同软删。\n\n登记/装饰：router.delete('/{diagram_id}/purge', status_code=204)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：diagram_id: int, if_match: str | None=Header(None, alias='If-Match'), user: User=Depends(get_current_user), db: AsyncSession=Depends(get_db)；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL237 计算右侧并赋给 `expected`：调用 _parse_if_match(if_match)。\nL238 await 调用 lock_user(db, user.id)；等待期间可让出事件循环，恢复后才执行下一句。\nL239 计算右侧并赋给 `row`：await 调用 _owned(db, user, diagram_id, include_deleted=True)；等待期间可让出事件循环，恢复后才执行下一句。\nL240 判断 `row.deleted_at is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL241 抛出 HTTPException(409, '只能永久删除回收站中的流程图')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL242 计算右侧并赋给 `result`：await 调用 db.execute(delete(SysDiagram).where(SysDiagram.id == diagram_id, SysDiagram.user_id == user.id, SysDiagram.deleted_at.is_not(None), SysDiagram.version == expected))：执行SQL表达式，读/写行为由其中的SELECT/UPDATE/DELETE决定；等待期间可让出事件循环，恢复后才执行下一句。\nL245 判断 `result.rowcount != 1`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL246 抛出 HTTPException(412, '流程图版本已变化，请刷新回收站')；本路径不再顺序执行后文，由匹配的except/上层处理。\nL247 await 调用 db.commit()：提交当前事务，之后其他事务才可见已提交变化；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -4792,7 +4792,7 @@
     },
     {
       "path": "tests/test_diagram_concurrency.py",
-      "sha256": "2a44f9d2a7ea99040c2e778de4bc6a56d30244798fa589865921166021f62e39",
+      "sha256": "de0122ee569b014a58071ce61953db8ce8f93e9793cd631c91937db844d971ae",
       "method": "guided",
       "blocks": [
         {
@@ -4856,15 +4856,20 @@
           "explanation": "本用例的准备条件：client。涉及接口：/diagrams/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL131 计算右侧并赋给 `h`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL132 计算右侧并赋给 `did`：(await create(client, h)).json()['id']。\nL133 await 调用 put(client, h, did, '\"1\"')；等待期间可让出事件循环，恢复后才执行下一句。\nL134 await 调用 client.delete(f'/diagrams/{did}', headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL135 计算右侧并赋给 `r`：await 调用 client.post(f'/diagrams/{did}/restore', headers=h)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL136 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL137 核对 `r.json()['version'] == 3`：此条件为假即测试失败；不是生产输入校验。\nL138 核对 `(await put(client, h, did, '\"2\"')).status_code == 412`：要求旧版本不得覆盖新版本；不满足即本用例失败。\nL139 核对 `(await put(client, h, did, '\"3\"')).status_code == 200`：要求请求成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 147,
+          "end": 152,
           "title": "test_list_exposes_version",
           "explanation": "本用例的准备条件：client。涉及接口：/diagrams。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL144 计算右侧并赋给 `h`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL145 await 调用 create(client, h)；等待期间可让出事件循环，恢复后才执行下一句。\nL146 计算右侧并赋给 `items`：调用 (await client.get('/diagrams', headers=h)).json()。\nL147 核对 `items[0]['version'] == 1`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 180,
+          "title": "test_delete_during_a_save_waits_instead_of_faking_a_version_conflict",
+          "explanation": "TD-319：保存确认图还在之后、写入之前插入一次删除。删除现在先拿同一把用户锁，只能排在保存之后：保存 200、删除 204，回收站里是保存后的第 2 版。真 PostgreSQL 上改之前保存会得到「第 1 版对第 1 版」的假 412；SQLite 整库写锁本来就会让删除等待，两种实现都通过。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL160 导入 from app.routers import diagrams；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL162 计算右侧并赋给 `h`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL163 计算右侧并赋给 `did`：(await create(client, h)).json()['id']。\nL164 计算右侧并赋给 `(original, deleting)`：(diagrams._owned, [])。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
     {
       "path": "tests/test_diagram_quota.py",
-      "sha256": "6a4613493dd17265e47a0822a6eddff1263beb2a367457477c898ca55f60aa2f",
+      "sha256": "c3c57f770a41426f64fcd7c68a8bf2dd3cbd64be53a3e20f367b1428541ee5e1",
       "method": "guided",
       "blocks": [
         {
@@ -4928,9 +4933,14 @@
           "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/diagrams。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL136 调用 monkeypatch.setattr(settings, 'DIAGRAM_QUOTA', 1)：仅在本测试替换属性，fixture结束恢复。\nL137 计算右侧并赋给 `alice`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL138 计算右侧并赋给 `bob`：await 调用 auth(client, username='bob', password='secret456')；等待期间可让出事件循环，恢复后才执行下一句。\nL139 await 调用 new(client, alice)；等待期间可让出事件循环，恢复后才执行下一句。\nL140 核对 `(await client.post('/diagrams', json={'name': 'a2', 'content': SAMPLE_XML}, headers=alice)).status_code == 409`：要求状态/配额/幂等冲突；不满足即本用例失败。\nL142 核对 `await new(client, bob) > 0`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 153,
+          "end": 155,
           "title": "test_update_is_not_limited_by_quota",
           "explanation": "本用例的准备条件：client, monkeypatch。涉及接口：/diagrams/。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL147 调用 monkeypatch.setattr(settings, 'DIAGRAM_QUOTA', 1)：仅在本测试替换属性，fixture结束恢复。\nL148 计算右侧并赋给 `h`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL149 计算右侧并赋给 `did`：await 调用 new(client, h)；等待期间可让出事件循环，恢复后才执行下一句。\nL150 计算右侧并赋给 `r`：await 调用 client.put(f'/diagrams/{did}', json={'name': '改个名', 'content': '<mxfile/>'}, headers={**h, 'If-Match': '\"1\"'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL152 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL153 核对 `r.json()['name'] == '改个名'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 171,
+          "title": "test_saving_a_missing_or_foreign_diagram_is_404_even_when_over_quota",
+          "explanation": "TD-319：PUT 先 404 再算额度。超额用户保存别人的、已删除的或不存在的 id 得 404，而不是答非所问的「总存储已达上限」409；自己的图照样 409，证明额度检查没被丢掉。\n\n输入签名：client, monkeypatch；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL159 计算右侧并赋给 `alice`：await 调用 auth(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL160 计算右侧并赋给 `bob`：await 调用 auth(client, username='bob', password='secret456')；等待期间可让出事件循环，恢复后才执行下一句。\nL161 计算右侧并赋给 `(mine, gone)`：(await new(client, alice), await new(client, alice))。\nL162 核对 `(await client.delete(f'/diagrams/{gone}', headers=alice)).status_code == 204`：要求操作成功且无正文；不满足即本用例失败。\nL163 计算右侧并赋给 `foreign`：await 调用 new(client, bob)；等待期间可让出事件循环，恢复后才执行下一句。\nL164 调用 monkeypatch.setattr(settings, 'DIAGRAM_TOTAL_QUOTA', 1)：仅在本测试替换属性，fixture结束恢复。\nL165 计算右侧并赋给 `body`：{'name': 'x', 'content': '<mxfile/>'}。\nL167 计算右侧并赋给 `over`：await 调用 client.put(f'/diagrams/{mine}', json=body, headers={**alice, 'If-Match': '\"1\"'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL168 核对 `over.status_code == 409`：要求状态/配额/幂等冲突；不满足即本用例失败。\nL169 逐项遍历 `(foreign, gone, 999999)`，绑定 `did`；循环体按缩进执行，break可提前结束。\nL170 计算右侧并赋给 `r`：await 调用 client.put(f'/diagrams/{did}', json=body, headers={**alice, 'If-Match': '\"1\"'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL171 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -5735,7 +5745,7 @@
     },
     {
       "path": "tests/test_er_page.py",
-      "sha256": "fbba314e78b4dfad224b8b8bef7b253dbe1cda54c2c0f4e65e24c172a1d874b8",
+      "sha256": "f8a56b14300c33ba94b6562ee227deafa8ac9aa4fe0c14da9a721786d8ccca32",
       "method": "guided",
       "blocks": [
         {
@@ -5809,9 +5819,14 @@
           "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。 TD-279：小图（500×300 放进 900×620）按 1 倍居中；大图（2400×850）以 0.75 从 (12,12) 开始、fits 为假；mode='fit' 给出放得下的全图比例（< 0.75）；小图也可强制 readable。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实布局代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL285 把测试JavaScript多行字面量存入 `_VIEW_HARNESS`（424字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL302 计算右侧并赋给 `out`：调用 subprocess.run([shutil.which('node'), *_NODE_ARGS, _VIEW_HARNESS, str(ER_JS)], capture_output=True, text=True, check=True)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL304 计算右侧并赋给 `v`：调用 json.loads(out.stdout)：把外部文本解析为对象，格式错误会抛异常。\nL305 计算右侧并赋给 `(small, big, big_fit)`：(v['small'], v['big'], v['bigFit'])。\nL306 核对 `small['fits'] and small['k'] == 1`：此条件为假即测试失败；不是生产输入校验。\nL307 核对 `small['x'] == (900 - 500) / 2 and small['y'] == (620 - 300) / 2`：此条件为假即测试失败；不是生产输入校验。\nL308 核对 `not big['fits'] and big['k'] == v['READABLE'] == 0.75 and ((big['x'], big['y']) == (12, 12))`：此条件为假即测试失败；不是生产输入校验。\nL309 核对 `big_fit['k'] == big['fitK'] < 0.75 and big_fit['k'] * 2400 <= 900 - 24`：此条件为假即测试失败；不是生产输入校验。\nL310 核对 `v['smallReadable']['k'] == 0.75`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 320,
+          "end": 321,
           "title": "test_word_export_button_is_disabled_while_exporting",
           "explanation": "TD-315：er-page.js 引入 d3，不能在 Node 里直接跑，这里读源码钉住：处理函数开头「已禁用就返回」、发请求之前先禁用、finally 里恢复。改之前的代码没有这三处。"
+        },
+        {
+          "end": 331,
+          "title": "test_submit_errors_name_the_stage_that_failed",
+          "explanation": "ER 页提交按阶段报错（源码检查，页面脚本依赖 d3，跑不了 Node 桩）：请求阶段含断网是「请求失败」，只有 renderEr 之后才是「渲染失败」；非 JSON 应答也归到请求失败。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL325 计算右侧并赋给 `source`：调用 (ROOT / 'app' / 'frontend' / 'er-page.js').read_text(encoding='utf-8')。\nL326 计算右侧并赋给 `submit`：source[source.index('form.onsubmit'):]。\nL327 核对 `'let stage = \"请求失败\";' in submit`：此条件为假即测试失败；不是生产输入校验。\nL328 核对 `submit.index('stage = \"渲染失败\";') < submit.index('renderEr(\"#er-canvas\", data);')`：此条件为假即测试失败；不是生产输入校验。\nL329 核对 `submit.index('post(\"/tools/er-diagram\"') < submit.index('stage = \"渲染失败\";')`：此条件为假即测试失败；不是生产输入校验。\nL330 核对 `'fail(`${stage}：${failure(e)}`)' in submit`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -6338,7 +6353,7 @@
     },
     {
       "path": "tests/test_frontend_supply_chain.py",
-      "sha256": "f1379401cba7506292f6daab8eca554c50e1533686e9806720786d7384f1137f",
+      "sha256": "71ec176ef8ccccf6469356d851e994b1d649087640a0dcc6005c02160a096708",
       "method": "guided",
       "blocks": [
         {
@@ -6387,19 +6402,19 @@
           "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：Mermaid 改为按需 import(\"mermaid\")，断言随之从静态 import 字面量换成动态 import 的裸模块名（同样只允许锁定的本地包）；另加一条：任何前端源码都不得动态 import 远程地址。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL199 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL201 计算右侧并赋给 `js`：调用 (ROOT / 'app/frontend/mermaid-page.js').read_text(encoding='utf-8')。\nL203 核对 `'import(\"mermaid\")' in js`：此条件为假即测试失败；不是生产输入校验。\nL204 计算右侧并赋给 `lock`：调用 json.loads((ROOT / 'package-lock.json').read_text(encoding='utf-8'))：把外部文本解析为对象，格式错误会抛异常。\nL205 计算右侧并赋给 `entry`：lock['packages']['node_modules/mermaid']。\nL206 核对 `entry['version'] == '11.17.2' and entry['integrity'].startswith('sha512-')`：此条件为假即测试失败；不是生产输入校验。\nL207 逐项遍历 `(ROOT / 'app/frontend').glob('*.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL208 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL209 核对 `not re.search('from\\\\s*[\"\\\\\\']https?://', text)`：此条件为假即测试失败；不是生产输入校验。\nL210 核对 `not re.search('import\\\\(\\\\s*[\"\\\\\\'`]https?://', text)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 285,
+          "end": 286,
           "title": "test_mermaid_loads_on_first_generate_and_retries_a_failed_download",
-          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：Node 执行 mermaid-page.js 源码并把 import(\"mermaid\") 换成计数桩：页面加载 0 次；服务端报错且下载失败那次显示服务端文案、无未处理拒绝；下载失败不被缓存（下一次重新 import），此时仍显示 Mermaid 源码并提示渲染组件下载失败；成功后复用、initialize 只调一次且为 strict。改前失败。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL215 把测试JavaScript多行字面量存入 `_LAZY_HARNESS`（2185字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL261 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL262 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL263 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL265 判断 `shutil.which('node') is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL268 调用 pytest.skip('需要 node 执行真实前端代码')：明确跳过，不计为执行通过。\nL269 计算右侧并赋给 `harness`：tmp_path / 'lazy.cjs'。\nL270 调用 harness.write_text(_LAZY_HARNESS, encoding='utf-8')。\nL271 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/mermaid-page.js')], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL273 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL274 计算右侧并赋给 `r`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL275 核对 `r['atLoad'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL276 计算右侧并赋给 `down`：r['serverDownAndChunkFails']。\nL277 核对 `down['loads'] == 1 and down['err'] == '上游故障' and down['enabled']`：此条件为假即测试失败；不是生产输入校验。\nL278 计算右侧并赋给 `failed`：r['chunkFails']。\nL279 核对 `failed['loads'] == 2`：此条件为假即测试失败；不是生产输入校验。\nL280 核对 `'渲染组件下载失败' in failed['err'] and failed['source'] == 'classDiagram\\nclass A' and (failed['runs'] == 0)`：此条件为假即测试失败；不是生产输入校验。\nL281 核对 `r['ok'] == {'loads': 3, 'runs': 1, 'inits': 1, 'err': '', 'source': 'classDiagram\\nclass B', 'enabled': True}`：此条件为假即测试失败；不是生产输入校验。\nL282 核对 `r['again']['loads'] == 3 and r['again']['runs'] == 2 and (r['again']['inits'] == 1)`：此条件为假即测试失败；不是生产输入校验。\nL283 核对 `r['cfg'] == {'startOnLoad': False, 'securityLevel': 'strict'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：tmp_path。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：Node 执行 mermaid-page.js 源码并把 import(\"mermaid\") 换成计数桩：页面加载 0 次；服务端报错且下载失败那次显示服务端文案、无未处理拒绝；下载失败不被缓存（下一次重新 import），此时仍显示 Mermaid 源码并提示渲染组件下载失败；成功后复用、initialize 只调一次且为 strict。改前失败。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL215 把测试JavaScript多行字面量存入 `_LAZY_HARNESS`（2185字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL261 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL262 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL263 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL265 判断 `shutil.which('node') is None`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL266 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL268 调用 pytest.skip('需要 node 执行真实前端代码')：明确跳过，不计为执行通过。\nL269 计算右侧并赋给 `harness`：tmp_path / 'lazy.cjs'。\nL270 调用 harness.write_text(_LAZY_HARNESS, encoding='utf-8')。\nL271 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/mermaid-page.js')], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL273 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL274 计算右侧并赋给 `r`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL275 核对 `r['atLoad'] == 0`：此条件为假即测试失败；不是生产输入校验。\nL276 计算右侧并赋给 `down`：r['serverDownAndChunkFails']。\nL277 核对 `down['loads'] == 1 and down['err'] == '上游故障' and down['enabled']`：此条件为假即测试失败；不是生产输入校验。\nL278 计算右侧并赋给 `failed`：r['chunkFails']。\nL279 核对 `failed['loads'] == 2`：此条件为假即测试失败；不是生产输入校验。\nL280 核对 `'渲染组件下载失败' in failed['err'] and failed['source'] == 'classDiagram\\nclass A' and (failed['runs'] == 0)`：此条件为假即测试失败；不是生产输入校验。\nL281 核对 `r['ok'] == {'loads': 3, 'runs': 1, 'inits': 1, 'err': '', 'source': 'classDiagram\\nclass B', 'enabled': True}`：此条件为假即测试失败；不是生产输入校验。\nL282 核对 `r['again']['loads'] == 3 and r['again']['runs'] == 2 and (r['again']['inits'] == 1)`：此条件为假即测试失败；不是生产输入校验。\nL284 核对 `r['cfg'] == {'startOnLoad': False, 'securityLevel': 'strict', 'suppressErrorRendering': True}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 300,
+          "end": 301,
           "title": "_static_closure",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 从产物入口沿静态 import 走出页面加载时会下载的文件集合；先删掉动态 import(...)，所以按需分块不计入。\n\n输入签名：entry: str；定义函数不等于此处立刻执行函数体。 返回类型标注：set[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL288 计算右侧并赋给 `out_dir`：ROOT / 'app/static/js'。\nL289 计算右侧并赋给 `seen`（标注 set[str]）：调用 set()。\nL290 计算右侧并赋给 `todo`：[entry]。\nL291 只要 `todo` 为真就重复该体，注意体内推进索引/退出条件。\nL292 计算右侧并赋给 `name`：调用 todo.pop()。\nL293 判断 `name in seen`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL294 continue 跳过本轮剩余语句，进入下一轮。\nL295 调用 seen.add(name)。\nL296 计算右侧并赋给 `text`：调用 re.sub('import\\\\(\\\\s*[`\\\\\"\\'][^`\\\\\"\\']+[`\\\\\"\\']\\\\s*\\\\)', '', (out_dir / name).read_text(encoding='utf-8'))。\nL297 累积修改 `todo`：执行 `todo += [m[2:] for m in re.findall('(?:from\\\\s*|import\\\\s*)\\\\\"(\\\\./[^\\\\\"]+\\\\.js)\\\\\"', text)]`，新值供下一轮/后续分支使用。\nL298 结束当前函数，返回 seen；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。 从产物入口沿静态 import 走出页面加载时会下载的文件集合；先删掉动态 import(...)，所以按需分块不计入。\n\n输入签名：entry: str；定义函数不等于此处立刻执行函数体。 返回类型标注：set[str]。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL289 计算右侧并赋给 `out_dir`：ROOT / 'app/static/js'。\nL290 计算右侧并赋给 `seen`（标注 set[str]）：调用 set()。\nL291 计算右侧并赋给 `todo`：[entry]。\nL292 只要 `todo` 为真就重复该体，注意体内推进索引/退出条件。\nL293 计算右侧并赋给 `name`：调用 todo.pop()。\nL294 判断 `name in seen`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL295 continue 跳过本轮剩余语句，进入下一轮。\nL296 调用 seen.add(name)。\nL297 计算右侧并赋给 `text`：调用 re.sub('import\\\\(\\\\s*[`\\\\\"\\'][^`\\\\\"\\']+[`\\\\\"\\']\\\\s*\\\\)', '', (out_dir / name).read_text(encoding='utf-8'))。\nL298 累积修改 `todo`：执行 `todo += [m[2:] for m in re.findall('(?:from\\\\s*|import\\\\s*)\\\\\"(\\\\./[^\\\\\"]+\\\\.js)\\\\\"', text)]`，新值供下一轮/后续分支使用。\nL299 结束当前函数，返回 seen；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 318,
+          "end": 319,
           "title": "test_mermaid_page_bundle_defers_the_renderer_and_preloads_from_static_js",
-          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：产物层面：mermaid-page.js 首屏闭包 < 20 KiB 且含 import(\"./mermaid.core.js\")；Vite 预加载助手（按插 modulepreload 认出）拼接的地址前缀只能是 /static/js/（原 base 为 \"/\" 时预加载的是 404 地址）。改前失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL307 计算右侧并赋给 `out_dir`：ROOT / 'app/static/js'。\nL308 计算右侧并赋给 `first_load`：调用 _static_closure('mermaid-page.js')。\nL309 计算右侧并赋给 `size`：调用 sum(((out_dir / f).stat().st_size for f in first_load))。\nL310 核对 `size < 20 * 1024`：此条件为假即测试失败；不是生产输入校验。\nL311 计算右侧并赋给 `page`：调用 (out_dir / 'mermaid-page.js').read_text(encoding='utf-8')。\nL312 核对 `re.search('import\\\\(\\\\s*[`\\\\\"\\']\\\\./mermaid\\\\.core\\\\.js[`\\\\\"\\']\\\\s*\\\\)', page)`：此条件为假即测试失败；不是生产输入校验。\nL314 计算右侧并赋给 `helpers`：[f for f in out_dir.glob('*.js') if 'modulepreload' in f.read_text(encoding='utf-8')]。\nL315 核对 `helpers`：此条件为假即测试失败；不是生产输入校验。\nL316 逐项遍历 `helpers`，绑定 `f`；循环体按缩进执行，break可提前结束。\nL317 计算右侧并赋给 `prefixes`：调用 set(re.findall('return`([^`]*)`\\\\+e', f.read_text(encoding='utf-8')))。\nL318 核对 `prefixes == {'/static/js/'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。 TD-280：产物层面：mermaid-page.js 首屏闭包 < 20 KiB 且含 import(\"./mermaid.core.js\")；Vite 预加载助手（按插 modulepreload 认出）拼接的地址前缀只能是 /static/js/（原 base 为 \"/\" 时预加载的是 404 地址）。改前失败。\n\n输入签名：无；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL308 计算右侧并赋给 `out_dir`：ROOT / 'app/static/js'。\nL309 计算右侧并赋给 `first_load`：调用 _static_closure('mermaid-page.js')。\nL310 计算右侧并赋给 `size`：调用 sum(((out_dir / f).stat().st_size for f in first_load))。\nL311 核对 `size < 20 * 1024`：此条件为假即测试失败；不是生产输入校验。\nL312 计算右侧并赋给 `page`：调用 (out_dir / 'mermaid-page.js').read_text(encoding='utf-8')。\nL313 核对 `re.search('import\\\\(\\\\s*[`\\\\\"\\']\\\\./mermaid\\\\.core\\\\.js[`\\\\\"\\']\\\\s*\\\\)', page)`：此条件为假即测试失败；不是生产输入校验。\nL315 计算右侧并赋给 `helpers`：[f for f in out_dir.glob('*.js') if 'modulepreload' in f.read_text(encoding='utf-8')]。\nL316 核对 `helpers`：此条件为假即测试失败；不是生产输入校验。\nL317 逐项遍历 `helpers`，绑定 `f`；循环体按缩进执行，break可提前结束。\nL318 计算右侧并赋给 `prefixes`：调用 set(re.findall('return`([^`]*)`\\\\+e', f.read_text(encoding='utf-8')))。\nL319 核对 `prefixes == {'/static/js/'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -6721,108 +6736,133 @@
     },
     {
       "path": "tests/test_mermaid.py",
-      "sha256": "5a961a7ab99e7abd3779ebc73c5f6a83d5eb04ad9b2ef8f0ce9fa5e963faf2c5",
+      "sha256": "da32f4c832d32bd0a0dcf4eb544a69c5384d84bfd5565c9e29b6888bba94be43",
       "method": "guided",
       "blocks": [
         {
-          "end": 23,
+          "end": 25,
           "title": "模块装配",
-          "explanation": "模块协作与边界：LLM兼容HTTP请求、围栏剥离/前缀拒绝与端点错误映射；页面ID/路由合同防断线。返回classDiagram字符串通过不代表浏览器Mermaid完全解析或视觉可读。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL5 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL6 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 import httpx；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from app.tools.llm import LLMClient, LLMError, default_llm, generate_mermaid, get_llm；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from main import app；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL19 计算右侧并赋给 `MERMAID_PAGE_JS`：调用 (Path(__file__).resolve().parents[1] / 'app/frontend/mermaid-page.js').read_text(encoding='utf-8')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：LLM兼容HTTP请求、围栏剥离/前缀拒绝与端点错误映射；页面ID/路由合同防断线。返回classDiagram字符串通过不代表浏览器Mermaid完全解析或视觉可读。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL5 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL6 导入 import re；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL7 导入 import shutil；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 import subprocess；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 from pathlib import Path；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 import httpx；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 import pytest；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL14 导入 from app.tools.llm import LLMClient, LLMError, default_llm, generate_mermaid, get_llm；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 导入 from main import app；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL16 导入 from tests.conftest import iter_app_routes；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL21 计算右侧并赋给 `MERMAID_PAGE_JS`：调用 (Path(__file__).resolve().parents[1] / 'app/frontend/mermaid-page.js').read_text(encoding='utf-8')。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 26,
+          "end": 28,
           "title": "FakeLLM",
           "explanation": "测试对象：此类在本文件中组织替身状态/方法；它不被生产路由装配。方法分别在后续段落解释。\n\n结构事实：定义类 FakeLLM，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 31,
+          "end": 33,
           "title": "FakeLLM.__init__",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, reply: str='classDiagram\\nclass User', exc: Exception | None=None；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL28 计算右侧并赋给 `self.reply`：reply。\nL29 计算右侧并赋给 `self.exc`：exc。\nL30 计算右侧并赋给 `self.calls`：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, reply: str='classDiagram\\nclass User', exc: Exception | None=None；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL30 计算右侧并赋给 `self.reply`：reply。\nL31 计算右侧并赋给 `self.exc`：exc。\nL32 计算右侧并赋给 `self.calls`：[]。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 38,
+          "end": 40,
           "title": "FakeLLM.chat",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, system: str, user: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL33 调用 self.calls.append((system, user))。\nL34 判断 `self.exc`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL35 抛出 self.exc；本路径不再顺序执行后文，由匹配的except/上层处理。\nL36 结束当前函数，返回 self.reply；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：self, system: str, user: str；异步调用需await才推进。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL35 调用 self.calls.append((system, user))。\nL36 判断 `self.exc`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL37 抛出 self.exc；本路径不再顺序执行后文，由匹配的except/上层处理。\nL38 结束当前函数，返回 self.reply；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 45,
+          "end": 47,
           "title": "_mock_transport",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：handler；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL40 结束当前函数，返回 调用 httpx.MockTransport(handler)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：handler；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL42 结束当前函数，返回 调用 httpx.MockTransport(handler)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 54,
+          "end": 56,
           "title": "test_generate_mermaid_strips_fence_and_keeps_user_text",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL47 计算右侧并赋给 `llm`：调用 FakeLLM('```mermaid\\nclassDiagram\\nclass User\\n```')。\nL48 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('用户和订单', llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL49 核对 `diagram == 'classDiagram\\nclass User'`：此条件为假即测试失败；不是生产输入校验。\nL50 计算右侧并赋给 `(system, user)`：llm.calls[0]。\nL51 核对 `user == '用户和订单'`：此条件为假即测试失败；不是生产输入校验。\nL52 核对 `'classDiagram' in system`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL49 计算右侧并赋给 `llm`：调用 FakeLLM('```mermaid\\nclassDiagram\\nclass User\\n```')。\nL50 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('用户和订单', llm=llm)；等待期间可让出事件循环，恢复后才执行下一句。\nL51 核对 `diagram == 'classDiagram\\nclass User'`：此条件为假即测试失败；不是生产输入校验。\nL52 计算右侧并赋给 `(system, user)`：llm.calls[0]。\nL53 核对 `user == '用户和订单'`：此条件为假即测试失败；不是生产输入校验。\nL54 核对 `'classDiagram' in system`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 59,
+          "end": 61,
           "title": "test_generate_mermaid_accepts_bare_diagram",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL56 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('x', llm=FakeLLM('  classDiagram\\nclass A --> B  '))；等待期间可让出事件循环，恢复后才执行下一句。\nL57 核对 `diagram == 'classDiagram\\nclass A --> B'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL58 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('x', llm=FakeLLM('  classDiagram\\nclass A --> B  '))；等待期间可让出事件循环，恢复后才执行下一句。\nL59 核对 `diagram == 'classDiagram\\nclass A --> B'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 65,
+          "end": 67,
           "title": "test_generate_mermaid_accepts_unclosed_fence",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL62 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('x', llm=FakeLLM('```mermaid\\nclassDiagram\\nclass A\\nclass B'))；等待期间可让出事件循环，恢复后才执行下一句。\nL63 核对 `diagram == 'classDiagram\\nclass A\\nclass B'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL64 计算右侧并赋给 `diagram`：await 调用 generate_mermaid('x', llm=FakeLLM('```mermaid\\nclassDiagram\\nclass A\\nclass B'))；等待期间可让出事件循环，恢复后才执行下一句。\nL65 核对 `diagram == 'classDiagram\\nclass A\\nclass B'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 70,
+          "end": 72,
           "title": "test_generate_mermaid_rejects_non_mermaid_reply",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL67 进入 pytest.raises(LLMError, match='未返回 Mermaid')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL68 await 调用 generate_mermaid('x', llm=FakeLLM('抱歉，我无法完成这个请求。'))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL69 进入 pytest.raises(LLMError, match='未返回 Mermaid')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL70 await 调用 generate_mermaid('x', llm=FakeLLM('抱歉，我无法完成这个请求。'))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 78,
+          "end": 80,
           "title": "test_generate_mermaid_propagates_llm_error",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL72 进入 pytest.raises(LLMError, match='大模型返回 500')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL73 await 调用 generate_mermaid('x', llm=FakeLLM(exc=LLMError('大模型返回 500')))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL74 进入 pytest.raises(LLMError, match='大模型返回 500')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL75 await 调用 generate_mermaid('x', llm=FakeLLM(exc=LLMError('大模型返回 500')))；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 81,
+          "end": 83,
           "title": "test_client_posts_openai_compatible_request",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL80 计算右侧并赋给 `seen`：{}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL82 计算右侧并赋给 `seen`：{}。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 101,
+          "end": 103,
           "title": "test_client_posts_openai_compatible_request.handler",
-          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL83 计算右侧并赋给 `seen['url']`：调用 str(request.url)。\nL84 计算右侧并赋给 `seen['auth']`：调用 request.headers.get('authorization')。\nL85 计算右侧并赋给 `seen['body']`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL86 结束当前函数，返回 调用 httpx.Response(200, json={'choices': [{'message': {'content': 'classDiagram\\nclass A'}}]})；不会自动commit未提交事务。\nL88 计算右侧并赋给 `llm`：调用 LLMClient(api_key='sk-test', base_url='https://llm.test/v1/', model='test-model', transport=_mock_transport(handler))。\nL94 核对 `await llm.chat('系统提示', '用户输入') == 'classDiagram\\nclass A'`：此条件为假即测试失败；不是生产输入校验。\nL95 核对 `seen['url'] == 'https://llm.test/v1/chat/completions'`：此条件为假即测试失败；不是生产输入校验。\nL96 核对 `seen['auth'] == 'Bearer sk-test'`：此条件为假即测试失败；不是生产输入校验。\nL97 核对 `seen['body']['model'] == 'test-model'`：此条件为假即测试失败；不是生产输入校验。\nL98 核对 `[m['role'] for m in seen['body']['messages']] == ['system', 'user']`：此条件为假即测试失败；不是生产输入校验。\nL99 核对 `seen['body']['messages'][1]['content'] == '用户输入'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "测试辅助：由本文件用例/fixture调用，复用输入构造、替身或资源管理。下列实际返回/副作用是它的契约；不能把它当作另一个生产实现。\n\n输入签名：request: httpx.Request；定义函数不等于此处立刻执行函数体。 返回类型标注：httpx.Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL85 计算右侧并赋给 `seen['url']`：调用 str(request.url)。\nL86 计算右侧并赋给 `seen['auth']`：调用 request.headers.get('authorization')。\nL87 计算右侧并赋给 `seen['body']`：调用 json.loads(request.content)：把外部文本解析为对象，格式错误会抛异常。\nL88 结束当前函数，返回 调用 httpx.Response(200, json={'choices': [{'message': {'content': 'classDiagram\\nclass A'}}]})；不会自动commit未提交事务。\nL90 计算右侧并赋给 `llm`：调用 LLMClient(api_key='sk-test', base_url='https://llm.test/v1/', model='test-model', transport=_mock_transport(handler))。\nL96 核对 `await llm.chat('系统提示', '用户输入') == 'classDiagram\\nclass A'`：此条件为假即测试失败；不是生产输入校验。\nL97 核对 `seen['url'] == 'https://llm.test/v1/chat/completions'`：此条件为假即测试失败；不是生产输入校验。\nL98 核对 `seen['auth'] == 'Bearer sk-test'`：此条件为假即测试失败；不是生产输入校验。\nL99 核对 `seen['body']['model'] == 'test-model'`：此条件为假即测试失败；不是生产输入校验。\nL100 核对 `[m['role'] for m in seen['body']['messages']] == ['system', 'user']`：此条件为假即测试失败；不是生产输入校验。\nL101 核对 `seen['body']['messages'][1]['content'] == '用户输入'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 110,
+          "end": 112,
           "title": "test_client_raises_on_http_error",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL103 计算右侧并赋给 `llm`：调用 LLMClient(api_key='k', transport=_mock_transport(lambda req: httpx.Response(500, text='boom')))。\nL107 进入 pytest.raises(LLMError, match='大模型返回 500')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL108 await 调用 llm.chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL105 计算右侧并赋给 `llm`：调用 LLMClient(api_key='k', transport=_mock_transport(lambda req: httpx.Response(500, text='boom')))。\nL109 进入 pytest.raises(LLMError, match='大模型返回 500')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL110 await 调用 llm.chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 116,
+          "end": 118,
           "title": "test_client_raises_on_unexpected_payload",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL112 计算右侧并赋给 `llm`：调用 LLMClient(api_key='k', transport=_mock_transport(lambda req: httpx.Response(200, json={})))。\nL113 进入 pytest.raises(LLMError, match='不符合预期')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL114 await 调用 llm.chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL114 计算右侧并赋给 `llm`：调用 LLMClient(api_key='k', transport=_mock_transport(lambda req: httpx.Response(200, json={})))。\nL115 进入 pytest.raises(LLMError, match='不符合预期')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL116 await 调用 llm.chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 122,
+          "end": 124,
           "title": "test_client_refuses_without_api_key",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL119 进入 pytest.raises(LLMError, match='未配置 LLM_API_KEY')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL120 await 调用 LLMClient(api_key='').chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL121 进入 pytest.raises(LLMError, match='未配置 LLM_API_KEY')（该体必须抛指定异常才通过） 的上下文；退出时执行资源/锁/异常管理。\nL122 await 调用 LLMClient(api_key='').chat('s', 'u')；等待期间可让出事件循环，恢复后才执行下一句。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 129,
+          "end": 131,
           "title": "test_dependency_returns_default_client",
-          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL124 核对 `get_llm() is default_llm`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：无函数参数fixture，使用本模块/全局fixture。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL126 核对 `get_llm() is default_llm`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 141,
+          "end": 143,
           "title": "test_mermaid_endpoint_returns_diagram",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL131 计算右侧并赋给 `fake`：调用 FakeLLM('classDiagram\\nclass Order')。\nL132 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: fake。\nL133 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL134 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': '用户下单'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL136 调用 app.dependency_overrides.pop(get_llm, None)。\nL137 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL138 核对 `r.json() == {'mermaid': 'classDiagram\\nclass Order'}`：此条件为假即测试失败；不是生产输入校验。\nL139 核对 `fake.calls[0][1] == '用户下单'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL133 计算右侧并赋给 `fake`：调用 FakeLLM('classDiagram\\nclass Order')。\nL134 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: fake。\nL135 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL136 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': '用户下单'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL138 调用 app.dependency_overrides.pop(get_llm, None)。\nL139 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL140 核对 `r.json() == {'mermaid': 'classDiagram\\nclass Order'}`：此条件为假即测试失败；不是生产输入校验。\nL141 核对 `fake.calls[0][1] == '用户下单'`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 151,
+          "end": 153,
           "title": "test_mermaid_endpoint_maps_llm_error_to_502",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL143 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: FakeLLM(exc=LLMError('大模型返回 429：限流'))。\nL144 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL145 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': '用户下单'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL147 调用 app.dependency_overrides.pop(get_llm, None)。\nL148 核对 `r.status_code == 502`：要求上游故障被明确映射；不满足即本用例失败。\nL149 核对 `'限流' in r.json()['detail']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL145 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: FakeLLM(exc=LLMError('大模型返回 429：限流'))。\nL146 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL147 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': '用户下单'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL149 调用 app.dependency_overrides.pop(get_llm, None)。\nL150 核对 `r.status_code == 502`：要求上游故障被明确映射；不满足即本用例失败。\nL151 核对 `'限流' in r.json()['detail']`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 159,
+          "end": 161,
           "title": "test_mermaid_endpoint_rejects_empty_text",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL153 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': ''})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL154 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL155 计算右侧并赋给 `r`：await 调用 client.post('/tools/mermaid', json={'text': ''})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL156 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 183,
+          "end": 187,
           "title": "test_mermaid_page_served_and_wired",
-          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL161 计算右侧并赋给 `r`：await 调用 client.get('/tools/mermaid')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL162 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL163 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL164 核对 `'id=\"text-input\"' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL170 核对 `'/static/js/mermaid-page.js' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL171 计算右侧并赋给 `js`：MERMAID_PAGE_JS。\nL172 计算右侧并赋给 `urls`：调用 re.findall('[\"\\\\\\'](/tools/[\\\\w-]+)[\"\\\\\\']', js)。\nL173 核对 `urls`：此条件为假即测试失败；不是生产输入校验。\nL174 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL175 核对 `set(urls) <= registered`：此条件为假即测试失败；不是生产输入校验。\nL177 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: FakeLLM('classDiagram\\nclass A')。\nL178 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL179 计算右侧并赋给 `payload`：调用 (await client.post('/tools/mermaid', json={'text': 'x'})).json()。\nL181 调用 app.dependency_overrides.pop(get_llm, None)。\nL182 逐项遍历 `payload`，绑定 `key`；循环体按缩进执行，break可提前结束。\nL183 核对 `f'data.{key}' in js`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/tools/mermaid。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL163 计算右侧并赋给 `r`：await 调用 client.get('/tools/mermaid')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL164 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL165 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL166 核对 `'id=\"text-input\"' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL172 核对 `'/static/js/mermaid-page.js' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL173 计算右侧并赋给 `js`：MERMAID_PAGE_JS。\nL174 计算右侧并赋给 `urls`：调用 re.findall('[\"\\\\\\'](/tools/[\\\\w-]+)[\"\\\\\\']', js)。\nL175 核对 `urls`：此条件为假即测试失败；不是生产输入校验。\nL176 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL177 核对 `set(urls) <= registered`：此条件为假即测试失败；不是生产输入校验。\nL179 计算右侧并赋给 `app.dependency_overrides[get_llm]`：lambda: FakeLLM('classDiagram\\nclass A')。\nL180 执行try体；捕获 未配置except，异常向上传播；finally无论成功失败都会清理。\nL181 计算右侧并赋给 `payload`：调用 (await client.post('/tools/mermaid', json={'text': 'x'})).json()。\nL183 调用 app.dependency_overrides.pop(get_llm, None)。\nL184 逐项遍历 `payload`，绑定 `key`；循环体按缩进执行，break可提前结束。\nL185 核对 `f'data.{key}' in js`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 228,
+          "title": "_run_stage",
+          "explanation": "TD-318 的 Node 桩与运行器：块首的 _STAGE_HARNESS 把页面脚本里的 import(\"mermaid\") 换成可控的假渲染器，fetch 也由场景决定（断网或返回一段画不出来的源码），跑完读回错误提示、源码框、预览区和提交按钮的状态；_run_stage 用 node 执行它并解析最后一行 JSON。调用它的用例在没有 node 时整条跳过。\n\n输入签名：scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL190 把测试JavaScript多行字面量存入 `_STAGE_HARNESS`（1942字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\nL223 计算右侧并赋给 `proc`：调用 subprocess.run(['node', '-e', _STAGE_HARNESS, str(Path(__file__).resolve().parents[1] / 'app/frontend/mermaid-page.js'), scenario], capture_output=True, text=True, timeout=20)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL225 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL226 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 236,
+          "title": "test_network_failure_is_reported_as_a_request_failure_not_a_render_failure",
+          "explanation": "fetch 本身失败（断网）时提示必须是「请求失败：…」的中文网络提示。改之前整个 try 共用一句「渲染失败」，断网也被说成渲染失败。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL232 计算右侧并赋给 `out`：调用 _run_stage('offline')。\nL233 核对 `out['error'] == '请求失败：网络连接失败，请检查网络后重试'`：此条件为假即测试失败；不是生产输入校验。\nL234 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 251,
+          "title": "test_unrenderable_model_output_gets_a_chinese_explanation_and_keeps_the_source",
+          "explanation": "模型给的源码画不出来时：只取解析器英文提示的第一行，放进一句中文说明；源码框保留原文，预览区清空，不再留着源码原文或 Mermaid 的炸弹错误图。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL241 计算右侧并赋给 `out`：调用 _run_stage('parse-error')。\nL242 核对 `out['config']['suppressErrorRendering'] is True`：此条件为假即测试失败；不是生产输入校验。\nL243 核对 `out['config']['securityLevel'] == 'strict'`：此条件为假即测试失败；不是生产输入校验。\nL244 核对 `out['error'] == '无法绘制模型生成的图（Mermaid 提示：Parse error on line 3:）。下方是模型给出的源码，可以调整描述后重新生成，或复制源码自行修改。'`：此条件为假即测试失败；不是生产输入校验。\nL246 核对 `'Expecting' not in out['error'] and '^' not in out['error']`：此条件为假即测试失败；不是生产输入校验。\nL247 核对 `out['sourceShown'] and out['source'].startswith('classDiagram')`：此条件为假即测试失败；不是生产输入校验。\nL248 核对 `out['preview'] == ''`：此条件为假即测试失败；不是生产输入校验。\nL249 核对 `out['submitEnabled'] is True`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 257,
+          "title": "test_source_and_bundle_agree_on_render_failure_handling",
+          "explanation": "构建产物与源码一致：产物里必须有 suppressErrorRendering、新的中文说明和「请求失败：」，防止改了源码忘了 npm run build。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL254 计算右侧并赋给 `bundle`：调用 (Path(__file__).resolve().parents[1] / 'app/static/js/mermaid-page.js').read_text(encoding='utf-8')。\nL255 核对 `'suppressErrorRendering' in bundle and '无法绘制模型生成的图' in bundle and ('请求失败：' in bundle)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 267,
+          "title": "test_error_messages_point_at_the_source_box_where_it_actually_is",
+          "explanation": "方位词与模板一致：源码框在错误提示之后，两条提示（画不出来、渲染组件下载失败）都应说「下方是…源码」。原来写的是「上方」，是在真浏览器截图里发现的。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL261 计算右侧并赋给 `root`：Path(__file__).resolve().parents[1]。\nL262 计算右侧并赋给 `template`：调用 (root / 'app' / 'templates' / 'mermaid.html').read_text(encoding='utf-8')。\nL263 核对 `template.index('id=\"mermaid-error\"') < template.index('id=\"mermaid-source\"')`：此条件为假即测试失败；不是生产输入校验。\nL264 逐项遍历 `(root / 'app' / 'frontend' / 'mermaid-page.js', root / 'app' / 'static' / 'js' / 'mermaid-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL265 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL266 核对 `'上方是' not in text`：此条件为假即测试失败；不是生产输入校验。\nL267 核对 `text.count('下方是') == 2`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
