@@ -156,7 +156,11 @@
       contract = data.order; review = data.review || null;
       settle("review", review?.request_id);
       const labels = {none: "暂无异常，可登记人工跟进", open: "需要复核", followup: "继续跟进", reviewed: "当前进展已复核（不是已退款）"};
-      el("review-status").textContent = review ? `${labels[review.state]}${review.new_facts ? "；有新进展或记录需重新核对" : ""}\n异常记录 ${review.issues}；超时无结果尝试 ${review.orphans}\n${review.actor || "尚无复核人"} · ${review.time || ""}\n${review.note || ""}` : "复核状态未加载";
+      // 没有复核人时只写「尚无复核人」（TD-332）：原来固定拼「复核人 · 时间」，显示成末尾挂着分隔点的「尚无复核人 · 」；
+      // 没有备注时也不留空行。
+      const reviewer = review?.actor ? [review.actor, review.time].filter(Boolean).join(" · ") : "尚无复核人";
+      el("review-status").textContent = review ? [`${labels[review.state]}${review.new_facts ? "；有新进展或记录需重新核对" : ""}`,
+        `异常记录 ${review.issues}；超时无结果尝试 ${review.orphans}`, reviewer, review.note].filter(Boolean).join("\n") : "复核状态未加载";
       el("review").hidden = !review;
       el("title").textContent = `订单 ${number}`;
       el("contract").textContent = `客户ID：${contract.user_id}\n商品：${contract.product_name}\n合同金额：${money(contract.amount)} ${contract.currency}\n状态：${orderState(contract)}\n原商户 / 应用：${contract.merchant_id || "无"} / ${contract.app_id || "无"}\n冻结文件：${contract.delivery_key || "尚未绑定"}\nSHA-256：${contract.delivery_digest || "无"}\n字节数：${contract.delivery_size ?? "无"}`;

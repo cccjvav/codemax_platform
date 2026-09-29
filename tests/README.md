@@ -109,7 +109,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_payment_queries.py`](test_payment_queries.py) | `7c2e7045beee` | L1–L114 |
 | [`tests/test_payment_review.py`](test_payment_review.py) | `779c7a799754` | L1–L291 |
 | [`tests/test_payments_admin.py`](test_payments_admin.py) | `9a3a3be86dd2` | L1–L277 |
-| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `ab6a21622471` | L1–L643 |
+| [`tests/test_payments_frontend.py`](test_payments_frontend.py) | `83b16697c667` | L1–L655 |
 | [`tests/test_perf.py`](test_perf.py) | `87b3decfd95d` | L1–L398 |
 | [`tests/test_politeness.py`](test_politeness.py) | `03e7222f7d16` | L1–L537 |
 | [`tests/test_probe_llm.py`](test_probe_llm.py) | `41e6491c69a5` | L1–L154 |
@@ -139,7 +139,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `8860393bd962` | L1–L1087 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `3b9bb9442015` | L1–L1139 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `b107bdd9e67b` | L1–L120 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -462,3 +462,10 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_ui_accessibility.py::test_template_text_does_not_wrap_between_chinese_characters`：模板纯文字里不许有夹在两个汉字（含中文标点）之间的换行，它在页面上显示成一个空格。改前命中 `shop.html`、`oauth_consent.html`、`mock_pay.html` 三处。
 - `test_ui_accessibility.py::test_visible_text_quotes_with_corner_brackets`：模板与前端脚本的可见文字不用弯引号。改前命中订单管理页三处。
 - `test_ui_accessibility.py::test_cta_links_are_styled_as_buttons`：`base.html` 有 `a.cta` 按钮样式，商城脚本生成的收银台链接用它，模拟收银台不再自带一份。改前失败。
+
+## 2026-09-29 界面优化第二轮（TD-332）
+
+- `test_ui_accessibility.py::test_customer_sees_own_messages_labelled_me`（源码与构建产物各一次）：客户看自己的会话，发言人依次是「我」「管理员」。改前是「客户」。
+- `test_ui_accessibility.py::test_register_hint_states_username_rules_in_plain_words`：注册提示写出可用字符，不含 `RegisterIn`。
+- `test_ui_accessibility.py::test_admin_record_boxes_keep_field_labels_whole`：`.finance pre` 同时有 `keep-all`、`anywhere`、`pre-wrap`。
+- `test_payments_frontend.py::test_workbench_browser_logic[review-lines]`（源码与构建产物各一次）：没有复核人时以「尚无复核人」结尾，不带分隔点、不留空行；有复核人时是「boss · T」加备注。改前失败。

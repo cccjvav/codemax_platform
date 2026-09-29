@@ -340,6 +340,13 @@ if(scenario.startsWith('close-')){
   return d};
  start();await tick();await clickOrder();
  console.log(JSON.stringify({events:el('events').children.map(li=>li.textContent.split('\n')[0])}));
+}else if(scenario==='review-lines'){
+ const texts=[];
+ for(const review of [{state:'none',issues:0,orphans:0,actor:null,time:null,note:null},{state:'open',issues:1,orphans:0,actor:'boss',time:'T',note:'N'}]){
+  impl=async(url)=>{if(!url.includes('/ledger'))return rows();const d=ledger('ORDER1');d.review={...d.review,...review};return d};
+  start();await tick();await clickOrder();texts.push(el('review-status').textContent);
+ }
+ console.log(JSON.stringify({texts}));
 }else if(scenario==='lost-response'){
  start();await tick();await clickOrder();input();
  impl=async(url,opt)=>{if(opt.method==='POST'){paid=true;throw Error('response lost')}return ledger('ORDER1')};
@@ -355,7 +362,8 @@ if(scenario.startsWith('close-')){
 @pytest.mark.parametrize('scenario', ['permissions', 'list-account-race', 'detail-race', 'manual-confirmation',
                                      'mutation-account-race', 'lost-response', 'query', 'binding',
                                      'review-retry', 'review-stale', 'review-switch', 'review-change', 'review-filter',
-                                     'empty-list', 'detail-visibility', 'state-labels', 'event-labels'])
+                                     'empty-list', 'detail-visibility', 'state-labels', 'event-labels',
+                                     'review-lines'])
 def test_workbench_browser_logic(folder, scenario):
     result = subprocess.run(['node', '-e', HARNESS, str(ROOT / folder / 'payments-admin.js'), scenario],
                             text=True, capture_output=True, check=True, timeout=20)
@@ -405,6 +413,10 @@ def test_workbench_browser_logic(folder, scenario):
             'T · constructor · 系统',
             'T · future_kind · 系统',
         ]
+    elif scenario == 'review-lines':
+        # TD-332：没有复核人时只写「尚无复核人」，不再拼成末尾挂分隔点的「尚无复核人 · 」；没有备注不留空行。
+        assert data['texts'] == ['暂无异常，可登记人工跟进\n异常记录 0；超时无结果尝试 0\n尚无复核人',
+                                 '需要复核\n异常记录 1；超时无结果尝试 0\nboss · T\nN'], data
     elif scenario == 'review-filter':
         assert 'bucket=reviewed' in data['urls'][1] and 'before=' not in data['urls'][1]
         assert 'before=100' in data['urls'][2]

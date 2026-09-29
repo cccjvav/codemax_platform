@@ -53,9 +53,9 @@
 | [`app/frontend/mermaid-page.js`](mermaid-page.js) | `e4c301893634` | L1–L147 |
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
-| [`app/frontend/payments-admin.js`](payments-admin.js) | `bd9383a44d83` | L1–L404 |
+| [`app/frontend/payments-admin.js`](payments-admin.js) | `2433a0f4fce9` | L1–L408 |
 | [`app/frontend/shop-page.js`](shop-page.js) | `cab919d15ed0` | L1–L376 |
-| [`app/frontend/support-page.js`](support-page.js) | `dcd5a7ee2892` | L1–L225 |
+| [`app/frontend/support-page.js`](support-page.js) | `1d40555256f8` | L1–L228 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
 其他语言只声明文件覆盖，不把正则命中冒充完整符号解析。

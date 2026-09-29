@@ -27,14 +27,14 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `d5ed85abe826` | L1–L290 |
+| [`app/templates/base.html`](base.html) | `063dde61a830` | L1–L290 |
 | [`app/templates/drawio.html`](drawio.html) | `d36b5b843d42` | L1–L50 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `27ca244aede9` | L1–L30 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `76157115f7b4` | L1–L22 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `38cdaa23b1ca` | L1–L172 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `61528f3c429a` | L1–L175 |
 | [`app/templates/shop.html`](shop.html) | `ab7d91a46f4d` | L1–L123 |
 | [`app/templates/support-center.html`](support-center.html) | `202c15e1fc2c` | L1–L57 |
 

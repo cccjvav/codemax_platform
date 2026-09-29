@@ -93,7 +93,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/ordinal.js`](js/ordinal.js) | `eaef3ecf36db` | 生成物，见模块构建说明 |
 | [`app/static/js/packet-AYTQ26CC.js`](js/packet-AYTQ26CC.js) | `604591bbfc70` | 生成物，见模块构建说明 |
 | [`app/static/js/path.js`](js/path.js) | `71b62c60fd66` | 生成物，见模块构建说明 |
-| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `f9eeea9ef741` | 生成物，见模块构建说明 |
+| [`app/static/js/payments-admin.js`](js/payments-admin.js) | `b01d4fec802b` | 生成物，见模块构建说明 |
 | [`app/static/js/pegDiagram-XKGWAZYB.js`](js/pegDiagram-XKGWAZYB.js) | `81e9d6cff794` | 生成物，见模块构建说明 |
 | [`app/static/js/pie-WAS4IAKB.js`](js/pie-WAS4IAKB.js) | `1b84c4bfa676` | 生成物，见模块构建说明 |
 | [`app/static/js/pieDiagram-E7YTZNPT.js`](js/pieDiagram-E7YTZNPT.js) | `bc6c0614a828` | 生成物，见模块构建说明 |
@@ -113,7 +113,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-v2-MP3YSRHH.js`](js/stateDiagram-v2-MP3YSRHH.js) | `a53c367355a3` | 生成物，见模块构建说明 |
-| [`app/static/js/support-page.js`](js/support-page.js) | `0a895c65d0b0` | 生成物，见模块构建说明 |
+| [`app/static/js/support-page.js`](js/support-page.js) | `666bbf797c3b` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanes-42K2YHIH.js`](js/swimlanes-42K2YHIH.js) | `24b062312da4` | 生成物，见模块构建说明 |
 | [`app/static/js/swimlanesDiagram-VR7AAH4N.js`](js/swimlanesDiagram-VR7AAH4N.js) | `99cd3de777d0` | 生成物，见模块构建说明 |
 | [`app/static/js/timeline-definition-24CTP7MA.js`](js/timeline-definition-24CTP7MA.js) | `6f2a01973e9c` | 生成物，见模块构建说明 |

@@ -19,7 +19,10 @@
   /* 事件历史每条由脚本用换行分成三行：时间 · 事件 · 操作人 / 尝试号 / 依据（TD-323）。原来没有 pre-line，
      三行挤成一段，操作人、尝试号和依据 JSON 连在一起分不清（真 Chromium 截图核对）。 */
   #finance-events li { white-space:pre-line; }
-  .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; font:inherit; }
+  /* keep-all（TD-332）：这些框每行是「字段：值」。默认中文任意两字之间可断行，而「：」不能出现在行首、与后面的
+     ASCII 值之间也没有断点，于是「件：.snapshots/…」整体换到下一行，把「冻结文件」拆成「冻结文 / 件：…」（真 Chromium 截图）。
+     改为只在空格与标点处断开，字段名保持完整；过长的值仍由 anywhere 强制断开。与 TD-326 列表行同一做法。 */
+  .finance pre { white-space:pre-wrap; overflow-wrap:anywhere; word-break:keep-all; font:inherit; }
   .finance .warning { padding:12px; background:#fffbeb; border-left:4px solid #d97706; }
   /* 28 位订单号没有空格，会把整页撑出横向滚动条（390px 实测溢出 28px）。
      `overflow-wrap:anywhere` 让长标识在任意位置换行，而不是把布局顶开。 */

@@ -63,7 +63,10 @@
       seen.add(row.id); newest = Math.max(newest, row.id); oldest = Math.min(oldest ?? row.id, row.id);
       const li = document.createElement("li"), meta = document.createElement("small");
       li.className = row.sender_role === 1 ? "admin" : "customer";
-      meta.textContent = `${row.sender_role === 1 ? "管理员" : "客户"} · ${formatTime(row.create_time)}`;
+      // 客户看自己的会话时，自己的留言标「我」（TD-332）：原来一律标「客户」，像在看别人的记录；
+      // 管理员看客户会话仍是「客户 / 管理员」。
+      const who = row.sender_role === 1 ? "管理员" : currentUser?.role === 1 ? "客户" : "我";
+      meta.textContent = `${who} · ${formatTime(row.create_time)}`;
       const text = document.createElement("div"); text.textContent = row.body;
       li.append(meta, text); nodes.push(li);
     }

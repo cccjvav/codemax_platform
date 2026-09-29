@@ -819,6 +819,58 @@ def test_support_inbox_marks_the_open_conversation_and_formats_time_in_chinese(t
     assert result["opened"] == 1, result
 
 
+_SUPPORT_CUSTOMER_HARNESS = r"""
+const path = process.argv[2];
+const els = {};
+const mkEl = (id) => ({ id, value: "", textContent: "", hidden: false, disabled: false, className: "", children: [],
+  classList: { add() {}, remove() {} }, setAttribute() {}, removeAttribute() {},
+  append(...x) { this.children.push(...x); }, prepend(...x) { this.children.unshift(...x); },
+  replaceChildren(...x) { this.children = x; }, focus() {}, scrollIntoView() {} });
+global.document = { getElementById: (id) => (els[id] ||= mkEl(id)), createElement: (t) => mkEl(t) };
+global.window = global; global.CodeMaxAuth = { user: { username: "alice", role: 0 }, onChange() {}, open() {} };
+global.addEventListener = () => {}; global.setTimeout = () => 1; global.clearTimeout = () => {};
+global.fetch = async (url) => ({ ok: true, status: 200, json: async () => url.startsWith("/support/messages")
+  ? [{ id: 1, sender_role: 0, body: "问", create_time: "2026-09-28T09:49:30" }, { id: 2, sender_role: 1, body: "答", create_time: "2026-09-28T09:50:30" }]
+  : [] });
+require(path);
+(async () => {
+  for (let i = 0; i < 5; i++) await new Promise((r) => setImmediate(r));
+  console.log(JSON.stringify(els["support-messages"].children.map((li) => li.children[0].textContent.split(" · ")[0])));
+})().catch((e) => { console.error(e && e.stack || e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/support-page.js", "app/static/js/support-page.js"])
+def test_customer_sees_own_messages_labelled_me(tmp_path, path):
+    """TD-332：客户看自己的会话，原来自己的留言也标「客户」，像在看别人的记录（真 Chromium 截图）。
+    现在自己的标「我」，管理员回复仍标「管理员」；管理员视角不变（上一条用例仍断言「客户 · …」）。"""
+    harness = tmp_path / "support-customer.cjs"
+    harness.write_text(_SUPPORT_CUSTOMER_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / path)], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    assert json.loads(proc.stdout.strip().splitlines()[-1]) == ["我", "管理员"]
+
+
+def test_admin_record_boxes_keep_field_labels_whole():
+    """TD-332：订单管理页的只读框每行是「字段：值」。默认中文字间可断行，而「：」不能出现在行首、与后面的 ASCII 值
+    之间也没有断点，「件：.snapshots/…」整体换行，把「冻结文件」拆成「冻结文 / 件：…」（真 Chromium 截图，1280 与 390 宽都出现）。
+    keep-all 让字段名保持完整，过长的值仍由 anywhere 强制断开，不会撑出横向滚动。"""
+    html = (ROOT / "app" / "templates" / "payments-admin.html").read_text(encoding="utf-8")
+    rule = re.search(r"\.finance pre \{([^}]*)\}", html).group(1)
+    assert "word-break:keep-all" in rule and "overflow-wrap:anywhere" in rule and "pre-wrap" in rule, rule
+
+
+def test_register_hint_states_username_rules_in_plain_words():
+    """TD-332：注册提示原来是「用户名 3–50 字，密码 6–64 字（与后端 RegisterIn 的约束一致）」：把后端类名给用户看，
+    却没说用户最容易碰上的字符限制（空格、符号会被拒）。改为直接写出可用字符。"""
+    base = (ROOT / "app" / "templates" / "base.html").read_text(encoding="utf-8")
+    hint = re.search(r'<div class="hint" id="auth-hint" hidden>([^<]*)</div>', base).group(1)
+    assert "RegisterIn" not in hint and "下划线" in hint and "中文" in hint and "3–50" in hint and "6–64" in hint, hint
+
+
 # ---------------------------------------------------------------- TD-307：R-06 三项界面小问题
 
 _TABS_HARNESS = r"""
