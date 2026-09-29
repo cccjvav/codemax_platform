@@ -1877,7 +1877,7 @@
     },
     {
       "path": "app/templates/base.html",
-      "sha256": "0575420a61e7dcfbc40743ff0de9545b6372ffa28393b214ce2d402200991897",
+      "sha256": "d5ed85abe826e6f50e98906a8b7ffb8ae2eaf8e7c9d592f550b0cd1b54c0e495",
       "method": "manual",
       "blocks": [
         {
@@ -1886,22 +1886,22 @@
           "explanation": "lang/charset/viewport 影响中文和移动阅读；title 及 SEO 从 page_context 传入，description/keywords/canonical 非空才输出。Jinja 默认转义文本，模板不是直接把整个页面内容交前端拼。 TD-272：新增站点图标 link（/static/favicon.svg）—— 此前没有图标文件，浏览器对每个页面都会多打一次 /favicon.ico 并拿到 404。"
         },
         {
-          "end": 178,
+          "end": 186,
           "title": "全站 CSS：盒模型、导航和工具布局",
-          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。 TD-307：窄屏导航行加右缘 28px 渐隐（mask-image，含 -webkit- 前缀）与同宽 ::after 占位，提示还能横向滑动、滑到最右时最后一个链接不被遮；登录浮层当前标签 [aria-pressed=\"true\"] 浅蓝底、加粗、底部 3px 色条。 TD-317：新增 --fs-subtitle（17px），并给没写样式的 h2 / h3 加元素级规则（h2 用 --fs-title、h3 用 --fs-subtitle）。元素选择器特异性最低，.card h2、.modal h2、页面里的 .box h3 等规则照常生效；截图里原来的浏览器默认字号（22.5 / 24px 的 h2、17.55 / 18.72px 的 h3）因此消失。页脚规则之后加了窄屏 row-gap: 0：链接已有 8px 上下内边距，行距不必再加 gap；这条必须写在 footer .fnav 之后才不会被它的 gap 盖掉。 TD-326：select 设 max-width:100%（长选项不再撑宽页面）；button.item 加 word-break:keep-all（列表行只在空格与标点处断行，overflow-wrap:anywhere 仍兜底超长字段）；#er-canvas、#mermaid-preview、#mermaid-source 带 data-stale 时 opacity .45（生成失败时的旧结果）。"
+          "explanation": "border-box、body纵向flex与main flex:1撑满视口；nav flex:1 占中间、.nav-end margin-left:auto 把客服/管理员/商品推到右侧（TD-278 前是 .actions margin-left:auto），split 380px+弹性主区。按钮/错误/卡片/pre/两种画布设共享样式；只是显示，hidden/登录权限不是靠颜色判断。 TD-263：链接/按钮蓝改 #2563eb、CTA 绿改 #15803d（对白底 ≥ 5:1），新增 button:disabled 灰化 + not-allowed 与 :focus-visible 2px 轮廓；颜色注释写明对比度取值依据。 TD-272：新增跳过导航 .skip（仅聚焦时可见）、[hidden] 的 !important 兜底、button/input/select/textarea 的 font: inherit（浏览器默认 13.33px Arial 比正文小一号且字体不一致）、summary 6px 内边距、窄屏 16px 输入框（iOS 聚焦会自动放大整页）、窄屏导航与页脚 ≥24px 命中区，并把工具导航改成一行横向滚动以压低顶栏（TD-272 记为 208px → 147px；TD-278 在真实 CJK 字体下复测为 189px，改成两行网格后 88px）。 TD-278：窄屏顶栏改为 grid 两行（站点名 + 登录态 / nav 横向滚动 nowrap）；新增全站 .page-heading（20px）；手机 16px 输入框规则移到样式表最后并点名 .modal input —— 它原在中段，被后面的 textarea { font: 13px … } 与特异性更高的 .modal input { font: inherit } 盖掉，Chromium 390px 实测登录框/留言框/DDL 框全是 13px；.actions .who 超长昵称省略号。 TD-280：新增 .modal .ok（成功提示，#15803d）与 .modal .account（当前账号行）；.actions .who 去掉灰色——它现在是按钮，灰字加边框像禁用，改用 ghost 按钮原有配色。16px 规则仍是样式表最后一条。 TD-287：字号收进 :root 变量（正文 15px、手机 16px 单独一段 700px 媒体查询、次级 14px、辅助 13px、页面标题 22px），textarea/pre/浮层提示随之上调一号；--edge 让顶栏、正文、页脚在宽屏对齐到 1440px 版心，窄屏退回 --gutter（900px 以下 14px）。首页 .home-lead 与 .tool-grid 自适应网格、卡片底部「打开工具」指示；#mermaid-preview:empty::before 给生成前提示。输入框 16px 覆盖仍是样式表最后一条。 TD-306：textarea 默认正文字体，只有 textarea.code 等宽；新变量 --control-border #7d8ca3（白底 3.41:1、#f8fafc 3.26:1，满足 WCAG 1.4.11 控件边界 3:1），textarea、.modal input 与新增的 :where(input:not(复选/单选/文件/滑块/取色), select) 统一规则共用；统一规则特异性为 0、不写字体，手机 16px 规则仍是最后一条。新增 .form-actions 按钮行（flex、8px 间距）与 button.item 列表行（白底、pre-line、[aria-current=\"true\"] 高亮）。 TD-307：窄屏导航行加右缘 28px 渐隐（mask-image，含 -webkit- 前缀）与同宽 ::after 占位，提示还能横向滑动、滑到最右时最后一个链接不被遮；登录浮层当前标签 [aria-pressed=\"true\"] 浅蓝底、加粗、底部 3px 色条。 TD-317：新增 --fs-subtitle（17px），并给没写样式的 h2 / h3 加元素级规则（h2 用 --fs-title、h3 用 --fs-subtitle）。元素选择器特异性最低，.card h2、.modal h2、页面里的 .box h3 等规则照常生效；截图里原来的浏览器默认字号（22.5 / 24px 的 h2、17.55 / 18.72px 的 h3）因此消失。页脚规则之后加了窄屏 row-gap: 0：链接已有 8px 上下内边距，行距不必再加 gap；这条必须写在 footer .fnav 之后才不会被它的 gap 盖掉。 TD-326：select 设 max-width:100%（长选项不再撑宽页面）；button.item 加 word-break:keep-all（列表行只在空格与标点处断行，overflow-wrap:anywhere 仍兜底超长字段）；#er-canvas、#mermaid-preview、#mermaid-source 带 data-stale 时 opacity .45（生成失败时的旧结果）。\n\nTD-331：新增 a.cta / a.cta:hover，把主操作链接画成绿色按钮（商城待支付态的「前往收银台支付」、模拟收银台的「返回商城」共用，后者原来在页内另写一份）；类图页空状态提示改为在框内居中（flex 只在 #mermaid-preview:empty 时生效），与 ER 画布一致。"
         },
         {
-          "end": 204,
+          "end": 212,
           "title": "导航与可选身份控件",
           "explanation": "公共导航列出工具、购买、站内客服和管理员订单入口；管理链接只指向无数据登录壳，绝不靠不展示链接授权。auth_ui决定是否呈现身份控件，OAuth同意页仍不加载登录脚本；其余页由共享auth模块更新用户。 TD-272：管理员入口改为**默认 hidden**、只有 role===1 才由 auth.js 显示（页脚另有一个常驻入口，管理员登录前也找得到）；导航加 aria-label；正文前新增指向 #main 的跳过导航链接。隐藏只是导航整洁，权限仍由 require_admin 读库判断。 TD-278：「站内客服 / 管理员入口 / 商品」从 .actions 移进 nav（.nav-end 在桌面推到右侧，视觉与改版前一致；商品链接 .cta-link 绿色加粗），.actions 只剩登录态控件；nav aria-label 改为「站点导航」。窄屏据此变成两行：站点名 + 登录态 / 整组导航横向滚动。 TD-280：#auth-who 从 span 改为 type=button 的 ghost 按钮（aria-haspopup=dialog、title=修改密码），点它打开修改密码浮层。窄屏第一行只放得下站点名 + 两个控件，另加按钮会把站点名挤成省略号（390px 实测顶栏仍 88px）。"
         },
         {
-          "end": 267,
+          "end": 275,
           "title": "登录表单必须先于页面脚本",
           "explanation": "mask/form 的 ID 与 auth.js 一致，浏览器 minlength/maxlength 只是第一层提示，后端仍验证。共享经典 auth.js 在 main content 前执行，给后面的经典页脚本定义 CodeMaxAuth；auth_ui false 时脚本也不输出。 浮层容器带 role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"auth-title\"（TD-263）；Esc 与焦点归还在 auth.js。 TD-280：登录浮层之后新增修改密码浮层 #pw-mask（同样 role=dialog/aria-modal，标题 #pw-title）：隐藏只读的 username 字段 + 原密码（current-password）+ 新密码/再输一次（new-password，minlength 6 / maxlength 64 与 PasswordChangeIn 一致）；#pw-error role=alert、#pw-done role=status。两个浮层都在 auth.js 之前，auth_ui 为假时都不输出。"
         },
         {
-          "end": 282,
+          "end": 290,
           "title": "模板插槽与页脚",
           "explanation": "block content 由子模板覆盖，所有页共享脚本加载顺序。页脚再遍历 tools并标识公开工具/私人功能边界；不把旧“全部免费”宣传当当前商业交付范围。 TD-272：<main> 增加 id=main 作为跳过导航的落点；页脚导航补一个常驻的管理员入口，并同步获得窄屏命中区内边距。"
         }
@@ -1977,33 +1977,33 @@
     },
     {
       "path": "app/templates/mock_pay.html",
-      "sha256": "cbc2de375cf3971e3d4044db1c7f1262af592a4c82a9878fdda5872e4d30a3e3",
+      "sha256": "27ca244aede939b9b17e5d6600fdc75a68787e5d04b005d7db89d976a50fc5ba",
       "method": "manual",
       "blocks": [
         {
-          "end": 17,
+          "end": 16,
           "title": "演示样式：醒目而不假冒真实支付",
-          "explanation": "黄色 banner 与 pay 按钮明确 mock；code word-break 防长订单号撑破容器，out pre-wrap 展示分行结果。CSS 不是生产开关，后端 SHOP_PAY_MODE 决定是否可用。 TD-270：补 #pay:disabled 灰化与 #back 返回链接（绿色 CTA #15803d）样式。 TD-278：新增 .mock-title（24px）承接原 h1 的视觉字号。 TD-287：结果输出 13→14px。 TD-317：输出 pre 在点击之前是空的，全站 pre 样式会把它画成空灰框，改为 :empty 时隐藏；标题不再写死 24px，跟随全站 h2；边框、代码底色、输出文字色改用站内同一组灰色。"
+          "explanation": "黄色 banner 与 pay 按钮明确 mock；code word-break 防长订单号撑破容器，out pre-wrap 展示分行结果。CSS 不是生产开关，后端 SHOP_PAY_MODE 决定是否可用。 TD-270：补 #pay:disabled 灰化与 #back 返回链接（绿色 CTA #15803d）样式。 TD-278：新增 .mock-title（24px）承接原 h1 的视觉字号。 TD-287：结果输出 13→14px。 TD-317：输出 pre 在点击之前是空的，全站 pre 样式会把它画成空灰框，改为 :empty 时隐藏；标题不再写死 24px，跟随全站 h2；边框、代码底色、输出文字色改用站内同一组灰色。\n\nTD-331：删掉页内的 #back a.cta 规则，改由 base.html 的 a.cta 负责，外观不变。"
         },
         {
-          "end": 32,
+          "end": 30,
           "title": "订单标识与真实限制",
-          "explanation": "order_no 转义进 #no 供脚本读取；wechat/manual 生产模式关闭这页/模拟确认端点。按钮触发本地模拟，不走商户，不产生真实扣款；服务端仍校验买家。 TD-270：新增隐藏的 #back 段，含指向 shop_path 的「返回商城查看订单」链接，由脚本在模拟支付成功后显示。 V-05：返回链接改为 shop_path?order=<订单号>（urlencode），因为 /shop 全新加载且带 no-store（bfcache 被拒），不带单号只会落回落地页。 TD-278：页内标题由 h1 改为 h2.mock-title —— 整站每页只有顶栏站点名一个 h1（tests/test_ui_accessibility.py 的单 h1 用例现在也覆盖这页）。"
+          "explanation": "order_no 转义进 #no 供脚本读取；wechat/manual 生产模式关闭这页/模拟确认端点。按钮触发本地模拟，不走商户，不产生真实扣款；服务端仍校验买家。 TD-270：新增隐藏的 #back 段，含指向 shop_path 的「返回商城查看订单」链接，由脚本在模拟支付成功后显示。 V-05：返回链接改为 shop_path?order=<订单号>（urlencode），因为 /shop 全新加载且带 no-store（bfcache 被拒），不带单号只会落回落地页。 TD-278：页内标题由 h1 改为 h2.mock-title —— 整站每页只有顶栏站点名一个 h1（tests/test_ui_accessibility.py 的单 h1 用例现在也覆盖这页）。\n\nTD-331：「…或 manual，此时本页…」原来折成两行，换行在页面上显示成一个空格，现合成一行。"
         }
       ]
     },
     {
       "path": "app/templates/oauth_consent.html",
-      "sha256": "db8d977abafa813550674c858102fa22834b46587fdde4edf9edbe444b6b2a22",
+      "sha256": "76157115f7b430de90753b67f2c1b6abb5f455f82284c980c496c12b6d1b5521",
       "method": "manual",
       "blocks": [
         {
-          "end": 11,
+          "end": 10,
           "title": "纯服务端同意页",
-          "explanation": "由 OAuth authorize 传入客户端名称、用户名、精确回调。声明不交出密码，但颁发的访问令牌能访问受保护资源；显示名称不是信任证明，客户端登记/回调校验在服务端。 TD-287：标题 18→20px、回调地址说明 13→14px，跟随全站字号。 TD-317：标题改用 page-heading（原来写死 20px），回调地址那一行加 overflow-wrap: anywhere。长回调 URL 在 390px 宽会越过卡片右边框；页面本身不变宽，所以横向滚动检查发现不了，是截图时看到的。"
+          "explanation": "由 OAuth authorize 传入客户端名称、用户名、精确回调。声明不交出密码，但颁发的访问令牌能访问受保护资源；显示名称不是信任证明，客户端登记/回调校验在服务端。 TD-287：标题 18→20px、回调地址说明 13→14px，跟随全站字号。 TD-317：标题改用 page-heading（原来写死 20px），回调地址那一行加 overflow-wrap: anywhere。长回调 URL 在 390px 宽会越过卡片右边框；页面本身不变宽，所以横向滚动检查发现不了，是截图时看到的。\n\nTD-331：「（单点登录）。它拿不到…」原来折成两行，换行显示成空格，现合成一行。"
         },
         {
-          "end": 23,
+          "end": 22,
           "title": "隐藏字段不等于安全边界",
           "explanation": "form POST 同站 authorize，client_id/redirect_uri/state/sig 即使 hidden 也可被用户改；sig HMAC 才防篡改。两个 submit 值1/0分别批准拒绝，base.auth_ui=false 保证零脚本；样式 CSP 与脚本 CSP 分开。"
         }
@@ -2011,7 +2011,7 @@
     },
     {
       "path": "app/templates/shop.html",
-      "sha256": "b66e42843b44b7cd7bcd2913008bc1260e5d8a94c3da7c1ac54755ca2db16ca5",
+      "sha256": "ab7d91a46f4d1d1a5f8a4e7b8772e5bd07abd745a6887168523cf1ebb7d9ca70",
       "method": "manual",
       "blocks": [
         {
@@ -2025,17 +2025,17 @@
           "explanation": "展示 product_name 和分金额除100两位小数；固定数字商品不默认含定制开发。定制链接到站内管理员客服，不虚构外部供应商。立即购买仅绑定 JS，模板渲染时不建单。 V-05：主按钮下方留 #buy-note（默认 hidden），脚本把按钮换成「已购买，去下载」时写已购说明。 TD-287：商品名 h2 加 page-heading class，与工具页标题同为 22px。"
         },
         {
-          "end": 76,
+          "end": 75,
           "title": "FAQ：权益可恢复",
-          "explanation": "明确短时链接可重领；刷新后须同账号，从我的订单恢复。公开工具免费试用不等于所有资源免登录；说明与后端 paid/downloaded 分支保持一致。 V-05：新增「已经买过一次，还能再买吗？」——同一商品不重复购买，全额退款后按钮恢复为「立即购买」。"
+          "explanation": "明确短时链接可重领；刷新后须同账号，从我的订单恢复。公开工具免费试用不等于所有资源免登录；说明与后端 paid/downloaded 分支保持一致。 V-05：新增「已经买过一次，还能再买吗？」——同一商品不重复购买，全额退款后按钮恢复为「立即购买」。\n\nTD-331：「已经买过一次」的回答原来折成两行，「订单领取链接。」与「订单全额退款」之间在页面上多出一个空格（截图可见），现合成一行。"
         },
         {
-          "end": 97,
+          "end": 96,
           "title": "退款/关闭说明与待付区域",
           "explanation": "历史列表和游标由JS装配；st-refunded独立说明全额退款不可下载并链接站内客服，原closed/expired继续区分本地状态与时间。取消只回商品页，不发起远端关单/退款。 TD-278：「我的订单」区块已移到状态区之后（见最后一段），本段只剩退款/关闭说明与待付区域。 TD-281：st-closed 新增「订单 #x-no」一行（上方注释说明原因）：用户找客服核对时要报这个号。 TD-317：待支付态与支付成功、已关闭两态一致：标题「等待支付」说状态，订单号放在下面的 .muted 灰字行。原来订单号在标题里，390px 宽折成三行，比状态文字和付款按钮还显眼。.muted 同样带 overflow-wrap: anywhere，订单号仍可换行。"
         },
         {
-          "end": 124,
+          "end": 123,
           "title": "已付/领过链接：都能继续下载",
           "explanation": "st-paid保留主动下载和错误提示，未退款downloaded同样可重领；refunded优先进入独立区域。末尾经典shop-page依赖base先加载auth，生成bundle需同步。 TD-278：「我的订单」区块移到这里 —— 所有状态区之后。它原先夹在落地区与状态区之间，付完款回到 /shop 时 390px 实测「我的订单」在上、「支付成功」在下，且 h3 先于状态区 h2（axe heading-order）。历史列表和游标仍由 JS 装配。 TD-281：删除了从不显示的 st-downloaded（它的 #x-no 移到 st-closed）；③ 注释注明 downloaded 同样渲染本区、可重新领取短时链接。 TD-325：标题由「✅ 支付成功」改为「支付成功」，没有彩色 emoji 字体的系统原来显示成方框；其余几态的标题本来就不带图标。"
         }
@@ -9498,7 +9498,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "4305629d264b14e90cba3889a9bbf1ac8351ec279aa7222632d3f5d6eaf164be",
+      "sha256": "8860393bd962a1205c4911b6484fd9e8a3cb7192d8d5ae66cc63162d7e14e98e",
       "method": "guided",
       "blocks": [
         {
@@ -9766,39 +9766,54 @@
           "explanation": "TD-325：支付成功页标题原来是「✅ 支付成功」，没有彩色 emoji 字体的系统画成方框。模块常量 _EMOJI_PRESENTATION 列出默认以 emoji 显示的字符（Unicode Emoji_Presentation 的 BMP 码位加 U+1F000 起的图形平面）；本条扫模板与前端脚本里用户看得见的部分（去掉 HTML、Jinja、JS 注释），不许出现这些字符。⚠ 这类默认文字显示的符号不算，中文字体自带字形。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL938 计算右侧并赋给 `found`：[]。\nL939 逐项遍历 `sorted((ROOT / 'app' / 'templates').glob('*.html')) + sorted((ROOT / 'app' / 'frontend').glob('*.js'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL940 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL941 判断 `path.suffix == '.html'`，为真进入当前缩进分支，为假进入else/elif。\nL942 计算右侧并赋给 `text`：调用 re.sub('<!--.*?-->|\\\\{#.*?#\\\\}', '', text, flags=re.S)。\nL944 计算右侧并赋给 `text`：调用 re.sub('/\\\\*.*?\\\\*/', '', text, flags=re.S)。\nL945 计算右侧并赋给 `text`：调用 re.sub('(^|\\\\s)//[^\\\\n]*', '\\\\1', text)。\nL946 累积修改 `found`：执行 `found += [f'{path.name}: {ch} U+{ord(ch):04X}' for ch in _EMOJI_PRESENTATION.findall(text)]`，新值供下一轮/后续分支使用。\nL947 核对 `not found`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 991,
+          "end": 967,
+          "title": "test_template_text_does_not_wrap_between_chinese_characters",
+          "explanation": "TD-331：模板纯文字里夹在两个汉字之间的换行会显示成一个空格，禁止出现。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL950 计算右侧并赋给 `_CJK`：'[\\u3000-〿一-鿿\\uff00-\\uffef]'。\nL959 计算右侧并赋给 `found`：[]。\nL960 逐项遍历 `sorted((ROOT / 'app' / 'templates').glob('*.html'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL961 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL962 计算右侧并赋给 `text`：调用 re.sub('<!--.*?-->|\\\\{#.*?#\\\\}|<style\\\\b.*?</style>|<script\\\\b.*?</script>', '', text, flags=re.S)。\nL963 计算右侧并赋给 `text`：调用 re.sub('<[^>]*>', '<>', text)。\nL964 累积修改 `found`：执行 `found += [f'{path.name}: {m.group(0)!r}' for m in re.finditer(_CJK + '[ \\\\t]*\\\\n\\\\s*' + _CJK, text)]`，新值供下一轮/后续分支使用。\nL965 核对 `not found`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 982,
+          "title": "test_visible_text_quotes_with_corner_brackets",
+          "explanation": "TD-331：界面文字用「」引用，不用弯引号。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL971 计算右侧并赋给 `found`：[]。\nL972 逐项遍历 `sorted((ROOT / 'app' / 'templates').glob('*.html')) + sorted((ROOT / 'app' / 'frontend').glob('*.js'))`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL973 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL974 判断 `path.suffix == '.html'`，为真进入当前缩进分支，为假进入else/elif。\nL975 计算右侧并赋给 `text`：调用 re.sub('<!--.*?-->|\\\\{#.*?#\\\\}|<style\\\\b.*?</style>', '', text, flags=re.S)。\nL977 计算右侧并赋给 `text`：调用 re.sub('/\\\\*.*?\\\\*/', '', text, flags=re.S)。\nL978 计算右侧并赋给 `text`：调用 re.sub('(^|\\\\s)//[^\\\\n]*', '\\\\1', text)。\nL979 累积修改 `found`：执行 `found += [f'{path.name}: {m.group(0)}' for m in re.finditer('[“”][^“”\\n]{0,20}', text)]`，新值供下一轮/后续分支使用。\nL980 核对 `not found`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 994,
+          "title": "test_cta_links_are_styled_as_buttons",
+          "explanation": "TD-331：a.cta 由 base.html 一条规则画成绿色按钮，商城待支付与模拟收银台共用。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL987 计算右侧并赋给 `base`：调用 (ROOT / 'app' / 'templates' / 'base.html').read_text(encoding='utf-8')。\nL988 计算右侧并赋给 `rule`：调用 re.search('\\\\ba\\\\.cta\\\\s*\\\\{([^}]*)\\\\}', base)。\nL989 核对 `rule and 'background: #15803d' in rule.group(1) and ('display: inline-block' in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL990 核对 `'a.className = \"cta\"' in (ROOT / 'app' / 'frontend' / 'shop-page.js').read_text(encoding='utf-8')`：此条件为假即测试失败；不是生产输入校验。\nL991 计算右侧并赋给 `mock`：调用 (ROOT / 'app' / 'templates' / 'mock_pay.html').read_text(encoding='utf-8')。\nL992 核对 `'class=\"cta\"' in mock and 'a.cta' not in mock`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1036,
           "title": "test_empty_support_thread_leaves_no_gap_but_stays_a_live_region",
-          "explanation": "TD-325：还没有留言时空的 #support-messages 只收外边距（margin: 0），不许用 display 隐藏 —— 它是 aria-live 区域，隐藏会移出无障碍树。另钉住模板里的 <ol> 内部没有空白，否则 :empty 不成立。 TD-326：本块范围末尾还包含管理员会话列表执行器 _INBOX_HARNESS（见 _run_inbox）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL953 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'static' / 'support.css').read_text(encoding='utf-8')。\nL954 计算右侧并赋给 `rule`：调用 re.search('#support-messages:empty\\\\s*\\\\{([^}]*)\\\\}', css)。\nL955 核对 `rule and 'margin: 0' in rule.group(1) and ('display' not in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL956 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL957 核对 `'<ol id=\"support-messages\" aria-live=\"polite\" aria-label=\"会话消息\"></ol>' in html`：此条件为假即测试失败；不是生产输入校验。\nL962 把测试JavaScript多行字面量存入 `_INBOX_HARNESS`（2147字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-325：还没有留言时空的 #support-messages 只收外边距（margin: 0），不许用 display 隐藏 —— 它是 aria-live 区域，隐藏会移出无障碍树。另钉住模板里的 <ol> 内部没有空白，否则 :empty 不成立。 TD-326：本块范围末尾还包含管理员会话列表执行器 _INBOX_HARNESS（见 _run_inbox）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL998 计算右侧并赋给 `css`：调用 (ROOT / 'app' / 'static' / 'support.css').read_text(encoding='utf-8')。\nL999 计算右侧并赋给 `rule`：调用 re.search('#support-messages:empty\\\\s*\\\\{([^}]*)\\\\}', css)。\nL1000 核对 `rule and 'margin: 0' in rule.group(1) and ('display' not in rule.group(1))`：此条件为假即测试失败；不是生产输入校验。\nL1001 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'support-center.html').read_text(encoding='utf-8')。\nL1002 核对 `'<ol id=\"support-messages\" aria-live=\"polite\" aria-label=\"会话消息\"></ol>' in html`：此条件为假即测试失败；不是生产输入校验。\nL1007 把测试JavaScript多行字面量存入 `_INBOX_HARNESS`（2147字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1002,
+          "end": 1047,
           "title": "_run_inbox",
-          "explanation": "TD-326：执行真实 auth.js + support-page.js（/auth/me 返回管理员，会话接口按场景返回空列表或一条），返回加载后与点「退出」后的空状态。\n\n输入签名：tmp_path, scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL993 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL995 计算右侧并赋给 `harness`：tmp_path / 'inbox.cjs'。\nL996 调用 harness.write_text(_INBOX_HARNESS, encoding='utf-8')。\nL997 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js'), scenario], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL999 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL1000 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：执行真实 auth.js + support-page.js（/auth/me 返回管理员，会话接口按场景返回空列表或一条），返回加载后与点「退出」后的空状态。\n\n输入签名：tmp_path, scenario: str；定义函数不等于此处立刻执行函数体。 返回类型标注：dict。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1038 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL1040 计算右侧并赋给 `harness`：tmp_path / 'inbox.cjs'。\nL1041 调用 harness.write_text(_INBOX_HARNESS, encoding='utf-8')。\nL1042 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / 'app/frontend/auth.js'), str(ROOT / 'app/frontend/support-page.js'), scenario], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL1044 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL1045 结束当前函数，返回 调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1013,
+          "end": 1058,
           "title": "test_admin_inbox_says_so_when_there_are_no_conversations",
-          "explanation": "TD-326：管理员没有客户会话时显示空状态；有会话时不显示；退出后收起。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1007 计算右侧并赋给 `empty`：调用 _run_inbox(tmp_path, 'empty')。\nL1008 核对 `empty['loaded'] == {'empty': True, 'rows': 0, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\nL1009 核对 `empty['afterLogout']['empty'] is False`：此条件为假即测试失败；不是生产输入校验。\nL1010 计算右侧并赋给 `rows`：调用 _run_inbox(tmp_path, 'rows')。\nL1011 核对 `rows['loaded'] == {'empty': False, 'rows': 1, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：管理员没有客户会话时显示空状态；有会话时不显示；退出后收起。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1052 计算右侧并赋给 `empty`：调用 _run_inbox(tmp_path, 'empty')。\nL1053 核对 `empty['loaded'] == {'empty': True, 'rows': 0, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\nL1054 核对 `empty['afterLogout']['empty'] is False`：此条件为假即测试失败；不是生产输入校验。\nL1055 计算右侧并赋给 `rows`：调用 _run_inbox(tmp_path, 'rows')。\nL1056 核对 `rows['loaded'] == {'empty': False, 'rows': 1, 'panel': True}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1020,
+          "end": 1065,
           "title": "test_inbox_empty_state_is_announced_and_hidden_by_default",
-          "explanation": "TD-326：#support-inbox-empty 默认 hidden、role=status，位于会话列表与「更多会话」之间。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1015 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/support-center.html').read_text(encoding='utf-8')。\nL1016 计算右侧并赋给 `tag`：调用 re.search('<p id=\"support-inbox-empty\"[^>]*>', html)。\nL1017 核对 `tag and 'hidden' in tag.group(0) and ('role=\"status\"' in tag.group(0))`：此条件为假即测试失败；不是生产输入校验。\nL1018 核对 `html.index('id=\"support-inbox\"') < html.index('id=\"support-inbox-empty\"') < html.index('id=\"support-inbox-more\"')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：#support-inbox-empty 默认 hidden、role=status，位于会话列表与「更多会话」之间。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1060 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/support-center.html').read_text(encoding='utf-8')。\nL1061 计算右侧并赋给 `tag`：调用 re.search('<p id=\"support-inbox-empty\"[^>]*>', html)。\nL1062 核对 `tag and 'hidden' in tag.group(0) and ('role=\"status\"' in tag.group(0))`：此条件为假即测试失败；不是生产输入校验。\nL1063 核对 `html.index('id=\"support-inbox\"') < html.index('id=\"support-inbox-empty\"') < html.index('id=\"support-inbox-more\"')`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1029,
+          "end": 1074,
           "title": "test_list_rows_break_between_fields_not_inside_chinese_words",
-          "explanation": "TD-326：button.item 同时有 word-break:keep-all（不在中文词中间断行）与 overflow-wrap:anywhere（超长单字段不撑出横向滚动）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1025 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1026 计算右侧并赋给 `rule`：调用 re.search('button\\\\.item\\\\s*\\\\{([^}]*)\\\\}', css).group(1)。\nL1027 核对 `'word-break: keep-all' in rule and 'overflow-wrap: anywhere' in rule`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：button.item 同时有 word-break:keep-all（不在中文词中间断行）与 overflow-wrap:anywhere（超长单字段不撑出横向滚动）。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1070 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1071 计算右侧并赋给 `rule`：调用 re.search('button\\\\.item\\\\s*\\\\{([^}]*)\\\\}', css).group(1)。\nL1072 核对 `'word-break: keep-all' in rule and 'overflow-wrap: anywhere' in rule`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1035,
+          "end": 1080,
           "title": "test_select_never_grows_wider_than_its_container",
-          "explanation": "TD-326：base.html 的 select 设 max-width:100%，长选项不再撑宽整页。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1032 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1033 核对 `re.search('(?m)^\\\\s*select\\\\s*\\\\{[^}]*max-width:\\\\s*100%', css)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：base.html 的 select 设 max-width:100%，长选项不再撑宽整页。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1077 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1078 核对 `re.search('(?m)^\\\\s*select\\\\s*\\\\{[^}]*max-width:\\\\s*100%', css)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1042,
+          "end": 1087,
           "title": "test_drawio_row_actions_are_outline_buttons",
-          "explanation": "TD-326：Drawio 文件管理的行内按钮在源码与产物里都是 ghost（描边），drawio.html 给按钮设了间距。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1038 逐项遍历 `(ROOT / 'app/frontend/drawio-page.js', ROOT / 'app/static/js/drawio-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL1039 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL1040 核对 `re.search('className\\\\s*=\\\\s*[\"`]ghost[\"`]', text)`：此条件为假即测试失败；不是生产输入校验。\nL1041 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/drawio.html').read_text(encoding='utf-8')。\nL1042 核对 `re.search('#diagram-manage button\\\\s*\\\\{[^}]*margin', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：Drawio 文件管理的行内按钮在源码与产物里都是 ghost（描边），drawio.html 给按钮设了间距。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1083 逐项遍历 `(ROOT / 'app/frontend/drawio-page.js', ROOT / 'app/static/js/drawio-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL1084 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL1085 核对 `re.search('className\\\\s*=\\\\s*[\"`]ghost[\"`]', text)`：此条件为假即测试失败；不是生产输入校验。\nL1086 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/drawio.html').read_text(encoding='utf-8')。\nL1087 核对 `re.search('#diagram-manage button\\\\s*\\\\{[^}]*margin', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -11276,7 +11291,7 @@
     },
     {
       "path": "app/templates/payments-admin.html",
-      "sha256": "4beb6794c03c60a007550845072501ebe659466f29885b8818142a9ad9249772",
+      "sha256": "38cdaa23b1cacbe8418b5643c190021c64f6752cf375f70214b33533da0c59f1",
       "method": "manual",
       "blocks": [
         {
@@ -11287,7 +11302,7 @@
         {
           "end": 83,
           "title": "公开壳与订单筛选",
-          "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。 TD-272：标题从 h1 改为 h2.finance-heading，页面外层的说明与登录态块不变。 TD-278：订单列表后新增 #finance-list-empty（role=status）承载空结果提示；详情区新增 #finance-detail-hint 提示段落，其后的合同/凭证/操作全部包进默认 hidden 的 #finance-detail —— 选单前不再叠出十几个空 <pre> 框和禁用按钮。"
+          "explanation": "说明只读发现、无扣款关单退款，以及普通退款观察不自动撤权；已有全额原路成功凭证才撤权；access/login/message提供登录与异步状态。workspace默认hidden，只含空容器和范围选择，不把客户信息SSR输出到公开页面。 新增需要复核/当前已复核范围，声明完成本轮不是资金问题解决。 TD-272：标题从 h1 改为 h2.finance-heading，页面外层的说明与登录态块不变。 TD-278：订单列表后新增 #finance-list-empty（role=status）承载空结果提示；详情区新增 #finance-detail-hint 提示段落，其后的合同/凭证/操作全部包进默认 hidden 的 #finance-detail —— 选单前不再叠出十几个空 <pre> 框和禁用按钮。\n\nTD-331：「向微信发送」「查单失败」由弯引号改为全站通用的「」；提示框行首的弯引号原来像首行缩进。"
         },
         {
           "end": 94,
@@ -11297,7 +11312,7 @@
         {
           "end": 115,
           "title": "财务写的共同确认与人工核账",
-          "explanation": "准备、通知、成功退款、复核独立显示；operations默认hidden，共用手动订单号/单行依据。复核和人工收款按原合同填写，不用准备状态冒充金融完成。 新增finance-verification-view只读分区，仍保留十类手动操作；查询观察与成功凭证分开。 新增最近核验控制显示块，不将历史操作冒称当前状态。"
+          "explanation": "准备、通知、成功退款、复核独立显示；operations默认hidden，共用手动订单号/单行依据。复核和人工收款按原合同填写，不用准备状态冒充金融完成。 新增finance-verification-view只读分区，仍保留十类手动操作；查询观察与成功凭证分开。 新增最近核验控制显示块，不将历史操作冒称当前状态。\n\nTD-331：整数「分」由弯引号改为「」。"
         },
         {
           "end": 160,

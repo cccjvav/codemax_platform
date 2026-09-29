@@ -139,7 +139,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `4305629d264b` | L1–L1042 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `8860393bd962` | L1–L1087 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `b107bdd9e67b` | L1–L120 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -456,3 +456,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-29 保留用户名折叠（TD-330）
 
 - `test_username_validation.py::test_compatibility_forms_of_reserved_names_are_rejected`（TD-330）：`ａｄｍｉｎ`、`Ａｄｍｉｎ`、`ᴬdmin`、`ｒｏｏｔ`、`ＳＹＳＴＥＭ`、全角 administrator 都要 422 且提示保留名；改前 6 条全失败。对照组 `test_legal_usernames_are_still_accepted` 加入 `ａｌｉｃｅ` 与 `admin2`。
+
+## 2026-09-29 界面优化第一轮（TD-331）
+
+- `test_ui_accessibility.py::test_template_text_does_not_wrap_between_chinese_characters`：模板纯文字里不许有夹在两个汉字（含中文标点）之间的换行，它在页面上显示成一个空格。改前命中 `shop.html`、`oauth_consent.html`、`mock_pay.html` 三处。
+- `test_ui_accessibility.py::test_visible_text_quotes_with_corner_brackets`：模板与前端脚本的可见文字不用弯引号。改前命中订单管理页三处。
+- `test_ui_accessibility.py::test_cta_links_are_styled_as_buttons`：`base.html` 有 `a.cta` 按钮样式，商城脚本生成的收银台链接用它，模拟收银台不再自带一份。改前失败。

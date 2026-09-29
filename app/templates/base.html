@@ -109,6 +109,12 @@
       button { padding: 6px 14px; border: 1px solid #2563eb; border-radius: 6px; background: #2563eb; color: #fff; cursor: pointer; }
       button.ghost { background: #fff; color: #2563eb; }
       button.cta { background: #15803d; border-color: #15803d; font-weight: 600; }
+      /* 做成按钮样子的主操作链接（TD-331）：商城待支付态的「前往收银台支付」由脚本生成 <a class="cta">，
+         原来只有 button.cta 有样式，它显示成一行普通链接，反而不如下面的「返回商品页」按钮醒目；
+         模拟收银台的「返回商城」原来在自己页里另写了一份同样的规则，现在两处共用这一条。 */
+      a.cta { display: inline-block; padding: 8px 18px; border-radius: 6px; background: #15803d; color: #fff;
+              font-weight: 600; text-decoration: none; }
+      a.cta:hover { background: #166534; }
       /* 禁用态必须看得出来：提交中的按钮被脚本 disabled，之前与可点状态完全一样 */
       button:disabled { background: #cbd5e1; border-color: #cbd5e1; color: #334155; cursor: not-allowed; }
       button.ghost:disabled { background: #f1f5f9; }
@@ -141,6 +147,8 @@
       #er-canvas { width: 100%; height: 70vh; border: 1px solid #e2e8f0; border-radius: 6px; background: #f8fafc; }
       #mermaid-preview { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; padding: 12px; min-height: 300px; overflow: auto; }
       /* 空状态提示（TD-287）：生成前右侧只是一块空框，看不出该做什么。纯 CSS，结果一写入就自动消失。 */
+      /* 提示在框内居中，与 ER 页画布的空状态一致（TD-331）；flex 只在 :empty 时生效，不影响生成后的图 */
+      #mermaid-preview:empty { display: flex; align-items: center; justify-content: center; text-align: center; }
       #mermaid-preview:empty::before { content: "描述你的系统（或点「填入示例」）后点「生成类图」，结果显示在这里"; color: #64748b; }
       /* 新一次生成失败时，上一次的结果调暗显示、错误提示里说明它已过时（TD-326，ER 与类图页共用） */
       #er-canvas[data-stale], #mermaid-preview[data-stale], #mermaid-source[data-stale] { opacity: .45; }

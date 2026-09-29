@@ -44,8 +44,8 @@
 </style>
 <div class="finance">
 <h2 class="finance-heading">订单与收款管理</h2>
-<p>核对原订单，再采取操作。仅管理员可读取数据；普通核验不转账；独立授权后的“向微信发送”会申请真实退款，部署开关默认关闭。</p>
-<p class="warning">“查单失败”不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
+<p>核对原订单，再采取操作。仅管理员可读取数据；普通核验不转账；独立授权后的「向微信发送」会申请真实退款，部署开关默认关闭。</p>
+<p class="warning">「查单失败」不代表未付款。退款观察不会自动撤销下载权；单笔全额原路退款须单独核验成功凭证才撤销下载；部分退款和定制服务里程碑未实现；完成复核不表示资金问题已解决。站内客服可由你本人接待。</p>
 <p id="finance-access" role="status">正在确认登录权限…</p>
 <button id="finance-login" type="button">管理员登录</button>
 <p id="finance-message" role="status" aria-live="polite"></p>
@@ -88,7 +88,7 @@
 </form>
 <form id="finance-manual" hidden>
 <h3>人工核账后确认到账</h3>
-<p>必须先在真实收款记录中核实。输入实际收到的整数“分”，不能用客户截图代替到账核对。</p>
+<p>必须先在真实收款记录中核实。输入实际收到的整数「分」，不能用客户截图代替到账核对。</p>
 <label>真实收款流水号<input id="finance-reference" required maxlength="64" pattern="[A-Za-z0-9][A-Za-z0-9._:\/\-]*" autocomplete="off"></label>
 <label>实际到账金额（分）<input id="finance-amount" required type="number" min="1" step="1"></label>
 <button id="finance-manual-submit" type="submit">确认已核实到账</button>

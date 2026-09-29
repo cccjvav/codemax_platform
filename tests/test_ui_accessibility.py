@@ -947,6 +947,51 @@ def test_visible_text_has_no_emoji_only_characters():
     assert not found, found
 
 
+_CJK = "[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]"
+
+
+def test_template_text_does_not_wrap_between_chinese_characters():
+    """TD-331：HTML 把文字里的换行当作一个空格，Chromium 在两个汉字之间也照样画出这个空格。
+    模板里为了行宽把一句中文折成两行，页面上就多出一个空格（截图：商城「已经买过一次」的回答在
+    「订单领取链接。」与「订单全额退款」之间空了一格）。去掉注释、样式、脚本，标签换成非汉字占位，
+    只查纯文字里夹在两个汉字（含中文标点）之间的换行；块级元素之间的换行不受影响。
+    贴着行内标签折行（如 `</strong>⏎汉字`）不在检查范围内，需要时人工核对。"""
+    found = []
+    for path in sorted((ROOT / "app" / "templates").glob("*.html")):
+        text = path.read_text(encoding="utf-8")
+        text = re.sub(r"<!--.*?-->|\{#.*?#\}|<style\b.*?</style>|<script\b.*?</script>", "", text, flags=re.S)
+        text = re.sub(r"<[^>]*>", "<>", text)
+        found += [f"{path.name}: {m.group(0)!r}" for m in re.finditer(_CJK + r"[ \t]*\n\s*" + _CJK, text)]
+    assert not found, found
+
+
+def test_visible_text_quotes_with_corner_brackets():
+    """TD-331：全站界面文字用「」引用按钮名、状态名；订单管理页原来有三处写成 “查单失败” 这样的弯引号，
+    与同页其他说明（「刷新此单记录」等）不一致，放在提示框行首时还像首行缩进。扫描范围与上面的 emoji 检查相同。"""
+    found = []
+    for path in sorted((ROOT / "app" / "templates").glob("*.html")) + sorted((ROOT / "app" / "frontend").glob("*.js")):
+        text = path.read_text(encoding="utf-8")
+        if path.suffix == ".html":
+            text = re.sub(r"<!--.*?-->|\{#.*?#\}|<style\b.*?</style>", "", text, flags=re.S)
+        else:
+            text = re.sub(r"/\*.*?\*/", "", text, flags=re.S)
+            text = re.sub(r"(^|\s)//[^\n]*", r"\1", text)
+        found += [f"{path.name}: {m.group(0)}" for m in re.finditer("[\u201c\u201d][^\u201c\u201d\n]{0,20}", text)]
+    assert not found, found
+
+
+def test_cta_links_are_styled_as_buttons():
+    """TD-331：商城待支付态由脚本生成 `<a class="cta">前往收银台支付</a>`（注释写明「给个按钮」），但全站只给
+    `button.cta` 写了样式，它显示成一行普通蓝字链接，比下面的「返回商品页」按钮还不醒目（真 Chromium 截图）。
+    模拟收银台的「返回商城」链接另在页内写了一份规则。现在 base.html 的 `a.cta` 一处负责，两页共用。"""
+    base = (ROOT / "app" / "templates" / "base.html").read_text(encoding="utf-8")
+    rule = re.search(r"\ba\.cta\s*\{([^}]*)\}", base)
+    assert rule and "background: #15803d" in rule.group(1) and "display: inline-block" in rule.group(1)
+    assert 'a.className = "cta"' in (ROOT / "app" / "frontend" / "shop-page.js").read_text(encoding="utf-8")
+    mock = (ROOT / "app" / "templates" / "mock_pay.html").read_text(encoding="utf-8")
+    assert 'class="cta"' in mock and "a.cta" not in mock, "模拟收银台不再自带一份 a.cta 规则"
+
+
 def test_empty_support_thread_leaves_no_gap_but_stays_a_live_region():
     """TD-325：还没有留言时，空的 #support-messages 带默认外边距，在「我的留言」和留言框之间留一段空白，像加载失败。
     只收外边距、不隐藏：它是 aria-live 区域，display:none 会移出无障碍树，第一条消息出现时读屏可能不播报。"""

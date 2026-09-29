@@ -13,6 +13,8 @@ Jinja 只负责 HTML 外壳、表单、语义结构与站点上下文；真实�
 
 修改 DOM ID 时同步检查页面脚本；不要用用户/模型文本拼接 HTML。客户消息由 `textContent` 渲染。
 
+界面文字约定（TD-331，`tests/test_ui_accessibility.py` 检查）：一句中文不要为了行宽折成两行，HTML 会把换行显示成一个空格；引用按钮名、状态名用「」，不用弯引号；做成按钮样子的主操作链接写 `<a class="cta">`，样式由 `base.html` 的 `a.cta` 统一提供，页内不要另写一份。
+
 ## 模块职责
 
 Jinja 页面外壳、表单与导航；交互实现放在 frontend。
@@ -25,15 +27,15 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`app/templates/base.html`](base.html) | `0575420a61e7` | L1–L282 |
+| [`app/templates/base.html`](base.html) | `d5ed85abe826` | L1–L290 |
 | [`app/templates/drawio.html`](drawio.html) | `d36b5b843d42` | L1–L50 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
-| [`app/templates/mock_pay.html`](mock_pay.html) | `cbc2de375cf3` | L1–L32 |
-| [`app/templates/oauth_consent.html`](oauth_consent.html) | `db8d977abafa` | L1–L23 |
-| [`app/templates/payments-admin.html`](payments-admin.html) | `4beb6794c03c` | L1–L172 |
-| [`app/templates/shop.html`](shop.html) | `b66e42843b44` | L1–L124 |
+| [`app/templates/mock_pay.html`](mock_pay.html) | `27ca244aede9` | L1–L30 |
+| [`app/templates/oauth_consent.html`](oauth_consent.html) | `76157115f7b4` | L1–L22 |
+| [`app/templates/payments-admin.html`](payments-admin.html) | `38cdaa23b1ca` | L1–L172 |
+| [`app/templates/shop.html`](shop.html) | `ab7d91a46f4d` | L1–L123 |
 | [`app/templates/support-center.html`](support-center.html) | `202c15e1fc2c` | L1–L57 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。
