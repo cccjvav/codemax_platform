@@ -140,7 +140,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
 | [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `4305629d264b` | L1–L1042 |
-| [`tests/test_username_validation.py`](test_username_validation.py) | `29a23292f4df` | L1–L109 |
+| [`tests/test_username_validation.py`](test_username_validation.py) | `b107bdd9e67b` | L1–L120 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
 | [`tests/test_wechat_notify.py`](test_wechat_notify.py) | `1243c4534687` | L1–L501 |
@@ -452,3 +452,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 ## 2026-09-29 退款通知标识格式（TD-329）
 
 - `test_refund_notifications.py::test_summary_maximum_and_malformed_display`：另用含全部允许特殊字符的通知 ID 与退款单号（`|*@`）做一次入库→读回。守卫性质：改前改后都通过；只把读回那份格式改窄时，只有这条新断言失败。
+
+## 2026-09-29 保留用户名折叠（TD-330）
+
+- `test_username_validation.py::test_compatibility_forms_of_reserved_names_are_rejected`（TD-330）：`ａｄｍｉｎ`、`Ａｄｍｉｎ`、`ᴬdmin`、`ｒｏｏｔ`、`ＳＹＳＴＥＭ`、全角 administrator 都要 422 且提示保留名；改前 6 条全失败。对照组 `test_legal_usernames_are_still_accepted` 加入 `ａｌｉｃｅ` 与 `admin2`。

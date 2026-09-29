@@ -1861,3 +1861,18 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 - `mock-pay-page.js`：401 用自己的提示而不是 `sessionExpired`，因为模拟收银台常在未登录时打开，那时 `sessionExpired` 本就不处理。
 
 **测试**：`tests/test_refund_notifications.py::test_summary_maximum_and_malformed_display` 另用含全部允许特殊字符的通知 ID 与退款单号（`|*@`）做一次入库→读回。这是格式漂移的守卫：共用常量后改前改后都通过；把读回那份格式单独改窄时，只有这条新断言失败。
+
+
+## TD-330：保留用户名比较前做 NFKC + casefold
+
+**状态**：已实施（2026-09-29），优化阶段复核 `app/schemas.py` 时发现。
+
+**问题**：`RegisterIn` 的用户名白名单是 `^[\w-]+$`，而 Python 的 `\w` 也收全角字母和兼容字母。保留名比较只做 `v.lower()`，于是 `ａｄｍｉｎ`、`Ａｄｍｉｎ`、`ᴬdmin`、`ｒｏｏｔ`、`ＳＹＳＴＥＭ` 都能注册（改前直接构造 `RegisterIn` 全部通过，新用例 6 条在改前代码上全部失败）。这些名字在管理端列表和 OAuth 同意页上与 `admin` 几乎分不出，正是保留名规则注释与 `test_admin_username_is_reserved` 文档串写明要防的冒充。
+
+**决定**：比较前先做 `unicodedata.normalize("NFKC", v).casefold()`。NFKC 把全角、上标等兼容形式折回 ASCII，casefold 是比 lower 更完整的大小写折叠。用户名本身**按原样保存**，只有「是不是保留名」的判断用折叠值；不影响已注册账号和登录（登录不经过 `RegisterIn`）。`db_admin.validate_admin_credentials` 也用 `RegisterIn`，同样多挡这些形式，与它已经挡 `admin` 一致。
+
+**不做**：西里尔字母 `а`、希腊字母 `ο` 这类跨文字的形近字不在 NFKC 范围内，要挡得引入 Unicode confusables 表（新依赖或内嵌大表），超出这条修复的范围；普通用户之间互相冒充（非保留名）也不在范围内。
+
+**测试**：`tests/test_username_validation.py` 新增 `test_compatibility_forms_of_reserved_names_are_rejected`（6 个兼容形式，改前 6 条全失败，改后通过）；对照组 `test_legal_usernames_are_still_accepted` 加入全角非保留名 `ａｌｉｃｅ` 与 `admin2`，改前改后都接受。
+
+**同批复核不改**：`/support/ask` 的 `SupportIn` 没有空字符检查而 `DiagramIn` 有，但问答文本不进 SQL（检索在内存里对已加载文章排序），PostgreSQL 的空字符限制碰不到它；`app/timeutil.py`、`app/database.py` 无问题。

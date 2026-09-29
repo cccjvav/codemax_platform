@@ -78,12 +78,23 @@ async def test_admin_username_is_reserved(client, username):
     )
 
 
+@pytest.mark.parametrize("username", ["ａｄｍｉｎ", "Ａｄｍｉｎ", "ᴬdmin", "ｒｏｏｔ", "ＳＹＳＴＥＭ", "ａｄｍｉｎｉｓｔｒａｔｏｒ"])
+async def test_compatibility_forms_of_reserved_names_are_rejected(client, username):
+    """TD-330：全角与兼容字母拼出的保留名同样要挡。
+
+    `\\w` 收这些字符，原先只做 `.lower()` 比较，`ａｄｍｉｎ` 能注册成功，界面上与 `admin` 几乎分不出来 ——
+    正是上一条用例要防的冒充。比较前做 NFKC + casefold，这些形式都折回 ASCII 保留名。
+    """
+    r = await client.post("/auth/register", json={"username": username, "password": "secret123"})
+    assert r.status_code == 422 and "保留名" in r.text, (username, r.status_code, r.text[:200])
+
+
 # ---------------------------------------------------------------- 合法名必须照收
 
 
 @pytest.mark.parametrize(
     "username",
-    ["alice", "bob_9", "a-b", "张三丰", "小明同学", "user12345", "A" * 50],
+    ["alice", "bob_9", "a-b", "张三丰", "小明同学", "user12345", "A" * 50, "ａｌｉｃｅ", "admin2"],
 )
 async def test_legal_usernames_are_still_accepted(client, username):
     """对照组：合法用户名一个都不能误杀。

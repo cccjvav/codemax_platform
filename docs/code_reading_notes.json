@@ -1641,50 +1641,50 @@
     },
     {
       "path": "app/schemas.py",
-      "sha256": "0c9ee37dce43070222700ea0d2dea963c5be41136114d6a55f0b01f5061bef53",
+      "sha256": "ecf51f6fb2ae72b67484e6491b9d8084782995e54e789e25f8d36c755d7b75af",
       "blocks": [
         {
-          "end": 23,
+          "end": 27,
           "title": "输入校验不是数据库列定义",
-          "explanation": "模块集中正则/保留用户名/bcrypt字节上限；演示admin只在显式seed_demo出现，普通init无默认账号。RegisterIn保留名避免界面冒充，bootstrap也复用这套校验；schema不等于全部SQL约束。"
+          "explanation": "模块集中正则/保留用户名/bcrypt字节上限；演示admin只在显式seed_demo出现，普通init无默认账号。RegisterIn保留名避免界面冒充，bootstrap也复用这套校验；schema不等于全部SQL约束。\n\nTD-330：新增 import unicodedata，_RESERVED_USERNAMES 上方注释说明比较前的折叠及其边界。"
         },
         {
-          "end": 43,
+          "end": 47,
           "title": "_check_password_bytes：返回原值或报错",
           "explanation": "先拒绝 NUL，再算 UTF-8 长度，超过 72 抛 ValueError；校验成功返回原字符串，不截断、不改密码。旧注释的场景是截断碰撞原因说明，不能把拒绝规则说成更危险；HTTP 入口由 Pydantic/FastAPI 把校验错误转成 422。"
         },
         {
-          "end": 74,
+          "end": 78,
           "title": "RegisterIn 与 _check_username",
-          "explanation": "username 长 3–50，password 长 6–64；额外复用字节校验。field_validator 将函数注册给字段；classmethod 的 cls 是类，但此处没用。fullmatch 要整串合法，lower 仅用于保留名比较，不把最终用户名统一转小写。"
+          "explanation": "username 长 3–50，password 长 6–64；额外复用字节校验。field_validator 将函数注册给字段；classmethod 的 cls 是类，但此处没用。fullmatch 要整串合法，lower 仅用于保留名比较，不把最终用户名统一转小写。\n\nTD-330：保留名比较前先做 unicodedata NFKC + casefold。`\\w` 也收全角与兼容字母，原先只做 lower()，`ａｄｍｉｎ`、`ᴬdmin` 能注册，界面上与 admin 几乎分不出。西里尔字母这类跨文字形近字不在 NFKC 范围内，需要 confusables 表，没有做。"
         },
         {
-          "end": 84,
+          "end": 88,
           "title": "UserOut：为什么响应没有密码",
           "explanation": "from_attributes=True 允许从 ORM 对象属性构造响应；仅声明 id/username/nickname/avatar/role。路由返回 User 时由 response_model 过滤，不是把 User.__dict__ 原样发给浏览器。输出 role 用于界面展示，后端仍查库授权。"
         },
         {
-          "end": 100,
+          "end": 104,
           "title": "PasswordChangeIn 与 TokenOut",
           "explanation": "旧密码允许 1–64 字符，实际安全校验还会走 verify_password；新密码要求 6–64 并复用字节规则。TokenOut 默认 token_type=bearer，只是响应结构；它不负责签名，签名由 security 完成。"
         },
         {
-          "end": 108,
+          "end": 112,
           "title": "确定性 DDL 与模型文本各有上限",
           "explanation": "ErDiagramIn.ddl 允许 1–20000 字符，MermaidIn.text 为 1–10000。这只限制输入体量；不保证 DDL 方言均受支持，也不保证模型输出可渲染。"
         },
         {
-          "end": 123,
+          "end": 127,
           "title": "ArticleIngestIn：保留参数不等于能力开放",
           "explanation": "url 在此只验长度 1–500，网络目标验证在 crawler。dynamic 字段保留，但当前浏览器渲染链路停用；设 True 或安装浏览器不会自动得到安全的动态抓取。管理员限制来自路由依赖，不来自 BaseModel。"
         },
         {
-          "end": 140,
+          "end": 144,
           "title": "智能问答与云图输入",
           "explanation": "SupportIn限制问题2000字符；DiagramIn限制name100/content500000字符，并用classmethod字段校验拒绝两个持久文本字段中的NUL，在SQLite与PostgreSQL之前一致返回输入错误。长度/NUL检查不等于完整XML或Draw.io语义校验；摘要与完整响应模型分开。"
         },
         {
-          "end": 153,
+          "end": 157,
           "title": "DiagramSummary / DiagramOut 的继承",
           "explanation": "Summary 可从 ORM 取 id/name/update_time/version，但不含 XML；Out 继承这些字段再加 content。列表只用摘要，详情取全文。version 会同时用于 ETag，但响应中带 version 并不自动实施并发控制。"
         }
@@ -9804,7 +9804,7 @@
     },
     {
       "path": "tests/test_username_validation.py",
-      "sha256": "29a23292f4df322b723e6ba7156818e091b16f3402e57df0cadd998a9f0c77c3",
+      "sha256": "b107bdd9e67b951c884b011d810b0ab4b71bae0867554198b6bff733333ff1a5",
       "method": "guided",
       "blocks": [
         {
@@ -9818,19 +9818,24 @@
           "explanation": "本用例的准备条件：client, username。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('username', ['   ', 'a\\nb\\tc', '<script>x</script>', '  bob  ', 'bo b', '用户 名', 'bob;DROP', \"bob'or'1\"])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, username；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL52 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': username, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL53 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\nL57 核对 `'用户名' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 83,
+          "end": 80,
           "title": "test_admin_username_is_reserved",
           "explanation": "本用例的准备条件：client, username。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('username', ['admin', 'Admin', 'ADMIN', 'AdMiN'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, username；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL75 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': username, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL76 核对 `r.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 100,
-          "title": "test_legal_usernames_are_still_accepted",
-          "explanation": "本用例的准备条件：client, username。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('username', ['alice', 'bob_9', 'a-b', '张三丰', '小明同学', 'user12345', 'A' * 50])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, username；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': username, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL96 核对 `r.status_code == 201`：要求创建成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "end": 94,
+          "title": "test_compatibility_forms_of_reserved_names_are_rejected",
+          "explanation": "TD-330：全角与兼容字母拼出的保留名（ａｄｍｉｎ、ᴬdmin 等）经 NFKC + casefold 后同样被拒。\n\n登记/装饰：pytest.mark.parametrize('username', ['ａｄｍｉｎ', 'Ａｄｍｉｎ', 'ᴬdmin', 'ｒｏｏｔ', 'ＳＹＳＴＥＭ', 'ａｄｍｉｎｉｓｔｒａｔｏｒ'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, username；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL88 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': username, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL89 核对 `r.status_code == 422 and '保留名' in r.text`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 109,
+          "end": 111,
+          "title": "test_legal_usernames_are_still_accepted",
+          "explanation": "本用例的准备条件：client, username。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n登记/装饰：pytest.mark.parametrize('username', ['alice', 'bob_9', 'a-b', '张三丰', '小明同学', 'user12345', 'A' * 50])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, username；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL106 计算右侧并赋给 `r`：await 调用 client.post('/auth/register', json={'username': username, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL107 核对 `r.status_code == 201`：要求创建成功；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。\n\nTD-330：对照组加入全角的非保留名 ａｌｉｃｅ 与 admin2，证明折叠只挡保留名、不误杀。"
+        },
+        {
+          "end": 120,
           "title": "test_length_bounds_are_still_enforced",
-          "explanation": "本用例的准备条件：client。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL103 计算右侧并赋给 `too_short`：await 调用 client.post('/auth/register', json={'username': 'ab', 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL104 核对 `too_short.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\nL106 计算右侧并赋给 `too_long`：await 调用 client.post('/auth/register', json={'username': 'a' * 51, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL109 核对 `too_long.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。涉及接口：/auth/register。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL114 计算右侧并赋给 `too_short`：await 调用 client.post('/auth/register', json={'username': 'ab', 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL115 核对 `too_short.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\nL117 计算右侧并赋给 `too_long`：await 调用 client.post('/auth/register', json={'username': 'a' * 51, 'password': 'secret123'})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL120 核对 `too_long.status_code == 422`：要求输入形状或提取结果被拒；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

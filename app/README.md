@@ -33,7 +33,7 @@ Settings 的当前模型默认是 Agnes 基址与 agnes-2.5-flash；LLM_EMBED_EN
 | `SupportMessage` | customer_id 定义会话；sender_id 与 sender_role 记录发送方；(sender_id, client_nonce) 唯一，用于丢失响应后的重试 |
 | `SchemaMigration` | 四位版本主键、SQL校验和与应用时间；仅离线CLI写入，Web启动只读核对 |
 | `SysConfig` | 持久配置表；不能因此推断应用已经把所有 Settings 从此表热加载 |
-| `schemas.py` | RegisterIn、PasswordChangeIn 校验密码 UTF-8 字节上限与空字符；用户名全匹配；DDL、文本、XML 有长度约束，DiagramIn 额外拒绝 PostgreSQL 不允许的 NUL；DiagramSummary 不返回正文，DiagramOut 返回正文 |
+| `schemas.py` | RegisterIn、PasswordChangeIn 校验密码 UTF-8 字节上限与空字符；用户名全匹配，保留名先 NFKC + casefold 再比较（TD-330）；DDL、文本、XML 有长度约束，DiagramIn 额外拒绝 PostgreSQL 不允许的 NUL；DiagramSummary 不返回正文，DiagramOut 返回正文 |
 
 ### 密码与凭据
 
@@ -133,7 +133,7 @@ pending → closed → paid
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
 | [`app/refund_worker.py`](refund_worker.py) | `f6dd3bcf022e` | L1–L89 |
 | [`app/refunds.py`](refunds.py) | `6701c38ac7f2` | L1–L88 |
-| [`app/schemas.py`](schemas.py) | `0c9ee37dce43` | L1–L153 |
+| [`app/schemas.py`](schemas.py) | `ecf51f6fb2ae` | L1–L157 |
 | [`app/security.py`](security.py) | `8e4614d7561f` | L1–L109 |
 | [`app/site.py`](site.py) | `ecfecdc0484d` | L1–L126 |
 | [`app/startup_checks.py`](startup_checks.py) | `3d1a1a6900e8` | L1–L171 |

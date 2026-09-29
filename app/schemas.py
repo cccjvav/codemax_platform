@@ -1,4 +1,5 @@
 import re
+import unicodedata
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
@@ -12,6 +13,9 @@ _USERNAME_RE = re.compile(r"^[\w-]+$", re.UNICODE)
 # （`database init/seed_demo.sql` 的用户种子段），而登录是精确匹配、
 # PostgreSQL 的 VARCHAR `=` 区分大小写 ⇒ `Admin` 是个独立账号却能注册，
 # 唯一用途就是在界面上冒充管理员。
+# 比较前先做 NFKC + casefold（TD-330）：`\w` 也收全角与兼容字母，`ａｄｍｉｎ`、`Ａｄｍｉｎ`、`ᴬdmin`
+# 原先都能注册，在界面上与 `admin` 几乎没法区分。NFKC 把这些兼容形式折回 ASCII；
+# 西里尔字母 `а` 这类跨文字的形近字不在 NFKC 范围内，要挡它得引入 Unicode confusables 表，不在本条范围。
 _RESERVED_USERNAMES = frozenset({"admin", "administrator", "root", "system"})
 
 # bcrypt 的输入上限是 **72 字节**（不是 72 个字符），超出部分**静默丢弃**、不报错。
@@ -67,7 +71,7 @@ class RegisterIn(BaseModel):
         """
         if not _USERNAME_RE.fullmatch(v):
             raise ValueError("用户名只能包含字母、数字、下划线、连字符或中文，不能有空格与特殊符号")
-        if v.lower() in _RESERVED_USERNAMES:
+        if unicodedata.normalize("NFKC", v).casefold() in _RESERVED_USERNAMES:
             raise ValueError("该用户名为系统保留名，请换一个")
         return v
 
