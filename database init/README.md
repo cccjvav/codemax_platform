@@ -20,7 +20,7 @@ python "database init/db_init.py" bootstrap-admin --username owner --confirm-dat
 python "database init/db_init.py" status --confirm-database codemax_db
 ```
 
-`bootstrap-admin` 两次不回显输入新口令，至少12字符且最多72 UTF-8字节；用户名沿用注册校验，不使用保留名 admin。只允许创建第一个启用管理员，不覆盖密码、不提升已存在普通用户。若用户名已被占用，另选新的管理身份，不把该用户直接提权。没有默认管理员/客户端；生产启动要求已有非演示管理员。
+`bootstrap-admin` 两次不回显输入新口令，至少12字符且最多72 UTF-8字节；用户名沿用注册校验，不使用保留名 admin。这些规则在连库之前就检查，不合规时报错点名字段和规则（不回显口令）。只允许创建第一个启用管理员，不覆盖密码、不提升已存在普通用户。若用户名已被占用，另选新的管理身份，不把该用户直接提权。没有默认管理员/客户端；生产启动要求已有非演示管理员。
 
 | 命令 / 文件 | 输入、结果与失败边界 |
 | --- | --- |
@@ -57,7 +57,7 @@ python "database init/db_init.py" status --confirm-database codemax_db
 
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
-| [`database init/db_init.py`](db_init.py) | `d5fb616af850` | L1–L64 |
+| [`database init/db_init.py`](db_init.py) | `b1b0ae1014ef` | L1–L65 |
 | [`database init/full_init.sql`](full_init.sql) | `4b2f710dd75c` | L1–L478 |
 | [`database init/migrate_0001_timestamptz.sql`](migrate_0001_timestamptz.sql) | `6bddef3865dd` | L1–L86 |
 | [`database init/migrate_0002_password_changed_at.sql`](migrate_0002_password_changed_at.sql) | `d59858043773` | L1–L38 |

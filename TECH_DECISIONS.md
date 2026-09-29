@@ -1796,3 +1796,24 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 **不改**：12 层外键链的 ER 图排成一行、「查看全图」后表格很小 —— 布局按外键深度分列是既定设计（TD-279），真实毕设结构（14 张表、深度 2～3）在 1280px 下全图可读；手机上全图偏小属屏幕所限，「回到可读尺寸」就在旁边。长表名、长列名按 `MAX_W` 截断加省略号，悬停看全名，是既定行为。未登记的订单状态原样显示（与事件历史 R-09 同一原则）。Drawio 的保存、新建与未保存改动确认在桩编辑器下行为正确：干净时新建不弹确认，有改动时弹出。
 
 **测试**：`tests/test_mermaid.py` 的执行器改为可连续提交多步，假 DOM 的源码框与错误提示按模板初始为 hidden、`setAttribute` 记录属性；新增成功后失败会调暗并说明（502、断网、200 非 JSON 三种）、下次成功恢复、首次失败不这么说、画不出来时不标过时。`tests/test_er_page.py` 新增页面装配执行器：把 `er-page.js` 的两行 import 换成 d3 链式桩与布局桩后在 node 里执行，覆盖同样几种情况和绘制失败清空画布；另有产物与样式检查。`tests/test_ui_accessibility.py` 新增管理员空会话（执行真实 `auth.js` + `support-page.js`：空列表显示、有会话不显示、退出后收起）、空状态元素的位置与属性、`button.item` 的 keep-all 与 overflow-wrap、`select` 的 max-width、Drawio 行内按钮为描边。改前代码上 15 条失败（守卫性质的「首次失败不说过时」在改前也通过）。
+
+
+## TD-327：重构复核：动态渲染模块删掉无调用方的残留并改正描述；ALGORITHM 限定为 HMAC 算法；建首个管理员时连库前校验凭据并点名字段；cpu_pool 不再用已撤回的 p95 作依据
+
+**状态**：已实施（2026-09-29），优化阶段重构批次。
+
+**范围**：复核此前没有单独复核过的模块：`app/tools/browser.py`、`app/config.py`、`app/cpu_pool.py`、`app/db_admin.py`（连同 `database init/db_init.py`）、`app/payment_ledger.py`、`app/refund_worker.py`、`app/routers/refund_notify.py`、`app/routers/messages.py`、`app/routers/tools.py`。后五个没有需要改的地方。
+
+- **动态渲染模块的残留**（`browser.py`）：动态渲染停用后留下两样没有任何调用方的东西：常量 `RENDER_TIMEOUT_MS`（注释描述一套 networkidle 等待策略，实际不存在）和请求拦截 helper `_abort_non_public`（从没注册到任何页面，测试也不引用；它自己的说明就承认拦截不能固定 Chromium 实际连接的地址）。留着只会被读成「已有等待策略」「已有隔离」的依据，删掉，git 里可查。恢复动态渲染需要网络级隔离的渲染服务，是另一套设计，用不上它们。同时改正四处与现状不符的描述：模块 docstring、`BrowserUnavailable`（现在一律因停用抛出，不只是缺依赖）、`_goto`（原写「真正启动浏览器」，实际从不启动）、`render` 第 5 步注释（原写 `_goto` 的 except 会把异常洗成 BrowserUnavailable，现在它只捕获 ImportError）。
+- **缺包提示误导**：没装 Playwright 时提示「装上它并下载浏览器后才能用 dynamic 抓取」，读来像装上就能用；实际装上后只会得到「已安全停用」。改为先说明已停用、安装后也不能使用，再给届时的安装命令（原有用例钉着这两条命令，保留）。
+- **`ALGORITHM` 是自由字符串**（`config.py`）：令牌用 `SECRET_KEY` 字符串做 HMAC 签名。实测 python-jose 下写成 `hs256` 报「not supported」、`RS256` 报「Unable to load PEM」—— 进程照常启动，之后每次登录与验令牌都 500，正是 TD-212「暴露给 .env 就必须约束取值」的情形（2026-09-15 只读审计也列过）。改为 `Literal["HS256", "HS384", "HS512"]`；`none` 本来就被 python-jose 拒绝，也不在白名单。`.env.example` 注释写明取值。顺带把 `OAUTH_TRUSTED_CLIENT_IDS` 挪到 `ENV` 之后（原先夹在「ENV 必须是 Literal」那段长注释与 `ENV` 之间），合并 `SHOP_MANUAL_QR` 上方两段重复注释。
+- **建首个管理员时凭据不合规，提示指错方向**（`db_admin.py` / `db_init.py`）：`bootstrap_admin` 用 `RegisterIn` 校验用户名和口令，抛的是 pydantic 的 `ValidationError` 而不是 `MaintenanceError`，于是落进 CLI 的脱敏兜底分支，只打印「(ValidationError): check target, baseline, ledger and command requirements」—— 不说是哪个字段，还把人引向目标库和账本；而且校验发生在连库之后，与 CLI docstring 的「连库前先校验」不符（实测用户名 `ab`、保留名 `admin`、30 个汉字的口令三种都先连了库）。兜底分支只显示类名是对的：`ValidationError` 的字符串里带着输入值，也就是口令。新增 `validate_admin_credentials`：不连库，注册规则加 12 位下限；`ValidationError` 转成 `MaintenanceError`，只列字段名与规则说明（取自 pydantic 的 `loc`/`msg`，这些规则的说明不含输入值，超长时只给字节数）。CLI 在两次口令一致后、连库前调用；`bootstrap_admin` 仍先调它，直接调用时同样校验。
+- **`cpu_pool.py` 的依据已被撤回**：模块 docstring 用「并发轻量请求 p95：线程池 76.59 ms / 进程池 35.75 ms」论证进程池。TD-186 查明这个指标在单线程事件循环下结构性失效，`routers/tools.py` 的注释也写明后来复测两者分布重叠、「并发 p95 更快」不是依据。docstring 改为 GIL 原理加确定性判据（`tests/test_perf.py::test_build_data_dictionary_runs_in_a_separate_process`，TD-193），行为不变。
+
+**不改**：
+- `dynamic=true` 不提前失败。现在 `render` 先做 SSRF 的 DNS 检查、取 robots.txt、按域节流，再由 `_goto` 报停用（503）。端点测试靠替换 `browser._goto` 走完整条动态路径（`test_dynamic_crawl.py` 的 `no_browser`、`test_politeness.py` 的共享闸门用例），提前失败就要加一个生产永远不能打开的开关；该端点只有管理员能调，界面上没有 `dynamic` 选项。
+- `STORAGE_BACKEND` 仍是字符串：未知值在 `build_storage` 抛带说明的 `StorageError`（fail-closed），测试特意用 `oss` 作「干净的生产配置」并钉住未知后端报错，收成 Literal 会与之冲突。
+- `LOG_LEVEL` 仍是字符串：非法值在 `main.py` 导入期的 `logging.basicConfig` 就抛错，已是启动即失败。
+- `messages.py`：管理员经 API 直接 `POST /support/messages` 会以客户身份写进自己的会话，界面在管理员选中会话前禁用发送，只有手工调用才会出现，不改。
+
+**测试**：`tests/test_config_validation.py` 的 `ILLEGAL` 加 `ALGORITHM` 的 `hs256` / `RS256` / `none`；新增 `test_every_allowed_jwt_algorithm_signs_and_verifies_with_the_secret`，白名单里每个取值都用字符串密钥实际签发并校验一次（参数取自 `get_args`，字段若被改回 `str` 不在收集期崩溃，由 `ILLEGAL` 报失败）。`tests/test_dynamic_crawl.py`：原 `test_launch_failure_is_translated_not_leaked` 的假 `async_playwright` 在停用后从没被调用，名字与说明描述的是停用前的「启动失败翻译」—— 改名 `test_installed_playwright_still_reports_rendering_disabled`，假模块一旦被调用就报错，钉住停用状态下不启动浏览器，原断言不变；缺包用例另断言提示写明「已安全停用」「安装后也不能使用」。`tests/test_db_admin.py` 新增 CLI 用例（用户名过短、保留名、口令超过 72 字节三种：连库被替换成直接判失败，返回 1，报错点名字段且不含口令）和 12 位下限用例。改前代码上 8 条失败（`ALGORITHM` 三条、缺包提示一条、凭据校验四条）；「不启动浏览器」是守卫，改前也通过。

@@ -10,6 +10,7 @@ import re
 from pathlib import Path
 
 import psycopg2
+from pydantic import ValidationError
 from sqlalchemy.engine import make_url
 
 from .config import settings
@@ -224,11 +225,26 @@ def seed_demo(conn) -> None:
         cur.execute((SQL_ROOT / 'seed_demo.sql').read_text(encoding='utf-8'))
 
 
-def bootstrap_admin(conn, username: str, password: str) -> None:
-    """Create the first active admin only; never promote/overwrite an existing user, no default secret."""
-    RegisterIn(username=username, password=password)
+def validate_admin_credentials(username: str, password: str) -> None:
+    """Registration rules plus a 12-character minimum; needs no database, so the CLI runs it before connecting.
+
+    A pydantic ValidationError is re-raised as MaintenanceError listing only field names and rule
+    messages: str(ValidationError) echoes the input, i.e. the password. Before TD-327 the raw error
+    reached the CLI's redacted generic branch, which printed only the class name with a hint about
+    target/baseline/ledger, after already connecting to the database.
+    """
+    try:
+        RegisterIn(username=username, password=password)
+    except ValidationError as error:
+        rules = '; '.join(f"{'.'.join(map(str, e['loc']))}: {e['msg']}" for e in error.errors())
+        raise MaintenanceError(f'Invalid administrator credentials ({rules})') from None
     if len(password) < 12:
         raise MaintenanceError('Administrator password must be at least 12 characters (maximum 72 UTF-8 bytes)')
+
+
+def bootstrap_admin(conn, username: str, password: str) -> None:
+    """Create the first active admin only; never promote/overwrite an existing user, no default secret."""
+    validate_admin_credentials(username, password)
     digest = hash_password(password)
     with conn, conn.cursor() as cur:
         maintenance_lock(cur)

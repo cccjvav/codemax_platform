@@ -14,6 +14,7 @@
 """
 import re
 from pathlib import Path
+from typing import get_args
 
 import pytest
 from pydantic import ValidationError
@@ -45,6 +46,10 @@ ILLEGAL = [
     ("DB_PORT", "65536"),
     ("DIAGRAM_QUOTA", "-1"),
     ("HSTS_MAX_AGE", "-1"),
+    # TD-327：令牌用 SECRET_KEY 字符串做 HMAC 签名。小写或非对称算法原先照常启动，之后每次登录都 500
+    ("ALGORITHM", "hs256"),
+    ("ALGORITHM", "RS256"),
+    ("ALGORITHM", "none"),
 ]
 
 
@@ -54,6 +59,17 @@ def test_out_of_range_config_fails_at_startup(field, bad):
     with pytest.raises(ValidationError) as exc:
         Settings(_env_file=None, **{field: bad})
     assert field in str(exc.value), f"报错应当点名是哪个字段：{exc.value}"
+
+
+@pytest.mark.parametrize("alg", get_args(Settings.model_fields["ALGORITHM"].annotation))
+def test_every_allowed_jwt_algorithm_signs_and_verifies_with_the_secret(alg):
+    """TD-327：ALGORITHM 允许的每个取值都必须真能用字符串 SECRET_KEY 签发并校验令牌，
+    否则 Literal 只是把「启动后才 500」换成了「白名单里就有坏值」。"""
+    from jose import jwt
+
+    s = Settings(_env_file=None, ALGORITHM=alg)
+    token = jwt.encode({"sub": "alice"}, s.SECRET_KEY, algorithm=s.ALGORITHM)
+    assert jwt.decode(token, s.SECRET_KEY, algorithms=[s.ALGORITHM]) == {"sub": "alice"}
 
 
 def test_rate_limit_window_zero_would_disable_the_limiter():

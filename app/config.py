@@ -16,7 +16,10 @@ class Settings(BaseSettings):
     DB_PASSWORD: str = ""
     DATABASE_URL: str = ""  # 可选：直接指定 SQLAlchemy URL（测试用）
     SECRET_KEY: str = "dev-secret-change-me"
-    ALGORITHM: str = "HS256"
+    # 令牌用 SECRET_KEY 这个字符串签名，只有 HMAC 系算法能用。自由字符串时写成 hs256 / RS256
+    # 进程照常启动，之后每次登录与验令牌都 500（python-jose 报「not supported」/「Unable to load PEM」），
+    # 与下面 ENV 同属「暴露给 .env 就必须约束取值」（TD-212/TD-327）。none 被 python-jose 拒绝，也不在此列。
+    ALGORITHM: Literal["HS256", "HS384", "HS512"] = "HS256"
     # 0 或负数会让签出来的令牌立刻过期，用户表现为「登录成功但下一秒就掉线」
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(30, gt=0)
 
@@ -63,12 +66,10 @@ class Settings(BaseSettings):
     # manual 与 mock 的区别：mock 任何人都能点「确认支付」，manual 只有管理员能确认（TD-205）
     SHOP_PAY_MODE: Literal["wechat", "mock", "manual"] = "wechat"
 
-    # manual 模式展示的收款码图片路径。**换成自己的收款码即可**，代码不用动。
-    # 刻意指向 static 下的一个文件而不是把图片塞进配置：图片是二进制，
-    # 配置项只该存「在哪」，不该存「是什么」。
-    # manual 模式的静态收款码。默认指向仓库里提交的真收款码（2026-09-08 由用户
-    # 上传并确认使用，见 app/static/pay_qr.png）。不想用时在 .env 里改回
-    # /static/pay_qr.svg（占位图）即可。⚠️ 这是**个人**收款码，详见 TD-225。
+    # manual 模式展示的静态收款码图片路径，换收款码只改这里、代码不用动。配置项只存「在哪」，
+    # 不存图片本身。默认指向仓库里提交的真收款码（2026-09-08 由用户上传并确认使用，
+    # 见 app/static/pay_qr.png）；不想用时在 .env 里改回 /static/pay_qr.svg（占位图）。
+    # ⚠️ 这是**个人**收款码，详见 TD-225。
     SHOP_MANUAL_QR: str = "/static/pay_qr.png"
 
     # 云存储（S3-02）：local = 本地目录（开发/演示）；oss / cos 需密钥，尚未实现（TD-128）
@@ -109,8 +110,8 @@ class Settings(BaseSettings):
     # 都是 `ENV == "production"` 精确比对，写成 "Production"/"prod" 时四项生产硬检查
     # 会**全部静默跳过**、Cookie 同时丢掉 Secure —— 实测过，且没有任何报错。
     # 这是「配置暴露给 .env 就必须约束取值」里最要紧的一条（TD-212 的同类问题）。
-    OAUTH_TRUSTED_CLIENT_IDS: tuple[str, ...] = ()  # production仅显式信任的自有SSO客户端
     ENV: Literal["development", "production"] = "development"
+    OAUTH_TRUSTED_CLIENT_IDS: tuple[str, ...] = ()  # production仅显式信任的自有SSO客户端
     LOG_LEVEL: str = "INFO"
     # HSTS 的 max-age（秒），默认一年。只在请求确实是 https 时才下发 ——
     # 在 http 上下发没有意义，还会把仍在用 http 的本地环境锁死一年。

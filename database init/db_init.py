@@ -32,6 +32,7 @@ def main(argv=None) -> int:
             password = getpass.getpass('New administrator password: ')
             if password != getpass.getpass('Repeat password: '):
                 raise db_admin.MaintenanceError('Passwords do not match')
+            db_admin.validate_admin_credentials(args.username, password)  # before connecting (TD-327)
         conn = db_admin.connect_target(args.confirm_database)
         if args.command == 'bootstrap-admin':
             db_admin.bootstrap_admin(conn, args.username, password)

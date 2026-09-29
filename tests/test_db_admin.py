@@ -192,6 +192,36 @@ def test_wrong_target_refused_before_connect(monkeypatch):
         db_admin.connect_target('other')
 
 
+@pytest.mark.parametrize(('username', 'password', 'field'), [
+    ('ab', 'synthetic-only-password', 'username'),
+    ('admin', 'synthetic-only-password', 'username'),
+    ('owner', '密' * 30, 'password'),
+])
+def test_bootstrap_admin_cli_rejects_bad_credentials_before_connecting_and_names_the_field(
+        monkeypatch, capsys, username, password, field):
+    """TD-327：用户名/密码不合规时，CLI 在连库之前就拒绝，并点名是哪个字段、哪条规则。
+
+    原先 RegisterIn 的 ValidationError 在连库之后才抛，落进 CLI 的脱敏兜底分支，只打印
+    「ValidationError: check target, baseline, ledger...」，指向的恰好是不相干的东西。
+    ValidationError 的字符串里带着输入值（即密码），所以只能取字段名与规则说明。"""
+    import importlib.util
+    spec = importlib.util.spec_from_file_location('db_init_cli', Path(__file__).resolve().parents[1] / 'database init/db_init.py')
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    monkeypatch.setattr('getpass.getpass', lambda prompt='': password)
+    monkeypatch.setattr(db_admin, 'connect_target', lambda *a: pytest.fail('must validate before connecting'))
+    assert cli.main(['bootstrap-admin', '--confirm-database', 'x', '--username', username]) == 1
+    err = capsys.readouterr().err
+    assert 'Maintenance refused: Invalid administrator credentials' in err and f'{field}:' in err
+    assert password not in err
+
+
+def test_validate_admin_credentials_keeps_the_12_character_minimum():
+    with pytest.raises(db_admin.MaintenanceError, match='at least 12 characters'):
+        db_admin.validate_admin_credentials('owner', 'short-pass')
+    db_admin.validate_admin_credentials('owner', 'synthetic-only-password')
+
+
 def test_maintenance_lock_is_cross_connection_and_transaction_scoped(maintenance_db):
     conn, uri = maintenance_db
     other = psycopg2.connect(uri)

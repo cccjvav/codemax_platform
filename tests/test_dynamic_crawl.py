@@ -196,12 +196,13 @@ async def test_rendered_page_over_size_limit_rejected(net, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_launch_failure_is_translated_not_leaked(net, monkeypatch):
-    """浏览器启动失败必须被转成 `BrowserUnavailable`，**不能漏成端点的 500**。
+async def test_installed_playwright_still_reports_rendering_disabled(net, monkeypatch):
+    """装了 playwright 也不能解除停用：`_goto` 抛 `BrowserUnavailable`（端点 503，不是 500），并且**不启动浏览器**。
 
-    用一个假的 `playwright.async_api` 模块模拟启动失败 —— 不需要网络也不需要浏览器，
-    所以在 CI 上也能跑。这条钉的是「异常翻译」这个契约本身；
-    真实的「没下浏览器」报错文本已在本机实测过（见 TECH_DECISIONS TD-191）。
+    用假的 `playwright.async_api` 模块模拟「已安装」，不需要网络也不需要浏览器，CI 上也能跑。
+    TD-327：这条原名 test_launch_failure_is_translated_not_leaked，钉的是停用前「浏览器启动失败要翻译成
+    BrowserUnavailable」；停用后 `_goto` 不再调用 async_playwright，假模块里那段启动失败从没执行过。
+    现在假模块的 async_playwright 一旦被调用就报错，钉住「不启动浏览器」。
     """
     import sys
     import types
@@ -209,7 +210,7 @@ async def test_launch_failure_is_translated_not_leaked(net, monkeypatch):
     fake = types.ModuleType("playwright.async_api")
 
     def async_playwright():
-        raise RuntimeError("BrowserType.launch: Executable doesn't exist at /x/chrome")
+        raise AssertionError("停用状态下不得启动浏览器")
 
     fake.async_playwright = async_playwright
     monkeypatch.setitem(sys.modules, "playwright", types.ModuleType("playwright"))
@@ -228,6 +229,8 @@ async def test_goto_reports_missing_playwright_with_install_command():
         await _goto(URL)
     assert "pip install playwright" in str(e.value)
     assert "playwright install chromium" in str(e.value)
+    # TD-327：原文「装上它并下载浏览器后才能用 dynamic 抓取」读来像装上就能用，实际装上后只会得到停用说明
+    assert "已安全停用" in str(e.value) and "安装后也不能使用" in str(e.value)
 
 
 # ============================================== 端点接线

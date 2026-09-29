@@ -50,7 +50,7 @@
 | `polite_access(url, UA, fetch_text)` | 异步上下文：robots 允许 → 取并发槽 → 域节流后进入 with 体 | 对外访问的唯一礼貌入口，静态抓取与动态渲染共用、合计受同一并发上限约束；robots 拒绝时不占槽、不登记限速时刻；with 体执行期间一直占槽（TD-290） |
 | `_get_semaphore` / `reset_cache` | 进程内并发闸／清理测试状态 | 不是跨进程、跨服务的全局限速；域状态表有 `MAX_DOMAIN_STATES` 上限，但不应描述成无限规模抓取系统 |
 
-**动态浏览器当前停用。** `browser_available()` 只检查可否 import Playwright，不代表功能可用；`render()` 保留预检查（与 `fetch` 共用 `polite_access` 与 `robots_fetcher`）和返回 Page 的接口，但生产 `_goto()` 会抛 BrowserUnavailable。安装浏览器不能解除这一限制。`_abort_non_public` 是保留的防御 helper，不能据此宣称浏览器已有网络隔离。恢复前需要专门的隔离出口设计与真实浏览器验证。
+**动态浏览器当前停用。** `browser_available()` 只检查可否 import Playwright，不代表功能可用；`render()` 保留预检查（与 `fetch` 共用 `polite_access` 与 `robots_fetcher`）和返回 Page 的接口，但生产 `_goto()` 会抛 BrowserUnavailable。安装浏览器不能解除这一限制。原来保留的请求拦截 helper `_abort_non_public` 与渲染超时常量 `RENDER_TIMEOUT_MS` 没有任何调用方，TD-327 删除：请求拦截本身不能固定 Chromium 的连接地址，留着只会被当成「已有隔离」的依据。缺包时的报错先说明已停用、安装后也不能使用，再给届时的安装命令。恢复前需要专门的隔离出口设计与真实浏览器验证。
 
 ### 文章提取与入库
 
@@ -88,7 +88,7 @@
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/tools/__init__.py`](__init__.py) | `e3b0c44298fc` | 空文件（无源码行） |
-| [`app/tools/browser.py`](browser.py) | `96e3646fac38` | L1–L89 |
+| [`app/tools/browser.py`](browser.py) | `7bb2233a0d90` | L1–L79 |
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8b5300779881` | L1–L224 |
 | [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |

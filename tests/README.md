@@ -73,9 +73,9 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_ci_supply_chain.py`](test_ci_supply_chain.py) | `47e43b1b2ce8` | L1–L99 |
 | [`tests/test_code_reading.py`](test_code_reading.py) | `76bcfd71fc58` | L1–L206 |
 | [`tests/test_code_reading_narrate.py`](test_code_reading_narrate.py) | `812387e137aa` | L1–L311 |
-| [`tests/test_config_validation.py`](test_config_validation.py) | `13ec12dfa2ec` | L1–L180 |
+| [`tests/test_config_validation.py`](test_config_validation.py) | `24c3aa1c80cb` | L1–L196 |
 | [`tests/test_crawler.py`](test_crawler.py) | `52d674f20ecc` | L1–L373 |
-| [`tests/test_db_admin.py`](test_db_admin.py) | `be852d825d0d` | L1–L254 |
+| [`tests/test_db_admin.py`](test_db_admin.py) | `a2027aea7c8a` | L1–L284 |
 | [`tests/test_delivery_verify_cache.py`](test_delivery_verify_cache.py) | `03d8fd22cf3d` | L1–L196 |
 | [`tests/test_diagram_concurrency.py`](test_diagram_concurrency.py) | `de0122ee569b` | L1–L180 |
 | [`tests/test_diagram_quota.py`](test_diagram_quota.py) | `c3c57f770a41` | L1–L171 |
@@ -85,7 +85,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_download.py`](test_download.py) | `532509f67572` | L1–L386 |
 | [`tests/test_drawio_auth_state.py`](test_drawio_auth_state.py) | `bf31fef574c7` | L1–L222 |
 | [`tests/test_drawio_unsaved_changes.py`](test_drawio_unsaved_changes.py) | `18a81ee178a9` | L1–L157 |
-| [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `d764399a1b53` | L1–L350 |
+| [`tests/test_dynamic_crawl.py`](test_dynamic_crawl.py) | `1c68e42322e2` | L1–L353 |
 | [`tests/test_e2e.py`](test_e2e.py) | `3641667e742d` | L1–L532 |
 | [`tests/test_er_page.py`](test_er_page.py) | `ce5bf99908f0` | L1–L485 |
 | [`tests/test_extract.py`](test_extract.py) | `51ad80685f7f` | L1–L318 |
@@ -436,3 +436,10 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_er_page.py`：新增页面装配执行器，把 `er-page.js` 的 import 换成 d3 链式桩与布局桩后在 node 里执行；覆盖成功后失败调暗并说明（DDL 有误、断网）、下次成功恢复、首次失败不说过时、绘制失败清空画布回到空状态；另有产物检查与 `data-stale` 样式覆盖三个元素的检查。
 - `test_ui_accessibility.py`：管理员空会话（执行真实 `auth.js` + `support-page.js`）、空状态元素属性与位置、`button.item` 的 keep-all 与 overflow-wrap、`select` 的 max-width、Drawio 行内按钮为描边。
 - 改前代码上 15 条失败；「首次失败不说过时」是守卫，改前也通过。
+
+## 2026-09-29 重构复核（TD-327）
+
+- `test_config_validation.py`：`ILLEGAL` 加 `ALGORITHM` 的 `hs256` / `RS256` / `none`；新增 `test_every_allowed_jwt_algorithm_signs_and_verifies_with_the_secret`，白名单每个取值都用字符串密钥实际签发并校验令牌（取值来自 `get_args`）。
+- `test_dynamic_crawl.py`：`test_launch_failure_is_translated_not_leaked` 改名 `test_installed_playwright_still_reports_rendering_disabled`，假 `async_playwright` 被调用即报错，钉住停用时不启动浏览器；缺包用例另断言提示写明已停用、安装后也不能使用。
+- `test_db_admin.py`：新增 `test_bootstrap_admin_cli_rejects_bad_credentials_before_connecting_and_names_the_field`（三种不合规凭据，连库替换成直接判失败，报错点名字段、不含口令）与 `test_validate_admin_credentials_keeps_the_12_character_minimum`。
+- 改前代码上 8 条失败；「不启动浏览器」是守卫，改前也通过。
