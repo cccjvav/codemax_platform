@@ -30,6 +30,11 @@ from .wechat_pay import (
 
 NOTICE_KIND = 'refund_notify_signal'
 STATES = ('SUCCESS', 'ABNORMAL', 'CLOSED')
+# 入库（parse_notice）与读回（notice_view）共用同一组格式：两边各写一份时，改了一边，已入库的
+# 通知在读回时会被 fail-closed 地判成格式错误，管理端就再也看不到它们，且不报错（TD-329）。
+NOTIFICATION_ID = r'[A-Za-z0-9_-]{1,36}'
+REFUND_NO = r'[A-Za-z0-9_\-|*@]{1,64}'
+REFUND_ID = r'[0-9]{1,32}'
 
 
 @dataclass(frozen=True)
@@ -111,11 +116,11 @@ def parse_notice(cfg: PayConfig, headers: Headers, raw: bytes) -> RefundNotice:
         raise WeChatPayError('退款通知金额无效')
     completed = _moment(data.get('success_time')) if data['refund_status'] == 'SUCCESS' else None
     return RefundNotice(
-        _identifier(envelope.get('id'), r'[A-Za-z0-9_-]{1,36}'), _moment(envelope.get('create_time')),
+        _identifier(envelope.get('id'), NOTIFICATION_ID), _moment(envelope.get('create_time')),
         cfg.mchid, _identifier(data.get('out_trade_no'), r'[A-Za-z0-9_-]{1,32}'),
         _identifier(data.get('transaction_id'), r'[A-Za-z0-9_-]{1,32}'),
-        _identifier(data.get('out_refund_no'), r'[A-Za-z0-9_\-|*@]{1,64}'),
-        _identifier(data.get('refund_id'), r'[0-9]{1,32}'), data['refund_status'],
+        _identifier(data.get('out_refund_no'), REFUND_NO),
+        _identifier(data.get('refund_id'), REFUND_ID), data['refund_status'],
         amount['total'], amount['refund'], amount['payer_total'], amount['payer_refund'], completed)
 
 
@@ -189,9 +194,9 @@ def notice_view(event: PaymentEvent | None) -> dict | None:
                 or data.get('state') not in STATES or type(data.get('partial')) is not bool
                 or type(data.get('refund')) is not int or not 0 < data['refund'] <= 2147483647):
             return None
-        number = _identifier(data.get('refund_no'), r'[A-Za-z0-9_\-|*@]{1,64}')
-        identity = _identifier(data.get('notification_id'), r'[A-Za-z0-9_-]{1,36}')
-        refund_id = _identifier(data.get('refund_id'), r'[0-9]{1,32}')
+        number = _identifier(data.get('refund_no'), REFUND_NO)
+        identity = _identifier(data.get('notification_id'), NOTIFICATION_ID)
+        refund_id = _identifier(data.get('refund_id'), REFUND_ID)
         _identifier(data.get('fingerprint'), r'[0-9a-f]{64}')
         return {'notification_id': identity, 'refund_no': number, 'refund_id': refund_id,
                 'state': data['state'], 'partial': data['partial'], 'refund': data['refund'],

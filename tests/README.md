@@ -116,7 +116,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_proxy_headers.py`](test_proxy_headers.py) | `f99e631e1fc2` | L1–L110 |
 | [`tests/test_ratelimit.py`](test_ratelimit.py) | `73ae8c780609` | L1–L402 |
 | [`tests/test_refund_health.py`](test_refund_health.py) | `b4a1020ba64d` | L1–L407 |
-| [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `459ff21e9840` | L1–L319 |
+| [`tests/test_refund_notifications.py`](test_refund_notifications.py) | `968ae7c80110` | L1–L324 |
 | [`tests/test_refund_reauthorization.py`](test_refund_reauthorization.py) | `c54e0c7ac6aa` | L1–L302 |
 | [`tests/test_refund_requests.py`](test_refund_requests.py) | `9454b4708035` | L1–L332 |
 | [`tests/test_refund_stops.py`](test_refund_stops.py) | `d3e938dc54b7` | L1–L300 |
@@ -448,3 +448,7 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 
 - `test_sql_ddl.py`：`test_table_level_primary_key_matches_columns_by_folded_name`（表级 `PRIMARY KEY (ID)` / `(id ASC)` 对上列 `id`，带引号的 `"ID"` 与 `id` 仍是两列）、`test_foreign_key_columns_are_reported_as_defined`（表内、列级、ALTER 三条外键路径的列名都是定义时的写法；带引号父列与父表缺失时保留原写法）、`test_comment_on_targets_fold_case_and_schema_like_references`（COMMENT ON 的表与列按折叠和 schema 对上，带引号的定义只认原样）。
 - 改前代码上 3 条全部失败。
+
+## 2026-09-29 退款通知标识格式（TD-329）
+
+- `test_refund_notifications.py::test_summary_maximum_and_malformed_display`：另用含全部允许特殊字符的通知 ID 与退款单号（`|*@`）做一次入库→读回。守卫性质：改前改后都通过；只把读回那份格式改窄时，只有这条新断言失败。

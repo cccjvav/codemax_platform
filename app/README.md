@@ -127,7 +127,7 @@ pending → closed → paid
 | [`app/payment_review.py`](payment_review.py) | `a26a38f6658e` | L1–L144 |
 | [`app/ratelimit.py`](ratelimit.py) | `986c13547bf0` | L1–L201 |
 | [`app/refund_health.py`](refund_health.py) | `eb32bbe426c8` | L1–L153 |
-| [`app/refund_notifications.py`](refund_notifications.py) | `3a0774246bff` | L1–L200 |
+| [`app/refund_notifications.py`](refund_notifications.py) | `70da8a9f8e2b` | L1–L205 |
 | [`app/refund_requests.py`](refund_requests.py) | `32d8de600e87` | L1–L92 |
 | [`app/refund_submissions.py`](refund_submissions.py) | `fb4b59cc4e4d` | L1–L316 |
 | [`app/refund_verification.py`](refund_verification.py) | `9a8de9f1d863` | L1–L320 |
@@ -194,7 +194,7 @@ review_payload把动作/资料摘要/上轮版本/最多160字说明编码为500
 
 ## 第七批：refund_notifications.py仅保存可信线索
 
-RefundNotice是不可变的已解析字段，不是RefundReceipt。parse_notice要求四头各恰一条、大小/新鲜度/可信平台身份/RSA原文验签，然后检查refund/AEAD_AES_256_GCM、AES解密、内外三态一致及商户；_identifier拒绝越界标识，_moment拒绝无时区/过远未来并归一UTC。金额严格整数，允许合同范围内部分通知；payer金额不保存为会计分录。输入上限由路由负责；调用方不可绕过parse_notice自行构造“可信”对象。
+RefundNotice是不可变的已解析字段，不是RefundReceipt。parse_notice要求四头各恰一条、大小/新鲜度/可信平台身份/RSA原文验签，然后检查refund/AEAD_AES_256_GCM、AES解密、内外三态一致及商户；_identifier拒绝越界标识（通知ID、商户退款单号、渠道退款号的格式是模块常量 NOTIFICATION_ID/REFUND_NO/REFUND_ID，入库与 notice_view 读回共用，TD-329），_moment拒绝无时区/过远未来并归一UTC。金额严格整数，允许合同范围内部分通知；payer金额不保存为会计分录。输入上限由路由负责；调用方不可绕过parse_notice自行构造“可信”对象。
 
 notice_evidence把明确接收的业务字段正规JSON摘要化，保存用于显示的标识/状态/合同退款额/部分标记/时间与SHA256指纹，最多500字符。不保存完整正文、账号或签名包，指纹不是独立密码学证据。save_notice拥有事务：锁单后核对冻结商户/app/CNY和original_receipt，成功时间不早于原付款；商户+通知ID用途域SHA256前32位填既有attempt_id，固定refund_notify_signal，唯一约束与订单锁覆盖重复/跨单竞争。精确重发不追加；不同事实/归属冲突，不吞数据库失败；异常和取消rollback，commit后才让路由ACK。
 

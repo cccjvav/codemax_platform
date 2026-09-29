@@ -281,6 +281,11 @@ def test_summary_maximum_and_malformed_display():
     assert len(evidence) <= 500
     event = PaymentEvent(kind=inbox.NOTICE_KIND, evidence=evidence)
     assert inbox.notice_view(event)['refund_no'] == notice.out_refund_no
+    # TD-329：入库允许的每一类字符读回时也必须认得（原先两边各写一份格式，只用纯字母测不出漂移）
+    edge = replace(notice, notification_id='Az09_-' * 6, out_refund_no=('Az09_-|*@' * 8)[:64])
+    event.evidence = inbox.notice_evidence(edge)
+    view = inbox.notice_view(event)
+    assert (view['notification_id'], view['refund_no']) == (edge.notification_id, edge.out_refund_no)
     for bad in ['[]', '{}', 'null', 'x' * 501, json.dumps({**json.loads(evidence), 'refund_no': '<script>'})]:
         event.evidence = bad
         assert inbox.notice_view(event) is None

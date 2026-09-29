@@ -1844,3 +1844,20 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 - 完整方言解析仍不做（TD-269 的代价说明不变）。
 
 **测试**：`tests/test_sql_ddl.py` 新增三条：表级主键按有效名对列（含 `id ASC`；带引号的 `"ID"` 与 `id` 仍是两列）、三条外键路径的列名都报告成定义时的写法（另钉住带引号父列与父表缺失时保留原写法）、COMMENT ON 的表与列按折叠和 schema 对上（带引号的定义只认原样）。改前代码上 3 条全部失败。满额 20000 字符、全部大小写混写的 175 张表解析耗时 37 ms，TD-285 的线性耗时不变。
+
+
+## TD-329：退款通知的标识格式入库与读回共用一份；退款与前端共享脚本复核
+
+**状态**：已实施（2026-09-29），优化阶段重构批次。
+
+**范围**：复核 `app/refund_requests.py`、`app/refund_notifications.py`、`app/refund_verification.py`、`app/frontend/auth.js`、`app/frontend/mock-pay-page.js`。只有第二个需要改。
+
+- **同一组格式写了两份**（`refund_notifications.py`）：`parse_notice` 校验通知 ID、商户退款单号、渠道退款号后入库；`notice_view` 读回摘要时再用各自手写的一份正则校验，格式不对就 fail-closed 返回 None（管理端不显示这条通知，核验任务也取不到它）。两份现在一致，但只要改了一边（例如给退款单号加一个允许字符，只改了入库那份），已入库的通知就会悄无声息地从管理端消失。原有用例只用纯字母做入库→读回，测不出这种漂移（实测把读回那份的 `|*@` 去掉，原用例照样通过）。三组格式改为模块常量 `NOTIFICATION_ID` / `REFUND_NO` / `REFUND_ID`，两边共用；只用一次的格式（商户订单号、微信支付单号、指纹）保持原位。
+
+**复核后不改**：
+- `refund_requests.py`：精确重试先于「后续活动」检查（通知或已完成退款之后仍能取回原记录），渠道退款号只在提交后返回，准备记录与审计同一事务。
+- `refund_verification.py`：租约、令牌与数据库时钟三重把关；网络错误在 `wechat_pay._request_json` 里已统一成 `WeChatPayError` → 重排；数据库错误会让本次循环抛出、worker 退出，未完成的租约 90 秒后可被重新领取，worker 本就是受监管的显式进程。
+- `auth.js`：请求序号防旧应答覆盖、监听器退订、焦点归还、会话到期与主动退出区分，均无问题。`/auth/me` 回 5xx 时按「未登录」显示是既有行为，只影响显示、不影响权限。
+- `mock-pay-page.js`：401 用自己的提示而不是 `sessionExpired`，因为模拟收银台常在未登录时打开，那时 `sessionExpired` 本就不处理。
+
+**测试**：`tests/test_refund_notifications.py::test_summary_maximum_and_malformed_display` 另用含全部允许特殊字符的通知 ID 与退款单号（`|*@`）做一次入库→读回。这是格式漂移的守卫：共用常量后改前改后都通过；把读回那份格式单独改窄时，只有这条新断言失败。

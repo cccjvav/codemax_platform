@@ -12026,48 +12026,48 @@
     },
     {
       "path": "app/refund_notifications.py",
-      "sha256": "3a0774246bfff5400d9ed35ba18cab4e6fbf14ca3ee447404b51a2b8e1e99b99",
+      "sha256": "70da8a9f8e2bb20f681d8d739d8bc4b43282e3223bb8cb355418b30ac2239236",
       "method": "manual",
       "blocks": [
         {
-          "end": 34,
+          "end": 39,
           "title": "装配与边界",
-          "explanation": "导入现有密码学/数据库/HTTP组件与既有原收款合同，不引入依赖或建表。常量区分入站线索和金融成功；测试文件仅用合成平台凭据、独立测试会话和ASGI替身，不访问真实商户。定义和导入不执行退款。"
+          "explanation": "导入现有密码学/数据库/HTTP组件与既有原收款合同，不引入依赖或建表。常量区分入站线索和金融成功；测试文件仅用合成平台凭据、独立测试会话和ASGI替身，不访问真实商户。定义和导入不执行退款。\n\nTD-329：新增模块常量 NOTIFICATION_ID / REFUND_NO / REFUND_ID，入库（parse_notice）与读回（notice_view）共用。原先两处各写一份正则，改了一边，已入库的通知读回时会被 fail-closed 判成格式错误，管理端看不到且不报错。"
         },
         {
-          "end": 51,
+          "end": 56,
           "title": "RefundNotice",
           "explanation": "frozen dataclass逐项携带通知ID/创建时间、商户/原单/交易、两种退款号、三态、合同与payer分数和可选成功时间。均从已验证协议产生，不表示完整ORIGINAL/CNY退款证明；无actor字段，不造管理员。"
         },
         {
-          "end": 57,
+          "end": 62,
           "title": "_identifier",
           "explanation": "只接受str及指定全匹配模式，拒绝空/控制字符/过长/错误类型，错误转WeChatPayError。不同标识调用使用各自上限，不把付款号和商户退款号混用。"
         },
         {
-          "end": 73,
+          "end": 78,
           "title": "_moment",
           "explanation": "校验字符串上限和必带时区，fromisoformat解析、astimezone转UTC、拒绝超过当前5分钟；过去时间允许渠道重试。返回规范ISO字符串，使同一时刻+02/+08重试相同。无效/溢出统一受控错误，原付款时间关联由save_notice检查。"
         },
         {
-          "end": 121,
+          "end": 126,
           "title": "parse_notice",
-          "explanation": "先把原字节按 UTF-8 严格解码，交给 wechat_pay.verify_signed_message（TD-312，与支付回调、API 应答同一套：四头各恰好一个且有界 → timestamp → 可信 serial/平台有效期 → RSA 验签），之后才解析 JSON。解码移到了头检查之前，但路由把两类失败都转成同一个 400 和固定文字，对外看不出区别。仅REFUND.SUCCESS/ABNORMAL/CLOSED且resource_type加密；resource必须refund/AEAD_AES_256_GCM与有界字符串，再解AES。内外三态和mchid必须一致；四种分数type严格int（bool不行），退款>0且不超合同，payer金额非负且不超对应范围。SUCCESS要求UTC可解析时间，其他态completed_at为None；最后分别校验ID并构造RefundNotice，不取账户显示、channel或currency，不查询渠道。路由负责raw大小与整个超时。"
+          "explanation": "先把原字节按 UTF-8 严格解码，交给 wechat_pay.verify_signed_message（TD-312，与支付回调、API 应答同一套：四头各恰好一个且有界 → timestamp → 可信 serial/平台有效期 → RSA 验签），之后才解析 JSON。解码移到了头检查之前，但路由把两类失败都转成同一个 400 和固定文字，对外看不出区别。仅REFUND.SUCCESS/ABNORMAL/CLOSED且resource_type加密；resource必须refund/AEAD_AES_256_GCM与有界字符串，再解AES。内外三态和mchid必须一致；四种分数type严格int（bool不行），退款>0且不超合同，payer金额非负且不超对应范围。SUCCESS要求UTC可解析时间，其他态completed_at为None；最后分别校验ID并构造RefundNotice，不取账户显示、channel或currency，不查询渠道。路由负责raw大小与整个超时。\n\nTD-329：通知 ID、商户退款单号、渠道退款号改用模块常量校验，内容不变。"
         },
         {
-          "end": 134,
+          "end": 139,
           "title": "notice_evidence",
           "explanation": "asdict的明确字段正规JSON排序/紧凑编码后SHA256。另保存v1显示字段、partial标记和两个时间，最多500字符；不保存完整正文/账号/密文/签名，指纹只用比较业务事实而不是可复验RSA证据。"
         },
         {
-          "end": 179,
+          "end": 184,
           "title": "save_notice",
           "explanation": "独立事务先取原单、lock_order刷新后核冻结商户/app/CNY，再original_receipt核对真实微信原收款。金额/原交易/商户/成功不早于付款均匹配才计算用途域+商户+通知ID的SHA256前32位和业务摘要。按固定kind与attempt查现有；同归属/同摘要/无人工actor的精确重发commit但不新增，冲突拒绝。首次追加PaymentEvent并flush、enqueue后同事务commit；不调用退款服务，不改订单状态或权益。唯一竞争IntegrityError rollback→PaymentConflict；包括任务取消在内的其他异常rollback再抛，不先ACK。调用方必须先parse_notice，不能给未验签对象。 现在首次flush事件后enqueue，再一起commit；精确重放也补缺任务但不重置已有任务。仅入站持久派工，不启动临时后台工作，不做HTTP；事件/任务任一失败均不ACK。"
         },
         {
-          "end": 200,
+          "end": 205,
           "title": "notice_view",
-          "explanation": "只认指定kind、系统归属和500字符内v1 JSON；严格检查state/partial/refund及所有可展示标识/指纹。返回有限字段与本地收到时间，坏摘要返回None，不回退历史/不认金融完成，不执行其中字符串。"
+          "explanation": "只认指定kind、系统归属和500字符内v1 JSON；严格检查state/partial/refund及所有可展示标识/指纹。返回有限字段与本地收到时间，坏摘要返回None，不回退历史/不认金融完成，不执行其中字符串。\n\nTD-329：读回同样用模块常量，保证入库允许的字符读回时都认得。"
         }
       ]
     },
@@ -12095,7 +12095,7 @@
     },
     {
       "path": "tests/test_refund_notifications.py",
-      "sha256": "459ff21e98401ce383012005a2fc58fc7e799301e82eb64c776547af7d5063d5",
+      "sha256": "968ae7c80110fad87d0cfbfb6d533188872ea667744af416957d116cf25972c2",
       "method": "manual",
       "blocks": [
         {
@@ -12209,22 +12209,22 @@
           "explanation": "以合成裸RSA公钥和显式PUB_KEY_ID验签；相同成功时刻从UTC改+08重发必须204且一条，验证规范化与平台ID模式。"
         },
         {
-          "end": 288,
+          "end": 293,
           "title": "test_summary_maximum_and_malformed_display",
-          "explanation": "构造各ID/整数/微秒时间上限，摘要不超过500且可展示；非对象/缺字段/超长/注入式退款号都返回None，不执行内容或展示为有效提示。"
+          "explanation": "构造各ID/整数/微秒时间上限，摘要不超过500且可展示；非对象/缺字段/超长/注入式退款号都返回None，不执行内容或展示为有效提示。\n\nTD-329：另用含全部允许特殊字符的通知 ID（Az09_-）和退款单号（含 |*@）做一次入库→读回。原先只用纯字母，读回格式漂移（例如丢了 |*@）测不出来。"
         },
         {
-          "end": 304,
+          "end": 309,
           "title": "test_latest_notice_independent_of_event_pagination_and_malformed_no_fallback",
           "explanation": "按两个不同ID写通知，管理员before=1取不到历史事件仍能得到最新退款号。再插一条仅用于测试的坏摘要，返回None而非旧通知，避免分页/解析失败选错最新。"
         },
         {
-          "end": 313,
+          "end": 318,
           "title": "test_oversized_and_signtest_headers",
           "explanation": "分别替换SIGNTEST探测签名或超长nonce/timestamp/serial，原文不变，必须400且无事件。并非业务成功模拟器。"
         },
         {
-          "end": 319,
+          "end": 324,
           "title": "test_slow_body_is_bounded_without_false_ack",
           "explanation": "异步请求体发一个字节再等待10秒，应用预算降到20毫秒，必须503且无事件，证明期限覆盖读取阶段而不只是数据库。"
         }
