@@ -11,7 +11,7 @@
 
 | 函数 | 输入 → 输出 | 算法与边界 |
 | --- | --- | --- |
-| `parse_ddl(sql)` | 建表 SQL → `{tables, edges}` | 不执行 SQL；常见 MySQL/PostgreSQL 子集，不是完整语法验证器；没有可识别表时返回空图，由 HTTP 层报 400。TD-269 起：`ALTER TABLE [ONLY] t ADD [CONSTRAINT x] FOREIGN KEY … REFERENCES …` 计入边；`REFERENCES parent` 不写列按父表单列主键补全（复合/未定义留空 `to_column`，边保留）；不带引号的表名引用按小写折叠匹配、带引号精确匹配（与 PostgreSQL 一致，不替用户"修正"会被数据库拒绝的写法）；类型串只留名字/长度/精度/数组/WITH TIME ZONE，UNSIGNED/CHARACTER SET/GENERATED 等修饰不进类型。TD-285 起耗时与输入长度成线性（括号配对一次扫描建表、有效名索引只建一次）；表名后的 `(` 被判在字符串里时逐段重扫，每次解析最多 16 次 |
+| `parse_ddl(sql)` | 建表 SQL → `{tables, edges}` | 不执行 SQL；常见 MySQL/PostgreSQL 子集，不是完整语法验证器；没有可识别表时返回空图，由 HTTP 层报 400。TD-269 起：`ALTER TABLE [ONLY] t ADD [CONSTRAINT x] FOREIGN KEY … REFERENCES …` 计入边；`REFERENCES parent` 不写列按父表单列主键补全（复合/未定义留空 `to_column`，边保留）；不带引号的表名引用按小写折叠匹配、带引号精确匹配（与 PostgreSQL 一致，不替用户"修正"会被数据库拒绝的写法）；TD-328 起同一规则也用于列名引用（表级 PRIMARY KEY / FOREIGN KEY 的列、REFERENCES 的父列）和 `COMMENT ON TABLE/COLUMN` 的目标（后者也能补/去 schema 前缀），输出的列名一律是定义时的写法；类型串只留名字/长度/精度/数组/WITH TIME ZONE，UNSIGNED/CHARACTER SET/GENERATED 等修饰不进类型。TD-285 起耗时与输入长度成线性（括号配对一次扫描建表、有效名索引只建一次）；表名后的 `(` 被判在字符串里时逐段重扫，每次解析最多 16 次 |
 | `_scan` / `_strip_comments` / `_in_string_positions` | 原始 SQL → 词法状态、去注释文本或字符串位置 | 区分引号、转义与注释；先屏蔽字面量再判断约束，不能把 DEFAULT 字符串中的 PRIMARY KEY 当约束 |
 | `_iter_tables` / `_read_balanced` / `_split_top_level` | SQL 或表体 → 表块或顶层字段片段 | 按括号层级与引号分割，不按所有逗号直接 split；类型参数和字符串内逗号必须保留 |
 | `_parse_table` / `_parse_column` / `_parse_constraint` | 字段片段 → 列、主键标记、外键边 | 同时处理列内与表级约束；复合外键展开为字段配对边，不是完整关系约束模型 |
@@ -95,7 +95,7 @@
 | [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
 | [`app/tools/llm.py`](llm.py) | `a693ee96005a` | L1–L252 |
 | [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |
-| [`app/tools/sql_ddl.py`](sql_ddl.py) | `cbbc14b5b759` | L1–L494 |
+| [`app/tools/sql_ddl.py`](sql_ddl.py) | `38991c038807` | L1–L537 |
 | [`app/tools/support.py`](support.py) | `7b0d616fe445` | L1–L359 |
 | [`app/tools/word.py`](word.py) | `69ccc5ac4d4a` | L1–L64 |
 
@@ -116,7 +116,7 @@
 
 ## 2026-09-15 交叉审查增量
 
-SQL解析只覆盖子集：新增临时/UNLOGGED表、dollar string与嵌套注释屏蔽、引号逗号键、常见多词/数组/限定类型及括号DEFAULT。ALTER外键、隐式引用、大小写折叠等仍未完整处理，输出须复核，不声称只影响显示。FAQ 0.55为待标定值，不推广其他模型经验。
+SQL解析只覆盖子集：新增临时/UNLOGGED表、dollar string与嵌套注释屏蔽、引号逗号键、常见多词/数组/限定类型及括号DEFAULT。ALTER外键、隐式父键和表名/列名/注释目标的大小写折叠已覆盖常见写法（TD-269、TD-328）；表级 MySQL `COMMENT=`、CHECK 内容、分区/继承、`ALTER … DROP/RENAME` 仍不解析，输出须复核，不声称只影响显示。FAQ 0.55为待标定值，不推广其他模型经验。
 
 ## 2026-09-28：标识符里的 `$` 不再被当成 dollar 引号（TD-314）
 

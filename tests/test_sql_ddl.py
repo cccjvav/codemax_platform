@@ -352,6 +352,51 @@ def test_dollar_sign_inside_identifiers_is_not_a_dollar_quote():
     assert [(t["name"], [c["name"] for c in t["columns"]]) for t in graph["tables"]] == [("t", ["a", "b"])]
 
 
+# ---------------------------------------------------------------- 列名与注释目标的折叠（TD-328）
+# TD-269 只让「表名」引用按 SQL 规则折叠；列名引用与 COMMENT ON 的目标仍逐字比较。前端 er-layout 的
+# rowCenter 按列名精确定位连线端点，对不上就画到表头，外键标记也不出现；主键和注释则直接丢失。
+
+
+def test_table_level_primary_key_matches_columns_by_folded_name():
+    """`PRIMARY KEY (ID)` 与列 `id` 是同一列：改前主键丢失、列还被标成可空。"""
+    graph = parse_ddl("CREATE TABLE t (id INT, name TEXT, PRIMARY KEY (ID)); CREATE TABLE u (id INT, PRIMARY KEY (id ASC));")
+    assert [(c["name"], c["primary_key"], c["nullable"]) for c in graph["tables"][0]["columns"]] == [
+        ("id", True, False), ("name", False, True)]
+    assert graph["tables"][1]["columns"][0]["primary_key"] is True
+    # 带引号的按原样：`"ID"` 与 `id` 是两列，主键只落在 "ID" 上
+    graph = parse_ddl('CREATE TABLE t ("ID" INT, id INT, PRIMARY KEY ("ID"));')
+    assert [(c["name"], c["primary_key"]) for c in graph["tables"][0]["columns"]] == [("ID", True), ("id", False)]
+
+
+def test_foreign_key_columns_are_reported_as_defined():
+    """外键两端的列名换成定义时的写法（表内 FOREIGN KEY、列级 REFERENCES、ALTER 三条路径）。"""
+    for ddl in (
+        "CREATE TABLE users (id INT PRIMARY KEY); CREATE TABLE o (uid INT, FOREIGN KEY (UID) REFERENCES users(ID));",
+        "CREATE TABLE users (id INT PRIMARY KEY); CREATE TABLE o (uid INT REFERENCES USERS(Id));",
+        "CREATE TABLE users (id INT PRIMARY KEY); CREATE TABLE o (uid INT); ALTER TABLE o ADD FOREIGN KEY (UID) REFERENCES users (ID);",
+    ):
+        assert parse_ddl(ddl)["edges"] == [{"from_table": "o", "from_column": "uid", "to_table": "users", "to_column": "id"}], ddl
+    # 带引号的父列按原样：`"ID"` 定义、`id` 引用对不上（PostgreSQL 也会报列不存在），保留原写法不替用户修正
+    graph = parse_ddl('CREATE TABLE p ("ID" INT PRIMARY KEY); CREATE TABLE c (pid INT REFERENCES p(id));')
+    assert graph["edges"][0]["to_column"] == "id"
+    # 父表不在这份 DDL 里：没有可对的列，保留原写法
+    assert parse_ddl("CREATE TABLE c (pid INT REFERENCES nowhere(ID));")["edges"][0]["to_column"] == "ID"
+
+
+def test_comment_on_targets_fold_case_and_schema_like_references():
+    """COMMENT ON 的表与列按同一规则对：大小写折叠、注释写了 schema 而定义没写。改前这几条注释都被静默丢掉。"""
+    graph = parse_ddl(
+        "CREATE TABLE Users (Id INT); CREATE TABLE orders (id INT);"
+        "COMMENT ON TABLE users IS '用户'; COMMENT ON COLUMN USERS.ID IS '主键';"
+        "COMMENT ON TABLE public.orders IS '订单'; COMMENT ON COLUMN public.orders.id IS '订单号';"
+    )
+    assert [(t["name"], t["comment"], [(c["name"], c["comment"]) for c in t["columns"]]) for t in graph["tables"]] == [
+        ("Users", "用户", [("Id", "主键")]), ("orders", "订单", [("id", "订单号")])]
+    # 带引号的定义只认原样写法
+    graph = parse_ddl("""CREATE TABLE "Mixed" ("ID" INT); COMMENT ON TABLE mixed IS 'x'; COMMENT ON COLUMN "Mixed".id IS 'y';""")
+    assert graph["tables"][0]["comment"] is None and graph["tables"][0]["columns"][0]["comment"] is None
+
+
 async def test_endpoint_returns_graph(client):
     r = await client.post("/tools/er-diagram", json={"ddl": PG_DDL})
     assert r.status_code == 200

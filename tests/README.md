@@ -133,7 +133,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_shop_page.py`](test_shop_page.py) | `8ec8ac8cdc47` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
-| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `7770054a44c9` | L1–L375 |
+| [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `9fffc93591fb` | L1–L420 |
 | [`tests/test_support.py`](test_support.py) | `f0ccc6097a4a` | L1–L342 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
@@ -443,3 +443,8 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_dynamic_crawl.py`：`test_launch_failure_is_translated_not_leaked` 改名 `test_installed_playwright_still_reports_rendering_disabled`，假 `async_playwright` 被调用即报错，钉住停用时不启动浏览器；缺包用例另断言提示写明已停用、安装后也不能使用。
 - `test_db_admin.py`：新增 `test_bootstrap_admin_cli_rejects_bad_credentials_before_connecting_and_names_the_field`（三种不合规凭据，连库替换成直接判失败，报错点名字段、不含口令）与 `test_validate_admin_credentials_keeps_the_12_character_minimum`。
 - 改前代码上 8 条失败；「不启动浏览器」是守卫，改前也通过。
+
+## 2026-09-29 DDL 列名折叠（TD-328）
+
+- `test_sql_ddl.py`：`test_table_level_primary_key_matches_columns_by_folded_name`（表级 `PRIMARY KEY (ID)` / `(id ASC)` 对上列 `id`，带引号的 `"ID"` 与 `id` 仍是两列）、`test_foreign_key_columns_are_reported_as_defined`（表内、列级、ALTER 三条外键路径的列名都是定义时的写法；带引号父列与父表缺失时保留原写法）、`test_comment_on_targets_fold_case_and_schema_like_references`（COMMENT ON 的表与列按折叠和 schema 对上，带引号的定义只认原样）。
+- 改前代码上 3 条全部失败。

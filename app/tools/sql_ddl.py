@@ -22,6 +22,8 @@
     - TD-269 起：`ALTER TABLE [ONLY] t ADD [CONSTRAINT x] FOREIGN KEY (...) REFERENCES p (...)` 计入外键
       （pg_dump / mysqldump 都这么写）；`REFERENCES parent` 不写列时按父表主键补全（单列主键；复合主键或
       父表不在 DDL 内则留空列名）；不带引号的表名引用按大小写不敏感匹配（SQL 标准折叠），带引号的精确匹配。
+    - TD-328：同一折叠规则也用于**列名引用**（表级 PRIMARY KEY / FOREIGN KEY 的列、REFERENCES 的父列）与
+      `COMMENT ON TABLE/COLUMN` 的目标；输出里的列名一律换成定义时的写法，前端按列名定位连线才对得上。
     - 表级 MySQL COMMENT、CHECK/EXCLUDE 内容、分区/继承等仍不解析；未闭合字符串/注释延续到结尾。
     - 部分合法 DDL 仍可能遗漏结构，输出需人工复核。
 不能再把这些限制概括为"只影响显示，不影响结构"；完整方言解析属于后续工作。
@@ -73,14 +75,16 @@ def parse_ddl(sql: str) -> dict:
         if label_counts[label] > 1:
             mapping[parts] = ".".join('"' + part.replace('"', '""') + '"' if '.' in part else part for part in parts)
     origins = {}
+    column_keys: dict[str, dict[str, str]] = {}  # 表标签 → {列的有效名: 定义时的列名}
     quoted = {tuple(_identifier_parts(raw)): _quoted_parts(raw) for raw, _ in definitions}
     for raw_name, body in definitions:
         full = tuple(_identifier_parts(raw_name))
         name = mapping[full]
         origins[name] = _identifier_parts(raw_name)[:-1]
-        table, table_edges = _parse_table(name, body)
+        table, table_edges, keys = _parse_table(name, body)
         tables.append(table)
         edges.extend(table_edges)
+        column_keys.setdefault(name, keys)
     folded = _folded_index(mapping, quoted)
     for m in _ALTER_FK.finditer(sql):
         if m.start() in in_string:
@@ -94,12 +98,28 @@ def parse_ddl(sql: str) -> dict:
         target = edge["to_table"]
         resolved = _resolve(target, edge.pop("to_quoted", (False,) * len(target)), mapping, quoted, origins[edge["from_table"]], folded)
         edge["to_table"] = resolved if resolved is not None else ".".join(target)
+        # 列名按有效名对到定义时的写法：`FOREIGN KEY (UID) REFERENCES users(ID)` 对 `uid` / `id` 列（TD-328）
+        from_key, to_key = edge.pop("from_key"), edge.pop("to_key")
+        edge["from_column"] = column_keys.get(edge["from_table"], {}).get(from_key, edge["from_column"])
+        if edge["to_column"]:
+            edge["to_column"] = column_keys.get(edge["to_table"], {}).get(to_key, edge["to_column"])
         if edge["to_column"] == "":
             # `REFERENCES parent` 不写列 = 父表主键（SQL 标准）；只有单列主键才能无歧义补全（TD-269）
             pk = pk_by_table.get(edge["to_table"], [])
             edge["to_column"] = pk[0] if len(pk) == 1 else ""
-    _apply_comments(sql, tables, mapping, in_string)
+    _apply_comments(sql, tables, mapping, in_string, quoted=quoted, folded=folded, column_keys=column_keys)
     return {"tables": tables, "edges": edges}
+
+
+def _col_key(raw: str) -> str:
+    """列引用的有效名：取开头的标识符，带引号按原样，不带引号折叠成小写（与表名同一规则，TD-269/TD-328）。
+
+    只取开头一个标识符，所以 `id ASC`、MySQL 前缀索引 `name(10)` 也对得上 `id` / `name`。"""
+    m = re.match(_IDENT_PART, raw.strip())
+    if not m:
+        return raw.strip().lower()
+    token = m.group()
+    return _unquote(token) if token[0] in "\"`" else token.lower()
 
 
 def _quoted_parts(name: str) -> tuple[bool, ...]:
@@ -161,9 +181,11 @@ def _fk_edges(table: str, sources_text: str, target_name: str, targets_text: str
         edges.append({
             "from_table": table,
             "from_column": _unquote(src),
+            "from_key": _col_key(src),
             "to_table": to_table,
             "to_quoted": to_quoted,
             "to_column": _unquote(dst) if dst else "",
+            "to_key": _col_key(dst) if dst else "",
         })
 
 
@@ -329,10 +351,12 @@ def _split_top_level(body: str) -> list[str]:
     return [p.strip() for p in parts if p.strip()]
 
 
-def _parse_table(name: str, body: str) -> tuple[dict, list[dict]]:
+def _parse_table(name: str, body: str) -> tuple[dict, list[dict], dict[str, str]]:
+    """返回 (表, 本表的外键边, {列的有效名: 定义时的列名})；同一有效名重复定义时保留第一列。"""
     columns: list[dict] = []
     edges: list[dict] = []
-    pk_cols: list[str] = []
+    pk_cols: list[str] = []  # 表级 PRIMARY KEY 里写的列引用原文，按有效名对列（TD-328）
+    keys: dict[str, str] = {}
 
     for part in _split_top_level(body):
         raw_head = part.split()[0]
@@ -343,14 +367,16 @@ def _parse_table(name: str, body: str) -> tuple[dict, list[dict]]:
             col, edge = _parse_column(part, name)
             if col:
                 columns.append(col)
+                keys.setdefault(_col_key(part), col["name"])
             if edge:
                 edges.append(edge)
 
+    pk_names = {keys[k] for k in map(_col_key, pk_cols) if k in keys}
     for col in columns:
-        if col["name"] in pk_cols:
+        if col["name"] in pk_names:
             col["primary_key"] = True
             col["nullable"] = False
-    return {"name": name, "columns": columns, "comment": None}, edges
+    return {"name": name, "columns": columns, "comment": None}, edges, keys
 
 
 def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
@@ -398,9 +424,11 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
         edge = {
             "from_table": table,
             "from_column": name,
+            "from_key": _col_key(m.group(1)),
             "to_table": tuple(_identifier_parts(fk.group(1))),
             "to_quoted": _quoted_parts(fk.group(1)),
             "to_column": _unquote(fk.group(2)) if fk.group(2) else "",  # 空 = 父表主键，parse_ddl 补全
+            "to_key": _col_key(fk.group(2)) if fk.group(2) else "",
         }
     return col, edge
 
@@ -408,7 +436,9 @@ def _parse_column(part: str, table: str) -> tuple[dict | None, dict | None]:
 def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[str]) -> None:
     upper = part.upper()
     if re.search(r"\bPRIMARY\s+KEY\b", upper):
-        pk_cols.extend(_paren_list(re.search(r"\(([^)]*)\)", part)))
+        m = re.search(r"\(([^)]*)\)", part)
+        if m:
+            pk_cols.extend(_split_top_level(m.group(1)))  # 保留原文：带不带引号决定怎么对列（TD-328）
         return
     fk = re.search(
         rf"\bFOREIGN\s+KEY\s*\(([^)]*)\)\s*REFERENCES\s+({_IDENT})\s*(?:\(([^)]*)\)|{_AFTER_REFERENCES})", part, re.IGNORECASE
@@ -418,12 +448,28 @@ def _parse_constraint(part: str, table: str, edges: list[dict], pk_cols: list[st
     _fk_edges(table, fk.group(1), fk.group(2), fk.group(3), edges)
 
 
-def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None, in_string: set[int] | None = None) -> None:
-    """应用 PostgreSQL 风格的 COMMENT ON TABLE / COMMENT ON COLUMN。"""
+def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None, in_string: set[int] | None = None, *,
+                    quoted: dict | None = None, folded: dict | None = None,
+                    column_keys: dict[str, dict[str, str]] | None = None) -> None:
+    """应用 PostgreSQL 风格的 COMMENT ON TABLE / COMMENT ON COLUMN。
+
+    目标表与 REFERENCES 一样经 `_resolve` 对到定义（大小写折叠、补/去 schema 前缀），对不上再退回
+    原来的逐字查找；列按有效名对（TD-328）。原先只逐字查，`CREATE TABLE Users` 配
+    `COMMENT ON TABLE users`、或注释写了 `public.` 而定义没写，注释都会被静默丢掉。"""
     by_name = {t["name"]: t for t in tables}
     mapping = mapping or {}
+    quoted = quoted or {}
+    column_keys = column_keys or {}
+    if folded is None:
+        folded = _folded_index(mapping, quoted)
     if in_string is None:
         in_string = _in_string_positions(sql)
+
+    def table_for(raw_parts: list[str], raw_quoted: tuple[bool, ...]) -> tuple[str, dict] | None:
+        key = tuple(raw_parts)
+        label = _resolve(key, raw_quoted, mapping, quoted, (), folded) or mapping.get(key, ".".join(key))
+        return (label, by_name[label]) if label in by_name else None
+
     pattern = re.compile(
         rf"COMMENT\s+ON\s+(TABLE|COLUMN)\s+({_IDENT})\s+IS\s+({_QUOTED})", re.IGNORECASE
     )
@@ -431,26 +477,23 @@ def _apply_comments(sql: str, tables: list[dict], mapping: dict | None = None, i
         if m.start() in in_string:
             continue
         kind, target, text = m.group(1).upper(), m.group(2), _unquote(m.group(3))
+        parts, flags = _identifier_parts(target), _quoted_parts(target)
         if kind == "TABLE":
-            table = by_name.get(mapping.get(tuple(_identifier_parts(target)), _qualified(target)))
-            if table:
-                table["comment"] = text
+            found = table_for(parts, flags)
+            if found:
+                found[1]["comment"] = text
         else:
-            parts = _identifier_parts(target)
             if len(parts) < 2:
                 continue
-            key = tuple(parts[:-1])
-            table = by_name.get(mapping.get(key, ".".join(key)))
-            if table:
-                for col in table["columns"]:
-                    if col["name"] == parts[-1]:
-                        col["comment"] = text
-
-
-def _paren_list(m: re.Match | None) -> list[str]:
-    if not m:
-        return []
-    return [c.strip() for c in (_unquote(x) for x in _split_top_level(m.group(1))) if c]
+            found = table_for(parts[:-1], flags[:-1])
+            if not found:
+                continue
+            label, table = found
+            column = parts[-1] if flags[-1] else parts[-1].lower()
+            name = column_keys.get(label, {}).get(column, parts[-1])
+            for col in table["columns"]:
+                if col["name"] == name:
+                    col["comment"] = text
 
 
 def _unquote(s: str) -> str:

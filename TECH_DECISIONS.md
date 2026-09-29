@@ -1817,3 +1817,30 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 - `messages.py`：管理员经 API 直接 `POST /support/messages` 会以客户身份写进自己的会话，界面在管理员选中会话前禁用发送，只有手工调用才会出现，不改。
 
 **测试**：`tests/test_config_validation.py` 的 `ILLEGAL` 加 `ALGORITHM` 的 `hs256` / `RS256` / `none`；新增 `test_every_allowed_jwt_algorithm_signs_and_verifies_with_the_secret`，白名单里每个取值都用字符串密钥实际签发并校验一次（参数取自 `get_args`，字段若被改回 `str` 不在收集期崩溃，由 `ILLEGAL` 报失败）。`tests/test_dynamic_crawl.py`：原 `test_launch_failure_is_translated_not_leaked` 的假 `async_playwright` 在停用后从没被调用，名字与说明描述的是停用前的「启动失败翻译」—— 改名 `test_installed_playwright_still_reports_rendering_disabled`，假模块一旦被调用就报错，钉住停用状态下不启动浏览器，原断言不变；缺包用例另断言提示写明「已安全停用」「安装后也不能使用」。`tests/test_db_admin.py` 新增 CLI 用例（用户名过短、保留名、口令超过 72 字节三种：连库被替换成直接判失败，返回 1，报错点名字段且不含口令）和 12 位下限用例。改前代码上 8 条失败（`ALGORITHM` 三条、缺包提示一条、凭据校验四条）；「不启动浏览器」是守卫，改前也通过。
+
+
+## TD-328：DDL 解析的列名引用与 COMMENT ON 目标按 TD-269 同一规则折叠
+
+**状态**：已实施（2026-09-29），优化阶段重构批次。
+
+**范围**：复核 `app/tools/sql_ddl.py` 与 `app/models.py`。`models.py` 的注释与代码一致（例如订单 docstring 允许 closed → paid，`payment_ledger.settle` 正好只接受 pending/closed），结构由 schema 等价测试守着，不改。
+
+**问题**：TD-269 让 `REFERENCES` 的**表名**按 PostgreSQL 规则匹配（不带引号折叠成小写、带引号精确，另可补/去 schema 前缀），但另外三处仍逐字比较。实测改前：
+- 表级 `PRIMARY KEY (ID)` 配列 `id`：主键丢失，列还被标成可空；
+- `FOREIGN KEY (UID) REFERENCES users(ID)`（表内、列级、ALTER 三条路径都一样）：边照出，但 `from_column`/`to_column` 保留引用处的写法。前端 `er-layout.js` 的 `rowCenter` 按列名精确找行，找不到就把连线画到表头中间，外键标记也不出现在该列上；Word 导出的关系行也写成 `o.UID → users.ID`；
+- `CREATE TABLE Users` 配 `COMMENT ON TABLE users`、`COMMENT ON COLUMN users.ID`、或注释写了 `public.users` 而定义没写：注释被静默丢掉。
+
+这些写法 PostgreSQL 都当成同一张表、同一列；手写 DDL 里大小写不统一很常见。
+
+**改法**：
+- 新增 `_col_key(raw)`：取列引用开头的标识符，带引号（双引号、反引号）按原样，不带引号折叠成小写。只取开头一个标识符，所以 `PRIMARY KEY (id ASC)` 也对得上。
+- `_parse_table` 多返回一个「有效名 → 定义时的列名」映射（同一有效名重复定义时保留第一列），表级主键按它对列；`_paren_list`（先去引号再逐字比较）删除。
+- 外键边在内部多带 `from_key`/`to_key`（与已有的 `to_quoted` 同样做法），`parse_ddl` 解析完表名后把两端列名换成定义时的写法，再弹出这两个字段，输出结构不变。父表不在 DDL 里、或带引号的父列对不上时保留原写法 —— 与 TD-269 一样，不替用户「修正」数据库会拒绝的写法。
+- `_apply_comments` 的目标表先经 `_resolve`（与 REFERENCES 同一套匹配），对不上再退回原来的逐字查找；列按有效名对。
+
+**不改**：
+- 反引号仍按「带引号」处理（精确匹配），与 TD-269 对表名的处理一致。MySQL 的列名其实总是大小写不敏感，但同一份 MySQL DDL 里定义与引用通常都用反引号、写法一致，为此另立一套 MySQL 规则不划算。
+- 「定义带 schema、注释不带」这一路原来就能对上（经标签逐字查找），保留。
+- 完整方言解析仍不做（TD-269 的代价说明不变）。
+
+**测试**：`tests/test_sql_ddl.py` 新增三条：表级主键按有效名对列（含 `id ASC`；带引号的 `"ID"` 与 `id` 仍是两列）、三条外键路径的列名都报告成定义时的写法（另钉住带引号父列与父表缺失时保留原写法）、COMMENT ON 的表与列按折叠和 schema 对上（带引号的定义只认原样）。改前代码上 3 条全部失败。满额 20000 字符、全部大小写混写的 175 张表解析耗时 37 ms，TD-285 的线性耗时不变。
