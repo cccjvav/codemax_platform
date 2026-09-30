@@ -70,18 +70,19 @@
 | --- | --- | --- |
 | `tokenize` / `_corpus_tokens` | jieba 分词；把问题、关键词、答案组成索引语料 | 词袋索引在导入时建立，改 FAQ 源码需重新加载/部署，不是数据库在线编辑器 |
 | `_Index.bm25` / `cosine` | 原始 BM25／TF-IDF 余弦分量 | BM25 无固定上界；余弦使用相同加权空间的模长；不能把排序分当概率 |
-| `search(query, k)` | Top-k FaqHit，含 score 和 confidence | score 是当前候选集的融合排序分，不可跨查询比较；confidence 是绝对启发式置信分，也不是统计校准概率 |
+| `search(query, k)` | Top-k FaqHit，含 score、confidence 与 matched（查询里在该 FAQ 出现过的词） | score 是当前候选集的融合排序分，不可跨查询比较；confidence 是绝对启发式置信分，也不是统计校准概率 |
+| `GENERIC_TERMS` / `FaqHit.topical` | 不表示话题的词（虚词、代词、疑问词、能愿动词、「支持」「提供」等）／这次命中是否至少共有一个非通用词 | 通用词照常参与打分，只是不能单独撑起词袋命中（TD-335）；语义命中恒为 topical。表是按词性手写的，语料 IDF 与 jieba 通用 IDF 都分不开「支持」与「价格」 |
 | `_normalize` / `_saturate` | 相对归一化／有界饱和值 | 分别服务排序与置信度，不能混用阈值 |
 | `fuse` / `fused_scores` / `RetrievalIndex` | 按 `BM25_WEIGHT` 加权的融合排序分；`RetrievalIndex` 是 `_Index` 的公开名 | FAQ 检索与客服 RAG 共用同一公式与权重（TD-289）；分数只在本次结果集内可比 |
 | `semantic_threshold` / `calibrate_threshold` | 当前配置阈值／正负样本分数的分隔值 | 空样本、分布重叠或安全间隔不足拒绝计算；默认经验值未代替真实模型标定 |
 | `_semantic_key` / `warm_semantic_index` | 提供方、凭据摘要、模型、transport、语料绑定的向量缓存；成功 bool | LLM_EMBED_ENABLED 默认 false，关闭时预热不请求并清缓存、查询不使用语义结果；开启后预热超时最多 5 秒，模型失败回退词袋；先验证完整向量再发布，不把半个索引提供给查询 |
 | `semantic_ready` / `semantic_search` | 是否有索引／语义 Top-k；不可用 None | ready 不证明任意客户端/语料都兼容；查询持有一致快照，等待期间缓存换代则回退；None 与“有结果但不相关”不同 |
 | `reset_semantic_index` | 清空语义向量、模长、键 | 用于测试/显式失效，不负责重建词袋索引 |
-| `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答。英文关键词按词边界匹配，带「早」的问候只认整句（R-05） |
+| `RuleIntentRouter.classify` / `llm_classify` | IntentResult（FAQ/闲聊/专业、置信度、理由） | 确定性规则先行；LLM 只做分类，低信心或协议错误不能变成高置信硬答。英文关键词按词边界匹配，带「早」的问候只认整句（R-05）。FAQ 命中要求置信度 ≥ 0.40 且 `topical`（TD-335） |
 | `_second_opinion` / `_log_labeling_sample` | 低置信规则的语义/模型复核，及标定样本日志 | 只在需要时调用模型；样本日志不是人工客服会话，运营应控制访问与保留期限 |
 | `_retrieve_articles` / `_article_index` / `_rank_articles` / `_build_index` | 相关标题与正文片段；无相关内容 []，查询失败 None；`_article_index` 管指纹缓存，`_rank_articles` 用 `fused_scores` 排序 | 读取文章内容并计算指纹，跨进程修改可见；不是增量向量数据库，全文读取/哈希仍有成本 |
 | `reset_article_index` | 清除进程内文章检索缓存 | 测试隔离；文章持久数据不删除 |
-| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员。模型失败的 `reason` 只写阶段加 `llm.public_failure_note`（busy 提示稍后再试，其余「详情已记入服务日志」），异常原文、类别和状态码由 `_log_llm_failure` 写 `codemax.support` warning（TD-292）；明确要人工的关键词匹配前先去掉「人工智能」（R-05） |
+| `answer` / `_classify` / `_answer_faq` / `_answer_chitchat` / `_answer_professional` / `_escalate` | SupportReply：答案、意图、来源、置信分、引用、escalated/reason | 规则 → 必要时第二意见（`_classify`）→ FAQ/LLM/RAG 各一个处理函数；`_answer_faq` 取词袋结果时同样只收 `topical` 的命中，LLM 判成 FAQ 但没有话题依据时转人工（TD-335）；低置信、资料缺失或模型失败给人工入口，不自动创建工单、派单或通知管理员。模型失败的 `reason` 只写阶段加 `llm.public_failure_note`（busy 提示稍后再试，其余「详情已记入服务日志」），异常原文、类别和状态码由 `_log_llm_failure` 写 `codemax.support` warning（TD-292）；明确要人工的关键词匹配前先去掉「人工智能」（R-05） |
 
 <!-- doc-contract:files:start -->
 
@@ -91,12 +92,12 @@
 | [`app/tools/browser.py`](browser.py) | `7bb2233a0d90` | L1–L79 |
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8b5300779881` | L1–L224 |
-| [`app/tools/faq.py`](faq.py) | `7f7174c8d666` | L1–L413 |
-| [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
+| [`app/tools/faq.py`](faq.py) | `c26b8404947b` | L1–L446 |
+| [`app/tools/intent.py`](intent.py) | `9fb3d4bc1a79` | L1–L209 |
 | [`app/tools/llm.py`](llm.py) | `a693ee96005a` | L1–L252 |
 | [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |
 | [`app/tools/sql_ddl.py`](sql_ddl.py) | `38991c038807` | L1–L537 |
-| [`app/tools/support.py`](support.py) | `7b0d616fe445` | L1–L359 |
+| [`app/tools/support.py`](support.py) | `4653eb6beef9` | L1–L361 |
 | [`app/tools/word.py`](word.py) | `69ccc5ac4d4a` | L1–L64 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

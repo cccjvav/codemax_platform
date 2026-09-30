@@ -296,7 +296,9 @@ async def _classify(
 
 def _answer_faq(question: str, text: str, result: IntentResult, semantic_hit: FaqHit | None) -> SupportReply:
     # 级联里语义命中的那条直接就是答案，不必再查一遍；否则走词袋检索。
-    hit = semantic_hit if semantic_hit is not None else next(iter(search(text, k=1)), None)
+    # 词袋这一路同样要求话题依据（TD-335）：LLM 分类判成 FAQ 时，原来直接取词袋第一条，
+    # 只撞上「支持」一个词的无关 FAQ 也会被当成答案发出去。
+    hit = semantic_hit if semantic_hit is not None else next((h for h in search(text, k=1) if h.topical), None)
     if hit is None:
         return _escalate(question, "路由判为 FAQ 但检索已无命中", Intent.FAQ, result.confidence)
     return SupportReply(

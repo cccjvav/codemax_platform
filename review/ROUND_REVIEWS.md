@@ -388,3 +388,12 @@
 | 编号 | 发现 | 处理 |
 |---|---|---|
 | RR-63 | 自审 TD-334：① 列表的 `expired` 与详情接口同用 `order_state.is_expired`，已付款、已关闭单恒为 false，测试覆盖了已付款单。② 列表每行多一次 `is_expired` 调用（纯时间比较，不查库），50 行的开销可以忽略；列表仍是只读接口，不关单，测试断言状态仍为 pending。③ `render` 在过期分支之前清空 `#p-qr` 与 `#p-link`，所以从未过期单切到过期单时不会残留上一张的码；`stop()` 与原来一样在过期时停掉轮询，TD 原注释随代码一起移动。④ 自动恢复路径（`restoreLatest`）原本就先取详情、过期不恢复，不受影响，既有 `test_an_expired_pending_order_is_not_restored` 仍通过。⑤ 手动收款码模式的提示文字原来有「未过期才改」的判断，现在过期分支已提前返回，这个判断变成恒真，已删掉，行为不变。⑥ 真 PostgreSQL（pgserver）上跑受影响的 `test_shop_page`、`test_site`（含 TD-333 的 404 用例）、`test_mock_pay`、`test_download`、`test_e2e`，121 项通过。⑦ 同轮截图发现智能助手被通用词「支持」带偏，属于检索标定，不在本批修改，登记为 ROADMAP R-10。 | 无需改动；R-10 待处理。 |
+
+
+## 2026-09-30：智能助手通用词命中（TD-335）的本轮复审
+
+范围：TD-335 的 diff（`app/tools/faq.py`、`intent.py`、`support.py`，两个测试文件，导读与目录说明，ROADMAP R-10）。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-64 | 自审 TD-335：① 规则只加条件、不改分数：`search` 的 score、confidence 与排序逐字不变，`matched` 只是附带信息；TD-151 标定的 0.40 门槛与既有 FAQ 测试全部通过。② 通用词表逐词核对过：每条 FAQ 的标准问法、每个召回词单独分词后都含至少一个非通用词（测试固定），表里没有名词或业务动词；「多少」列为疑问词后，「多少钱」靠「钱」、「价格是多少」靠「价格」命中。③ 标点会进 jieba 分词结果，答案文本里也有「，」，如果不排除，一个逗号就能冒充话题词；`_WORDLIKE` 只认含汉字或英文字母的词，纯数字同样不算。④ 语义命中的 `topical` 恒为真：它不经过词袋，门槛是余弦 `LLM_SEMANTIC_THRESHOLD`，不应被词表影响。⑤ `_answer_faq` 在词袋没有话题依据时走已有的「路由判为 FAQ 但检索已无命中」转人工分支，没有新增回复文案；公开 reason 不含内部细节（TD-292 的约束不变）。⑥ `FaqHit` 新字段带默认值，`semantic_search` 里的构造不用改；全仓只有 faq.py、intent.py、support.py 和测试读取 FaqHit，已逐处核对。⑦ 测试只用 SQLite 的 `db` fixture 读文章表，本批不涉及 SQL 与模型，未另跑 PostgreSQL。 | 无需改动。 |

@@ -16,6 +16,7 @@ import dataclasses
 import hashlib
 import logging
 import math
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
@@ -137,6 +138,31 @@ _INDEX = _Index(_corpus_tokens())
 RetrievalIndex = _Index
 
 
+# 不表示话题的词（TD-335）：虚词、代词、疑问词、能愿动词，以及「支持」「提供」这类什么话题都能接的动词。
+# 它们照常参与打分（「怎么收费」与「怎么退款」要靠「怎么」之外的词区分，但不必把「怎么」删掉，见 tokenize），
+# 只是**不能单独撑起一次 FAQ 命中**：词袋命中必须至少共有一个不在这里的词，见 `FaqHit.topical`。
+#
+# 为什么是手写的表而不是按词频算：语料只有十几条，「支持」只出现在「支持哪些数据库」一条里，
+# 按语料 IDF 它是稀有词、权重很高，于是「支持 IPv6 吗」「支持英文界面吗」都以 0.438 命中了数据库那条。
+# jieba 自带的通用 IDF 也分不开：「价格」（4.55）比「支持」（5.08）还常见，按阈值切会把价格问题一起挡掉。
+# 所以按词性列：只收上面几类，不收任何可能是话题的词；加词前先跑 tests/test_support.py 的正负例。
+GENERIC_TERMS = frozenset((
+    # 疑问与语气
+    "吗", "呢", "吧", "啊", "怎么", "怎么办", "怎样", "如何", "什么", "哪些", "哪个", "哪里", "多少",
+    # 助词、介词、副词
+    "的", "了", "是", "在", "和", "与", "或", "就", "都", "也", "还", "再", "先", "后", "已", "不",
+    # 代词
+    "我", "你", "您", "你们", "我们", "他们", "它", "这", "那", "这个", "那个",
+    # 能愿动词与泛义动词
+    "可以", "能", "能够", "会", "要", "想", "有", "支持", "提供", "给", "做", "用",
+))
+_WORDLIKE = re.compile(r"[A-Za-z\u4e00-\u9fff]")  # 标点、纯数字不算话题词
+
+
+def _is_topic_term(token: str) -> bool:
+    return token not in GENERIC_TERMS and bool(_WORDLIKE.search(token))
+
+
 @dataclass(frozen=True)
 class FaqHit:
     faq: Faq
@@ -145,6 +171,12 @@ class FaqHit:
     cosine: float  # 归一化后的余弦分量
     confidence: float  # 绝对置信度 [0,1]：由未归一化的原始分算出，**可以**跨查询比较
     semantic: bool = False  # True = 本条来自语义检索（S4-02-5）。此时 bm25 无意义、恒为 0
+    matched: tuple[str, ...] = ()  # 查询里在这条 FAQ（问法 + 召回词 + 答案）中出现过的词，按查询顺序去重
+
+    @property
+    def topical(self) -> bool:
+        """这次命中是否有话题依据（TD-335）：词袋命中至少共有一个非通用词；语义命中由它自己的余弦门槛把关。"""
+        return self.semantic or any(_is_topic_term(t) for t in self.matched)
 
 
 # BM25 无上界，不能直接和 [0,1] 的余弦相加。用饱和函数 x/(x+S) 压到 [0,1)，
@@ -201,6 +233,7 @@ def search(query: str, k: int = 3) -> list[FaqHit]:
             bm25=bm[i],
             cosine=cos[i],
             confidence=BM25_WEIGHT * _saturate(raw_bm[i]) + (1 - BM25_WEIGHT) * raw_cos[i],
+            matched=tuple(t for t in dict.fromkeys(q) if t in _INDEX.tf[i]),
         )
         for i in ranked[:k]
         if fused[i] > 0

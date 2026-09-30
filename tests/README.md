@@ -93,7 +93,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_faq_semantic.py`](test_faq_semantic.py) | `d92fb77c23fc` | L1–L607 |
 | [`tests/test_free_text_control_chars.py`](test_free_text_control_chars.py) | `c6b6344a754f` | L1–L46 |
 | [`tests/test_frontend_supply_chain.py`](test_frontend_supply_chain.py) | `71ec176ef8cc` | L1–L319 |
-| [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `b373f8176ef3` | L1–L215 |
+| [`tests/test_intent_cascade.py`](test_intent_cascade.py) | `64d15e9dbf6e` | L1–L228 |
 | [`tests/test_llm_concurrency.py`](test_llm_concurrency.py) | `c7c6f8df0def` | L1–L270 |
 | [`tests/test_llm_response_bounds.py`](test_llm_response_bounds.py) | `b994e9afa2f7` | L1–L135 |
 | [`tests/test_manual_pay.py`](test_manual_pay.py) | `5a14fb833254` | L1–L331 |
@@ -134,7 +134,7 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
 | [`tests/test_site.py`](test_site.py) | `d9b32ca29d42` | L1–L105 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `9fffc93591fb` | L1–L420 |
-| [`tests/test_support.py`](test_support.py) | `f0ccc6097a4a` | L1–L342 |
+| [`tests/test_support.py`](test_support.py) | `b49f63bfc3c2` | L1–L382 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
@@ -481,3 +481,10 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_shop_page.py::test_order_history_marks_expired_pending_orders_and_drops_their_qr`：`GET /shop/orders` 的过期待付款单 `expired=true`、`qr_svg` 为空、状态仍是 pending；未过期单带码；已付款单 `expired=false`。改前失败。
 - `test_shop_page.py::test_clicking_an_expired_history_row_shows_no_payment_entry`（过期、未过期两种）：过期行标「已过期」，点开后标题「订单已过期」、有过期提示、没有收款码与收银台链接、不轮询；未过期对照照旧。改前失败。
 - `test_ui_accessibility.py::test_pending_order_heading_states_the_status_not_the_order_number`：标题断言改为 `<h2 id="p-title">等待支付</h2>`。
+
+## 2026-09-30 智能助手通用词命中（TD-335）
+
+- `test_support.py::test_generic_words_alone_do_not_make_a_faq_hit`（5 个无关问题）：分数过了 0.40 门槛、第一条是「支持哪些数据库」，但只共有通用词，`topical` 为假，规则路由不判 FAQ。改前失败。
+- `test_support.py::test_paraphrased_faq_questions_still_hit`（16 个换说法的真问题）：照旧路由到对应 FAQ。改前改后都通过，是对照组。
+- `test_support.py::test_every_faq_question_and_keyword_is_topical_on_its_own`：每条 FAQ 的问法和召回词单独都含话题词；语义命中恒为 topical。
+- `test_intent_cascade.py::test_llm_faq_verdict_does_not_send_an_off_topic_faq`：LLM 把「支持 IPv6 吗」判成 faq 时转人工，不发数据库那条答案。改前失败。

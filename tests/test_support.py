@@ -340,3 +340,43 @@ async def test_busy_llm_keeps_a_retry_hint_in_the_public_reason(db):
     r = await answer("你好", db, llm=BusyLLM())
     assert r.escalated and "闲聊应答失败（模型繁忙，请稍后再试）" in r.reason
     assert "4 个" not in r.reason
+
+
+# ---------------- TD-335：只共有通用词不算 FAQ 命中 ----------------
+
+@pytest.mark.parametrize("text", [
+    "支持 IPv6 吗", "你们的服务器在哪个机房，支持 IPv6 吗", "支持英文界面吗", "支持 Apple Pay 吗", "你们支持哪些编程语言",
+])
+def test_generic_words_alone_do_not_make_a_faq_hit(router, text):
+    """R-10：这些问题与本站 FAQ 无关，只因共有「支持」（或再加「哪些」）就以 0.438～0.534 命中「支持哪些数据库」，
+    高于 0.40 的门槛。现在分数不变，但词袋命中必须至少共有一个非通用词，这些问题不再判成 FAQ。"""
+    hit = faq_mod.search(text, k=1)[0]
+    assert hit.faq.q == "支持哪些数据库" and hit.confidence >= FAQ_CONFIDENCE_THRESHOLD, "前提：分数本身确实过了门槛"
+    assert not hit.topical, hit.matched
+    assert router.classify(text).intent is not Intent.FAQ
+
+
+@pytest.mark.parametrize(("text", "faq_q"), [
+    ("多少钱", "毕业设计服务怎么收费"), ("价格是多少", "毕业设计服务怎么收费"), ("服务多少钱", "毕业设计服务怎么收费"),
+    ("可以报销吗", "可以开发票吗"), ("用的什么数据库", "支持哪些数据库"), ("多久能交付", "交付周期是多久"),
+    ("给不给源代码", "会给源码吗"), ("能先试用吗", "可以先看演示再付款吗"), ("有演示吗", "可以先看演示再付款吗"),
+    ("付了钱什么时候开始", "付款后多久开始做"), ("可以改需求吗", "中途可以修改需求吗"),
+    ("做完不满意怎么办", "验收不通过怎么办"), ("文件怎么下载", "怎么下载已购买的文件"),
+    ("下载链接打不开", "怎么下载已购买的文件"), ("忘记密码了", "账号忘记密码怎么办"), ("登录不了怎么办", "账号忘记密码怎么办"),
+])
+def test_paraphrased_faq_questions_still_hit(router, text, faq_q):
+    """对照（TD-335）：通用词规则只加条件、不改分数，换了说法的真问题照旧命中对应 FAQ。
+    这些都是改动前就命中的问法，其中「多少钱」「有演示吗」「可以改需求吗」一半以上是通用词。"""
+    r = router.classify(text)
+    assert r.intent is Intent.FAQ and f"「{faq_q}」" in r.reason, r.reason
+
+
+def test_every_faq_question_and_keyword_is_topical_on_its_own():
+    """防回归（TD-335）：通用词表不能收进任何话题词。每条 FAQ 的标准问法、每个召回词单独拿来，
+    都必须至少含一个非通用词 —— 否则那条 FAQ 会有召回词永远撑不起命中。"""
+    for f in faq_mod.FAQS:
+        for phrase in (f.q, *f.keywords):
+            tokens = faq_mod.tokenize(phrase)
+            assert any(faq_mod._is_topic_term(t) for t in tokens), (f.q, phrase, tokens)
+    semantic = faq_mod.FaqHit(faq=faq_mod.FAQS[0], score=0.9, bm25=0.0, cosine=0.9, confidence=0.9, semantic=True)
+    assert semantic.topical, "语义命中由自己的余弦门槛把关，不受通用词规则影响"

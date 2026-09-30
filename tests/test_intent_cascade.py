@@ -213,3 +213,16 @@ async def test_labeling_sample_not_logged_when_rule_router_is_confident(db, capl
     with caplog.at_level(logging.INFO, logger="codemax.intent.labels"):
         await answer("毕业设计服务怎么收费", db, llm=FakeLLM())
     assert not [r for r in caplog.records if r.name == "codemax.intent.labels"]
+
+
+async def test_llm_faq_verdict_does_not_send_an_off_topic_faq(db):
+    """TD-335：LLM 分类把「支持 IPv6 吗」判成 faq 时，原来直接取词袋第一条「支持哪些数据库」当答案发出去
+    （两者只共有「支持」一个词）。现在词袋这一路同样要求话题依据，没有就转人工。
+    查询向量与所有 FAQ 正交，语义检索不会命中，才走得到 LLM 这一步。"""
+    llm = FakeLLM(reply="faq", vectors={"支持 IPv6 吗": [0.0, 0.0, 1.0]})
+    assert await warm_semantic_index(llm) is True
+
+    r = await answer("支持 IPv6 吗", db, llm=llm)
+    assert llm.chat_calls, "规则没把握，应当问过 LLM"
+    assert r.escalated and r.source == "human", r
+    assert "支持哪些数据库" not in r.references and "MySQL" not in r.answer

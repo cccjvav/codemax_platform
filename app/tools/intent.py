@@ -43,6 +43,10 @@ class Intent(str, Enum):
 #   「毕业设计服务怎么收费」0.537 / 「可以开发票吗」0.522 / 「服务多少钱」0.502  → 命中
 #   「怎么退款」0.322（无对应 FAQ）/ 「python 部署 nginx 报错」0.306 → 不命中
 # 语料变大后必须重新标定，否则这个数没有意义（TD-151）。
+#
+# 门槛之外还有一道话题依据（TD-335，`FaqHit.topical`）：「支持 IPv6 吗」「支持英文界面吗」只共有「支持」，
+# 分数 0.438 过了门槛却与本站无关。把门槛抬到 0.45 以上能挡住它们，但「多少钱」（0.448）等真问题会一起掉下去，
+# 所以不动门槛，改为要求至少共有一个非通用词（通用词表见 faq.GENERIC_TERMS）。
 FAQ_CONFIDENCE_THRESHOLD = 0.40
 
 # 技术/专业词表。命中即倾向判为专业问题。
@@ -98,7 +102,9 @@ class RuleIntentRouter:
         hits = search(query, k=1)
         # 必须比 confidence 而不是 score：score 是「本结果集内」归一化的，
         # 取 k=1 时那条永远是 max、恒等于 1.0，任何查询都会被判成命中。
-        if hits and hits[0].confidence >= FAQ_CONFIDENCE_THRESHOLD:
+        # 分数够了还要有话题依据（TD-335）：只共有「支持」「吗」这类通用词的不算命中，
+        # 否则「支持 IPv6 吗」会以 0.438 命中「支持哪些数据库」。
+        if hits and hits[0].confidence >= FAQ_CONFIDENCE_THRESHOLD and hits[0].topical:
             h = hits[0]
             return IntentResult(
                 Intent.FAQ,
