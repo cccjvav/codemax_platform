@@ -1904,3 +1904,15 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 **看过但不改**：订单管理页凭证里的时间是原始 ISO 串（如 `2026-09-29T21:03:36.348699`），这是核账用的精确值，不改成本地化格式；窄屏下「流水：MOCK-」「2026-09-」在连字符处换行，属于正常断点；订单列表、改密浮层、登录浮层、支付成功页布局正常。
 
 **测试**：`tests/test_ui_accessibility.py` 新增 `test_admin_record_boxes_keep_field_labels_whole`、`test_register_hint_states_username_rules_in_plain_words`、`test_customer_sees_own_messages_labelled_me`（源码与构建产物各跑一次）；`tests/test_payments_frontend.py::test_workbench_browser_logic` 新增场景 `review-lines`（源码与构建产物各一次）。脚本相关的两项在改前代码上失败（已用 git stash 验证），另两项是对模板文字与样式的断言。前端改动已 `npm run build` 并提交 `app/static/js`。
+
+## TD-333：界面优化第三轮：出错与空状态
+
+**状态**：已实施（2026-09-30），优化阶段界面批次。第三轮真 Chromium 截图（1280 与 390 宽）覆盖出错与边角状态：ER 图解析失败、Mermaid 在未配置模型时的提示、智能助手的答案与参考列表、流程图页游客与登录后的文件管理面板、不存在的地址。所有页面文档宽度都等于视口。
+
+- **不存在的地址只显示一行 JSON**：浏览器打开任何没有路由的地址（如 `/tools/nope`），页面只有 `{"detail":"Not Found"}`，没有导航，也回不到首页。现在 `app/routers/site.py` 的 `not_found_handler`（在 `main.py` 登记为 Starlette `HTTPException` 处理器）在「GET/HEAD、Accept 含 text/html、detail 为默认 Not Found」三个条件同时成立时渲染 `not_found.html`：带顶栏与页脚导航的站内页，标题「页面不存在」，一个「返回首页」按钮，状态码仍是 404。其余情况交回 FastAPI 默认处理器，JSON 不变：页面脚本的 fetch 默认 Accept 是 `*/*`，API 客户端不带 text/html，业务代码抛的 404 都写了中文原因（前端要读 `detail`）。页面不回显请求路径，因为路径由访问者任意构造。
+- **流程图文件管理面板没有空状态**：登录后展开「管理云端文件 / 回收站」是空白，要再点「刷新文件与回收站」；云端和回收站都没有文件时，点完刷新仍然什么也不出现，看不出是没有文件还是没刷新成功。现在登录用户展开面板就加载一次；两个列表都空时，列表后的 `<p id="diagram-manage-empty" role="status">` 写明「云端没有保存的流程图，回收站也是空的。」，有文件时清空。提示不写进 `<ul>`（TD-278），段落始终存在不隐藏（live region 不能 `display:none`），没有文字时由 `:empty` 收掉外边距。游客展开面板不加载，也不弹登录浮层；按钮本身仍会提示登录。换账号时连同列表一起清空提示。
+- **FAQ 答案里的界面名没有括起来**：「怎么下载已购买的文件」的答案写「在商城的我的订单中领取下载链接」，读起来像断错的句子。改为「在商城「我的订单」中领取下载链接」，与商城页的写法一致。
+
+**看过但不改**：ER 图解析失败的提示「未解析到任何 CREATE TABLE 语句」在按钮下方红字显示，两种宽度都清楚；Mermaid 未配置模型时后端说「未配置 LLM_API_KEY」，但前端已换成「AI 生成暂不可用（站点未开启模型服务）…」（`tests/test_llm_concurrency.py` 固定了这条翻译）；智能助手的答案与参考列表排版正常；业务代码写了中文原因的 404（如生产环境打开模拟收银台）在浏览器里仍显示 JSON，属于部署配置而非用户可达路径，不在本批处理。
+
+**测试**：`tests/test_site.py` 新增 `test_unknown_address_opened_in_browser_gets_site_404_page`（三个地址）与 `test_non_browser_404s_stay_json`；`tests/test_ui_accessibility.py` 新增 `test_drawio_manage_panel_loads_on_open_and_says_when_empty`（空列表、有文件、游客三种场景，源码与构建产物各一次）。前两类中浏览器 404 与流程图面板的用例在改前代码上失败（已用 git stash 验证）；`test_non_browser_404s_stay_json` 在改前改后都通过，它固定的是不应改变的行为。前端改动已 `npm run build` 并提交 `app/static/js`。

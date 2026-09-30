@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+{# 浏览器打开不存在的地址时的 404 页（TD-333）；API 客户端与页面脚本的请求仍收到 JSON，见 app/routers/site.py 的 not_found_handler。
+   不回显请求路径：路径由访问者任意构造，放进页面等于替别人往站内页面里写字。 #}
+<h2 class="page-heading">页面不存在</h2>
+<p>这个地址没有对应的页面，可能是链接写错了，或页面已经下线。</p>
+<p>可以从上方导航进入在线工具与毕设服务，或回到首页。</p>
+<p><a class="cta" href="/">返回首页</a></p>
+{% endblock %}

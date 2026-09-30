@@ -425,7 +425,7 @@
     },
     {
       "path": "app/frontend/drawio-page.js",
-      "sha256": "b3accf2c441ec47662311678874228cc326d95165eb6e0022b74ba1a9578b896",
+      "sha256": "4ff092131147fbb01117ef04a619aefac19ab0e613d7e9261e34d5c4397a4e13",
       "method": "manual",
       "blocks": [
         {
@@ -479,14 +479,14 @@
           "explanation": "下载也明确 export 当前 XML，Blob URL 点链接后延时 revoke。导入通过隐藏 file-input：先限字节、异步读文本、再校验 XML/epoch；清云 id/etag 避免覆盖原文件，导入完清 input 允许再次选同文件。 R-08：下载成功与保存同样处理（本地已有副本，不会丢）；导入在弹出文件选择之前询问，导入成功后清零。"
         },
         {
-          "end": 178,
+          "end": 179,
           "title": "syncAuth：保留游客草稿但不跨账号带走资产",
-          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。 R-08：换账号时清空上一个账号的图并把 dirty 清零，不询问：退出与换账号无法取消。游客首次登录保留草稿，dirty 也随之保留。"
+          "explanation": "btn-login 唤共享浮层。syncAuth 比用户名身份，切换后清管理列表/云 id/版本并 resetEditor；从已登录身份离开清 XML，首次游客登录可保留游客草稿。它不是后端鉴权，真实权限仍查库。 TD-272：首次同步只登记身份并（登录时）取一次列表，不重置编辑器：模板里的 iframe 已经在加载 embed.diagrams.net，重建会让外部编辑器首屏被下载 2～3 次。账号切换仍走完整重置路径，账号隔离不退化。 TD-273：syncAuth 收到 reason==='expired' 时只更新顶栏与状态文字，不清 identity/xml、不重建 iframe —— 同一账号重登后可接着按原 ETag 保存；换账号仍走完整重置。 TD-273 追加：启动阶段若 `CodeMaxAuth.settled === false && !user` 则先返回（身份还没到），等身份真正到达后再登记 —— 「页面打开时已登录」因此也只加载一次外部编辑器。 TD-278：syncAuth 同时切换 #drawio-login-prompt（「云端保存需登录：[登录 / 注册]」整段）：已登录隐藏、访客或到期后显示。此前两句同时出现、互相矛盾。 R-08：换账号时清空上一个账号的图并把 dirty 清零，不询问：退出与换账号无法取消。游客首次登录保留草稿，dirty 也随之保留。 TD-333：换账号时连同文件列表一起清空 #diagram-manage-empty 的空状态提示，不把上一个账号的「没有文件」留给下一个账号。"
         },
         {
-          "end": 216,
+          "end": 225,
           "title": "manage / action：回收站、恢复与永久删",
-          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。 R-08：把正在编辑的图移到回收站会清空编辑器，所以同样先 discardOk()。段尾注册 beforeunload：dirty 时 preventDefault 并设 returnValue，浏览器显示它自己的通用离开提示（页面无法自定义文字）。 TD-326：行内操作按钮设 className=\"ghost\"（描边）：原来每行一个实心主按钮，列表里最醒目的是破坏性操作。"
+          "explanation": "并发取活跃/回收站，只有同 epoch 结果可展示。局部 action 为每行创建按钮闭包：永久删需确认且携带该 row.version 的 If-Match；操作后再核 epoch，若删当前活跃图则清编辑器，刷新列表和管理区。最终订阅 Auth 并执行首次同步。 TD-315：manage 与 refreshList 一样先确认两份列表都是数组，否则报「流程图列表格式无效」，不再冒出英文的 rows is not iterable。 R-08：把正在编辑的图移到回收站会清空编辑器，所以同样先 discardOk()。段尾注册 beforeunload：dirty 时 preventDefault 并设 returnValue，浏览器显示它自己的通用离开提示（页面无法自定义文字）。 TD-326：行内操作按钮设 className=\"ghost\"（描边）：原来每行一个实心主按钮，列表里最醒目的是破坏性操作。 TD-333：两个列表都空时在列表外的 role=status 段落 #diagram-manage-empty 写明「云端没有保存的流程图，回收站也是空的。」，有文件时清空（不写进 <ul>，TD-278）；#diagram-manage-panel 的 ontoggle 在登录用户展开面板时直接调用 manage()，游客展开不加载也不弹登录浮层。"
         }
       ]
     },
@@ -1555,38 +1555,43 @@
     },
     {
       "path": "app/routers/site.py",
-      "sha256": "3bb8b8e3c35ccf3ea22304cbb1dfb0e58597463b02e9a3b4b386161721bba9a5",
+      "sha256": "ac0cd74480622efeca6153e2991acb66d0a9bab3e993cba8831299063f8f4382",
       "method": "guided",
       "blocks": [
         {
-          "end": 15,
+          "end": 17,
           "title": "模块装配",
-          "explanation": "模块协作与边界：公开 SSR 页面由 app.site.PAGES 显式登记，不用一个通配路由吞掉业务 API。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL6 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from fastapi import APIRouter, Request, Response；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from ..config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL11 导入 from ..site import PAGES, Tool, page_context, page_title, templates；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 计算右侧并赋给 `router`：调用 APIRouter(tags=['站点页面'])。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "模块协作与边界：公开 SSR 页面由 app.site.PAGES 显式登记，不用一个通配路由吞掉业务 API。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL6 导入 from __future__ import annotations；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL8 导入 from fastapi import APIRouter, Request, Response；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL9 导入 from fastapi.exception_handlers import http_exception_handler；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL10 导入 from starlette.exceptions import HTTPException as StarletteHTTPException；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL12 导入 from ..config import settings；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL13 导入 from ..site import PAGES, SITE_NAME, Tool, page_context, page_title, templates；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL15 计算右侧并赋给 `router`：调用 APIRouter(tags=['站点页面'])。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 19,
+          "end": 21,
           "title": "_base",
-          "explanation": "功能契约：规范站点基址去尾斜线，来自配置不是可信代理请求基址。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL17 结束当前函数，返回 调用 settings.SITE_BASE_URL.rstrip('/')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：规范站点基址去尾斜线，来自配置不是可信代理请求基址。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：str。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL19 结束当前函数，返回 调用 settings.SITE_BASE_URL.rstrip('/')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 20,
+          "end": 22,
           "title": "_page_view",
           "explanation": "功能契约：闭包捕获每个 Tool，给生成处理器明确名字，避免循环变量晚绑定导致所有页变成同页。\n\n输入签名：tool: Tool；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 48,
+          "end": 50,
           "title": "_page_view.view",
-          "explanation": "功能契约：由模板名和 page_context 返回 HTML 外壳，不读取私人图/订单。\n\n输入签名：request: Request；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL25 结束当前函数，返回 调用 templates.TemplateResponse(request, tool.template, page_context(request, title=page_title(tool), description=tool.description, keywords=tool.keywords, canonical=_base() + tool.path, page_heading='' if tool.key == 'home' else tool.title))；不会自动commit未提交事务。\nL41 计算右侧并赋给 `view.__name__`：f'page_{tool.key}'。\nL42 结束当前函数，返回 view；不会自动commit未提交事务。\nL45 逐项遍历 `PAGES`，绑定 `_tool`；循环体按缩进执行，break可提前结束。\nL46 调用 router.add_api_route(_tool.path, _page_view(_tool), methods=['GET'], include_in_schema=False)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：page_context 现在多传 page_heading（=Tool.title，首页为空字符串），供工具页渲染可见的页面级 h2；名称仍只有 Tool.title 一处来源。"
+          "explanation": "功能契约：由模板名和 page_context 返回 HTML 外壳，不读取私人图/订单。\n\n输入签名：request: Request；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL27 结束当前函数，返回 调用 templates.TemplateResponse(request, tool.template, page_context(request, title=page_title(tool), description=tool.description, keywords=tool.keywords, canonical=_base() + tool.path, page_heading='' if tool.key == 'home' else tool.title))；不会自动commit未提交事务。\nL43 计算右侧并赋给 `view.__name__`：f'page_{tool.key}'。\nL44 结束当前函数，返回 view；不会自动commit未提交事务。\nL47 逐项遍历 `PAGES`，绑定 `_tool`；循环体按缩进执行，break可提前结束。\nL48 调用 router.add_api_route(_tool.path, _page_view(_tool), methods=['GET'], include_in_schema=False)。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。 TD-272：page_context 现在多传 page_heading（=Tool.title，首页为空字符串），供工具页渲染可见的页面级 h2；名称仍只有 Tool.title 一处来源。"
         },
         {
-          "end": 59,
+          "end": 71,
+          "title": "not_found_handler",
+          "explanation": "功能契约：没有路由匹配的浏览器导航（GET/HEAD、Accept 含 text/html、detail 为默认 Not Found）渲染站内 404 页 not_found.html，状态码仍是 404；其余 HTTP 异常（API 与脚本请求、业务代码写了中文原因的 404、405 等）原样交给 FastAPI 默认处理器，JSON 不变（TD-333）。页面不回显请求路径。\n\n输入签名：request: Request, exc: StarletteHTTPException；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL60 判断 `exc.status_code == 404 and exc.detail == 'Not Found' and (request.method in ('GET', 'HEAD')) and ('text/html' in request.headers.get('accept', ''))`，为真进入当前缩进分支；不成立则跳过该体继续后文。\nL66 结束当前函数，返回 调用 templates.TemplateResponse(request, 'not_found.html', page_context(request, title=f'页面不存在 - {SITE_NAME}'), status_code=404)；不会自动commit未提交事务。\nL69 结束当前函数，返回 await 调用 http_exception_handler(request, exc)；等待期间可让出事件循环，恢复后才执行下一句；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 82,
           "title": "sitemap",
-          "explanation": "功能契约：列 PAGES 的绝对地址为 XML；不是扫描所有 API，也不是自动 SEO 收录保证。\n\n登记/装饰：router.get('/sitemap.xml', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL51 计算右侧并赋给 `urls`：调用 '\\n'.join((f'  <url><loc>{_base()}{p.path}</loc></url>' for p in PAGES))。\nL52 结束当前函数，返回 调用 Response(f'<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\\n{urls}\\n</urlset>\\n', media_type='application/xml')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：列 PAGES 的绝对地址为 XML；不是扫描所有 API，也不是自动 SEO 收录保证。\n\n登记/装饰：router.get('/sitemap.xml', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL74 计算右侧并赋给 `urls`：调用 '\\n'.join((f'  <url><loc>{_base()}{p.path}</loc></url>' for p in PAGES))。\nL75 结束当前函数，返回 调用 Response(f'<?xml version=\"1.0\" encoding=\"UTF-8\"?>\\n<urlset xmlns=\"http://www.sitemaps.org/schemas/sitemap/0.9\">\\n{urls}\\n</urlset>\\n', media_type='application/xml')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 65,
+          "end": 88,
           "title": "robots",
-          "explanation": "功能契约：允许站点抓取并给 sitemap 地址；robots 不是访问控制。\n\n登记/装饰：router.get('/robots.txt', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL62 结束当前函数，返回 调用 Response(f'User-agent: *\\nAllow: /\\n\\nSitemap: {_base()}/sitemap.xml\\n', media_type='text/plain')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：允许站点抓取并给 sitemap 地址；robots 不是访问控制。\n\n登记/装饰：router.get('/robots.txt', include_in_schema=False)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：；异步调用需await才推进。 返回类型标注：Response。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL85 结束当前函数，返回 调用 Response(f'User-agent: *\\nAllow: /\\n\\nSitemap: {_base()}/sitemap.xml\\n', media_type='text/plain')；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -1909,26 +1914,26 @@
     },
     {
       "path": "app/templates/drawio.html",
-      "sha256": "d36b5b843d42fb7afde28f6098e492b60266b1799e8a090f72c5f006cdbc0c8c",
+      "sha256": "006fcc083868a850d42c6a6ef04d59c0b6d1ef0acc6b29c3507e4fe277d5e030",
       "method": "manual",
       "blocks": [
         {
-          "end": 16,
+          "end": 18,
           "title": "继承壳与编辑区域样式",
-          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。 TD-272：新增 .page-heading（20px）与 page_heading 的 h2 渲染。 TD-278：.page-heading 样式移到 base.html（ER/Mermaid 页此前落回浏览器默认 h2）；工具条输入框去掉 font: inherit —— base 已统一，这里再写会以更高特异性盖掉手机 16px。 TD-306：工具条输入框/下拉框的边框规则删去，改由 base.html 的全站控件规则统一（下拉框原来仍是浏览器灰底）。 TD-326：#diagram-manage 的行与行内按钮加间距（回收站行「恢复」「永久删除」原来紧贴）。"
+          "explanation": "继承 base 后仅填 content。toolbar/auth 用 flex-wrap；iframe 74vh 高，外部编辑器不与本站 DOM 直接共享。 TD-272：新增 .page-heading（20px）与 page_heading 的 h2 渲染。 TD-278：.page-heading 样式移到 base.html（ER/Mermaid 页此前落回浏览器默认 h2）；工具条输入框去掉 font: inherit —— base 已统一，这里再写会以更高特异性盖掉手机 16px。 TD-306：工具条输入框/下拉框的边框规则删去，改由 base.html 的全站控件规则统一（下拉框原来仍是浏览器灰底）。 TD-326：#diagram-manage 的行与行内按钮加间距（回收站行「恢复」「永久删除」原来紧贴）。 TD-333：#diagram-manage-empty:empty 收掉外边距——空状态段落是 role=status 区域，始终存在不隐藏，没有文字时不占位。"
         },
         {
-          "end": 29,
+          "end": 31,
           "title": "登录提示：复用一个身份源",
           "explanation": "保留按钮仅唤共享登录浮层，auth-status 由 drawio-page 更新；不另建第二套密码字段或 token 存储。 TD-278：说明文字与登录按钮包进 #drawio-login-prompt，登录后由 drawio-page.js 整段隐藏；#auth-status 在包裹外，状态文字始终可见。"
         },
         {
-          "end": 46,
+          "end": 49,
           "title": "工具条与回收站",
-          "explanation": "name/list、保存/本地下载/导入/新建都按固定 ID 绑定；file input hidden+accept 只改善选择体验，JS/后端仍验证 XML。回收站提示永久删除不可恢复并计总预算。 TD-272：流程图名称输入与「我的流程图」下拉补 aria-label —— axe-core 报下拉框没有可访问名称。"
+          "explanation": "name/list、保存/本地下载/导入/新建都按固定 ID 绑定；file input hidden+accept 只改善选择体验，JS/后端仍验证 XML。回收站提示永久删除不可恢复并计总预算。 TD-272：流程图名称输入与「我的流程图」下拉补 aria-label —— axe-core 报下拉框没有可访问名称。 TD-333：details 加 id diagram-manage-panel（脚本监听展开即加载），列表后加空状态段落 <p id=\"diagram-manage-empty\" role=\"status\">，标签之间不留空白，:empty 才成立。"
         },
         {
-          "end": 50,
+          "end": 53,
           "title": "iframe 协议与本站桥接脚本",
           "explanation": "embed=1/proto=json 配 JSON postMessage；src 外域须能联网，&amp; 是 HTML 属性转义。本站经典 drawio-page 脚本在 iframe 元素之后，auth.js 已由 base 先装配；不是把云端文件直接放 URL query。"
         }
@@ -1989,6 +1994,18 @@
           "end": 30,
           "title": "订单标识与真实限制",
           "explanation": "order_no 转义进 #no 供脚本读取；wechat/manual 生产模式关闭这页/模拟确认端点。按钮触发本地模拟，不走商户，不产生真实扣款；服务端仍校验买家。 TD-270：新增隐藏的 #back 段，含指向 shop_path 的「返回商城查看订单」链接，由脚本在模拟支付成功后显示。 V-05：返回链接改为 shop_path?order=<订单号>（urlencode），因为 /shop 全新加载且带 no-store（bfcache 被拒），不带单号只会落回落地页。 TD-278：页内标题由 h1 改为 h2.mock-title —— 整站每页只有顶栏站点名一个 h1（tests/test_ui_accessibility.py 的单 h1 用例现在也覆盖这页）。\n\nTD-331：「…或 manual，此时本页…」原来折成两行，换行在页面上显示成一个空格，现合成一行。"
+        }
+      ]
+    },
+    {
+      "path": "app/templates/not_found.html",
+      "sha256": "9cb65036a1557e5f523aed3f92754ebaa892cf6b18e04585897b1dcd55d65842",
+      "method": "manual",
+      "blocks": [
+        {
+          "end": 9,
+          "title": "站内 404 页",
+          "explanation": "继承 base.html，由 app/routers/site.py 的 not_found_handler 在没有路由匹配的浏览器导航时渲染（TD-333），状态码仍是 404。只有标题、两句说明和「返回首页」按钮（a.cta），顶栏与页脚导航来自 page_context。刻意不回显请求路径：路径由访问者任意构造，放进站内页面等于让别人往页面里写字。API 与脚本请求不会到这里，仍收到 JSON。"
         }
       ]
     },
@@ -2267,7 +2284,7 @@
     },
     {
       "path": "app/tools/faq.py",
-      "sha256": "eb7189c6d3ff75ef8a5794c49ffceb0896ecf8a1c2c47507e51a679c4c41da25",
+      "sha256": "7f7174c8d666bddfae1c00fa1cbb6e487b6a939c5dfd23643cdc28d375e1b426",
       "method": "guided",
       "blocks": [
         {
@@ -2278,7 +2295,7 @@
         {
           "end": 58,
           "title": "Faq",
-          "explanation": "功能契约：固定FAQ问题/答案/关键词的数据结构，用于词袋建索引和语义预热，不是数据库文章。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 Faq，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL36 声明字段 `q` 的类型 str；仅类型标注，不执行数据库写入。\nL37 声明字段 `a` 的类型 str；仅类型标注，不执行数据库写入。\nL38 计算右侧并赋给 `keywords`：()。\nL43 计算右侧并赋给 `FAQS`：(Faq('毕业设计服务怎么收费', '固定数字商品以下单页展示的价格与说明为准；定制开发按需求和工作量单独报价。请通过站内客服先确认范围，不把数字商品订单当作定制服务报价。', ('价格', '多少钱', '报价', '费用', '贵吗')), Faq('可以开发票吗', '目前没有接入开票服务，不能在线申请或承诺开具电子发票。若需要发票，请购买前通过站内客服确认，不能以付款成功代表可开票。', ('发票', '开票', '报销', '增值税')), Faq('支持哪些数据库', '在线工具支持 MySQL 与 PostgreSQL 常见建表语句；复杂方言有边界。定制项目采用的数据库需先与管理员确认。', ('数据库', 'mysql', 'postgresql', 'sqlserver', 'oracle')), Faq('交付周期是多久', '固定数字商品在付款确认后可下载；定制开发的周期、范围和验收方式须先通过站内客服协商，不承诺统一工期或…（完整表达式见右侧源码）。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：固定FAQ问题/答案/关键词的数据结构，用于词袋建索引和语义预热，不是数据库文章。 TD-333：「怎么下载已购买的文件」的答案把界面名写成「我的订单」，与商城页一致（原来「在商城的我的订单中」读起来像一句断错的话）。\n\n登记/装饰：dataclass(frozen=True)。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n结构事实：定义类 Faq，基类 默认object；字段默认值见本段，方法体仅调用时执行。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL36 声明字段 `q` 的类型 str；仅类型标注，不执行数据库写入。\nL37 声明字段 `a` 的类型 str；仅类型标注，不执行数据库写入。\nL38 计算右侧并赋给 `keywords`：()。\nL43 计算右侧并赋给 `FAQS`：(Faq('毕业设计服务怎么收费', '固定数字商品以下单页展示的价格与说明为准；定制开发按需求和工作量单独报价。请通过站内客服先确认范围，不把数字商品订单当作定制服务报价。', ('价格', '多少钱', '报价', '费用', '贵吗')), Faq('可以开发票吗', '目前没有接入开票服务，不能在线申请或承诺开具电子发票。若需要发票，请购买前通过站内客服确认，不能以付款成功代表可开票。', ('发票', '开票', '报销', '增值税')), Faq('支持哪些数据库', '在线工具支持 MySQL 与 PostgreSQL 常见建表语句；复杂方言有边界。定制项目采用的数据库需先与管理员确认。', ('数据库', 'mysql', 'postgresql', 'sqlserver', 'oracle')), Faq('交付周期是多久', '固定数字商品在付款确认后可下载；定制开发的周期、范围和验收方式须先通过站内客服协商，不承诺统一工期或…（完整表达式见右侧源码）。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 67,
@@ -3255,40 +3272,40 @@
     },
     {
       "path": "main.py",
-      "sha256": "d36d68948827ada12002b346ae469581efe9d3e1414aea114937c7cb99afa5d3",
+      "sha256": "ebedd927b3665157eebd21e243209bce0a84e3b50711fa696c88195fa961b31b",
       "blocks": [
         {
-          "end": 35,
+          "end": 36,
           "title": "先装配依赖，不是先接请求",
           "explanation": "导入各模块后设置日志与生产静态配置检查，再构建FastAPI；新增数据库安全入口只是导入，此处不会自动迁移。路由/模板装配规则不变。\n\n第七批复核：增加refund_notify路由模块导入，它使用独立平台验签，不是管理员免鉴权写。\n\n2026-09-20（TD-260）：从 app.middleware 多导入 RequestBodyBudgetMiddleware 与 validation_error_without_input，并导入 fastapi.exceptions.RequestValidationError 供下文注册处理器；导入本身不改变任何请求行为。 新增导入 starlette.middleware.gzip 的 GZipMiddleware 与 DEFAULT_EXCLUDED_CONTENT_TYPES（TD-270）。 TD-276：新增 fastapi.HTTPException 导入，供静态挂载点拦截 Markdown（复核 O-14）；其余导入不变。"
         },
         {
-          "end": 45,
+          "end": 46,
           "title": "导入时的日志与生产自检",
           "explanation": "basicConfig 设置默认日志级别和格式；已有日志配置时不一定覆盖它。enforce_production_settings 在 app 创建前执行：生产配置硬错误直接阻止启动。它检查配置规则，不证明外部数据库/商户可连接。"
         },
         {
-          "end": 59,
+          "end": 60,
           "title": "lifespan：开店前与正常关店后",
           "explanation": "try内先await生产DB账本/已知演示凭据/管理员检查，通过才可选FAQ预热并yield接请求；finally无论正常退出或启动失败都关闭CPU池并dispose engine。DB检查有总时限且只读，不能拿自愈迁移冒充启动。"
         },
         {
-          "end": 67,
+          "end": 68,
           "title": "创建 ASGI 应用",
           "explanation": "FastAPI 接收生命周期函数和接口文档地址；production 把三个文档地址设成 None。关闭 Swagger 不是关闭业务路由，也不是权限校验。Uvicorn 的 main:app 指向这个变量。"
         },
         {
-          "end": 88,
+          "end": 91,
           "title": "中间件套在路由外面，422 处理器换成脱敏版",
-          "explanation": "后添加的先执行：请求日志在最外层，安全头居中，最先添加的请求体预算中间件（TD-260）最靠近路由——它发出的 413 同样带安全头并进访问日志；请求进入顺序与响应返回顺序相反。add_exception_handler 把 RequestValidationError 交给 validation_error_without_input：422 只保留 type/loc/msg/ctx，不再回显出错字段原值。这些层执行日志、头部、缓存与体积策略，不能替代路由的所有权和角色检查，也不替代反向代理的请求体上限。 TD-270：在请求体预算之外、安全头之内加 GZipMiddleware（starlette 自带，≥1 KiB 且客户端声明 gzip 才压，application/octet-stream 与默认排除表不压，交付 ZIP 保留 Content-Length/Range）；422 的 msg 由 validation_error_without_input 翻成中文。 TD-276（复核 O-13）：GZipMiddleware 显式用 compresslevel=6，取代 starlette 默认的 9 —— 647 KiB 分块 23.3 ms → 16.4 ms，压缩后体积不变。 TD-294：再注册 oauth.TokenError → oauth.token_error_handler，只有 /oauth/token 抛这个子类，输出 RFC 6749 顶层 {\"error\", \"error_description\"}；其余 HTTPException（含授权页的 OAuth 错误）仍走 FastAPI 默认的 {\"detail\": ...}。"
+          "explanation": "后添加的先执行：请求日志在最外层，安全头居中，最先添加的请求体预算中间件（TD-260）最靠近路由——它发出的 413 同样带安全头并进访问日志；请求进入顺序与响应返回顺序相反。add_exception_handler 把 RequestValidationError 交给 validation_error_without_input：422 只保留 type/loc/msg/ctx，不再回显出错字段原值。这些层执行日志、头部、缓存与体积策略，不能替代路由的所有权和角色检查，也不替代反向代理的请求体上限。 TD-270：在请求体预算之外、安全头之内加 GZipMiddleware（starlette 自带，≥1 KiB 且客户端声明 gzip 才压，application/octet-stream 与默认排除表不压，交付 ZIP 保留 Content-Length/Range）；422 的 msg 由 validation_error_without_input 翻成中文。 TD-276（复核 O-13）：GZipMiddleware 显式用 compresslevel=6，取代 starlette 默认的 9 —— 647 KiB 分块 23.3 ms → 16.4 ms，压缩后体积不变。 TD-294：再注册 oauth.TokenError → oauth.token_error_handler，只有 /oauth/token 抛这个子类，输出 RFC 6749 顶层 {\"error\", \"error_description\"}；其余 HTTPException（含授权页的 OAuth 错误）仍走 FastAPI 默认的 {\"detail\": ...}。 TD-333：再登记 Starlette HTTPException 处理器 site.not_found_handler——没有路由匹配的浏览器导航（GET/HEAD 且 Accept 含 text/html）得到站内 404 页，其余 HTTP 异常仍由 FastAPI 默认处理器回 JSON。"
         },
         {
-          "end": 102,
+          "end": 105,
           "title": "把子路由接到应用",
           "explanation": "把auth/oauth/shop/payments_admin等子路由挂到同一ASGI应用。payments_admin增加公开无数据登录壳和两个需管理员的数据/核查入口；site循环页仍单独注册。这里include_router是装配，不是当场发网络或查数据库。\n\n第七批复核：新增refund_notify.router公开服务器回调，按原文RSA/AES与原付款认证；refunds_admin的两个受控写入口保持原依赖。"
         },
         {
-          "end": 121,
+          "end": 124,
           "title": "静态资源与模板页面分开",
           "explanation": "/static 映射到仓库 app/static 目录，Path(__file__) 让静态路径不依赖启动目录。HTML 页面主要由 Jinja 路由返回；CSS/构建后的 JS 再由浏览器请求。静态目录不是私有商品目录，商品下载另有鉴权和签名流程。 TD-276（复核 O-14）：/static 改用 MarkdownBlockingStaticFiles，.md/.markdown（不分大小写）一律 404，README 文件保留（文档契约要求每个目录有 README），favicon/脚本等其余资源原样透传。"
         }
@@ -8822,7 +8839,7 @@
     },
     {
       "path": "tests/test_site.py",
-      "sha256": "cf8e184736a2ec8add41935024bfa20c5bb45df674a80e558599f753fe6d1a23",
+      "sha256": "d9b32ca29d42c2b3211dd32fbe9d9895086c525a87dc92f08cb90bc40186b853",
       "method": "guided",
       "blocks": [
         {
@@ -8856,9 +8873,19 @@
           "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL50 计算右侧并赋给 `r`：await 调用 client.get('/sitemap.xml')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL51 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL52 核对 `r.headers['content-type'].startswith('application/xml')`：此条件为假即测试失败；不是生产输入校验。\nL53 计算右侧并赋给 `locs`：调用 re.findall('<loc>(.*?)</loc>', r.text)。\nL54 核对 `locs == [BASE + p.path for p in PAGES]`：此条件为假即测试失败；不是生产输入校验。\nL55 计算右侧并赋给 `registered`：{getattr(route, 'path', None) for route in iter_app_routes(app.routes)}。\nL56 逐项遍历 `locs`，绑定 `loc`；循环体按缩进执行，break可提前结束。\nL57 核对 `loc.removeprefix(BASE) in registered`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 65,
+          "end": 72,
           "title": "test_robots_points_to_sitemap",
-          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL61 计算右侧并赋给 `r`：await 调用 client.get('/robots.txt')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL62 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL63 核对 `r.headers['content-type'].startswith('text/plain')`：此条件为假即测试失败；不是生产输入校验。\nL64 核对 `'User-agent: *' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL65 核对 `f'Sitemap: {BASE}/sitemap.xml' in r.text`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "本用例的准备条件：client。本段下方按真实语句列出构造输入、调用和每个断言；只在这些输入与替身边界内成立，不从测试名称推定更广保证。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL61 计算右侧并赋给 `r`：await 调用 client.get('/robots.txt')：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL62 核对 `r.status_code == 200`：要求请求成功；不满足即本用例失败。\nL63 核对 `r.headers['content-type'].startswith('text/plain')`：此条件为假即测试失败；不是生产输入校验。\nL64 核对 `'User-agent: *' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL65 核对 `f'Sitemap: {BASE}/sitemap.xml' in r.text`：此条件为假即测试失败；不是生产输入校验。\nL70 计算右侧并赋给 `BROWSER_ACCEPT`：'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8'。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 91,
+          "title": "test_unknown_address_opened_in_browser_gets_site_404_page",
+          "explanation": "测试契约：浏览器打开不存在的地址（含多级路径）得到带顶栏导航的站内 404 页，状态码 404、经过安全头中间件、不回显请求路径；HEAD 同样是 HTML（TD-333）。\n\n登记/装饰：pytest.mark.parametrize('path', ['/nope', '/tools/nope', '/tools/er/extra'])。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：client, path；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL77 计算右侧并赋给 `r`：await 调用 client.get(path + '-<b>injected</b>', headers={'Accept': BROWSER_ACCEPT})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL78 核对 `r.status_code == 404`：要求资源不可见或不存在；不满足即本用例失败。\nL79 核对 `r.headers['content-type'].startswith('text/html')`：此条件为假即测试失败；不是生产输入校验。\nL80 计算右侧并赋给 `body`：r.text。\nL81 核对 `'<title>页面不存在 - ' in body and '<h2 class=\"page-heading\">页面不存在</h2>' in body`：此条件为假即测试失败；不是生产输入校验。\nL82 核对 `'<a class=\"cta\" href=\"/\">返回首页</a>' in body`：此条件为假即测试失败；不是生产输入校验。\nL83 逐项遍历 `TOOLS`，绑定 `tool`；循环体按缩进执行，break可提前结束。\nL84 核对 `f'href=\"{tool.path}\"' in body`：此条件为假即测试失败；不是生产输入校验。\nL85 核对 `'injected' not in body and 'nope' not in body`：此条件为假即测试失败；不是生产输入校验。\nL86 核对 `r.headers.get('x-content-type-options') == 'nosniff'`：此条件为假即测试失败；不是生产输入校验。\nL88 计算右侧并赋给 `head`：await 调用 client.head(path, headers={'Accept': BROWSER_ACCEPT})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL89 核对 `head.status_code == 404 and head.headers['content-type'].startswith('text/html')`：要求资源不可见或不存在；不满足即本用例失败。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 105,
+          "title": "test_non_browser_404s_stay_json",
+          "explanation": "测试契约：只有浏览器导航的无路由 404 换成 HTML；fetch 默认 Accept、application/json、POST、业务 404（模拟收银台未开启）与 405 仍是 FastAPI 默认 JSON（TD-333）。\n\n输入签名：client；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL95 逐项遍历 `({}, {'Accept': '*/*'}, {'Accept': 'application/json'})`，绑定 `headers`；循环体按缩进执行，break可提前结束。\nL96 计算右侧并赋给 `r`：await 调用 client.get('/nope', headers=headers)：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL97 核对 `(r.status_code, r.json()) == (404, {'detail': 'Not Found'})`：此条件为假即测试失败；不是生产输入校验。\nL98 计算右侧并赋给 `r`：await 调用 client.post('/nope', headers={'Accept': BROWSER_ACCEPT})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL99 核对 `(r.status_code, r.json()) == (404, {'detail': 'Not Found'})`：此条件为假即测试失败；不是生产输入校验。\nL101 计算右侧并赋给 `r`：await 调用 client.get('/shop/mock-pay', headers={'Accept': BROWSER_ACCEPT})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL102 核对 `r.status_code == 404 and r.json()['detail'].startswith('模拟支付通道未开启')`：要求资源不可见或不存在；不满足即本用例失败。\nL104 计算右侧并赋给 `r`：await 调用 client.post('/', headers={'Accept': BROWSER_ACCEPT})：通过测试ASGI客户端调用真实路由，中间件/依赖会运行，但不建立真实浏览器或公网连接；等待期间可让出事件循环，恢复后才执行下一句。\nL105 核对 `r.status_code == 405 and r.json() == {'detail': 'Method Not Allowed'}`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -9498,7 +9525,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "3b9bb944201516ea9733aa403c50ff0ff0443b93da808e41d3be89d0f1485c0d",
+      "sha256": "cf1bbb09d1effc2049867b5041cc1ae04dbc132825d5b0dfae475ce60f05adb7",
       "method": "guided",
       "blocks": [
         {
@@ -9826,9 +9853,14 @@
           "explanation": "TD-326：base.html 的 select 设 max-width:100%，长选项不再撑宽整页。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1129 计算右侧并赋给 `css`：调用 (ROOT / 'app/templates/base.html').read_text(encoding='utf-8')。\nL1130 核对 `re.search('(?m)^\\\\s*select\\\\s*\\\\{[^}]*max-width:\\\\s*100%', css)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 1139,
+          "end": 1178,
           "title": "test_drawio_row_actions_are_outline_buttons",
-          "explanation": "TD-326：Drawio 文件管理的行内按钮在源码与产物里都是 ghost（描边），drawio.html 给按钮设了间距。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1135 逐项遍历 `(ROOT / 'app/frontend/drawio-page.js', ROOT / 'app/static/js/drawio-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL1136 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL1137 核对 `re.search('className\\\\s*=\\\\s*[\"`]ghost[\"`]', text)`：此条件为假即测试失败；不是生产输入校验。\nL1138 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/drawio.html').read_text(encoding='utf-8')。\nL1139 核对 `re.search('#diagram-manage button\\\\s*\\\\{[^}]*margin', html)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "TD-326：Drawio 文件管理的行内按钮在源码与产物里都是 ghost（描边），drawio.html 给按钮设了间距。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1135 逐项遍历 `(ROOT / 'app/frontend/drawio-page.js', ROOT / 'app/static/js/drawio-page.js')`，绑定 `path`；循环体按缩进执行，break可提前结束。\nL1136 计算右侧并赋给 `text`：调用 path.read_text(encoding='utf-8')。\nL1137 核对 `re.search('className\\\\s*=\\\\s*[\"`]ghost[\"`]', text)`：此条件为假即测试失败；不是生产输入校验。\nL1138 计算右侧并赋给 `html`：调用 (ROOT / 'app/templates/drawio.html').read_text(encoding='utf-8')。\nL1139 核对 `re.search('#diagram-manage button\\\\s*\\\\{[^}]*margin', html)`：此条件为假即测试失败；不是生产输入校验。\nL1144 把测试JavaScript多行字面量存入 `_DRAWIO_MANAGE_HARNESS`（1878字符）；此时只是数据，只有后面的执行/解析调用才运行。完整内容见源码；不以这段字符串存在作为测试通过证据。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 1200,
+          "title": "test_drawio_manage_panel_loads_on_open_and_says_when_empty",
+          "explanation": "测试契约：Node 真跑 drawio-page.js 源码与构建产物：登录用户展开「管理云端文件 / 回收站」即加载两个列表；都为空时列表外的 role=status 段落写明没有文件，有文件时为空；游客展开不发请求、不弹登录浮层（TD-333）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='需要 node 执行真实前端代码')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：tmp_path, path, scenario；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL1186 计算右侧并赋给 `harness`：tmp_path / 'drawio-manage.cjs'。\nL1187 调用 harness.write_text(_DRAWIO_MANAGE_HARNESS, encoding='utf-8')。\nL1188 计算右侧并赋给 `proc`：调用 subprocess.run(['node', str(harness), str(ROOT / path), scenario], capture_output=True, text=True, timeout=30)：运行外部命令并等待，returncode是否检查要看后面的断言。\nL1189 核对 `proc.returncode == 0`：此条件为假即测试失败；不是生产输入校验。\nL1190 导入 import json；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL1192 计算右侧并赋给 `data`：调用 json.loads(proc.stdout.strip().splitlines()[-1])：把外部文本解析为对象，格式错误会抛异常。\nL1193 判断 `scenario == 'guest'`，为真进入当前缩进分支，为假进入else/elif。\nL1194 核对 `data == {'requests': [], 'empty': '', 'items': 0, 'opened': 0}`：此条件为假即测试失败；不是生产输入校验。\nL1196 核对 `sorted(data['requests']) == ['/diagrams', '/diagrams?deleted=true']`：此条件为假即测试失败；不是生产输入校验。\nL1197 计算右侧并赋给 `expected`：'' if scenario == 'one-file' else '云端没有保存的流程图，回收站也是空的。'。\nL1198 核对 `(data['empty'], data['items']) == (expected, 1 if scenario == 'one-file' else 0)`：此条件为假即测试失败；不是生产输入校验。\nL1199 计算右侧并赋给 `html`：调用 (ROOT / 'app' / 'templates' / 'drawio.html').read_text(encoding='utf-8')。\nL1200 核对 `'<p id=\"diagram-manage-empty\" role=\"status\"></p>' in html`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },

@@ -169,6 +169,7 @@
     // guest work may be kept on first login, account-owned work never is（换账号无法取消，不询问）
     if (identity) { xml = BLANK; dirty = false; }
     document.getElementById("diagram-manage").innerHTML = "";
+    document.getElementById("diagram-manage-empty").textContent = "";
     loading = false; identity = next; currentId = null; etag = null; name.value = ""; list.innerHTML = ""; resetEditor();
     if (user) await refreshList();
   }
@@ -180,6 +181,10 @@
       if (stamp !== epoch || serial !== manageSeq) return;
       if (!Array.isArray(live.data) || !Array.isArray(trash.data)) throw new Error("流程图列表格式无效");  // 与 refreshList 一致
       const box = document.getElementById("diagram-manage"); box.innerHTML = "";
+      // 两个列表都空时明说（TD-333）：原来点完「刷新」什么也不出现，看不出是没有文件还是没刷新成功。
+      // 提示写在列表外的 role=status 段落里，不写进 <ul>（TD-278：空列表里放文字，读屏当成没有列表项的列表）。
+      document.getElementById("diagram-manage-empty").textContent =
+        live.data.length || trash.data.length ? "" : "云端没有保存的流程图，回收站也是空的。";
       for (const [rows, deleted] of [[live.data, false], [trash.data, true]]) {
         for (const row of rows) {
           const li = document.createElement("li"); li.textContent = `${row.name} · ${deleted ? "回收站" : "云端"} `;
@@ -210,6 +215,10 @@
     } catch (e) { if (stamp === epoch) status.textContent = failure(e); }
   }
   document.getElementById("btn-manage").onclick = manage;
+  // 展开「管理云端文件」时直接加载一次（TD-333）：原来展开后是空白，要再点「刷新文件与回收站」才有内容。
+  // 未登录时不加载：展开面板不该弹出登录浮层，按钮本身仍会提示登录。
+  const panel = document.getElementById("diagram-manage-panel");
+  panel.ontoggle = () => { if (panel.open && loggedIn) manage(); };
   // 关闭或刷新页面时同样会丢掉未保存的改动；浏览器只显示它自己的通用提示文字。
   window.addEventListener("beforeunload", (event) => { if (dirty) { event.preventDefault(); event.returnValue = ""; } });
   CodeMaxAuth.onChange(syncAuth); syncAuth(CodeMaxAuth.user);

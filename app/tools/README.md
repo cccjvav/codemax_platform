@@ -91,7 +91,7 @@
 | [`app/tools/browser.py`](browser.py) | `7bb2233a0d90` | L1–L79 |
 | [`app/tools/crawler.py`](crawler.py) | `bc809bdc2a7a` | L1–L330 |
 | [`app/tools/extract.py`](extract.py) | `8b5300779881` | L1–L224 |
-| [`app/tools/faq.py`](faq.py) | `eb7189c6d3ff` | L1–L413 |
+| [`app/tools/faq.py`](faq.py) | `7f7174c8d666` | L1–L413 |
 | [`app/tools/intent.py`](intent.py) | `af1fcb346705` | L1–L203 |
 | [`app/tools/llm.py`](llm.py) | `a693ee96005a` | L1–L252 |
 | [`app/tools/politeness.py`](politeness.py) | `977b636a7546` | L1–L270 |

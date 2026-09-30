@@ -1137,3 +1137,64 @@ def test_drawio_row_actions_are_outline_buttons():
         assert re.search(r'className\s*=\s*["`]ghost["`]', text), f"{path.name}：忘了 npm run build？"
     html = (ROOT / "app/templates/drawio.html").read_text(encoding="utf-8")
     assert re.search(r"#diagram-manage button\s*\{[^}]*margin", html)
+
+
+# ---------------------------------------------------------------- TD-333：流程图文件管理的空状态与展开即加载
+
+_DRAWIO_MANAGE_HARNESS = r"""
+const fs = require('fs'), vm = require('vm');
+const [file, scenario] = [process.argv[2], process.argv[3]];
+const requests = []; let opened = 0;
+const make = (tag) => ({ tag, value: '', textContent: '', innerHTML: '', hidden: false, children: [],
+  appendChild(child) { this.children.push(child); }, click() {}, focus() {}, classList: { add() {}, remove() {} } });
+const nodes = new Map();
+function get(id) {
+  if (!nodes.has(id)) {
+    const node = make(id);
+    if (id === 'drawio-frame') { node.contentWindow = { postMessage() {} }; node.parentNode = { replaceChild() {} }; node.cloneNode = () => make('iframe'); }
+    nodes.set(id, node);
+  }
+  return nodes.get(id);
+}
+const auth = { user: scenario === 'guest' ? null : { username: 'alice', role: 0 }, onChange() {}, open() { opened += 1; },
+  errorText(d, s) { return String((d && d.detail) || s); } };
+const rows = scenario === 'one-file' ? [{ id: 1, name: '一号图', version: 1 }] : [];
+vm.runInNewContext(fs.readFileSync(file, 'utf8'), {
+  document: { getElementById: get, createElement: make },
+  window: { addEventListener() {}, confirm: () => true }, CodeMaxAuth: auth,
+  fetch: async (url) => { requests.push(url);
+    return { ok: true, status: 200, json: async () => (url.startsWith('/diagrams?deleted') ? [] : rows), headers: { get: () => null } }; },
+  setTimeout: () => 1, clearTimeout() {}, URL: { createObjectURL: () => 'blob:x', revokeObjectURL() {} }, Blob,
+});
+const tick = async () => { for (let i = 0; i < 6; i++) await new Promise(setImmediate); };
+(async () => {
+  await tick(); requests.length = 0;
+  const panel = get('diagram-manage-panel'); panel.open = true; panel.ontoggle(); await tick();
+  console.log(JSON.stringify({ requests, empty: get('diagram-manage-empty').textContent,
+    items: get('diagram-manage').children.length, opened }));
+})().catch((e) => { console.error(e); process.exit(1); });
+"""
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="需要 node 执行真实前端代码")
+@pytest.mark.parametrize("path", ["app/frontend/drawio-page.js", "app/static/js/drawio-page.js"])
+@pytest.mark.parametrize("scenario", ["empty", "one-file", "guest"])
+def test_drawio_manage_panel_loads_on_open_and_says_when_empty(tmp_path, path, scenario):
+    """TD-333：① 展开「管理云端文件 / 回收站」就加载一次（原来展开后空白，要再点「刷新」）；② 云端与回收站都空时，
+    列表外的 role=status 段落写明「云端没有保存的流程图，回收站也是空的。」（原来点完刷新什么也不出现）；
+    有文件时这段为空；③ 游客展开面板不发请求、也不弹登录浮层。"""
+    harness = tmp_path / "drawio-manage.cjs"
+    harness.write_text(_DRAWIO_MANAGE_HARNESS, encoding="utf-8")
+    proc = subprocess.run(["node", str(harness), str(ROOT / path), scenario], capture_output=True, text=True, timeout=30)
+    assert proc.returncode == 0, f"执行失败：\n{proc.stdout}\n{proc.stderr}"
+    import json
+
+    data = json.loads(proc.stdout.strip().splitlines()[-1])
+    if scenario == "guest":
+        assert data == {"requests": [], "empty": "", "items": 0, "opened": 0}, data
+    else:
+        assert sorted(data["requests"]) == ["/diagrams", "/diagrams?deleted=true"], data
+        expected = "" if scenario == "one-file" else "云端没有保存的流程图，回收站也是空的。"
+        assert (data["empty"], data["items"]) == (expected, 1 if scenario == "one-file" else 0), data
+    html = (ROOT / "app" / "templates" / "drawio.html").read_text(encoding="utf-8")
+    assert '<p id="diagram-manage-empty" role="status"></p>' in html, "空状态段落不能带 hidden，也不能有空白（:empty 才成立）"

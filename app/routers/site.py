@@ -6,9 +6,11 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request, Response
+from fastapi.exception_handlers import http_exception_handler
+from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from ..config import settings
-from ..site import PAGES, Tool, page_context, page_title, templates
+from ..site import PAGES, SITE_NAME, Tool, page_context, page_title, templates
 
 router = APIRouter(tags=["站点页面"])
 
@@ -44,6 +46,27 @@ def _page_view(tool: Tool):
 
 for _tool in PAGES:
     router.add_api_route(_tool.path, _page_view(_tool), methods=["GET"], include_in_schema=False)
+
+
+async def not_found_handler(request: Request, exc: StarletteHTTPException) -> Response:
+    """没有路由匹配时，浏览器看到站内 404 页而不是 `{"detail":"Not Found"}`（TD-333）。
+
+    只在三个条件同时成立时出 HTML，其余一律交回 FastAPI 默认处理（JSON，行为不变）：
+    ① GET / HEAD —— 地址栏打开页面只会是这两种；
+    ② Accept 含 text/html —— 浏览器导航会带，页面脚本的 fetch 默认是 `*/*`，curl 与 API 客户端也不带；
+    ③ detail 是默认的 "Not Found" —— 即没有路由匹配（或静态目录里没有这个文件）。
+       业务代码抛的 404 都写了中文原因（「流程图不存在」等），前端要读 detail，保持 JSON。
+    """
+    if (
+        exc.status_code == 404
+        and exc.detail == "Not Found"
+        and request.method in ("GET", "HEAD")
+        and "text/html" in request.headers.get("accept", "")
+    ):
+        return templates.TemplateResponse(
+            request, "not_found.html", page_context(request, title=f"页面不存在 - {SITE_NAME}"), status_code=404
+        )
+    return await http_exception_handler(request, exc)
 
 
 @router.get("/sitemap.xml", include_in_schema=False)

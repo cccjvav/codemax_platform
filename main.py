@@ -5,6 +5,7 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.exceptions import RequestValidationError
 from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.gzip import DEFAULT_EXCLUDED_CONTENT_TYPES, GZipMiddleware
 
 from app import cpu_pool
@@ -85,6 +86,8 @@ app.add_middleware(RequestLoggingMiddleware)
 # 422 只回 type/loc/msg/ctx，不把出错字段的原值（可能几十万字符）整个回显（TD-260）。
 app.add_exception_handler(RequestValidationError, validation_error_without_input)
 app.add_exception_handler(oauth.TokenError, oauth.token_error_handler)  # TD-294：/oauth/token 用 RFC 6749 顶层错误格式
+# 浏览器打开不存在的地址时给站内 404 页，API 与脚本请求仍是 JSON（TD-333，条件见 site.not_found_handler）
+app.add_exception_handler(StarletteHTTPException, site.not_found_handler)
 
 app.include_router(health.router)  # S5-03-3：存活/就绪探针
 app.include_router(auth.router)

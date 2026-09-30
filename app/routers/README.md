@@ -106,7 +106,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `a93590872183` | L1–L301 |
 | [`app/routers/shop.py`](shop.py) | `16639f1b56e3` | L1–L749 |
-| [`app/routers/site.py`](site.py) | `3bb8b8e3c35c` | L1–L65 |
+| [`app/routers/site.py`](site.py) | `ac0cd7448062` | L1–L88 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |
 
@@ -239,3 +239,7 @@ RefundReauthorizeIn继承严格准备/客户原因校验，补前授权ID与摘�
 ## 2026-09-28：支付回调的签名头检查改用共用实现（TD-312）
 
 - `shop._verify_notify_headers` 只包一层 `wechat_pay.verify_signed_message`，失败仍是 401。同名签名头重复以前取第一个放行，现在 401；报错点名是哪个头。
+
+## 站内 404 页（TD-333）
+
+`site.not_found_handler` 在 `main.py` 里登记为 Starlette `HTTPException` 的处理器。只有同时满足「GET 或 HEAD」「Accept 含 text/html」「detail 是默认的 Not Found（没有路由匹配，或静态目录里没有这个文件）」三个条件时，才渲染 `not_found.html`，状态码仍是 404。其余情况原样交给 FastAPI 默认处理器：页面脚本的 fetch（默认 Accept `*/*`）、API 客户端、非 GET 请求、业务代码写了中文原因的 404（前端要读 `detail`）、405 等都仍是 JSON。`/oauth/token` 的 `TokenError` 与 422 各有自己的处理器，不受影响。

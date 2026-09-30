@@ -4,12 +4,13 @@ Jinja 只负责 HTML 外壳、表单、语义结构与站点上下文；真实�
 
 - `base.html`：导航、登录/注册浮层。经典 `auth.js` 在页面交互脚本之前执行；OAuth 同意页关闭这套登录控件。全站配色按 WCAG AA 取值（蓝 `#2563eb` 5.17:1、绿 `#15803d` 5.02:1、灰 `#64748b` 4.76:1，TD-263），`button:disabled` 灰化、`:focus-visible` 焦点环；浮层容器带 `role="dialog" aria-modal aria-labelledby="auth-title"`，Esc 关闭与焦点归还由 `auth.js` 实现。回归 `tests/test_ui_accessibility.py`；真实浏览器/读屏实测仍归 L-04。
 - `er.html` / `mermaid.html`：工具表单和结果容器；本地构建的 ES module 包含第三方依赖。
-- `drawio.html`：第三方编辑器、云端文件与回收站管理、本地导入/下载。保存前通过 export 协议请求新 XML。
+- `drawio.html`：第三方编辑器、云端文件与回收站管理、本地导入/下载。保存前通过 export 协议请求新 XML。展开「管理云端文件 / 回收站」即加载列表，都为空时 `#diagram-manage-empty`（role=status，始终存在）写明没有文件（TD-333）。
 - `shop.html`：固定数字商品、支付状态、历史订单和链接重领。定制需求引导至站内客服，不混作数字商品下单。
 - `payments-admin.html`：管理员订单登录壳、筛选、合同/凭证/事件、人工确认/主动查单/历史绑定表单；hidden强制隐藏避免grid样式覆盖，所有数据另经鉴权API。
 - `support-center.html`：公开的登录提示外壳；私人消息、会话列表及管理员操作都由鉴权 API 提供。登录提示之前是对访客开放的「先问智能助手」表单（TD-295，调用 `/support/ask`，最多 2000 字，与 `SupportIn` 一致）。
 - `oauth_consent.html`：无脚本同意表单；签名绑定用户与凭证版本，回调 query 保留。
 - `mock_pay.html`：开发用模拟支付，生产启动检查禁止启用。
+- `not_found.html`：浏览器打开不存在的地址时的站内 404 页（TD-333），由 `routers/site.py` 的 `not_found_handler` 渲染；不回显请求路径。API 与页面脚本的请求仍收到 JSON。
 
 修改 DOM ID 时同步检查页面脚本；不要用用户/模型文本拼接 HTML。客户消息由 `textContent` 渲染。
 
@@ -28,11 +29,12 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | 文件（源码） | SHA-256 前 12 位 | 定位范围 |
 | --- | --- | --- |
 | [`app/templates/base.html`](base.html) | `063dde61a830` | L1–L290 |
-| [`app/templates/drawio.html`](drawio.html) | `d36b5b843d42` | L1–L50 |
+| [`app/templates/drawio.html`](drawio.html) | `006fcc083868` | L1–L53 |
 | [`app/templates/er.html`](er.html) | `d74f3585085a` | L1–L45 |
 | [`app/templates/index.html`](index.html) | `5fea01a727a8` | L1–L13 |
 | [`app/templates/mermaid.html`](mermaid.html) | `3edfa668e206` | L1–L21 |
 | [`app/templates/mock_pay.html`](mock_pay.html) | `27ca244aede9` | L1–L30 |
+| [`app/templates/not_found.html`](not_found.html) | `9cb65036a155` | L1–L9 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `76157115f7b4` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `61528f3c429a` | L1–L175 |
 | [`app/templates/shop.html`](shop.html) | `ab7d91a46f4d` | L1–L123 |

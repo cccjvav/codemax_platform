@@ -9,6 +9,8 @@
   /* 文件管理列表（TD-326）：行内按钮原来紧贴文字、回收站行的「恢复」「永久删除」之间没有间隔 */
   #diagram-manage li { margin: 6px 0; overflow-wrap: anywhere; }
   #diagram-manage button { margin: 4px 8px 0 0; }
+  /* 空状态提示（TD-333）：是 role=status 区域，不隐藏，没有文字时只收掉外边距 */
+  #diagram-manage-empty:empty { margin: 0; }
   .auth { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; color: #64748b; }
 </style>
 
@@ -38,9 +40,10 @@
   <span id="drawio-status"></span>
 </div>
 
-<details><summary>管理云端文件 / 回收站</summary>
+<details id="diagram-manage-panel"><summary>管理云端文件 / 回收站</summary>
   <button type="button" id="btn-manage">刷新文件与回收站</button>
   <ul id="diagram-manage"></ul>
+  <p id="diagram-manage-empty" role="status"></p>
   <p>回收站计入总存储预算。永久删除不可恢复，请先保存需要的本地副本。</p>
 </details>
 

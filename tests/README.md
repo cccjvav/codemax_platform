@@ -132,14 +132,14 @@ Windows + conda 的环境核对、无 `.env` 验收副本、SQLite/真实 PG 和
 | [`tests/test_second_review_regressions.py`](test_second_review_regressions.py) | `8e3792de0465` | L1–L341 |
 | [`tests/test_shop_page.py`](test_shop_page.py) | `8ec8ac8cdc47` | L1–L737 |
 | [`tests/test_shop_polling.py`](test_shop_polling.py) | `8b9bba996bce` | L1–L183 |
-| [`tests/test_site.py`](test_site.py) | `cf8e184736a2` | L1–L65 |
+| [`tests/test_site.py`](test_site.py) | `d9b32ca29d42` | L1–L105 |
 | [`tests/test_sql_ddl.py`](test_sql_ddl.py) | `9fffc93591fb` | L1–L420 |
 | [`tests/test_support.py`](test_support.py) | `f0ccc6097a4a` | L1–L342 |
 | [`tests/test_support_messages.py`](test_support_messages.py) | `55ec9da62581` | L1–L126 |
 | [`tests/test_support_rag_perf.py`](test_support_rag_perf.py) | `2e06151a09d2` | L1–L202 |
 | [`tests/test_system_refunds.py`](test_system_refunds.py) | `43f04049ad2a` | L1–L325 |
 | [`tests/test_token_revocation.py`](test_token_revocation.py) | `8d134a6b87aa` | L1–L254 |
-| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `3b9bb9442015` | L1–L1139 |
+| [`tests/test_ui_accessibility.py`](test_ui_accessibility.py) | `cf1bbb09d1ef` | L1–L1200 |
 | [`tests/test_username_validation.py`](test_username_validation.py) | `b107bdd9e67b` | L1–L120 |
 | [`tests/test_verification_controls.py`](test_verification_controls.py) | `2075e6b53046` | L1–L236 |
 | [`tests/test_wechat_bills.py`](test_wechat_bills.py) | `b2e08d815890` | L1–L565 |
@@ -469,3 +469,9 @@ TD-273（会话到期保住用户内容）：`test_drawio_auth_state.py` 新增 
 - `test_ui_accessibility.py::test_register_hint_states_username_rules_in_plain_words`：注册提示写出可用字符，不含 `RegisterIn`。
 - `test_ui_accessibility.py::test_admin_record_boxes_keep_field_labels_whole`：`.finance pre` 同时有 `keep-all`、`anywhere`、`pre-wrap`。
 - `test_payments_frontend.py::test_workbench_browser_logic[review-lines]`（源码与构建产物各一次）：没有复核人时以「尚无复核人」结尾，不带分隔点、不留空行；有复核人时是「boss · T」加备注。改前失败。
+
+## 2026-09-30 界面优化第三轮（TD-333）
+
+- `test_site.py::test_unknown_address_opened_in_browser_gets_site_404_page`（`/nope`、`/tools/nope`、`/tools/er/extra` 三个地址）：浏览器打开不存在的地址得到带导航的站内 404 页，状态码 404、带安全头、不回显路径，HEAD 同样是 HTML。改前失败。
+- `test_site.py::test_non_browser_404s_stay_json`：fetch 默认 Accept、`application/json`、POST、业务 404（模拟收银台未开启）与 405 仍是 JSON。改前改后都通过，固定的是不应改变的行为。
+- `test_ui_accessibility.py::test_drawio_manage_panel_loads_on_open_and_says_when_empty`（空列表、有文件、游客三种场景，源码与构建产物各一次）：展开面板即加载，两个列表都空时写明没有文件，游客展开不发请求也不弹登录浮层。改前失败。
