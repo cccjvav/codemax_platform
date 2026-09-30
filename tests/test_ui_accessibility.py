@@ -932,7 +932,7 @@ def test_mobile_nav_fades_at_the_right_edge_and_the_last_link_can_clear_it():
 def test_pending_order_heading_states_the_status_not_the_order_number():
     """待支付态的标题原来是「订单 + 28 位订单号」，24px 粗体在 390px 宽折成三行，比状态和付款按钮还显眼。"""
     pending = SHOP.read_text(encoding="utf-8").split('<section id="st-pending"')[1].split("</section>")[0]
-    assert "<h2>等待支付</h2>" in pending
+    assert '<h2 id="p-title">等待支付</h2>' in pending  # TD-334 加了 id：订单过期时脚本改成「订单已过期」
     assert 'id="p-no"' in pending and "<h2>订单" not in pending
 
 

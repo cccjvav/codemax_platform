@@ -435,7 +435,12 @@ async def order_history(before: int | None = Query(None, gt=0), user: User = Dep
     # 只给 pending 行画二维码（每人至多一张）：关闭/已付单的码不会被展示，
     # 旧做法一页 50 张单要同步画 50 个 SVG（实测约 160 ms 阻塞事件循环），
     # 还把早已失效的收款码发给了浏览器（TD-281）。
-    return {"orders": [{**_payload(r, reused=True, qr=r.status == PENDING), "refunded": r.id in refunded}
+    # 列表项同样带 expired（TD-334）：点「我的订单」里的一行会直接按这条数据渲染，原来没有这个字段，
+    # 过期的待付款单先显示「正在等待支付」和付款入口，要等第一次轮询（3 秒）才改成过期提示。
+    # 过期单也不再画二维码：与详情接口用同一个 is_expired 判断。
+    ttl = settings.ORDER_EXPIRE_MINUTES
+    return {"orders": [{**_payload(r, reused=True, qr=r.status == PENDING and not is_expired(r, ttl)),
+                        "refunded": r.id in refunded, "expired": is_expired(r, ttl)}
                        for r in rows],
             "next_cursor": rows[-1].id if len(rows) == 50 else None}
 

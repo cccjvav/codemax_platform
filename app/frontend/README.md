@@ -54,7 +54,7 @@
 | [`app/frontend/mock-pay-page.js`](mock-pay-page.js) | `0051085bb559` | L1–L46 |
 | [`app/frontend/package.json`](package.json) | `8b4333b81f4f` | L1–L14 |
 | [`app/frontend/payments-admin.js`](payments-admin.js) | `2433a0f4fce9` | L1–L408 |
-| [`app/frontend/shop-page.js`](shop-page.js) | `cab919d15ed0` | L1–L376 |
+| [`app/frontend/shop-page.js`](shop-page.js) | `cf708cba930f` | L1–L376 |
 | [`app/frontend/support-page.js`](support-page.js) | `1d40555256f8` | L1–L228 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

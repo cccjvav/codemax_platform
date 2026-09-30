@@ -43,39 +43,11 @@ function render(o) {
     document.getElementById("p-no").textContent = o.order_no;
     document.getElementById("p-expired").hidden = !o.expired;
     document.getElementById("p-tip").hidden = !!o.expired;
-    // 收款码有两种来源，二选一渲染：
-    //   qr_svg   —— 微信 Native 的 code_url 现画的内联 SVG（segno，纯 <path>）
-    //   qr_image —— manual 模式的静态收款码（S5-04），服务端收不到回调，
-    //               要管理员核对到账后人工确认（POST /shop/orders/{no}/confirm）
-    // 用 createElement + .src 而不是把路径塞进 innerHTML：路径虽来自服务端配置，
-    // 但它将来可能变成运营可配的值，从一开始就不给它 XSS 的机会。
-    const box = document.getElementById("p-qr");
-    box.innerHTML = "";
-    if (o.qr_svg) {
-      box.innerHTML = o.qr_svg;
-    } else if (o.qr_image) {
-      const img = document.createElement("img");
-      img.src = o.qr_image;
-      img.alt = "扫码付款";
-      img.width = 220;
-      box.appendChild(img);
-      if (!o.expired) {
-        document.getElementById("p-tip").textContent =
-          "请扫码付款。付款后由客服核对到账并确认，本页会自动刷新状态。";
-      }
-    }
-    const link = document.getElementById("p-link");
-    // mock 模式（TD-124）的 code_url 是本站 http 链接，给个按钮比让人扫码方便
-    if (o.code_url && /^https?:/.test(o.code_url)) {
-      link.innerHTML = "";
-      const a = document.createElement("a");
-      a.href = o.code_url;
-      a.className = "cta";
-      a.textContent = "前往收银台支付";
-      link.appendChild(a);
-    } else {
-      link.textContent = "";
-    }
+    // 过期单不给任何付款入口（TD-334）：原来照样画收款码、显示「前往收银台支付」，紧挨着「请勿继续扫码」；
+    // 标题也从「等待支付」改成「订单已过期」，不与下面的提示矛盾。
+    document.getElementById("p-title").textContent = o.expired ? "订单已过期" : "等待支付";
+    const box = document.getElementById("p-qr"), link = document.getElementById("p-link");
+    box.innerHTML = ""; link.textContent = "";
     // 过期就把定时器停掉。**只判断「不 expired 才起表」是不够的**：
     // 订单在页面开着的时候到期，此时 status 仍是 pending ——
     //   · show("pending") 不清定时器（它的条件是 name !== "pending"）
@@ -85,6 +57,31 @@ function render(o) {
     if (o.expired) {
       stop();
       return;
+    }
+    // 收款码有两种来源，二选一渲染：
+    //   qr_svg   —— 微信 Native 的 code_url 现画的内联 SVG（segno，纯 <path>）
+    //   qr_image —— manual 模式的静态收款码（S5-04），服务端收不到回调，
+    //               要管理员核对到账后人工确认（POST /shop/orders/{no}/confirm）
+    // 用 createElement + .src 而不是把路径塞进 innerHTML：路径虽来自服务端配置，
+    // 但它将来可能变成运营可配的值，从一开始就不给它 XSS 的机会。
+    if (o.qr_svg) {
+      box.innerHTML = o.qr_svg;
+    } else if (o.qr_image) {
+      const img = document.createElement("img");
+      img.src = o.qr_image;
+      img.alt = "扫码付款";
+      img.width = 220;
+      box.appendChild(img);
+      document.getElementById("p-tip").textContent =
+        "请扫码付款。付款后由客服核对到账并确认，本页会自动刷新状态。";
+    }
+    // mock 模式（TD-124）的 code_url 是本站 http 链接，给个按钮比让人扫码方便
+    if (o.code_url && /^https?:/.test(o.code_url)) {
+      const a = document.createElement("a");
+      a.href = o.code_url;
+      a.className = "cta";
+      a.textContent = "前往收银台支付";
+      link.appendChild(a);
     }
     if (!timer) timer = setInterval(poll, 3000);
     return;
@@ -337,7 +334,10 @@ async function loadHistory(more = false) {
     const labels = { pending: "待付款", paid: "可下载", downloaded: "可重新下载", closed: "已关闭" };
     for (const order of data.orders) {
       const button = document.createElement("button"); button.type = "button"; button.className = "item";
-      button.textContent = `${order.order_no} · ${order.refunded ? "已全额退款（不可下载）" : labels[order.status] || order.status}`;
+      // 过期的待付款单标「已过期」（TD-334）：原来仍标「待付款」，点开才看到过期提示
+      const label = order.refunded ? "已全额退款（不可下载）"
+        : order.status === "pending" && order.expired ? "已过期" : labels[order.status] || order.status;
+      button.textContent = `${order.order_no} · ${label}`;
       button.onclick = () => {
         // 标出正在查看的是哪一条（TD-306）；可选调用：测试替身没有 setAttribute
         for (const other of box.children || []) other.removeAttribute?.("aria-current");

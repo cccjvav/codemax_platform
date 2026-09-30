@@ -108,7 +108,7 @@ Mermaid 11.17.2 已从运行时 CDN 改成本地锁定依赖；包体较大并�
 | [`app/static/js/rough.esm.js`](js/rough.esm.js) | `ef405c5eaa33` | 生成物，见模块构建说明 |
 | [`app/static/js/sankeyDiagram-P5KCCOFB.js`](js/sankeyDiagram-P5KCCOFB.js) | `94031b0096e6` | 生成物，见模块构建说明 |
 | [`app/static/js/sequenceDiagram-WJ2MYXX4.js`](js/sequenceDiagram-WJ2MYXX4.js) | `7253da3935a3` | 生成物，见模块构建说明 |
-| [`app/static/js/shop-page.js`](js/shop-page.js) | `5d8172106814` | 生成物，见模块构建说明 |
+| [`app/static/js/shop-page.js`](js/shop-page.js) | `a2130c503a16` | 生成物，见模块构建说明 |
 | [`app/static/js/sizeCapture-INFHLROL.js`](js/sizeCapture-INFHLROL.js) | `1686f2a8163c` | 生成物，见模块构建说明 |
 | [`app/static/js/src.js`](js/src.js) | `56404f4d6398` | 生成物，见模块构建说明 |
 | [`app/static/js/stateDiagram-D77RDMKH.js`](js/stateDiagram-D77RDMKH.js) | `34bed6ca115b` | 生成物，见模块构建说明 |

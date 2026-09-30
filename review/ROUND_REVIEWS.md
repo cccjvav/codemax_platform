@@ -379,3 +379,12 @@
 | 编号 | 发现 | 处理 |
 |---|---|---|
 | RR-62 | 自审 TD-333：① 处理器挂在 Starlette 的 `HTTPException` 上，才能接住「没有路由匹配」的 404（路由层抛的是 Starlette 异常，不是 FastAPI 子类）；FastAPI 的 `HTTPException` 是它的子类，业务 404 也会经过这里，因此用 detail 是否为默认 "Not Found" 区分，业务 404 都写了中文原因，测试用模拟收银台的中文 404 固定了这一点。② 静态目录里的 Markdown 被挡成不带原因的 404，浏览器打开时现在也是站内 404 页，与「没有这个文件」一致，不泄露额外信息。③ `/oauth/token` 的 `TokenError` 与 422 各自的处理器按异常类型更精确地匹配，不经过新处理器；405 的 JSON 由测试固定。④ 404 页经过安全头中间件（测试断言 `nosniff`），模板不回显路径，测试用带标签的路径确认。⑤ 流程图面板在游客展开时不调用 `manage()`，否则 `manage()` 会弹登录浮层；展开时的加载与按钮共用同一个 `manageSeq` 序号，重复触发只保留最后一次结果。⑥ FAQ 答案变动会进入检索语料，FAQ 与客服相关测试（159 项）全部通过。 | 无需改动。 |
+
+
+## 2026-09-30：商城过期待付款单（TD-334）的本轮复审
+
+范围：TD-334 的 diff（`app/routers/shop.py` 的 `order_history`、`shop-page.js` 及构建产物、`shop.html`，两个测试文件，导读与目录说明）。
+
+| 编号 | 发现 | 处理 |
+|---|---|---|
+| RR-63 | 自审 TD-334：① 列表的 `expired` 与详情接口同用 `order_state.is_expired`，已付款、已关闭单恒为 false，测试覆盖了已付款单。② 列表每行多一次 `is_expired` 调用（纯时间比较，不查库），50 行的开销可以忽略；列表仍是只读接口，不关单，测试断言状态仍为 pending。③ `render` 在过期分支之前清空 `#p-qr` 与 `#p-link`，所以从未过期单切到过期单时不会残留上一张的码；`stop()` 与原来一样在过期时停掉轮询，TD 原注释随代码一起移动。④ 自动恢复路径（`restoreLatest`）原本就先取详情、过期不恢复，不受影响，既有 `test_an_expired_pending_order_is_not_restored` 仍通过。⑤ 手动收款码模式的提示文字原来有「未过期才改」的判断，现在过期分支已提前返回，这个判断变成恒真，已删掉，行为不变。⑥ 真 PostgreSQL（pgserver）上跑受影响的 `test_shop_page`、`test_site`（含 TD-333 的 404 用例）、`test_mock_pay`、`test_download`、`test_e2e`，121 项通过。⑦ 同轮截图发现智能助手被通用词「支持」带偏，属于检索标定，不在本批修改，登记为 ROADMAP R-10。 | 无需改动；R-10 待处理。 |

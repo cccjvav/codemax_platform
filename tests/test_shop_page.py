@@ -735,3 +735,71 @@ def test_an_expired_pending_order_is_not_restored():
     assert out["visible"] == ["landing"], f"实际 {out['visible']}"
     assert out["timerActive"] is False, "过期的单不该起轮询"
     assert out["buyText"] == "立即购买（¥199.00）", "没有已购权益，按钮保持原样"
+
+
+# ---------------------------------------------------------------- TD-334：历史列表里的过期待付款单
+
+
+async def test_order_history_marks_expired_pending_orders_and_drops_their_qr(client, mock_mode):
+    """「我的订单」点一行会直接按列表数据渲染。列表原来不带 expired，过期的待付款单先显示「正在等待支付」
+    和付款入口，要等第一次轮询（3 秒）才改成过期提示；还把失效的收款码画给了浏览器。
+    现在列表与详情接口用同一个 is_expired：过期单 expired=true、不画码；未过期单照旧。"""
+    from datetime import datetime, timedelta, timezone
+
+    h = await auth_headers(client)
+    no = await make_order("pending")
+    async with TestSession() as s:  # 微信 Native 的码串才会画 SVG
+        o = (await s.execute(select(Order).where(Order.order_no == no))).scalar_one()
+        o.code_url = "weixin://wxpay/bizpayurl?pr=test"
+        await s.commit()
+    live = (await client.get("/shop/orders", headers=h)).json()["orders"][0]
+    assert live["expired"] is False and live["qr_svg"], live
+
+    async with TestSession() as s:
+        o = (await s.execute(select(Order).where(Order.order_no == no))).scalar_one()
+        o.create_time = datetime.now(timezone.utc) - timedelta(minutes=settings.ORDER_EXPIRE_MINUTES + 1)
+        await s.commit()
+    row = (await client.get("/shop/orders", headers=h)).json()["orders"][0]
+    detail = (await client.get(f"/shop/orders/{no}", headers=h)).json()
+    assert row["expired"] is True and detail["expired"] is True
+    assert row["qr_svg"] is None, "过期单不再把失效的收款码发给浏览器"
+    assert row["status"] == "pending", "列表只报告过期，不顺手关单"
+
+    paid = await make_order("paid")
+    rows = {r["order_no"]: r for r in (await client.get("/shop/orders", headers=h)).json()["orders"]}
+    assert rows[paid]["expired"] is False, "只有待付款单算过期"
+
+
+@pytest.mark.skipif(shutil.which("node") is None, reason="未安装 node")
+@pytest.mark.parametrize("expired", [True, False])
+def test_clicking_an_expired_history_row_shows_no_payment_entry(expired):
+    """「我的订单」里过期的待付款单标「已过期」（原来标「待付款」）；点开后标题是「订单已过期」、显示过期提示、没有收款码和「前往收银台支付」、
+    不起轮询。原来标题仍是「等待支付」，收款码与付款按钮紧挨着「请勿继续扫码」。
+    对照：未过期的单照旧显示付款入口并轮询。列表项故意带上码串和收银台链接，确认是脚本自己不渲染。"""
+    out = _run_owned_scenario(
+        "pending_expired",
+        """
+(async () => {
+  const tick = () => new Promise((r) => setTimeout(r, 30));
+  await tick();
+  const rows = [], linkKids = [];
+  els["order-history"] = { ...mkEl(), children: rows, appendChild(c) { rows.push(c); } };
+  els["p-link"] = { ...mkEl(), appendChild(c) { linkKids.push(c.textContent); } };
+  Object.assign(LIST[0], { expired: EXPIRED, code_url: "http://test/shop/mock-pay?order_no=CM4", qr_svg: "<svg>QR</svg>" });
+  await els["btn-history"].onclick(); await tick();
+  rows[0].onclick();
+  const g = (id) => document.getElementById(id);
+  console.log(JSON.stringify({ ...__state(), title: g("p-title").textContent, qr: g("p-qr").innerHTML, linkKids,
+    warnShown: g("p-expired").hidden === false, row: rows[0].textContent }));
+})();
+""".replace("EXPIRED", "true" if expired else "false"),
+    )
+    assert out["visible"] == ["pending"] and out["pendingNo"] == "CM4", out
+    assert out["row"] == ("CM4 · 已过期" if expired else "CM4 · 待付款"), "列表行本身就标出过期"
+    if expired:
+        assert (out["title"], out["warnShown"], out["qr"], out["linkKids"], out["timerActive"]) == (
+            "订单已过期", True, "", [], False), out
+    else:
+        assert (out["title"], out["warnShown"], out["qr"], out["linkKids"], out["timerActive"]) == (
+            "等待支付", False, "<svg>QR</svg>", ["前往收银台支付"], True), out
+

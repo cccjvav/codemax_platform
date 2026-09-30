@@ -37,7 +37,7 @@ Jinja 页面外壳、表单与导航；交互实现放在 frontend。
 | [`app/templates/not_found.html`](not_found.html) | `9cb65036a155` | L1–L9 |
 | [`app/templates/oauth_consent.html`](oauth_consent.html) | `76157115f7b4` | L1–L22 |
 | [`app/templates/payments-admin.html`](payments-admin.html) | `61528f3c429a` | L1–L175 |
-| [`app/templates/shop.html`](shop.html) | `ab7d91a46f4d` | L1–L123 |
+| [`app/templates/shop.html`](shop.html) | `c551a30280fe` | L1–L123 |
 | [`app/templates/support-center.html`](support-center.html) | `202c15e1fc2c` | L1–L57 |
 
 完整 SHA-256、Python 限定名与行范围由文档构建写入 `docs/site/data/code-manifest.json`。

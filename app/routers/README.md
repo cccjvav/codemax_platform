@@ -51,7 +51,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | --- | --- | --- |
 | `create_order` POST `/shop/orders` | 登录用户下单 → 订单与支付展示数据 | `order` 桶限流（`RATE_LIMIT_AUTH`，TD-262）；复用有效 pending；过期关闭后重建；部分唯一索引挡并发重复；wechat 配置缺失 503、下单失败 502且保留pending；建单时保存配置金额，预支付先commit再进入按 user_id 的进程内单飞 `_prepay_flight`——等待者复用已写入的 code_url（reused=true）或在未知结果后沿用同一单号重试，锁内订单已非 pending 则 409；不持数据库锁跨网络，多实例各自单飞 |
 | `order_status` GET `/shop/orders/{order_no}` | 自己的订单当前状态、expired | 只读 no-store；不会自动关单、领取链接或发起新订单 |
-| `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目 |
+| `order_history` GET `/shop/orders` | before 游标 → `{orders,next_cursor}`，最多 50 条 | 自己的历史，按 id 倒序；next_cursor 非空不保证下一页一定还有条目；每项带 `refunded` 与 `expired`（与详情接口同一判断），只有未过期的待付款单带收款码 SVG（TD-334） |
 | `download_url` POST `/shop/download/{order_no}` | 自己的已付订单 → 短时 download_url | paid/downloaded 均可领取；先查对象并生成 URL，再记录发放；pending/closed 403。不是“只能领一次” |
 | `serve_download` GET `/shop/dl` | key、expires、signature、order_no → FileResponse | 此出口不要求登录，依靠有效 bearer 链接；与 `POST /shop/download` 共用 `download` 限流桶（`RATE_LIMIT_TOOLS`，TD-261），超额 429 先于签名/数据库检查；签名/过期 403，文件不存在 404；链接在有效期内可重用，不能宣传成防转卖系统 |
 | `pay_notify` POST `/shop/pay/notify` | 原始微信回调 → 微信格式 SUCCESS/FAIL | 不依赖用户 Cookie；限制报文并检查新鲜度、验签、解密、订单和金额；匹配mchid/appid、CNY/NATIVE、资源类型及固定平台serial/公钥ID；已有唯一凭证但非完整会计账本；原子确认，重复通知幂等 |
@@ -105,7 +105,7 @@ production两个发放入口均要求OAUTH_TRUSTED_CLIENT_IDS显式允许，默�
 | [`app/routers/payments_admin.py`](payments_admin.py) | `915b93faedc0` | L1–L330 |
 | [`app/routers/refund_notify.py`](refund_notify.py) | `75d984ab71c8` | L1–L49 |
 | [`app/routers/refunds_admin.py`](refunds_admin.py) | `a93590872183` | L1–L301 |
-| [`app/routers/shop.py`](shop.py) | `16639f1b56e3` | L1–L749 |
+| [`app/routers/shop.py`](shop.py) | `9a662b82f94f` | L1–L754 |
 | [`app/routers/site.py`](site.py) | `ac0cd7448062` | L1–L88 |
 | [`app/routers/support.py`](support.py) | `0b55ab4e7abb` | L1–L34 |
 | [`app/routers/tools.py`](tools.py) | `e9d4a2553ea8` | L1–L80 |

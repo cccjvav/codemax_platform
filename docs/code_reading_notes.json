@@ -642,7 +642,7 @@
     },
     {
       "path": "app/frontend/shop-page.js",
-      "sha256": "cab919d15ed0a6078d8cf451395ce50dc6404b2f38f00cf35a1d1212d9117a0b",
+      "sha256": "cf708cba930fa717864c5c192b6216448ebea12287a13f6eac0f4fff4ff01bab",
       "method": "manual",
       "blocks": [
         {
@@ -651,44 +651,44 @@
           "explanation": "ST保存各视图，timer/currentNo/pollBusy/historyCursor分别管理轮询与分页；buyBtn/BUY_TEXT 记住主按钮的原始文案，供已购或退款后还原（V-05）。show切换视图并在离开pending时清定时器；删除未使用yuan。当前下单请求与轮询的过期判断用buySeq，不能只隐藏DOM而保留旧请求资格。 TD-281：ST 去掉从不显示的 downloaded 视图（模板的 st-downloaded 已删）；downloaded 订单由 render 走 paid 区重新领取。 TD-315：错误显示改经本页 failure(e)，即 CodeMaxAuth.failureText：网络层失败显示「网络连接失败，请检查网络后重试」，其余原样；测试替身没有该函数时退回 e.message。"
         },
         {
-          "end": 100,
+          "end": 97,
           "title": "render：只读订单状态，不申请下载",
-          "explanation": "currentNo赋值后先判断refunded，直接show退款区域并停止旧轮询；否则按pending/paid/downloaded/closed显示。pending只用受控SVG或DOM图片/链接展示码；过期停止。paid/downloaded可重领仅对未退款单成立；渲染不调用下载POST。 TD-281：closed 分支写入的 #x-no 现在位于 st-closed 内——它原在从不显示的 st-downloaded 里，关闭页因此一直看不到订单号，而页面恰恰让用户找客服核对。"
+          "explanation": "currentNo赋值后先判断refunded，直接show退款区域并停止旧轮询；否则按pending/paid/downloaded/closed显示。pending只用受控SVG或DOM图片/链接展示码；过期停止。paid/downloaded可重领仅对未退款单成立；渲染不调用下载POST。 TD-281：closed 分支写入的 #x-no 现在位于 st-closed 内——它原在从不显示的 st-downloaded 里，关闭页因此一直看不到订单号，而页面恰恰让用户找客服核对。 TD-334：待付款分支先写标题 #p-title（过期为「订单已过期」，否则「等待支付」），清空 #p-qr 与 #p-link；过期即 stop() 并返回，不再画收款码或「前往收银台支付」。原来过期单照样渲染付款入口，紧挨着「请勿继续扫码」。"
         },
         {
-          "end": 120,
+          "end": 117,
           "title": "poll / stop：单在途与旧响应丢弃",
           "explanation": "pollBusy 禁止重叠轮询，记录订单号和 buySeq；fetch 与 json 两个 await 后都核身份/订单代际。401 停止，普通错误等下一轮，格式错误给重试提示。finally 清 busy；stop 只清计时器，不取消已在途请求，后者由序号挡住。 TD-270：轮询 401 时另调 sessionExpired 弹浮层。"
         },
         {
-          "end": 226,
+          "end": 223,
           "title": "V-05：已购用户与返回恢复",
           "explanation": "entitledNo/restored/userActed：有已购权益（paid/downloaded 且未退款）时主按钮换成「已购买，去下载」，点它 fetchOrder 后 render 回到该单，**不再 POST /shop/orders**（用户 2026-09-24 确认单 SKU 不设计复购）。orderFromUrl 只接受与订单号同形的 ?order=（收银台返回链接带单号）。bootstrap 在首次身份确定时只跑一次：先认 URL 单号，再 restoreLatest —— 最新一张就是已购单就直接显示该单，否则**已购优先于更晚的未付款单**，没有已购权益才恢复未过期的待支付单（过期的不恢复、重新起轮询）。fetchOrder 用 undefined/null 区分「这单不存在」与「暂时读不到（未登录/网络）」，后者不锁死本次恢复。userActed 保证用户点过按钮后自动恢复不再介入；账号切换 resetPrimary + restored=false，保持账号隔离。"
         },
         {
-          "end": 243,
+          "end": 240,
           "title": "一次性购买意图与 buy",
           "explanation": "offBuy 保存真实退订函数，不是再注册空监听器。buySeq 递增使旧 401 不得复活购买意图；buy 包装 doBuy 的异常，并且只有本次仍最新才写错误。取消显示不会向服务器退款或关单。 V-05：buy() 开头置 userActed，页面内的主动操作优先于自动恢复。"
         },
         {
-          "end": 301,
+          "end": 298,
           "title": "doBuy：仅最新尝试可以补单",
           "explanation": "POST /shop/orders 后先核 mySeq；401 唤登录并至多挂一个监听，登录成功先清 offBuy 再退订并 buy 一次。503 说明支付未配置，其他非 2xx 统一错误；解析成功订单后还要核序号和字段再 render，避免账号切换污染。"
         },
         {
-          "end": 309,
+          "end": 306,
           "title": "refreshOnReturn 与按钮绑定",
           "explanation": "pageshow.persisted（bfcache 恢复）或标签页重新可见且正在看待支付单时立即 poll 一次并确保定时器在跑，用户从收银台回来不用再等最长 3 秒。buyBtn 绑定 primary（V-05：按 entitledNo 决定下单还是回订单）；rebuy 仍是 buy（只针对已过期的待支付单），cancel 递增 buySeq、清 currentNo/轮询与待补单订阅。"
         },
         {
-          "end": 327,
+          "end": 324,
           "title": "下载：主动操作、短时链接可重领",
           "explanation": "只有用户主动点击才 POST /shop/download/{no}；成功后校验下载 URL 形状再跳转。已付款/已领过都可重领短时链接，失败不烧权益、可重试；401 交给 sessionExpired。 TD-278：res.json() 加 .catch(() => null)：反向代理 502/504 的 HTML 错误页不再变成「Unexpected token <」，交给 errorText 给出「请求失败（状态码）」。"
         },
         {
           "end": 376,
           "title": "loadHistory 与身份变化：游标分页",
-          "explanation": "GET 历史带可选 before，检查 orders 数组，用文本按钮展示。选一张订单递增 buySeq 并停止旧轮询再 render；next_cursor 控制更早按钮。账号变更清编号、列表/游标与 timer，注销还退订待补购买，防止下次登录意外下单。 V-05：账号变更后 resetPrimary + restored=false 并对新身份 bootstrap，保证「已购买，去下载」不会跟着上一个账号留下来。 TD-278：历史列表的 res.json() 同样容忍非 JSON 应答。 TD-306：订单按钮 className=\"item\"；点开的那条标 aria-current，其余清除（可选调用，测试替身没有 setAttribute）。"
+          "explanation": "GET 历史带可选 before，检查 orders 数组，用文本按钮展示。选一张订单递增 buySeq 并停止旧轮询再 render；next_cursor 控制更早按钮。账号变更清编号、列表/游标与 timer，注销还退订待补购买，防止下次登录意外下单。 V-05：账号变更后 resetPrimary + restored=false 并对新身份 bootstrap，保证「已购买，去下载」不会跟着上一个账号留下来。 TD-278：历史列表的 res.json() 同样容忍非 JSON 应答。 TD-306：订单按钮 className=\"item\"；点开的那条标 aria-current，其余清除（可选调用，测试替身没有 setAttribute）。 TD-334：待付款且 expired 的行标「已过期」，其余仍按 labels 表；退款优先。"
         }
       ]
     },
@@ -1373,7 +1373,7 @@
     },
     {
       "path": "app/routers/shop.py",
-      "sha256": "16639f1b56e3b52901ac1af1e9e9226d28bdbde0a37d8a2e25db6ebfc9f393ac",
+      "sha256": "9a662b82f94fd2f201f817d5584446d535cf6af3b3693eff41d118f554aa97e9",
       "method": "manual",
       "blocks": [
         {
@@ -1457,97 +1457,97 @@
           "explanation": "管理员依赖、require_finance_origin来源检查和当前manual配置均通过后读取原单；原渠道须manual，实际分数/参考流水/依据通过schema和settle检查。锁内将凭证和paid原子提交；精确重试不覆盖首次人，冲突409。该函数不查询银行，管理员须独立核实实际到账。"
         },
         {
-          "end": 442,
+          "end": 447,
           "title": "order_history",
-          "explanation": "按当前user_id和before倒序最多50单，再批量SELECT这些订单的退款ID集合，将refunded逐单加入_payload；两次有界查询，不逐行查数据库。不创建订单/链接，游标按实际订单ID推进。 TD-281：只给 pending 行画二维码（_payload 传 qr=status==PENDING，每人至多一张 pending）。旧实现给每张带 weixin:// 的单都同步画 SVG，含已关闭、永远不会展示的码；一页 50 张实测约 160 ms 阻塞事件循环，还把失效收款码发给浏览器。单查接口 order_status 不受影响。"
+          "explanation": "按当前user_id和before倒序最多50单，再批量SELECT这些订单的退款ID集合，将refunded逐单加入_payload；两次有界查询，不逐行查数据库。不创建订单/链接，游标按实际订单ID推进。 TD-281：只给 pending 行画二维码（_payload 传 qr=status==PENDING，每人至多一张 pending）。旧实现给每张带 weixin:// 的单都同步画 SVG，含已关闭、永远不会展示的码；一页 50 张实测约 160 ms 阻塞事件循环，还把失效收款码发给浏览器。单查接口 order_status 不受影响。 TD-334：列表项也带 expired，与详情接口用同一个 is_expired(r, ORDER_EXPIRE_MINUTES)；过期的待付款单不再画收款码（qr 参数只对未过期的 pending 为真）。原来列表没有这个字段，前端点一行按列表数据渲染，过期单先显示付款入口，要等第一次轮询才改正。"
         },
         {
-          "end": 482,
+          "end": 487,
           "title": "download_url",
           "explanation": "所有者与paid/downloaded检查后先拒绝退款；读取冻结key/hash/size，缺失404/损坏409/历史未绑定409。在线程验快照后锁单并重查退款，才签带order_no的v2链接并mark_downloaded；原已downloaded时也显式commit释放锁。异常不消灭未退款权益；不能用当前商品替换旧交付。 TD-281：交付对象缺失时 404 文案改为中性的「商品文件暂不可用，请联系站内客服；购买权益未删除」；对象 key 只写入 codemax.shop 告警日志（附 order_no）。原文案把存储内部路径回给了用户。"
         },
         {
-          "end": 527,
+          "end": 532,
           "title": "serve_download",
           "explanation": "公开入口不要求登录，身份来自订单域HMAC短链；与POST /shop/download共用`download`限流桶（RATE_LIMIT_TOOLS，TD-261/A-08），超额429先于任何签名或数据库检查；旧格式缺order_no统一403并提示重领。先验签/期限，再核订单paid/downloaded、冻结key和实时退款；安全路径缺失404，按冻结hash/size校验后再SELECT退款，最后FileResponse流式no-store。不能召回已接纳连接/副本，仍信任主机管理员和签名密钥。"
         },
         {
-          "end": 536,
+          "end": 541,
           "title": "_storage",
-          "explanation": "功能契约：用可信入口规则得到基址，StorageError 转 503；不是静默换后端。\n\n输入签名：request: Request；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL529 执行try体；捕获 StorageError。\nL532 结束当前函数，返回 调用 build_storage(public_base_url(request))；不会自动commit未提交事务。\nL534 抛出 HTTPException(503, str(e))，显式保留原因 e；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
-        },
-        {
-          "end": 540,
-          "title": "_ok",
-          "explanation": "功能契约：返回商户协议 SUCCESS JSON；用于已处理和可忽略通知，不表示每种通知都改了订单。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL538 结束当前函数，返回 调用 JSONResponse({'code': 'SUCCESS', 'message': '成功'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "explanation": "功能契约：用可信入口规则得到基址，StorageError 转 503；不是静默换后端。\n\n输入签名：request: Request；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL534 执行try体；捕获 StorageError。\nL537 结束当前函数，返回 调用 build_storage(public_base_url(request))；不会自动commit未提交事务。\nL539 抛出 HTTPException(503, str(e))，显式保留原因 e；本路径不再顺序执行后文，由匹配的except/上层处理。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
           "end": 545,
-          "title": "_fail",
-          "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL543 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+          "title": "_ok",
+          "explanation": "功能契约：返回商户协议 SUCCESS JSON；用于已处理和可忽略通知，不表示每种通知都改了订单。\n\n输入签名：；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL543 结束当前函数，返回 调用 JSONResponse({'code': 'SUCCESS', 'message': '成功'})；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         },
         {
-          "end": 568,
+          "end": 550,
+          "title": "_fail",
+          "explanation": "功能契约：返回 FAIL JSON 及对应 HTTP 状态，便于商户识别失败而不是假成功。\n\n输入签名：status: int, message: str；定义函数不等于此处立刻执行函数体。 返回类型标注：JSONResponse。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL548 结束当前函数，返回 调用 JSONResponse({'code': 'FAIL', 'message': message}, status_code=status)；不会自动commit未提交事务。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 573,
           "title": "_payload",
           "explanation": "返回订单固定支付渠道（NULL显示legacy），不随当前SHOP_PAY_MODE把历史单变成其他渠道。微信码画SVG，人工码仍是服务端配置图片；商户真实到账需核账，展示码不是支付证明。 O-09 删除了从未被读取的 pay_mode 形参（六处调用同步更新），当时签名只剩 order 与 reused；渠道只来自订单冻结值。 TD-281：新增仅关键字参数 qr（默认 True）；order_history 对非 pending 行传 False 跳过 SVG 生成，其余五处调用不变。"
         },
         {
-          "end": 576,
+          "end": 581,
           "title": "_NotifyReject",
           "explanation": "回调内部的拒绝异常，携带 HTTP 状态和消息（TD-288）。各段校验抛它，pay_notify 统一转成微信规定的 FAIL 应答；不外泄到路由之外，也不是 HTTPException（那会变成 {\"detail\": …}）。"
         },
         {
-          "end": 587,
+          "end": 592,
           "title": "_PaidNotice",
           "explanation": "验签、解密、结构和渠道校验都通过后的支付成功通知：订单号、微信交易号、分金额、商户号、应用号，以及**尚未解析**的 success_time——时间在查到订单、核完金额后才解析，保持拆分前的拒绝优先级（TD-288）。"
         },
         {
-          "end": 600,
+          "end": 605,
           "title": "_read_notify_body",
           "explanation": "逐块读请求体，累计超过 64 KiB 即 413；严格 UTF-8 解码，非法字节 400，不做替换——验签要用原样文本（TD-288 从 pay_notify 抽出）。"
         },
         {
-          "end": 608,
+          "end": 613,
           "title": "_verify_notify_headers",
           "explanation": "TD-312 起只是把 wechat_pay.verify_signed_message（四个签名头各恰好一个且有界 → 时间戳新鲜度 → 平台证书序列号 → 验签）包一层，任一 WeChatPayError 转为 401，报错文字原样回给微信。以前这里自己用 headers.get 取头：同名头重复时取第一个照样放行，空值和 Serial/Timestamp 长度也不在这一步查。TD-288 从 pay_notify 抽出。"
         },
         {
-          "end": 650,
+          "end": 655,
           "title": "_parse_paid_notice",
           "explanation": "已验签报文 → _PaidNotice，不碰数据库（TD-288 从 pay_notify 抽出）。依次：有界 JSON（含 RecursionError）→ resource 是对象、密文字段是字符串 → 解密失败 400 → 业务数据是对象 → 只接 TRANSACTION.SUCCESS 且 trade_state=SUCCESS（其他 422，不能当已处理）→ appid/mchid/NATIVE/算法/原始类型/资源类型全匹配 → 订单号 ≤32、交易号 ≤64、非空无 NUL → 金额是对象、total 为 int、币种 CNY。"
         },
         {
-          "end": 662,
+          "end": 667,
           "title": "_provider_paid_at",
           "explanation": "解析微信给的支付时间：必须是 ≤40 字符的字符串、fromisoformat 可解析且带时区，否则 400「支付成功时间必须为带时区的有效时间」。在订单与金额核对之后调用（TD-288）。"
         },
         {
-          "end": 697,
+          "end": 702,
           "title": "pay_notify",
           "explanation": "有界原文、新鲜度、可信平台serial/RSA验签、AESGCM解密和业务形状检查；只处理SUCCESS，未接入事件422而非假ACK。商户/app/NATIVE/CNY/金额和带时区success_time均验证，然后settle再核对持锁后的订单快照及流水唯一归属。同流水精确重复200，不同流水/渠道409；只接收合成测试不代表商户联调。 TD-288：拆成 _read_notify_body / _verify_notify_headers / _parse_paid_notice / _provider_paid_at 几段，各段抛 _NotifyReject，这里统一转 _fail；PaymentConflict 仍是 409。拒绝优先级与拆分前逐项相同：配置 → 大小/编码 → 签名头 → 结构/解密/事件/渠道/标识/金额结构 → 订单存在（404）→ 金额相等 → 支付时间，test_notify_rejection_precedence_and_paid_time 在拆分前后都通过。"
         },
         {
-          "end": 704,
+          "end": 709,
           "title": "_snapshot",
           "explanation": "使用请求安全基址构建本地存储并卸载snapshot_product到线程；StorageError转503，不先收款，不把文件复制堵在事件循环。"
         },
         {
-          "end": 709,
+          "end": 714,
           "title": "_channel",
           "explanation": "订单冻结的收款方 (merchant_id, app_id)：只有 wechat 单记当前配置的商户号/应用号，manual/mock 为 (None, None)。原来在建单、渠道核对、历史绑定里复制了四次同一个条件表达式（TD-288）。"
         },
         {
-          "end": 714,
+          "end": 719,
           "title": "_check_order_channel",
           "explanation": "比较订单自身mode/merchant/app与当前拟下单配置；旧NULL或渠道变更409。并发pending冲突分支也要调用，不能只检查首次读取路径。 TD-288：期望值改由 _channel(mode, cfg) 给出。"
         },
         {
-          "end": 720,
+          "end": 725,
           "title": "LegacyBindingIn",
           "explanation": "继承必须有内容的依据；只允许manual/wechat/mock，以及有界无控制字符原文件key。它是管理员声明待核实旧合同，不是面向用户任选文件的入口。"
         },
         {
-          "end": 749,
+          "end": 754,
           "title": "bind_legacy_order",
           "explanation": "管理员及财务来源依赖保护的一次性核准。原渠道/交付未绑定才可开始；生产不能mock，微信需真实可用平台信任配置。在线程工作池冻结经核实原文件，再锁住订单重查以挡并发。写渠道/商户/文件摘要及legacy_bound事件同事务提交；不创造历史收入，不能替换已核准合同。 TD-288：商户/应用号改由 _channel(proof.payment_mode, cfg) 给出，与建单同一来源。"
         }
@@ -2028,7 +2028,7 @@
     },
     {
       "path": "app/templates/shop.html",
-      "sha256": "ab7d91a46f4d1d1a5f8a4e7b8772e5bd07abd745a6887168523cf1ebb7d9ca70",
+      "sha256": "c551a30280fe1c42f81bd0d14e4efa15c7b714dbed3d0d287c44ad8fbd8f7f32",
       "method": "manual",
       "blocks": [
         {
@@ -2049,7 +2049,7 @@
         {
           "end": 96,
           "title": "退款/关闭说明与待付区域",
-          "explanation": "历史列表和游标由JS装配；st-refunded独立说明全额退款不可下载并链接站内客服，原closed/expired继续区分本地状态与时间。取消只回商品页，不发起远端关单/退款。 TD-278：「我的订单」区块已移到状态区之后（见最后一段），本段只剩退款/关闭说明与待付区域。 TD-281：st-closed 新增「订单 #x-no」一行（上方注释说明原因）：用户找客服核对时要报这个号。 TD-317：待支付态与支付成功、已关闭两态一致：标题「等待支付」说状态，订单号放在下面的 .muted 灰字行。原来订单号在标题里，390px 宽折成三行，比状态文字和付款按钮还显眼。.muted 同样带 overflow-wrap: anywhere，订单号仍可换行。"
+          "explanation": "历史列表和游标由JS装配；st-refunded独立说明全额退款不可下载并链接站内客服，原closed/expired继续区分本地状态与时间。取消只回商品页，不发起远端关单/退款。 TD-278：「我的订单」区块已移到状态区之后（见最后一段），本段只剩退款/关闭说明与待付区域。 TD-281：st-closed 新增「订单 #x-no」一行（上方注释说明原因）：用户找客服核对时要报这个号。 TD-317：待支付态与支付成功、已关闭两态一致：标题「等待支付」说状态，订单号放在下面的 .muted 灰字行。原来订单号在标题里，390px 宽折成三行，比状态文字和付款按钮还显眼。.muted 同样带 overflow-wrap: anywhere，订单号仍可换行。 TD-334：待付款区标题加 id p-title，脚本在订单过期时改成「订单已过期」。"
         },
         {
           "end": 123,
@@ -8655,7 +8655,7 @@
     },
     {
       "path": "tests/test_shop_page.py",
-      "sha256": "8ec8ac8cdc47f92aaabe2f9470701b76c2632a6ab08fe263fa563752f84132a0",
+      "sha256": "1a8de2dcf10b6eed68ef1fbd62c583f254f57248411f8323f02720a79270634c",
       "method": "guided",
       "blocks": [
         {
@@ -8799,9 +8799,19 @@
           "explanation": "两条主断言：最新一张就是已购单时打开 /shop 直接显示该单状态（不出现「立即购买」）；有已购权益但最新一张是未付款单时只给「已购买，去下载」+ 含订单号的说明，点它不下单（postOrders 不变）且切到已购那一单 —— 后一条在旧代码上就是「静默新建待支付单」的路径。对照：全额退款的订单不算权益，按钮必须仍是「立即购买」且无说明（旧代码本来就绿，专门防过修）。"
         },
         {
-          "end": 737,
+          "end": 742,
           "title": "返回 ?order= 与待支付恢复",
           "explanation": "?order=CM7 直接显示该单的支付成功视图、?order=CM8 显示已全额退款，都不允许顺手下单；未过期的待支付单恢复后要重新起轮询；对照：过期单不恢复、不起轮询。"
+        },
+        {
+          "end": 772,
+          "title": "test_order_history_marks_expired_pending_orders_and_drops_their_qr",
+          "explanation": "测试契约：订单列表与详情接口用同一个 is_expired：过期的待付款单 expired=true、不再发收款码 SVG、状态仍是 pending（只报告不关单）；未过期单照旧带码；已付款单 expired=false（TD-334）。\n\n输入签名：client, mock_mode；异步调用需await才推进。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL747 导入 from datetime import datetime, timedelta, timezone；导入模块顶层可能初始化对象，但不因此运行每个函数体。\nL749 计算右侧并赋给 `h`：await 调用 auth_headers(client)；等待期间可让出事件循环，恢复后才执行下一句。\nL750 计算右侧并赋给 `no`：await 调用 make_order('pending')；等待期间可让出事件循环，恢复后才执行下一句。\nL751 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL752 计算右侧并赋给 `o`：调用 (await s.execute(select(Order).where(Order.order_no == no))).scalar_one()。\nL753 计算右侧并赋给 `o.code_url`：'weixin://wxpay/bizpayurl?pr=test'。\nL754 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL755 计算右侧并赋给 `live`：(await client.get('/shop/orders', headers=h)).json()['orders'][0]。\nL756 核对 `live['expired'] is False and live['qr_svg']`：此条件为假即测试失败；不是生产输入校验。\nL758 进入 TestSession() as s 的上下文；退出时执行资源/锁/异常管理，入口和退出都可等待。\nL759 计算右侧并赋给 `o`：调用 (await s.execute(select(Order).where(Order.order_no == no))).scalar_one()。\nL760 计算右侧并赋给 `o.create_time`：datetime.now(timezone.utc) - timedelta(minutes=settings.ORDER_EXPIRE_MINUTES + 1)。\nL761 await 调用 s.commit()；等待期间可让出事件循环，恢复后才执行下一句。\nL762 计算右侧并赋给 `row`：(await client.get('/shop/orders', headers=h)).json()['orders'][0]。\nL763 计算右侧并赋给 `detail`：调用 (await client.get(f'/shop/orders/{no}', headers=h)).json()。\nL764 核对 `row['expired'] is True and detail['expired'] is True`：此条件为假即测试失败；不是生产输入校验。\nL765 核对 `row['qr_svg'] is None`：此条件为假即测试失败；不是生产输入校验。\nL766 核对 `row['status'] == 'pending'`：此条件为假即测试失败；不是生产输入校验。\nL768 计算右侧并赋给 `paid`：await 调用 make_order('paid')；等待期间可让出事件循环，恢复后才执行下一句。\nL769 计算右侧并赋给 `rows`：{r['order_no']: r for r in (await client.get('/shop/orders', headers=h)).json()['orders']}。\nL770 核对 `rows[paid]['expired'] is False`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
+        },
+        {
+          "end": 805,
+          "title": "test_clicking_an_expired_history_row_shows_no_payment_entry",
+          "explanation": "测试契约：Node 真跑 auth.js + shop-page.js：「我的订单」里过期的待付款单标「已过期」，点开后标题「订单已过期」、显示过期提示、没有收款码和收银台链接、不起轮询；未过期单对照照旧显示付款入口并轮询。列表项故意带码串与链接，确认是脚本自己不渲染（TD-334）。\n\n登记/装饰：pytest.mark.skipif(shutil.which('node') is None, reason='未安装 node')。pytest参数化会展开用例，fixture负责准备/恢复；路由装饰器则登记HTTP入口。\n\n输入签名：expired；定义函数不等于此处立刻执行函数体。 未写返回类型标注，以下方return为准。\n\nAST语句导读（仅陈述可见语法与显式断言，不推断设计理由）：\nL779 计算右侧并赋给 `out`：调用 _run_owned_scenario('pending_expired', '\\n(async () => {\\n  const tick = () => new Promise((r) => setTimeout(r, 30));\\n  await tick();\\n  const rows = [], linkKids = [];\\n  els[\"order-history\"] = { ...mkEl(), children: rows, appendChild(c) { rows.push(c); } };\\n  els[\"p-link\"] = { ...mkEl(), appendChild(c) { linkKids.push(c.textContent); } };\\n  Object.assign(LIST[0], { expired: EXPIRED, code_url: \"http://test/shop/mock-pay?or…（完整表达式见右侧源码）。\nL797 核对 `out['visible'] == ['pending'] and out['pendingNo'] == 'CM4'`：此条件为假即测试失败；不是生产输入校验。\nL798 核对 `out['row'] == ('CM4 · 已过期' if expired else 'CM4 · 待付款')`：此条件为假即测试失败；不是生产输入校验。\nL799 判断 `expired`，为真进入当前缩进分支，为假进入else/elif。\nL800 核对 `(out['title'], out['warnShown'], out['qr'], out['linkKids'], out['timerActive']) == ('订单已过期', True, '', [], False)`：此条件为假即测试失败；不是生产输入校验。\nL803 核对 `(out['title'], out['warnShown'], out['qr'], out['linkKids'], out['timerActive']) == ('等待支付', False, '<svg>QR</svg>', ['前往收银台支付'], True)`：此条件为假即测试失败；不是生产输入校验。\n\n阅读边界：原注释/docstring、空行和多行表达式的续行在右侧保留；缩进决定分支归属，原注释不能盖过当前执行语句。"
         }
       ]
     },
@@ -9525,7 +9535,7 @@
     },
     {
       "path": "tests/test_ui_accessibility.py",
-      "sha256": "cf1bbb09d1effc2049867b5041cc1ae04dbc132825d5b0dfae475ce60f05adb7",
+      "sha256": "4ca4ca088276d2104c6812c92b3ebddf3b1ff5c3a354a4a4c26d1326c07674f4",
       "method": "guided",
       "blocks": [
         {
@@ -9780,7 +9790,7 @@
         {
           "end": 938,
           "title": "test_pending_order_heading_states_the_status_not_the_order_number",
-          "explanation": "TD-317：待支付态标题原来是「订单 + 28 位订单号」，24px 粗体在 390px 宽折成三行。钉住 st-pending 区块里的标题是「等待支付」、订单号仍在该区块里（p-no），且不再出现「<h2>订单」。段首是本节分隔注释。"
+          "explanation": "TD-317：待支付态标题原来是「订单 + 28 位订单号」，24px 粗体在 390px 宽折成三行。钉住 st-pending 区块里的标题是「等待支付」、订单号仍在该区块里（p-no），且不再出现「<h2>订单」。段首是本节分隔注释。 TD-334：标题带 id=\"p-title\"（过期时脚本改写文字），断言随之改为完整标记，检查强度不变。"
         },
         {
           "end": 952,

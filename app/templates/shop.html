@@ -82,7 +82,7 @@
   <section id="st-pending" class="pay" hidden>
     <!-- 与支付成功、已关闭两态一致：标题说状态，订单号放在下面的灰字行。原来 28 位订单号在 24px 粗体标题里，
          390px 宽要折成三行，比「正在等待支付」和付款按钮还显眼（TD-317）。 -->
-    <h2>等待支付</h2>
+    <h2 id="p-title">等待支付</h2>
     <p class="muted">订单 <span id="p-no"></span></p>
     <p class="muted" id="p-tip">正在等待支付…（每 3 秒自动查一次）</p>
     <div class="qr" id="p-qr"></div>

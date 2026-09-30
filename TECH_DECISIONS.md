@@ -1916,3 +1916,15 @@ TD-285 碰到过这一症状（表名 `a$b$` 的左括号被判在字符串里�
 **看过但不改**：ER 图解析失败的提示「未解析到任何 CREATE TABLE 语句」在按钮下方红字显示，两种宽度都清楚；Mermaid 未配置模型时后端说「未配置 LLM_API_KEY」，但前端已换成「AI 生成暂不可用（站点未开启模型服务）…」（`tests/test_llm_concurrency.py` 固定了这条翻译）；智能助手的答案与参考列表排版正常；业务代码写了中文原因的 404（如生产环境打开模拟收银台）在浏览器里仍显示 JSON，属于部署配置而非用户可达路径，不在本批处理。
 
 **测试**：`tests/test_site.py` 新增 `test_unknown_address_opened_in_browser_gets_site_404_page`（三个地址）与 `test_non_browser_404s_stay_json`；`tests/test_ui_accessibility.py` 新增 `test_drawio_manage_panel_loads_on_open_and_says_when_empty`（空列表、有文件、游客三种场景，源码与构建产物各一次）。前两类中浏览器 404 与流程图面板的用例在改前代码上失败（已用 git stash 验证）；`test_non_browser_404s_stay_json` 在改前改后都通过，它固定的是不应改变的行为。前端改动已 `npm run build` 并提交 `app/static/js`。
+
+## TD-334：商城「我的订单」里的过期待付款单
+
+**状态**：已实施（2026-09-30），优化阶段界面批次，接 TD-333 的第三轮截图。在开发库里造一张待付款单并把创建时间推到有效期之外，再截「我的订单」与点开后的状态区（390 与 1280 宽）。
+
+- **点开过期单先显示付款入口**：「我的订单」点一行时，页面直接按列表数据渲染，而 `GET /shop/orders` 的列表项没有 `expired` 字段（只有详情接口 `GET /shop/orders/{no}` 有）。于是过期的待付款单点开后显示「正在等待支付…（每 3 秒自动查一次）」和「前往收银台支付」（微信模式下是收款码），并开始轮询；第一次轮询（3 秒后）拿到详情才换成过期提示。列表项现在带 `expired`，与详情接口用同一个 `is_expired`；过期单也不再画收款码 SVG（TD-281 已经只给 pending 行画码，这里进一步排除过期的 pending 行）。
+- **过期后付款入口仍在**：即使拿到了 `expired`，旧代码仍照样画收款码、显示绿色的「前往收银台支付」，紧挨着「这张待付款订单已过期，请勿继续扫码」，标题也还是「等待支付」。现在过期单只显示订单号和过期提示（含「重新下单」），标题改为「订单已过期」；未过期单不变。
+- **列表行仍标「待付款」**：过期的待付款单在「我的订单」里标「已过期」，退款标记仍优先。
+
+**看过但不改**：「已关闭」状态区左对齐、待付款区居中，两者一直如此，内容短，不影响阅读；390 宽下 28 位订单号把「· 待付款」挤到第二行，是正常换行（TD-332 已记）。管理员订单页的过期显示不在本批范围。
+
+**测试**：`tests/test_shop_page.py` 新增 `test_order_history_marks_expired_pending_orders_and_drops_their_qr`（接口）与 `test_clicking_an_expired_history_row_shows_no_payment_entry`（过期与未过期两种，Node 真跑脚本）；`tests/test_ui_accessibility.py::test_pending_order_heading_states_the_status_not_the_order_number` 的标题断言改为带 id 的完整标记，检查强度不变。新增用例在改前代码上失败（已用 git stash 验证；未过期对照在旧代码上失败只因旧脚本不写标题）。前端改动已 `npm run build` 并提交 `app/static/js`。
